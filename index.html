@@ -1510,6 +1510,7 @@
       <div class="field">
         <label>Jumlah</label>
         <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="qtxAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="quick-chip-row" id="qtxAmountQuickRow"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
@@ -6322,6 +6323,35 @@ function renderQuickShortcuts(){
     </button>`).join('');
 }
 
+function renderQtxAmountQuickChips(categoryId){
+  const row = document.getElementById('qtxAmountQuickRow');
+  if(!row) return;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.getFullYear() + '-' + pad(cutoff.getMonth()+1) + '-' + pad(cutoff.getDate());
+  
+  let txs = getTransactions().filter(t => t.categoryId === categoryId && t.amount > 0 && t.date >= cutoffStr);
+  let topAmts = topFrequent(txs, t => t.amount, 6).map(Number);
+  
+  if(topAmts.length < 6){
+    const allCatTxs = getTransactions().filter(t => t.categoryId === categoryId && t.amount > 0);
+    const fallbackAmts = topFrequent(allCatTxs, t => t.amount, 6).map(Number);
+    fallbackAmts.forEach(a => {
+      if(!topAmts.includes(a) && topAmts.length < 6) topAmts.push(a);
+    });
+  }
+
+  if(topAmts.length === 0){ row.innerHTML = ''; return; }
+  row.innerHTML = topAmts.map(a => `<button type="button" class="quick-chip" data-amt="${a}">${formatRupiah(a)}</button>`).join('');
+  row.querySelectorAll('.quick-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setAmountValue('qtxAmount', Number(btn.dataset.amt));
+      row.querySelectorAll('.quick-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+}
+
 // ---- Modal: Transaksi Cepat ----
 let qtxWalletValue = null;
 function openQuickTxModal(categoryId){
@@ -6333,8 +6363,8 @@ function openQuickTxModal(categoryId){
   const lastTx = getTransactions().filter(t => t.categoryId === categoryId && t.walletId).slice(-1)[0];
   qtxWalletValue = (lastTx && lastTx.walletId) || (wallets[0] ? wallets[0].id : null);
   updateQtxWalletLabel();
-  const amt = modeAmountForCategory(categoryId);
-  document.getElementById('qtxAmount').value = amt ? amt.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+  document.getElementById('qtxAmount').value = '';
+  renderQtxAmountQuickChips(categoryId);
   document.getElementById('qtxNote').value = '';
   clearInvalid('modalQuickTx');
   openModal('modalQuickTx');
