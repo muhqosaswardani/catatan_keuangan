@@ -4732,19 +4732,18 @@ function buildInsightSummaryText(){
   const recurring = getRecurring();
   if(recurring.length > 0){
     lines.push('\n=== TAGIHAN BERULANG (CHECKLIST) ===');
-    let terlambat = [], jatuhTempo = [], sudahBayar = [];
+    let terlambat = [], jatuhTempo = [], sudahBayar = [], akanDatang = [];
     recurring.filter(r => r.active).forEach(r => {
       const s = recurringStatus(r);
-      if(s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ')');
+      if(s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
       else if(s === 'jatuh-tempo') jatuhTempo.push(r.name + ' (' + formatRupiah(r.amount) + ')');
-      else if(s === 'sudah-dibayar') sudahBayar.push(r.name);
+      else if(s === 'sudah-dibayar') sudahBayar.push(r.name + ' (' + formatRupiah(r.amount) + ')');
+      else if(s === 'akan-datang') akanDatang.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
     });
-    if(terlambat.length) lines.push('TERLAMBAT: ' + terlambat.join(', '));
-    if(jatuhTempo.length) lines.push('JATUH TEMPO: ' + jatuhTempo.join(', '));
-    if(sudahBayar.length) lines.push('Sudah dibayar periode ini: ' + sudahBayar.join(', '));
-    const belumBayar = recurring.filter(r => r.active && recurringStatus(r) !== 'sudah-dibayar');
-    const totalBelum = belumBayar.reduce((s,r) => s + r.amount, 0);
-    if(totalBelum > 0) lines.push('Total tagihan belum terbayar: ' + formatRupiah(totalBelum));
+    if(terlambat.length) lines.push('⚠ TERLAMBAT (sudah lewat jatuh tempo, BELUM dibayar): ' + terlambat.join(', '));
+    if(jatuhTempo.length) lines.push('⏰ JATUH TEMPO HARI INI: ' + jatuhTempo.join(', '));
+    if(sudahBayar.length) lines.push('✅ Sudah dibayar periode ini: ' + sudahBayar.join(', '));
+    if(akanDatang.length) lines.push('🔜 Akan datang (belum waktunya): ' + akanDatang.join(', '));
   }
 
   // --- Utang Piutang ---
