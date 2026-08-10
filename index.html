@@ -1147,6 +1147,21 @@
     </div>
   </div>
 
+  <!-- ============ MODAL: CUSTOM CONFIRM DIALOG ============ -->
+  <div class="modal-overlay" id="modalConfirmDialog" style="z-index:9999;">
+    <div class="modal" style="max-width:380px;text-align:center;padding:24px 20px;">
+      <div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;color:#dc2626;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;" id="confirmModalIcon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </div>
+      <h3 id="confirmModalTitle" style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;">Konfirmasi</h3>
+      <p id="confirmModalText" style="font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:20px;"></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button type="button" class="btn btn-ghost" id="confirmModalCancelBtn" style="padding:10px;" onclick="closeConfirmModal(false)">Batal</button>
+        <button type="button" class="btn btn-danger" id="confirmModalActionBtn" style="padding:10px;" onclick="closeConfirmModal(true)">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ FAB ============ -->
   <button class="fab" onclick="openAddChoice()" aria-label="Tambah">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
@@ -2157,28 +2172,56 @@ async function syncAllWithSupabase(silent = true) {
   }
 }
 
+let confirmModalResolver = null;
+
+function showConfirmModal(opts){
+  opts = opts || {};
+  const title = opts.title || 'Konfirmasi';
+  const text = opts.text || 'Apakah Anda yakin ingin melanjutkan?';
+  const actionText = opts.actionText || 'Ya, Hapus';
+  const actionClass = opts.danger === false ? 'btn btn-primary' : 'btn btn-danger';
+  const iconBg = opts.danger === false ? 'var(--accent-soft)' : '#fef2f2';
+  const iconColor = opts.danger === false ? 'var(--accent)' : '#dc2626';
+
+  document.getElementById('confirmModalTitle').textContent = title;
+  document.getElementById('confirmModalText').textContent = text;
+
+  const actionBtn = document.getElementById('confirmModalActionBtn');
+  actionBtn.textContent = actionText;
+  actionBtn.className = actionClass;
+
+  const iconEl = document.getElementById('confirmModalIcon');
+  if(iconEl){
+    iconEl.style.background = iconBg;
+    iconEl.style.color = iconColor;
+  }
+
+  openModal('modalConfirmDialog');
+
+  return new Promise((resolve) => {
+    confirmModalResolver = resolve;
+  });
+}
+
+function closeConfirmModal(result){
+  closeModal('modalConfirmDialog');
+  if(confirmModalResolver){
+    const resolve = confirmModalResolver;
+    confirmModalResolver = null;
+    resolve(result);
+  }
+}
+
 function copySyncUrlToClipboard() {
   const fullUrl = window.location.href;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(fullUrl).then(() => {
       showToast('Link sinkron berhasil disalin! Buka link ini di HP/PC Anda.');
     }).catch(() => {
-      prompt('Salin link ini untuk dibuka di HP/PC Anda:', fullUrl);
+      showToast('Silakan salin URL di address bar browser Anda.');
     });
   } else {
-    prompt('Salin link ini untuk dibuka di HP/PC Anda:', fullUrl);
-  }
-}
-
-function changeAccessCodePrompt() {
-  const current = getAccessCode();
-  const input = prompt('Masukkan Kode Akses unik Anda (atau paste dari HP/PC):', current);
-  if (input && input.trim() && input.trim() !== current) {
-    const cleanCode = input.trim();
-    localStorage.setItem('catatan_keuangan_access_code', cleanCode);
-    const params = new URLSearchParams(window.location.search);
-    params.set('akses', cleanCode);
-    window.location.search = params.toString();
+    showToast('Silakan salin URL di address bar browser Anda.');
   }
 }
 
@@ -4726,10 +4769,15 @@ function submitTransaction(){
   refreshAllViews();
 }
 
-function deleteCurrentTransaction(){
+async function deleteCurrentTransaction(){
   const txId = document.getElementById('txId').value;
   if(!txId) return;
-  if(!confirm('Hapus transaksi ini?')) return;
+  const confirmed = await showConfirmModal({
+    title: 'Hapus Transaksi',
+    text: 'Hapus catatan transaksi ini? Saldo dompet akan disesuaikan kembali.',
+    actionText: 'Ya, Hapus'
+  });
+  if(!confirmed) return;
   deleteTransaction(txId);
   closeModal('modalTransaction');
   showToast('Transaksi dihapus');
@@ -4954,7 +5002,7 @@ function isWalletStillUsed(walletId, excludeGoalId){
   return false;
 }
 
-function deleteCurrentGoal(){
+async function deleteCurrentGoal(){
   const id = document.getElementById('goalId').value;
   if(!id) return;
   const goal = getGoals().find(g => g.id === id);
@@ -4964,13 +5012,17 @@ function deleteCurrentGoal(){
 
   let msg = 'Hapus tujuan tabungan ini?';
   if(willDeleteWallet){
-    msg += ' Dompet "' + wallet.name + '" sudah tidak dipakai di mana pun, jadi dompetnya bakal ikut dihapus';
-    if(wallet.balance > 0) msg += ' (saldo ' + formatRupiah(wallet.balance) + ' di dalamnya juga ikut hilang)';
-    msg += '.';
+    msg += ' Dompet "' + wallet.name + '" sudah tidak dipakai di mana pun, jadi dompetnya bakal ikut dihapus.';
   } else {
     msg += ' Saldo di dompetnya tidak akan hilang, cuma catatan tujuannya yang dihapus.';
   }
-  if(!confirm(msg)) return;
+
+  const confirmed = await showConfirmModal({
+    title: 'Hapus Tujuan',
+    text: msg,
+    actionText: 'Ya, Hapus'
+  });
+  if(!confirmed) return;
 
   setGoals(getGoals().filter(g => g.id !== id));
   if(willDeleteWallet){
@@ -5207,10 +5259,15 @@ function submitDebtForm(){
   renderDebts();
   if(document.getElementById('modalDebtPersonDetail').classList.contains('open')) renderDebtPersonDetailList();
 }
-function deleteCurrentDebt(){
+async function deleteCurrentDebt(){
   const id = document.getElementById('debtId').value;
   if(!id) return;
-  if(!confirm('Hapus catatan ini?')) return;
+  const confirmed = await showConfirmModal({
+    title: 'Hapus Utang/Piutang',
+    text: 'Hapus catatan utang/piutang ini?',
+    actionText: 'Ya, Hapus'
+  });
+  if(!confirmed) return;
   setDebts(getDebts().filter(d => d.id !== id));
   closeModal('modalDebtForm');
   showToast('Catatan dihapus');
@@ -6006,7 +6063,12 @@ async function deleteWalletManual(walletId){
   const wallet = walletById(walletId);
   if(!wallet) return;
 
-  if(!confirm(`Hapus dompet "${wallet.name}"? Saldo ${formatRupiah(wallet.balance)} dan dompet ini akan dihapus.`)) return;
+  const confirmed = await showConfirmModal({
+    title: 'Hapus Dompet',
+    text: `Hapus dompet "${wallet.name}"? Saldo ${formatRupiah(wallet.balance)} dan dompet ini akan dihapus.`,
+    actionText: 'Ya, Hapus'
+  });
+  if(!confirmed) return;
 
   // Remove from local storage
   const nextWallets = getWallets().filter(w => w.id !== walletId);
@@ -6058,10 +6120,15 @@ function importData(e){
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = function(evt){
+  reader.onload = async function(evt){
     try{
       const data = JSON.parse(evt.target.result);
-      if(!confirm('Import akan menimpa seluruh data saat ini. Lanjutkan?')) return;
+      const confirmed = await showConfirmModal({
+        title: 'Import Data',
+        text: 'Import akan menimpa seluruh data saat ini. Apakah Anda yakin ingin melanjutkan?',
+        actionText: 'Ya, Timpa Data'
+      });
+      if(!confirmed) return;
       if(data.wallets) setWallets(data.wallets);
       if(data.transactions) setTransactions(data.transactions);
       if(data.categories) setCategories(data.categories);
@@ -6249,8 +6316,13 @@ function addCategoryFromManager(){
   renderCatManageList();
   showToast('Kategori ditambahkan');
 }
-function deleteCategoryManaged(id){
-  if(!confirm('Hapus kategori ini? Transaksi lama tetap menyimpan nama kategori aslinya.')) return;
+async function deleteCategoryManaged(id){
+  const confirmed = await showConfirmModal({
+    title: 'Hapus Kategori',
+    text: 'Hapus kategori ini? Transaksi lama tetap menyimpan nama kategori aslinya.',
+    actionText: 'Ya, Hapus'
+  });
+  if(!confirmed) return;
   setCategories(getCategories().filter(c => c.id !== id));
   renderCatManageList();
 }
@@ -6484,10 +6556,15 @@ function toggleRecurringActiveUI(id, active){
   renderRecurringHomeAlert();
   showToast(active ? 'Item diaktifkan kembali' : 'Item dinonaktifkan');
 }
-function deleteCurrentRecurringItem(){
+async function deleteCurrentRecurringItem(){
   const id = document.getElementById('recId').value;
   if(!id) return;
-  if(!confirm('Hapus item berulang ini? Riwayat transaksi yang sudah tercatat sebelumnya tidak akan terhapus.')) return;
+  const confirmed = await showConfirmModal({
+    title: 'Hapus Transaksi Berulang',
+    text: 'Hapus item berulang ini? Riwayat transaksi yang sudah tercatat sebelumnya tidak akan terhapus.',
+    actionText: 'Ya, Hapus'
+  });
+  if(!confirmed) return;
   deleteRecurringItem(id);
   closeModal('modalRecurringForm');
   renderRecurringManageList();
