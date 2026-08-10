@@ -2053,6 +2053,17 @@ async function syncAllWithSupabase(silent = true) {
   const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals()]);
 
   try {
+    // A. Check if the database has been reset/purged on another device
+    const { data: remSettings, error: settErr } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
+    if (!settErr && !remSettings && getTransactions().length > 0) {
+      console.log('Database reset detected on server. Resetting local state...');
+      Object.values(LS_KEYS).forEach(k => {
+        if (k !== 'catatan_keuangan_access_code') localStorage.removeItem(k);
+      });
+      location.reload();
+      return;
+    }
+
     // 1. Wallets
     const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
     if (remWallets) {
