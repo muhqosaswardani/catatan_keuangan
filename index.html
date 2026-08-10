@@ -5679,8 +5679,8 @@ function openLainnyaSheet(){
   const other = navOtherPages(core);
   const wrap = document.getElementById('lainnyaList');
   wrap.innerHTML = other.map(tab => `
-    <button type="button" class="settings-row" style="width:100%;border:none;background:none;cursor:pointer;text-align:left;padding-left:0;padding-right:0;" onclick="chooseLainnyaTab('${tab}')">
-      <div class="l" style="display:flex;align-items:center;gap:12px;">
+    <button type="button" class="settings-row-card" style="margin-bottom:8px;" onclick="chooseLainnyaTab('${tab}')">
+      <div class="sr-title" style="display:flex;align-items:center;gap:12px;justify-content:flex-start;">
         ${navIconBoxHtml(tab)}
         <span>${PAGE_META[tab].label}</span>
       </div>
