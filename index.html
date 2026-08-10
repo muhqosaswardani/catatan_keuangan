@@ -2233,7 +2233,7 @@ async function syncAllWithSupabase(silent = true) {
   try {
     // A. Check if another device has triggered a full reset via reset_at signal in user_settings,
     // and also fetch deleted_ids to prevent deleted items from restoring.
-    const { data: remChkSettings } = await supabaseClient.from('user_settings').select('reset_at, deleted_ids').eq('access_code', code).maybeSingle();
+    const { data: remChkSettings } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
     if (remChkSettings && remChkSettings.reset_at) {
       const serverResetAt = new Date(remChkSettings.reset_at).getTime();
       const localLastResetAt = Number(localStorage.getItem('last_reset_at') || 0);
