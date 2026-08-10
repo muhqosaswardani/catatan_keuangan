@@ -2417,7 +2417,14 @@ async function syncAllWithSupabase(silent = true) {
     try {
       if (remChkSettings) {
         if (remChkSettings.nav_config && remChkSettings.nav_config.core) {
-          setNavConfigLocalOnly(remChkSettings.nav_config);
+          const localCfg = getNavConfig();
+          const remoteCfg = remChkSettings.nav_config;
+          // Merge: keep local heroWallets if remote doesn't have them, or use remote if present
+          const merged = { ...remoteCfg };
+          if (localCfg.heroWallets && (!remoteCfg.heroWallets || !Array.isArray(remoteCfg.heroWallets))) {
+            merged.heroWallets = localCfg.heroWallets;
+          }
+          setNavConfigLocalOnly(merged);
         }
         if (remChkSettings.sheets_web_app_url != null) {
           const curS = getSettings();
@@ -6940,10 +6947,22 @@ function saveHeroWalletSetting(){
     showToast('Pilih minimal 1 dompet');
     return;
   }
-  setHeroWallets(checked);
+  // Save locally without triggering full sync (avoids pull-overwrite race + tab glitch)
+  const cfg = getNavConfig();
+  cfg.heroWallets = checked;
+  setNavConfigLocalOnly(cfg);
   closeModal('modalHeroWallets');
   renderHome();
   showToast('Pengaturan Total Saldo disimpan');
+  // Push to Supabase in background (push-only, no pull)
+  if (supabaseClient && navigator.onLine) {
+    const code = getAccessCode();
+    supabaseClient.from('user_settings').upsert({
+      access_code: code,
+      nav_config: cfg,
+      updated_at: new Date().toISOString()
+    }).then(() => { console.log('Hero wallet setting synced'); }).catch(e => { console.warn('Hero wallet sync error:', e); });
+  }
 }
 
 /* =========================================================
