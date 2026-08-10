@@ -436,7 +436,7 @@
 
   /* Settings */
   .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);}
-  .settings-row-card{display:block;width:100%;padding:15px 18px;border:none;background:var(--surface);border-radius:14px;text-align:left;cursor:pointer;transition:background .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:10px;font-family:inherit;}
+  .settings-row-card{display:block;width:100%;padding:15px 18px;border:1.5px solid var(--line);background:var(--surface);border-radius:14px;text-align:left;cursor:pointer;transition:background .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:10px;font-family:inherit;}
   .settings-row-card:last-child{margin-bottom:0;}
   .settings-row-card:active{background:var(--surface-2);box-shadow:0 0 0 2px var(--accent);}
   .settings-row-card .sr-title{font-size:14px;font-weight:700;color:var(--ink);display:flex;align-items:center;justify-content:space-between;}
@@ -945,36 +945,25 @@
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:0;">
         <button type="button" class="settings-row-card" onclick="exportData()">
           <div class="sr-title">Export Data <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Unduh semua data sebagai file JSON</div>
         </button>
         <button type="button" class="settings-row-card" onclick="document.getElementById('importFileInput').click()">
           <div class="sr-title">Import Data <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Pulihkan data dari file JSON</div>
         </button>
         <input type="file" id="importFileInput" accept="application/json" style="display:none" onchange="importData(event)">
         <button type="button" class="settings-row-card" onclick="setCatManageType('expense');openModal('modalCategories')">
           <div class="sr-title">Kelola Kategori <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Tambah / hapus kategori income &amp; expense</div>
-        </button>
-        <button type="button" class="settings-row-card" onclick="openRecurringManage()">
-          <div class="sr-title">Pengingat Transaksi Berulang <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Tagihan, cicilan, gaji, dsb yang rutin tiap bulan</div>
         </button>
         <button type="button" class="settings-row-card" onclick="openNavConfigManage()">
           <div class="sr-title">Susun Bottom Nav <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Atur halaman apa saja yang tampil langsung di navigasi bawah (HP)</div>
         </button>
         <button type="button" class="settings-row-card" onclick="copySyncUrlToClipboard()">
-          <div class="sr-title">Salin Link HP ↔ PC <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Salin URL untuk membuka data yang sama di perangkat lain</div>
+          <div class="sr-title">Salin Link <span class="sr-arrow">›</span></div>
         </button>
         <button type="button" class="settings-row-card" onclick="changeAccessCodePrompt()">
           <div class="sr-title">Masukkan Kode Akses Lain <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Ganti ke akun / kode akses yang berbeda</div>
         </button>
         <button type="button" class="settings-row-card danger" onclick="openResetConfirm()">
           <div class="sr-title">Reset Semua Data <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Menghapus seluruh dompet, transaksi, budget</div>
         </button>
       </div>
     </div>
