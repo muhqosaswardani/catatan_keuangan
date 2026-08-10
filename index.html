@@ -1974,7 +1974,7 @@ async function syncAllWithSupabase(silent = true) {
   isSyncingData = true;
   updateSyncStatusUI('syncing', !silent);
   const code = getAccessCode();
-  const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig()]);
+  const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache()]);
 
   try {
     // 1. Wallets
@@ -2044,8 +2044,13 @@ async function syncAllWithSupabase(silent = true) {
         if (remSettings.shortcut_overrides) {
           setShortcutOverridesLocalOnly(remSettings.shortcut_overrides);
         }
-        if (remSettings.insight_cache) {
-          setInsightCache(remSettings.insight_cache);
+        if (remSettings.insight_cache && remSettings.insight_cache.generatedAt) {
+          const localCache = getInsightCache();
+          const remGen = Number(remSettings.insight_cache.generatedAt) || 0;
+          const locGen = Number(localCache.generatedAt) || 0;
+          if (remGen >= locGen) {
+            setInsightCacheLocalOnly(remSettings.insight_cache);
+          }
         }
         if (remSettings.onboarded) {
           localStorage.setItem(LS_KEYS.onboarded, '1');
@@ -2064,11 +2069,12 @@ async function syncAllWithSupabase(silent = true) {
       console.warn('User settings sync warn:', sErr);
     }
 
-    const afterHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig()]);
+    const afterHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache()]);
     updateSyncStatusUI('online');
     if (beforeHash !== afterHash) {
       if (typeof renderBottomNav === 'function') renderBottomNav();
       if (typeof refreshAllViews === 'function') refreshAllViews();
+      if (typeof renderInsightUI === 'function') renderInsightUI();
     }
     if (!silent) showToast('Sinkronisasi Supabase Berhasil!');
   } catch (err) {
@@ -2176,7 +2182,11 @@ function setRecurring(r){
 }
 
 function getInsightCache(){ return JSON.parse(localStorage.getItem(LS_KEYS.insights) || '{"text":"","generatedAt":0}'); }
-function setInsightCache(i){ localStorage.setItem(LS_KEYS.insights, JSON.stringify(i)); }
+function setInsightCacheLocalOnly(i){ localStorage.setItem(LS_KEYS.insights, JSON.stringify(i)); }
+function setInsightCache(i){
+  setInsightCacheLocalOnly(i);
+  syncAllWithSupabase(true);
+}
 
 function getShortcutOverrides(){ return JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '{}'); }
 function setShortcutOverridesLocalOnly(o){ localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(o)); }
