@@ -6315,11 +6315,10 @@ function renderQuickShortcuts(){
     return;
   }
   if(empty) empty.style.display = 'none';
-  wrap.innerHTML = list.map(({cat, amount}) => `
+  wrap.innerHTML = list.map(({cat}) => `
     <button type="button" class="qs-btn" onclick="openQuickTxModal('${cat.id}')">
       ${categoryIconBoxHtml(cat, {size:34, iconSize:19, radius:9})}
       <div class="qs-name">${escAttr(cat.name)}</div>
-      <div class="qs-amt">${amount ? formatRupiah(amount) : '—'}</div>
     </button>`).join('');
 }
 
