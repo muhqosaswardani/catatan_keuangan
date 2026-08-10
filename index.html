@@ -6420,7 +6420,10 @@ function pickCatIcon(key){
   if(catEditingId){
     const cats = getCategories();
     const cat = cats.find(c => c.id === catEditingId);
-    if(cat) cat.icon = key;
+    if(cat) {
+      cat.icon = key;
+      cat.updatedAt = Date.now(); // mark as updated so sync pushes the new icon to all devices
+    }
     setCategories(cats);
     renderCatManageList();
   } else {
