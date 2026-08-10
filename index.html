@@ -1814,8 +1814,67 @@ const LS_KEYS = {
   goals: 'fk_goals',
   debts: 'fk_debts',
   navConfig: 'fk_navconfig',
-  insights: 'fk_insights'
+  insights: 'fk_insights',
+  deletedIds: 'fk_deleted_ids'
 };
+
+function getDeletedIds() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEYS.deletedIds) || '[]');
+  } catch(e) {
+    return [];
+  }
+}
+
+function setDeletedIds(list) {
+  localStorage.setItem(LS_KEYS.deletedIds, JSON.stringify(list || []));
+}
+
+function recordDeletion(id) {
+  if (!id) return;
+  const list = getDeletedIds();
+  if (!list.includes(id)) {
+    list.push(id);
+    setDeletedIds(list);
+  }
+  // Immediately trigger sync in background if online to propagate deletions
+  if (typeof syncAllWithSupabase === 'function') {
+    syncAllWithSupabase(true);
+  }
+}
+
+function applyDeletedIdsFilter(deletedList) {
+  if (!deletedList || deletedList.length === 0) return;
+  const set = new Set(deletedList.map(String));
+
+  // 1. Wallets
+  const w = getWallets().filter(x => !set.has(String(x.id)));
+  if (w.length !== getWallets().length) setWalletsLocalOnly(w);
+
+  // 2. Transactions
+  const t = getTransactions().filter(x => !set.has(String(x.id)));
+  if (t.length !== getTransactions().length) setTransactionsLocalOnly(t);
+
+  // 3. Categories
+  const c = getCategories().filter(x => !set.has(String(x.id)));
+  if (c.length !== getCategories().length) setCategoriesLocalOnly(c);
+
+  // 4. Budgets
+  const b = getBudgets().filter(x => !set.has(String(x.id)));
+  if (b.length !== getBudgets().length) setBudgetsLocalOnly(b);
+
+  // 5. Goals
+  const g = getGoals().filter(x => !set.has(String(x.id)));
+  if (g.length !== getGoals().length) setGoalsLocalOnly(g);
+
+  // 6. Debts
+  const d = getDebts().filter(x => !set.has(String(x.id)));
+  if (d.length !== getDebts().length) setDebtsLocalOnly(d);
+
+  // 7. Recurring items
+  const r = getRecurring().filter(x => !set.has(String(x.id)));
+  if (r.length !== getRecurring().length) setRecurringLocalOnly(r);
+}
 
 /* =========================================================
    CATEGORY ICON LIBRARY — svg kustom + warna per kategori
@@ -2056,9 +2115,9 @@ async function syncAllWithSupabase(silent = true) {
   const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
 
   try {
-    // A. Check if another device has triggered a full reset via reset_at signal in user_settings.
-    // This is robust because it works even after the resetting device has already re-seeded default wallets.
-    const { data: remChkSettings } = await supabaseClient.from('user_settings').select('reset_at').eq('access_code', code).maybeSingle();
+    // A. Check if another device has triggered a full reset via reset_at signal in user_settings,
+    // and also fetch deleted_ids to prevent deleted items from restoring.
+    const { data: remChkSettings } = await supabaseClient.from('user_settings').select('reset_at, deleted_ids').eq('access_code', code).maybeSingle();
     if (remChkSettings && remChkSettings.reset_at) {
       const serverResetAt = new Date(remChkSettings.reset_at).getTime();
       const localLastResetAt = Number(localStorage.getItem('last_reset_at') || 0);
@@ -2072,10 +2131,24 @@ async function syncAllWithSupabase(silent = true) {
       }
     }
 
+    // A2. Synchronize and merge deleted_ids list
+    let remDeletedIds = [];
+    if (remChkSettings && remChkSettings.deleted_ids && Array.isArray(remChkSettings.deleted_ids)) {
+      remDeletedIds = remChkSettings.deleted_ids;
+    }
+    const localDeleted = getDeletedIds();
+    const mergedDeleted = Array.from(new Set([...localDeleted, ...remDeletedIds].map(String)));
+    setDeletedIds(mergedDeleted);
+    
+    // Purge local lists of deleted items before merging to prevent them from propagating back
+    applyDeletedIdsFilter(mergedDeleted);
+    const deletedSet = new Set(mergedDeleted);
+
     // 1. Wallets
     const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
     if (remWallets) {
-      const mapped = remWallets.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const filtered = remWallets.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
       const merged = mergeWallets(getWallets(), mapped);
       setWalletsLocalOnly(merged);
       const pushRecs = merged.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
@@ -2087,7 +2160,8 @@ async function syncAllWithSupabase(silent = true) {
     // 2. Transactions
     const { data: remTx } = await supabaseClient.from('transactions').select('*').eq('access_code', code);
     if (remTx) {
-      const mapped = remTx.map(r => ({
+      const filtered = remTx.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({
         id: r.id, walletId: r.wallet_id, categoryId: r.category_id, category: r.category,
         type: r.type, amount: Number(r.amount) || 0, date: r.date, note: r.note,
         toWalletId: r.to_wallet_id, updatedAt: new Date(r.updated_at).getTime()
@@ -2105,7 +2179,8 @@ async function syncAllWithSupabase(silent = true) {
     // 3. Categories
     const { data: remCats } = await supabaseClient.from('categories').select('*').eq('access_code', code);
     if (remCats) {
-      const mapped = remCats.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: new Date(r.updated_at).getTime() }));
+      const filtered = remCats.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: new Date(r.updated_at).getTime() }));
       const merged = mergeCategories(getCategories(), mapped);
       setCategoriesLocalOnly(merged);
       const pushRecs = merged.map(c => ({ id: c.id, access_code: code, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
@@ -2117,7 +2192,8 @@ async function syncAllWithSupabase(silent = true) {
     // 4. Budgets
     const { data: remBudgets } = await supabaseClient.from('budgets').select('*').eq('access_code', code);
     if (remBudgets) {
-      const mapped = remBudgets.map(r => ({ id: r.id, categoryId: r.category_id, month: r.month, limit: Number(r.limit_amount) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const filtered = remBudgets.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({ id: r.id, categoryId: r.category_id, month: r.month, limit: Number(r.limit_amount) || 0, updatedAt: new Date(r.updated_at).getTime() }));
       const local = getBudgets().map(b => ({ ...b, id: b.id || (b.categoryId + '_' + b.month) }));
       const merged = mergeEntities(local, mapped);
       setBudgetsLocalOnly(merged);
@@ -2128,7 +2204,8 @@ async function syncAllWithSupabase(silent = true) {
     // 5. Savings Goals (Tujuan)
     const { data: remGoals } = await supabaseClient.from('savings_goals').select('*').eq('access_code', code);
     if (remGoals) {
-      const mapped = remGoals.map(r => ({
+      const filtered = remGoals.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({
         id: r.id, name: r.name, targetAmount: Number(r.target_amount) || 0,
         walletId: r.wallet_id, targetDate: r.target_date, updatedAt: new Date(r.updated_at).getTime()
       }));
@@ -2144,7 +2221,8 @@ async function syncAllWithSupabase(silent = true) {
     // 6. Debts (debt_entries)
     const { data: remDebts } = await supabaseClient.from('debt_entries').select('*').eq('access_code', code);
     if (remDebts) {
-      const mapped = remDebts.map(r => ({
+      const filtered = remDebts.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({
         id: r.id, personName: r.person_name, type: r.type, amount: Number(r.amount) || 0,
         date: r.date, note: r.note, dueDate: r.due_date, status: r.status,
         payoffWalletId: r.payoff_wallet_id, payoffDate: r.payoff_date,
@@ -2164,7 +2242,8 @@ async function syncAllWithSupabase(silent = true) {
     // 7. Recurring items (recurring_items)
     const { data: remRec } = await supabaseClient.from('recurring_items').select('*').eq('access_code', code);
     if (remRec) {
-      const mapped = remRec.map(r => ({
+      const filtered = remRec.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({
         id: r.id, name: r.name, type: r.type, amount: Number(r.amount) || 0,
         walletId: r.wallet_id, categoryId: r.category_id,
         dayOfMonth: r.day_of_month, active: r.active !== false,
@@ -2183,29 +2262,28 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs3.length > 0) await supabaseClient.from('recurring_items').upsert(pushRecs3);
     }
 
-    // 6. User Settings, Nav Config, Shortcuts & AI Insights Sync
+    // 8. User Settings, Nav Config, Shortcuts, AI Insights & Deleted IDs Sync
     try {
-      const { data: remSettings } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
-      if (remSettings) {
-        if (remSettings.nav_config && remSettings.nav_config.core) {
-          setNavConfigLocalOnly(remSettings.nav_config);
+      if (remChkSettings) {
+        if (remChkSettings.nav_config && remChkSettings.nav_config.core) {
+          setNavConfigLocalOnly(remChkSettings.nav_config);
         }
-        if (remSettings.sheets_web_app_url != null) {
+        if (remChkSettings.sheets_web_app_url != null) {
           const curS = getSettings();
-          setSettingsLocalOnly({ ...curS, sheetsWebAppUrl: remSettings.sheets_web_app_url });
+          setSettingsLocalOnly({ ...curS, sheetsWebAppUrl: remChkSettings.sheets_web_app_url });
         }
-        if (remSettings.shortcut_overrides) {
-          setShortcutOverridesLocalOnly(remSettings.shortcut_overrides);
+        if (remChkSettings.shortcut_overrides) {
+          setShortcutOverridesLocalOnly(remChkSettings.shortcut_overrides);
         }
-        if (remSettings.insight_cache && remSettings.insight_cache.generatedAt) {
+        if (remChkSettings.insight_cache && remChkSettings.insight_cache.generatedAt) {
           const localCache = getInsightCache();
-          const remGen = Number(remSettings.insight_cache.generatedAt) || 0;
+          const remGen = Number(remChkSettings.insight_cache.generatedAt) || 0;
           const locGen = Number(localCache.generatedAt) || 0;
           if (remGen >= locGen) {
-            setInsightCacheLocalOnly(remSettings.insight_cache);
+            setInsightCacheLocalOnly(remChkSettings.insight_cache);
           }
         }
-        if (remSettings.onboarded) {
+        if (remChkSettings.onboarded) {
           localStorage.setItem(LS_KEYS.onboarded, '1');
         }
       }
@@ -2216,6 +2294,7 @@ async function syncAllWithSupabase(silent = true) {
         shortcut_overrides: getShortcutOverrides(),
         insight_cache: getInsightCache(),
         onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
+        deleted_ids: mergedDeleted,
         updated_at: new Date().toISOString()
       });
     } catch (sErr) {
@@ -2819,6 +2898,11 @@ function editTransaction(id, updated){
 }
 
 function deleteTransaction(id){
+  recordDeletion(id);
+  if(supabaseClient && navigator.onLine){
+    const code = getAccessCode();
+    supabaseClient.from('transactions').delete().eq('access_code', code).eq('id', id).catch(err => console.warn('Supabase tx delete err:', err));
+  }
   const txs = getTransactions();
   const idx = txs.findIndex(t => t.id === id);
   if(idx === -1) return;
@@ -2936,6 +3020,11 @@ function updateRecurringItem(id, updated){
   setRecurring(list);
 }
 function deleteRecurringItem(id){
+  recordDeletion(id);
+  if(supabaseClient && navigator.onLine){
+    const code = getAccessCode();
+    supabaseClient.from('recurring_items').delete().eq('access_code', code).eq('id', id).catch(err => console.warn('Supabase recurring delete err:', err));
+  }
   setRecurring(getRecurring().filter(r => r.id !== id));
 }
 function setRecurringItemActive(id, active){
@@ -5179,10 +5268,12 @@ async function deleteCurrentGoal(){
   }
 
   // 2. Then update local storage and trigger sync (which will pull updated database state)
-  setGoals(getGoals().filter(g => g.id !== id));
+  recordDeletion(id);
   if(willDeleteWallet){
+    recordDeletion(walletId);
     setWallets(getWallets().filter(w => w.id !== walletId));
   }
+  setGoals(getGoals().filter(g => g.id !== id));
   closeModal('modalGoalForm');
   showToast(willDeleteWallet ? 'Tujuan & dompetnya dihapus' : 'Tujuan dihapus');
   renderGoals();
@@ -5410,6 +5501,16 @@ async function deleteCurrentDebt(){
   });
   if(!confirmed) return;
   await new Promise(r => setTimeout(r, 150));
+  if(supabaseClient && navigator.onLine){
+    try {
+      const code = getAccessCode();
+      await supabaseClient.from('debt_entries').delete().eq('access_code', code).eq('id', id);
+    } catch(err){
+      console.warn('Supabase debt delete err:', err);
+    }
+  }
+
+  recordDeletion(id);
   setDebts(getDebts().filter(d => d.id !== id));
   closeModal('modalDebtForm');
   showToast('Catatan dihapus');
@@ -6224,6 +6325,7 @@ async function deleteWalletManual(walletId){
   }
 
   // 2. Then update local storage and trigger sync (which will pull updated database state)
+  recordDeletion(walletId);
   const nextWallets = getWallets().filter(w => w.id !== walletId);
   setWallets(nextWallets);
 
@@ -6513,6 +6615,16 @@ async function deleteCategoryManaged(id){
   });
   if(!confirmed) return;
   await new Promise(r => setTimeout(r, 150));
+  if(supabaseClient && navigator.onLine){
+    try {
+      const code = getAccessCode();
+      await supabaseClient.from('categories').delete().eq('access_code', code).eq('id', id);
+    } catch(err){
+      console.warn('Supabase category delete err:', err);
+    }
+  }
+
+  recordDeletion(id);
   setCategories(getCategories().filter(c => c.id !== id));
   renderCatManageList();
 }
