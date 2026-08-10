@@ -6,6 +6,7 @@
 <title>Catatan Keuangan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* Chart.js v4.4.4 - dibundel offline agar tetap jalan saat file dibuka lokal (content://, file://) tanpa internet */
 /*!
@@ -930,6 +931,17 @@
 
       <div class="card" style="margin-top:14px;">
         <div class="settings-row">
+          <div class="l">
+            Sinkronisasi Supabase (Database Online)
+            <small id="accessCodeText" style="display:block;font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;">Kode Akses URL: -</small>
+          </div>
+          <span class="sync-status-badge badge" style="padding:4px 10px;font-size:11.5px;border-radius:20px;font-weight:600;background:#fef2f2;color:#dc2626;">📱 Mode Offline</span>
+        </div>
+        <button class="btn btn-secondary btn-block" style="margin-top:12px;" onclick="syncAllWithSupabase(false)">⚡ Sinkronkan Sekarang (Supabase)</button>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="settings-row">
           <div class="l">Export Data<small>Unduh semua data sebagai file JSON</small></div>
           <button class="btn btn-ghost btn-sm" onclick="exportData()">Export</button>
         </div>
@@ -1808,23 +1820,186 @@ function defaultIconForCategoryName(name){
 }
 function defaultColorForIndex(i){ return CATEGORY_COLOR_PALETTE[i % CATEGORY_COLOR_PALETTE.length]; }
 
-// TODO Fase 2: ganti localStorage dengan fetch() ke Google Apps Script Web App
+/* =========================================================
+   SUPABASE & OFFLINE-FIRST DATA LAYER INTEGRATION
+   ========================================================= */
+const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
+
+let supabaseClient = null;
+if (window.supabase && window.supabase.createClient) {
+  try {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  } catch (err) {
+    console.warn('Gagal inisialisasi Supabase Client:', err);
+  }
+}
+
+// Access Code Generator & URL Manager (?akses=...)
+function getAccessCode() {
+  const params = new URLSearchParams(window.location.search);
+  let code = params.get('akses') || params.get('access_code');
+  if (!code) {
+    code = localStorage.getItem('catatan_keuangan_access_code');
+  }
+  if (!code) {
+    code = 'ak_' + Math.random().toString(36).substring(2, 9);
+    localStorage.setItem('catatan_keuangan_access_code', code);
+  } else {
+    localStorage.setItem('catatan_keuangan_access_code', code);
+  }
+  if (!params.get('akses')) {
+    params.set('akses', code);
+    const newUrl = window.location.pathname + '?' + params.toString() + window.location.hash;
+    window.history.replaceState({ path: newUrl }, '', newUrl);
+  }
+  return code;
+}
+
+let isSyncingData = false;
+
+function updateSyncStatusUI(status) {
+  const badges = document.querySelectorAll('.sync-status-badge');
+  badges.forEach(el => {
+    if (status === 'syncing') {
+      el.style.background = '#eef2ff'; el.style.color = '#4f46e5';
+      el.textContent = '🔄 Menyinkronkan...';
+    } else if (status === 'online') {
+      el.style.background = '#ecfdf5'; el.style.color = '#059669';
+      el.textContent = '☁️ Supabase Online';
+    } else {
+      el.style.background = '#fef2f2'; el.style.color = '#dc2626';
+      el.textContent = '📱 Mode Offline (Lokal)';
+    }
+  });
+}
+
+function mergeEntities(localList, remoteList) {
+  const map = new Map();
+  (localList || []).forEach(item => {
+    if (item && item.id) map.set(String(item.id), item);
+  });
+  (remoteList || []).forEach(remote => {
+    if (!remote || !remote.id) return;
+    const key = String(remote.id);
+    const local = map.get(key);
+    if (!local) {
+      map.set(key, remote);
+    } else {
+      const localTime = local.updatedAt || 0;
+      const remoteTime = remote.updatedAt || 0;
+      if (remoteTime >= localTime) {
+        map.set(key, remote);
+      }
+    }
+  });
+  return Array.from(map.values());
+}
+
+async function syncAllWithSupabase(silent = true) {
+  if (!supabaseClient || !navigator.onLine) {
+    updateSyncStatusUI('offline');
+    if (!silent) showToast('Mode Offline (Lokal) - Data disimpan di HP');
+    return;
+  }
+
+  isSyncingData = true;
+  updateSyncStatusUI('syncing');
+  const code = getAccessCode();
+
+  try {
+    // 1. Wallets
+    const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
+    if (remWallets) {
+      const mapped = remWallets.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const merged = mergeEntities(getWallets(), mapped);
+      setWalletsLocalOnly(merged);
+      const pushRecs = merged.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
+      if (pushRecs.length > 0) await supabaseClient.from('wallets').upsert(pushRecs);
+    }
+
+    // 2. Transactions
+    const { data: remTx } = await supabaseClient.from('transactions').select('*').eq('access_code', code);
+    if (remTx) {
+      const mapped = remTx.map(r => ({
+        id: r.id, walletId: r.wallet_id, categoryId: r.category_id, category: r.category,
+        type: r.type, amount: Number(r.amount) || 0, date: r.date, note: r.note,
+        toWalletId: r.to_wallet_id, updatedAt: new Date(r.updated_at).getTime()
+      }));
+      const merged = mergeEntities(getTransactions(), mapped);
+      setTransactionsLocalOnly(merged);
+      const pushRecs = merged.map(t => ({
+        id: t.id, access_code: code, wallet_id: t.walletId, category_id: t.categoryId, category: t.category,
+        type: t.type, amount: t.amount, date: t.date, note: t.note, to_wallet_id: t.toWalletId,
+        updated_at: new Date(t.updatedAt || Date.now()).toISOString()
+      }));
+      if (pushRecs.length > 0) await supabaseClient.from('transactions').upsert(pushRecs);
+    }
+
+    // 3. Categories
+    const { data: remCats } = await supabaseClient.from('categories').select('*').eq('access_code', code);
+    if (remCats) {
+      const mapped = remCats.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: new Date(r.updated_at).getTime() }));
+      const merged = mergeEntities(getCategories(), mapped);
+      setCategoriesLocalOnly(merged);
+      const pushRecs = merged.map(c => ({ id: c.id, access_code: code, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
+      if (pushRecs.length > 0) await supabaseClient.from('categories').upsert(pushRecs);
+    }
+
+    // 4. Budgets
+    const { data: remBudgets } = await supabaseClient.from('budgets').select('*').eq('access_code', code);
+    if (remBudgets) {
+      const mapped = remBudgets.map(r => ({ id: r.id, categoryId: r.category_id, month: r.month, limit: Number(r.limit_amount) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const local = getBudgets().map(b => ({ ...b, id: b.id || (b.categoryId + '_' + b.month) }));
+      const merged = mergeEntities(local, mapped);
+      setBudgetsLocalOnly(merged);
+      const pushRecs = merged.map(b => ({ id: b.id || (b.categoryId + '_' + b.month), access_code: code, category_id: b.categoryId, month: b.month, limit_amount: b.limit, updated_at: new Date(b.updatedAt || Date.now()).toISOString() }));
+      if (pushRecs.length > 0) await supabaseClient.from('budgets').upsert(pushRecs);
+    }
+
+    updateSyncStatusUI('online');
+    if (!silent) showToast('Sinkronisasi Supabase Berhasil!');
+  } catch (err) {
+    console.warn('Sync error:', err);
+    updateSyncStatusUI('offline');
+  } finally {
+    isSyncingData = false;
+  }
+}
+
+// Local Getters & Setters
 function getWallets(){ return JSON.parse(localStorage.getItem(LS_KEYS.wallets) || '[]'); }
-function setWallets(w){ localStorage.setItem(LS_KEYS.wallets, JSON.stringify(w)); }
+function setWalletsLocalOnly(w){ localStorage.setItem(LS_KEYS.wallets, JSON.stringify(w)); }
+function setWallets(w){
+  w = (w || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setWalletsLocalOnly(w);
+  syncAllWithSupabase(true);
+}
 
-// TODO Fase 2: ganti localStorage dengan fetch() ke Google Apps Script Web App
 function getTransactions(){ return JSON.parse(localStorage.getItem(LS_KEYS.transactions) || '[]'); }
-function setTransactions(t){ localStorage.setItem(LS_KEYS.transactions, JSON.stringify(t)); }
+function setTransactionsLocalOnly(t){ localStorage.setItem(LS_KEYS.transactions, JSON.stringify(t)); }
+function setTransactions(t){
+  t = (t || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setTransactionsLocalOnly(t);
+  syncAllWithSupabase(true);
+}
 
-// TODO Fase 2: ganti localStorage dengan fetch() ke Google Apps Script Web App
 function getCategories(){ return JSON.parse(localStorage.getItem(LS_KEYS.categories) || '[]'); }
-function setCategories(c){ localStorage.setItem(LS_KEYS.categories, JSON.stringify(c)); }
+function setCategoriesLocalOnly(c){ localStorage.setItem(LS_KEYS.categories, JSON.stringify(c)); }
+function setCategories(c){
+  c = (c || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setCategoriesLocalOnly(c);
+  syncAllWithSupabase(true);
+}
 
-// TODO Fase 2: ganti localStorage dengan fetch() ke Google Apps Script Web App
 function getBudgets(){ return JSON.parse(localStorage.getItem(LS_KEYS.budgets) || '[]'); }
-function setBudgets(b){ localStorage.setItem(LS_KEYS.budgets, JSON.stringify(b)); }
+function setBudgetsLocalOnly(b){ localStorage.setItem(LS_KEYS.budgets, JSON.stringify(b)); }
+function setBudgets(b){
+  b = (b || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setBudgetsLocalOnly(b);
+  syncAllWithSupabase(true);
+}
 
-// TODO Fase 2: ganti localStorage dengan fetch() ke Google Apps Script Web App
 const GEMINI_API_KEYS = [
   'QVEuQWI4Uk42SnZ5QzdvMkk3WmptZnByNnVCWEE5ckVDVG1VTnVrVzdKRnFIWV9JWlcwSGc=',
   'QVEuQWI4Uk42TG54UTZlb3hrb1NJdnVpVDlseHloaWtmOE5RMGVxZ2NfdUpyTE5vdFRIZ3c=',
@@ -1851,27 +2026,35 @@ function getGeminiApiKey(){
 }
 function setSettings(s){ localStorage.setItem(LS_KEYS.settings, JSON.stringify(s)); }
 
-// TODO Fase 2: ganti localStorage dengan fetch() ke Google Apps Script Web App
 function getRecurring(){ return JSON.parse(localStorage.getItem(LS_KEYS.recurring) || '[]'); }
-function setRecurring(r){ localStorage.setItem(LS_KEYS.recurring, JSON.stringify(r)); }
+function setRecurringLocalOnly(r){ localStorage.setItem(LS_KEYS.recurring, JSON.stringify(r)); }
+function setRecurring(r){
+  r = (r || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setRecurringLocalOnly(r);
+  syncAllWithSupabase(true);
+}
 
-// Insight Otomatis dari AI: { text: <string insight terakhir>, generatedAt: <timestamp ms terakhir generate> }
 function getInsightCache(){ return JSON.parse(localStorage.getItem(LS_KEYS.insights) || '{"text":"","generatedAt":0}'); }
 function setInsightCache(i){ localStorage.setItem(LS_KEYS.insights, JSON.stringify(i)); }
 
-// Override manual user untuk shortcut transaksi cepat: { [categoryId]: true/false }.
-// Kalau categoryId tidak ada di sini, statusnya ikut hasil hitung otomatis (top kategori 30 hari terakhir).
 function getShortcutOverrides(){ return JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '{}'); }
 function setShortcutOverrides(o){ localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(o)); }
 
-// Tujuan Tabungan: { id, name, targetAmount, walletId, targetDate('' kalau kosong), createdAt }
 function getGoals(){ return JSON.parse(localStorage.getItem(LS_KEYS.goals) || '[]'); }
-function setGoals(g){ localStorage.setItem(LS_KEYS.goals, JSON.stringify(g)); }
+function setGoalsLocalOnly(g){ localStorage.setItem(LS_KEYS.goals, JSON.stringify(g)); }
+function setGoals(g){
+  g = (g || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setGoalsLocalOnly(g);
+  syncAllWithSupabase(true);
+}
 
-// Utang Piutang: { id, personName, type('utang'|'piutang'), amount, date, note, dueDate(''),
-//                  status('belum'|'lunas'), payoffDate, payoffWalletId, payoffTxId }
 function getDebts(){ return JSON.parse(localStorage.getItem(LS_KEYS.debts) || '[]'); }
-function setDebts(d){ localStorage.setItem(LS_KEYS.debts, JSON.stringify(d)); }
+function setDebtsLocalOnly(d){ localStorage.setItem(LS_KEYS.debts, JSON.stringify(d)); }
+function setDebts(d){
+  d = (d || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  setDebtsLocalOnly(d);
+  syncAllWithSupabase(true);
+}
 
 /* =========================================================
    BOTTOM NAV MOBILE — konfigurasi slot inti + "Lainnya"
@@ -6109,6 +6292,7 @@ function refreshAllViews(){
 }
 
 function init(){
+  getAccessCode();
   navInit();
   seedIfEmpty();
   renderBottomNav();
@@ -6118,6 +6302,11 @@ function init(){
     document.getElementById('onboarding').classList.add('open');
   }
   setCatManageType('expense');
+  const codeEl = document.getElementById('accessCodeText');
+  if(codeEl) codeEl.textContent = 'Kode Akses URL: ' + getAccessCode();
+  syncAllWithSupabase(true);
+  window.addEventListener('online', () => syncAllWithSupabase(true));
+  window.addEventListener('offline', () => updateSyncStatusUI('offline'));
 }
 init();
 </script>
