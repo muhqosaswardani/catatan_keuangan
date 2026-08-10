@@ -2056,19 +2056,20 @@ async function syncAllWithSupabase(silent = true) {
   const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
 
   try {
-    // A. Check if the database has been reset/purged on another device.
-    // We check both user_settings and wallets — if the server has NOTHING but local still has data,
-    // it means another device reset the data. Reload this device to sync the cleared state.
-    const { data: remChkSettings, error: chkErr1 } = await supabaseClient.from('user_settings').select('id').eq('access_code', code).maybeSingle();
-    const { data: remChkWallets, error: chkErr2 } = await supabaseClient.from('wallets').select('id').eq('access_code', code);
-    const localHasData = (getTransactions().length > 0 || getWallets().filter(w => w.id !== 'wallet_utama' && w.id !== 'wallet_tabungan').length > 0 || getGoals().length > 0);
-    const serverIsEmpty = !chkErr1 && !chkErr2 && !remChkSettings && (!remChkWallets || remChkWallets.length === 0);
-    if (localHasData && serverIsEmpty) {
-      console.log('Database reset detected on server. Resetting local state...');
-      // Clear all local data keys but KEEP the access code so we stay on the same sync link
-      Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
-      location.reload();
-      return;
+    // A. Check if another device has triggered a full reset via reset_at signal in user_settings.
+    // This is robust because it works even after the resetting device has already re-seeded default wallets.
+    const { data: remChkSettings } = await supabaseClient.from('user_settings').select('reset_at').eq('access_code', code).maybeSingle();
+    if (remChkSettings && remChkSettings.reset_at) {
+      const serverResetAt = new Date(remChkSettings.reset_at).getTime();
+      const localLastResetAt = Number(localStorage.getItem('last_reset_at') || 0);
+      const localHasData = (getTransactions().length > 0 || getWallets().filter(w => w.id !== 'wallet_utama' && w.id !== 'wallet_tabungan').length > 0 || getGoals().length > 0 || getCategories().filter(c => !c._seeded).length > 0);
+      if (serverResetAt > localLastResetAt && localHasData) {
+        console.log('Reset signal detected from another device (reset_at:', new Date(serverResetAt).toISOString(), '). Clearing local state...');
+        localStorage.setItem('last_reset_at', serverResetAt.toString());
+        Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+        location.reload();
+        return;
+      }
     }
 
     // 1. Wallets
@@ -6316,10 +6317,13 @@ async function confirmResetAllData(){
   isResettingData = true;
   isSyncingData = true;
 
-  const code = getAccessCode(); // KEEP the same access code so other devices on the same link sync the reset
+  const code = getAccessCode(); // KEEP the same access code so other devices on the same link detect the reset
+  const resetAt = new Date().toISOString();
+
   if(supabaseClient && navigator.onLine && code){
     try {
       showToast('Menghapus data di server...');
+      // Step 1: Delete all user data tables
       await Promise.all([
         supabaseClient.from('wallets').delete().eq('access_code', code),
         supabaseClient.from('transactions').delete().eq('access_code', code),
@@ -6330,6 +6334,12 @@ async function confirmResetAllData(){
         supabaseClient.from('recurring_items').delete().eq('access_code', code),
         supabaseClient.from('user_settings').delete().eq('access_code', code)
       ]);
+      // Step 2: Write a reset_at SIGNAL so all other devices on this access code detect the reset within 3 seconds
+      await supabaseClient.from('user_settings').upsert({
+        access_code: code,
+        reset_at: resetAt,
+        updated_at: resetAt
+      });
       showToast('Data server berhasil dihapus ✓');
     } catch(err) {
       console.warn('Supabase reset err:', err);
@@ -6340,10 +6350,10 @@ async function confirmResetAllData(){
     }
   }
 
-  // Clear all local data but KEEP the access code and URL so other devices detect the reset via sync
+  // Store reset_at locally so this device itself does NOT re-trigger on next sync
+  localStorage.setItem('last_reset_at', new Date(resetAt).getTime().toString());
+  // Clear all local data but KEEP access code and URL so all linked devices stay on the same sync link
   Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
-  // Keep catatan_keuangan_access_code so the access code stays the same after reload
-  // Keep URL as-is so all linked devices remain on the same access code
 
   location.reload();
 }
