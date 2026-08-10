@@ -4870,6 +4870,7 @@ async function generateInsightWithGemini(key){
     'Kamu asisten keuangan pribadi yang cerdas dan perhatian. Berdasarkan data LENGKAP berikut (saldo dompet, arus kas, budget, tagihan berulang, utang piutang, dan tujuan tabungan), buatkan 2-4 kalimat insight berbahasa Indonesia yang:\n' +
     '- HOLISTIK: pertimbangkan saldo aktual dompet (bukan hanya selisih pemasukan-pengeluaran), tagihan yang masih harus dibayar, dan kondisi keseluruhan keuangan user.\n' +
     '- REALISTIS: jangan bilang "aman" hanya karena pemasukan tinggi — lihat saldo cash yang tersedia sekarang. Dompet Tabungan sebisa mungkin jangan dianggap uang yang bisa dipakai sehari-hari.\n' +
+    '- KLASIFIKASI TAGIHAN: perhatikan status tagihan berulang. Status "Akan datang" dan "Sudah dibayar" artinya sudah aman dan selesai untuk periode ini, jadi JANGAN dianggap sebagai beban tagihan mendesak. Hanya status "TERLAMBAT", "JATUH TEMPO", atau "BELUM DIBAYAR (dalam periode berjalan)" saja yang perlu diperingatkan.\n' +
     '- BERVARIASI: jangan pakai template/format yang sama terus. Kadang soroti saldo, kadang tagihan mendatang, kadang pola spending, kadang progress tabungan. Buat tiap kali berbeda sudut pandangnya.\n' +
     '- NATURAL & SANTAI: seperti teman dekat yang peduli soal keuanganmu, bukan robot yang baca angka.\n' +
     '- TIDAK TERLALU PANJANG: cukup 2-4 kalimat padat dan berguna.\n\n' +
@@ -5096,8 +5097,13 @@ function buildAnalysisFullData(){
     lines.push('\\n=== TAGIHAN BERULANG ===');
     recurring.filter(r => r.active).forEach(r => {
       const s = recurringStatus(r);
-      const statusLabel = s === 'terlambat' ? '⚠ TERLAMBAT' : s === 'jatuh-tempo' ? '⏰ JATUH TEMPO' : s === 'sudah-dibayar' ? '✅ Sudah bayar' : '🔜 Akan datang';
-      lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan');
+      let statusLabel = '';
+      if(s === 'terlambat') statusLabel = '⚠ TERLAMBAT (belum bayar)';
+      else if(s === 'jatuh-tempo') statusLabel = '⏰ JATUH TEMPO';
+      else if(s === 'belum-bayar') statusLabel = '⏳ Belum bayar (dalam periode berjalan)';
+      else if(s === 'sudah-dibayar') statusLabel = '✅ Sudah bayar (aman/selesai)';
+      else if(s === 'akan-datang') statusLabel = '🔜 Akan datang / Sudah dibayar (jatuh tempo siklus berikutnya, AMAN/abaikan)';
+      lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + r.nextDue + ')');
     });
   }
 
@@ -5138,7 +5144,9 @@ async function generateAnalysisWithGemini(key){
     '(Daftar 3-5 poin temuan penting, masing-masing 1 kalimat, gunakan format bullet. Contoh: kategori terbesar, budget yang hampir habis, tagihan yang harus segera dibayar, dsb)\\n\\n' +
     '🎯 SARAN AKSI\\n' +
     '(2-3 saran konkret dan actionable berdasarkan data, termasuk rekomendasi pengeluaran harian ideal berdasarkan saldo cash yang tersedia dibagi sisa hari bulan ini. Dompet Tabungan sebaiknya jangan dihitung sebagai uang harian)\\n\\n' +
-    'ATURAN:\\n' +
+    'ATURAN UTAMA:\\n' +
+    '- Status tagihan berulang "Akan datang" dan "Sudah bayar" artinya tagihan tsb SUDAH SELESAI/AMAN untuk periode berjalan ini. JANGAN memperingatkan atau mengkhawatirkan tagihan yang berstatus "Akan datang" / "Sudah bayar" ini karena jatuh temponya baru ada di periode depan.\\n' +
+    '- Hanya tagihan dengan status "TERLAMBAT", "JATUH TEMPO", atau "Belum bayar (dalam periode berjalan)" saja yang perlu diperingatkan dan dihitung sebagai kewajiban periode berjalan ini.\\n' +
     '- Gunakan angka spesifik dari data, jangan mengada-ada\\n' +
     '- Jangan terlalu panjang, setiap bagian cukup padat\\n' +
     '- Bahasa santai tapi informatif\\n' +
