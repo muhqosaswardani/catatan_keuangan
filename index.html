@@ -2002,7 +2002,12 @@ function mergeWallets(localList, remoteList) {
   const remoteIds = new Set((remoteList || []).map(r => r.id));
   (localList || []).forEach(item => {
     if (item && item.name) {
-      if (item.id === 'wallet_utama' || item.id === 'wallet_tabungan' || (typeof isWalletStillUsed === 'function' && isWalletStillUsed(item.id)) || remoteIds.has(item.id)) {
+      const isDefault = (item.id === 'wallet_utama' || item.id === 'wallet_tabungan');
+      const isNew = (Date.now() - (item.updatedAt || 0)) < 300000; // created or modified in last 5 minutes
+      const isUsed = (typeof isWalletStillUsed === 'function' && isWalletStillUsed(item.id));
+      const isActiveSelection = (typeof goalWalletValue !== 'undefined' && goalWalletValue === item.id);
+
+      if (isDefault || isNew || isUsed || isActiveSelection || remoteIds.has(item.id)) {
         all.push({ id: item.id || uid(), name: item.name, balance: Number(item.balance) || 0, updatedAt: item.updatedAt || 0 });
       }
     }
