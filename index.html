@@ -2111,7 +2111,7 @@ function changeAccessCodePrompt() {
 function getWallets(){ return JSON.parse(localStorage.getItem(LS_KEYS.wallets) || '[]'); }
 function setWalletsLocalOnly(w){ localStorage.setItem(LS_KEYS.wallets, JSON.stringify(w)); }
 function setWallets(w){
-  w = (w || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  w = (w || []).map(item => ({ updatedAt: Date.now(), ...item }));
   setWalletsLocalOnly(w);
   syncAllWithSupabase(true);
 }
@@ -2119,7 +2119,7 @@ function setWallets(w){
 function getTransactions(){ return JSON.parse(localStorage.getItem(LS_KEYS.transactions) || '[]'); }
 function setTransactionsLocalOnly(t){ localStorage.setItem(LS_KEYS.transactions, JSON.stringify(t)); }
 function setTransactions(t){
-  t = (t || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  t = (t || []).map(item => ({ updatedAt: Date.now(), ...item }));
   setTransactionsLocalOnly(t);
   syncAllWithSupabase(true);
 }
@@ -2127,7 +2127,7 @@ function setTransactions(t){
 function getCategories(){ return JSON.parse(localStorage.getItem(LS_KEYS.categories) || '[]'); }
 function setCategoriesLocalOnly(c){ localStorage.setItem(LS_KEYS.categories, JSON.stringify(c)); }
 function setCategories(c){
-  c = (c || []).map(item => ({ ...item, updatedAt: Date.now() }));
+  c = (c || []).map(item => ({ updatedAt: Date.now(), ...item }));
   setCategoriesLocalOnly(c);
   syncAllWithSupabase(true);
 }
@@ -5870,7 +5870,10 @@ function selectCatManageColor(color){
   if(catEditingId){
     const cats = getCategories();
     const cat = cats.find(c => c.id === catEditingId);
-    if(cat) cat.color = color;
+    if(cat) {
+      cat.color = color;
+      cat.updatedAt = Date.now();
+    }
     setCategories(cats);
     renderCatManageList();
   } else {
@@ -6502,6 +6505,14 @@ async function init(){
 
   window.addEventListener('online', () => syncAllWithSupabase(true));
   window.addEventListener('offline', () => updateSyncStatusUI('offline'));
+  window.addEventListener('focus', () => syncAllWithSupabase(true));
+
+  // Auto-sync real-time tiap 3 detik agar perubahan dari HP langsung update di PC tanpa reload
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && !isSyncingData) {
+      syncAllWithSupabase(true);
+    }
+  }, 3000);
 }
 init();
 </script>
