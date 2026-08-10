@@ -450,7 +450,7 @@
   .settings-row:last-child{border-bottom:none;}
   .settings-row .l{font-size:14px;font-weight:600;}
   .settings-row .l small{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
-  .last-sync-label{font-size:10px;color:var(--ink-soft);font-weight:500;opacity:.8;white-space:nowrap;}
+  .last-sync-label{font-size:11.5px;color:var(--ink-soft);font-weight:500;opacity:.85;white-space:nowrap;}
   .pw-wrap{position:relative;}
   .pw-wrap button{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;}
 
@@ -1866,17 +1866,17 @@ function getAccessCode() {
 
 let isSyncingData = false;
 
-function updateSyncStatusUI(status) {
+function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  if (status === 'syncing') {
+  if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...';
   } else if (status === 'online') {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2,'0');
     const mm = String(now.getMinutes()).padStart(2,'0');
     label.textContent = '☁ Sinkron ' + hh + ':' + mm;
-  } else {
+  } else if (status === 'offline') {
     label.textContent = '⚠ Offline';
   }
 }
@@ -1977,13 +1977,13 @@ function mergeWallets(localList, remoteList) {
 
 async function syncAllWithSupabase(silent = true) {
   if (!supabaseClient || !navigator.onLine) {
-    updateSyncStatusUI('offline');
+    updateSyncStatusUI('offline', !silent);
     if (!silent) showToast('Mode Offline (Lokal) - Data disimpan di HP');
     return;
   }
 
   isSyncingData = true;
-  updateSyncStatusUI('syncing');
+  updateSyncStatusUI('syncing', !silent);
   const code = getAccessCode();
   const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig()]);
 
