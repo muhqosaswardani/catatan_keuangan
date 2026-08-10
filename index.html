@@ -211,6 +211,11 @@
   .insight-refresh-btn svg{transition:transform .5s ease;}
   .insight-refresh-btn.spinning svg{animation:aispin 1s linear infinite;}
   .insight-text{font-size:13.5px;line-height:1.6;color:var(--ink);margin:10px 0 0;}
+  .analysis-section-title{font-weight:700;font-size:13.5px;color:var(--ink);margin:14px 0 4px;}
+  .analysis-section-title:first-child{margin-top:0;}
+  .analysis-bullets{list-style:disc;padding-left:20px;margin:4px 0 10px;}
+  .analysis-bullets li{font-size:13.5px;line-height:1.6;color:var(--ink);margin-bottom:2px;}
+  .analysis-paragraph{font-size:13.5px;line-height:1.6;color:var(--ink);margin:4px 0 10px;}
   .insight-time{font-size:11px;color:var(--ink-soft);font-weight:600;margin-top:8px;}
   .insight-inline-error{font-size:11.5px;color:#b3261e;margin-top:8px;line-height:1.5;}
   .insight-inline-error a{color:#b3261e;font-weight:700;text-decoration:underline;cursor:pointer;}
@@ -1138,7 +1143,7 @@
         </div>
         <div id="analysisNoKey" class="insight-nokey" style="display:none;">Isi <a href="javascript:void(0)" onclick="goToSettingsForInsight()">Gemini API Key di Settings</a> dulu supaya AI bisa menganalisa keuanganmu.</div>
         <div id="analysisContent" style="display:none;">
-          <div class="insight-text" id="analysisText" style="white-space:pre-line;"></div>
+          <div class="insight-text" id="analysisText"></div>
           <div class="insight-time" id="analysisTime"></div>
           <div class="insight-inline-error" id="analysisInlineError" style="display:none;"></div>
         </div>
@@ -4871,11 +4876,12 @@ async function generateInsightWithGemini(key){
     '- HOLISTIK: pertimbangkan saldo aktual dompet (bukan hanya selisih pemasukan-pengeluaran), tagihan yang masih harus dibayar, dan kondisi keseluruhan keuangan user.\n' +
     '- REALISTIS: jangan bilang "aman" hanya karena pemasukan tinggi — lihat saldo cash yang tersedia sekarang. Dompet Tabungan sebisa mungkin jangan dianggap uang yang bisa dipakai sehari-hari.\n' +
     '- KLASIFIKASI TAGIHAN: perhatikan status tagihan berulang. Status "Akan datang" dan "Sudah dibayar" artinya sudah aman dan selesai untuk periode ini, jadi JANGAN dianggap sebagai beban tagihan mendesak. Hanya status "TERLAMBAT", "JATUH TEMPO", atau "BELUM DIBAYAR (dalam periode berjalan)" saja yang perlu diperingatkan.\n' +
+    '- HINDARI EMOJI: Jangan menggunakan emoji sama sekali.\n' +
     '- BERVARIASI: jangan pakai template/format yang sama terus. Kadang soroti saldo, kadang tagihan mendatang, kadang pola spending, kadang progress tabungan. Buat tiap kali berbeda sudut pandangnya.\n' +
     '- NATURAL & SANTAI: seperti teman dekat yang peduli soal keuanganmu, bukan robot yang baca angka.\n' +
     '- TIDAK TERLALU PANJANG: cukup 2-4 kalimat padat dan berguna.\n\n' +
     summary +
-    '\n\nKembalikan HANYA satu objek JSON: {"insight": "<teks insight di sini>"}. Teks insight itu sendiri harus teks polos saja, tanpa markdown/format lain di dalamnya.';
+    '\n\nKembalikan HANYA satu objek JSON: {"insight": "<teks insight di sini>"}. Teks insight itu sendiri harus teks polos saja, tanpa markdown/format lain di dalamnya atau emoji.';
   const parts = [{ text: promptText }];
   const data = await callGeminiRaw(key, parts);
   const rawText = extractGeminiText(data);
@@ -5135,24 +5141,27 @@ function buildAnalysisFullData(){
 async function generateAnalysisWithGemini(key){
   const data = buildAnalysisFullData();
   const promptText =
-    'Kamu analis keuangan pribadi yang cermat dan detail. Berdasarkan data keuangan LENGKAP berikut (3 bulan terakhir), buatkan analisa rinci dalam Bahasa Indonesia dengan format TERSTRUKTUR seperti ini:\\n\\n' +
-    '📊 RINGKASAN KONDISI KEUANGAN\\n' +
-    '(1-2 kalimat gambaran umum kondisi keuangan saat ini, termasuk saldo aktual dan apakah cukup untuk sisa bulan ini)\\n\\n' +
-    '📈 TREN PENGELUARAN\\n' +
-    '(Bandingkan pola pengeluaran 3 bulan terakhir, sebutkan tren naik/turun/stabil, dan kategori mana yang berubah signifikan)\\n\\n' +
-    '💡 POIN-POIN PENTING\\n' +
-    '(Daftar 3-5 poin temuan penting, masing-masing 1 kalimat, gunakan format bullet. Contoh: kategori terbesar, budget yang hampir habis, tagihan yang harus segera dibayar, dsb)\\n\\n' +
-    '🎯 SARAN AKSI\\n' +
-    '(2-3 saran konkret dan actionable berdasarkan data, termasuk rekomendasi pengeluaran harian ideal berdasarkan saldo cash yang tersedia dibagi sisa hari bulan ini. Dompet Tabungan sebaiknya jangan dihitung sebagai uang harian)\\n\\n' +
-    'ATURAN UTAMA:\\n' +
-    '- Status tagihan berulang "Akan datang" dan "Sudah bayar" artinya tagihan tsb SUDAH SELESAI/AMAN untuk periode berjalan ini. JANGAN memperingatkan atau mengkhawatirkan tagihan yang berstatus "Akan datang" / "Sudah bayar" ini karena jatuh temponya baru ada di periode depan.\\n' +
-    '- Hanya tagihan dengan status "TERLAMBAT", "JATUH TEMPO", atau "Belum bayar (dalam periode berjalan)" saja yang perlu diperingatkan dan dihitung sebagai kewajiban periode berjalan ini.\\n' +
-    '- Gunakan angka spesifik dari data, jangan mengada-ada\\n' +
-    '- Jangan terlalu panjang, setiap bagian cukup padat\\n' +
-    '- Bahasa santai tapi informatif\\n' +
-    '- Variasikan fokus analisa tiap kali di-generate, jangan template\\n\\n' +
+    'Kamu analis keuangan pribadi yang cermat dan detail. Berdasarkan data keuangan LENGKAP berikut (3 bulan terakhir), buatkan analisa rinci dalam Bahasa Indonesia dengan format TERSTRUKTUR seperti ini:\n\n' +
+    'RINGKASAN KONDISI KEUANGAN\n' +
+    '(1-2 kalimat gambaran umum kondisi keuangan saat ini, termasuk saldo aktual dan apakah cukup untuk sisa bulan ini)\n\n' +
+    'TREN PENGELUARAN\n' +
+    '(Bandingkan pola pengeluaran 3 bulan terakhir, sebutkan tren naik/turun/stabil, dan kategori mana yang berubah signifikan)\n\n' +
+    'POIN-POIN PENTING\n' +
+    '(Daftar 3-5 poin temuan penting, masing-masing 1 kalimat, gunakan format "- " di awal tiap poin. Contoh: kategori terbesar, budget yang hampir habis, tagihan yang harus segera dibayar, dsb)\n\n' +
+    'SARAN AKSI\n' +
+    '(2-3 saran konkret dan actionable berdasarkan data, gunakan format "- " di awal tiap saran, termasuk rekomendasi pengeluaran harian ideal berdasarkan saldo cash yang tersedia dibagi sisa hari bulan ini. Dompet Tabungan sebaiknya jangan dihitung sebagai uang harian)\n\n' +
+    'ATURAN UTAMA:\n' +
+    '- JANGAN gunakan emoji sama sekali.\n' +
+    '- Status tagihan berulang "Akan datang" dan "Sudah bayar" artinya tagihan tsb SUDAH SELESAI/AMAN untuk periode berjalan ini. JANGAN memperingatkan tagihan berstatus tersebut.\n' +
+    '- Hanya tagihan dengan status "TERLAMBAT", "JATUH TEMPO", atau "Belum bayar (dalam periode berjalan)" saja yang perlu diperingatkan.\n' +
+    '- Gunakan angka spesifik dari data, jangan mengada-ada.\n' +
+    '- Jangan terlalu panjang, setiap bagian cukup padat.\n' +
+    '- Bahasa santai tapi informatif.\n' +
+    '- Variasikan fokus analisa tiap kali di-generate, jangan template.\n' +
+    '- Untuk heading bagian, tulis UPPERCASE saja tanpa emoji (misal: RINGKASAN KONDISI KEUANGAN).\n' +
+    '- Untuk poin-poin, awali dengan "- " (dash spasi).\n\n' +
     data +
-    '\\n\\nKembalikan HANYA satu objek JSON: {"analysis": "<teks analisa di sini>"}. Teks analisa boleh multi-baris (pakai \\n) dan teks polos saja tanpa markdown.';
+    '\n\nKembalikan HANYA satu objek JSON: {"analysis": "<teks analisa di sini>"}. Teks analisa boleh multi-baris (pakai \n) dan teks polos saja tanpa markdown atau emoji.';
   const parts = [{ text: promptText }];
   const result = await callGeminiRaw(key, parts);
   const rawText = extractGeminiText(result);
@@ -5212,6 +5221,41 @@ function runAnalysisGeneration(){
     });
 }
 
+// Parse teks analisa AI menjadi HTML terstruktur: heading jadi <div class="analysis-section-title">,
+// baris "- ..." jadi <ul class="analysis-bullets"><li>...</li></ul>, sisanya jadi <p>.
+function formatAnalysisHtml(text){
+  if(!text) return '';
+  // Strip emoji
+  const noEmoji = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1FA00}-\u{1FAFF}]/gu, '').trim();
+  const lines = noEmoji.split(/\n/);
+  let html = '';
+  let inList = false;
+  // Heading patterns: all-caps line with ≥2 words, or line ending with ':'
+  const isHeading = (l) => /^[A-Z\s\-]{6,}$/.test(l.trim()) || /^[A-Z][A-Z\s\-\/]+[A-Z]$/.test(l.trim());
+  const isBullet = (l) => /^\s*[-•]\s/.test(l);
+
+  for(let i = 0; i < lines.length; i++){
+    const line = lines[i].trim();
+    if(!line){
+      if(inList){ html += '</ul>'; inList = false; }
+      continue;
+    }
+    if(isHeading(line)){
+      if(inList){ html += '</ul>'; inList = false; }
+      html += '<div class="analysis-section-title">' + escAttr(line) + '</div>';
+    } else if(isBullet(line)){
+      const content = line.replace(/^\s*[-•]\s*/, '');
+      if(!inList){ html += '<ul class="analysis-bullets">'; inList = true; }
+      html += '<li>' + escAttr(content) + '</li>';
+    } else {
+      if(inList){ html += '</ul>'; inList = false; }
+      html += '<p class="analysis-paragraph">' + escAttr(line) + '</p>';
+    }
+  }
+  if(inList) html += '</ul>';
+  return html;
+}
+
 function renderAnalysisUI(){
   const wrap = document.getElementById('analysisWrap');
   if(!wrap) return;
@@ -5237,7 +5281,7 @@ function renderAnalysisUI(){
 
   if(cache.text){
     contentEl.style.display = 'block';
-    textEl.textContent = cache.text;
+    textEl.innerHTML = formatAnalysisHtml(cache.text);
     timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (analysisLoading ? ' · memperbarui...' : '');
     if(analysisLastError && !analysisLoading){
       inlineErrEl.style.display = 'block';
