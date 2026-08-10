@@ -1063,32 +1063,7 @@
       </div>
     </div>
 
-    <div class="section" id="insightLapSection">
-      <div class="section-head"><h2>Insight AI</h2></div>
-      <div class="insight-card" id="insightLapWrap">
-        <div class="insight-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg>
-          <div class="t">Ringkasan otomatis dari AI</div>
-          <button type="button" class="insight-refresh-btn" id="insightLapRefreshBtn" onclick="manualRefreshInsight()" aria-label="Refresh Insight">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8M3 12a9 9 0 0 0 15.4 6.4L21 16M21 8V3M21 16v5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-        </div>
-        <div id="insightLapLoading" class="insight-empty-loading" style="display:none;">
-          <div class="spin"></div>
-          <p>Membuat insight dengan AI...</p>
-        </div>
-        <div id="insightLapError" class="insight-empty-error" style="display:none;">
-          <p id="insightLapErrorMsg"></p>
-          <button class="btn btn-primary btn-sm" onclick="manualRefreshInsight()">Coba Lagi</button>
-        </div>
-        <div id="insightLapNoKey" class="insight-nokey" style="display:none;">Isi <a href="javascript:void(0)" onclick="goToSettingsForInsight()">Gemini API Key di Settings</a> dulu supaya AI bisa bikinin insight keuangan otomatis buat kamu.</div>
-        <div id="insightLapContent" style="display:none;">
-          <p class="insight-text" id="insightLapText"></p>
-          <div class="insight-time" id="insightLapTime"></div>
-          <div class="insight-inline-error" id="insightLapInlineError" style="display:none;"></div>
-        </div>
-      </div>
-    </div>
+
     </div>
 
     <div class="lap-col lap-col-right">
@@ -4049,17 +4024,12 @@ function renderLaporan(){
   else renderLaporanMonth();
 
   const isCurrentMonthMode = (laporanPeriodMode === 'month' && laporanMonth === currentMonthStr());
-  
-  const insightSec = document.getElementById('insightLapSection');
   const analysisSec = document.getElementById('analysisLapSection');
   
   if (isCurrentMonthMode) {
-    if (insightSec) insightSec.style.display = 'block';
     if (analysisSec) analysisSec.style.display = 'block';
-    checkAndRenderInsight();
     checkAndRenderAnalysis();
   } else {
-    if (insightSec) insightSec.style.display = 'none';
     if (analysisSec) analysisSec.style.display = 'none';
   }
 }
@@ -4966,7 +4936,7 @@ function runInsightGeneration(){
 // Render ulang kedua lokasi tampilan insight (Beranda & Laporan) sekaligus — datanya sama persis
 // karena insight ini berbasis data bulan berjalan, terlepas dari halaman/mode periode mana yang aktif.
 function renderInsightUI(){
-  ['insightHome', 'insightLap'].forEach(prefix => {
+  ['insightHome'].forEach(prefix => {
     const wrap = document.getElementById(prefix + 'Wrap');
     if(!wrap) return;
     const loadingEl = document.getElementById(prefix + 'Loading');
