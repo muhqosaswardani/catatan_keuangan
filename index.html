@@ -1902,75 +1902,73 @@ function mergeEntities(localList, remoteList) {
 }
 
 function mergeCategories(localList, remoteList) {
-  const map = new Map();
+  const all = [];
   (localList || []).forEach(item => {
-    if (item && item.name) {
-      const nameKey = (item.type || 'expense') + '_' + item.name.trim().toLowerCase();
-      map.set(nameKey, item);
-      if (item.id) map.set(String(item.id), item);
-    }
+    if (item && item.name) all.push({ ...item, updatedAt: item.updatedAt || 0 });
   });
-
   (remoteList || []).forEach(remote => {
-    if (!remote || !remote.name) return;
-    const idKey = String(remote.id);
-    const nameKey = (remote.type || 'expense') + '_' + remote.name.trim().toLowerCase();
-    const local = map.get(idKey) || map.get(nameKey);
-    if (!local) {
-      map.set(idKey, remote);
-      map.set(nameKey, remote);
-    } else {
-      const localTime = local.updatedAt || 0;
-      const remoteTime = remote.updatedAt || 0;
-      const mergedItem = remoteTime >= localTime ? { ...local, ...remote } : { ...remote, ...local };
-      map.set(idKey, mergedItem);
-      map.set(nameKey, mergedItem);
+    if (remote && remote.name) {
+      all.push({
+        id: remote.id,
+        name: remote.name,
+        type: remote.type,
+        icon: remote.icon,
+        color: remote.color,
+        updatedAt: remote.updated_at ? new Date(remote.updated_at).getTime() : 0
+      });
     }
   });
 
-  const uniqueMap = new Map();
-  map.forEach(item => {
-    if (item && item.id) {
-      uniqueMap.set(String(item.id), item);
+  const grouped = new Map();
+  all.forEach(item => {
+    const key = (item.type || 'expense') + '_' + item.name.trim().toLowerCase();
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, item);
+    } else {
+      if ((item.updatedAt || 0) >= (existing.updatedAt || 0)) {
+        grouped.set(key, { ...existing, ...item });
+      } else {
+        grouped.set(key, { ...item, ...existing });
+      }
     }
   });
-  return Array.from(uniqueMap.values());
+
+  return Array.from(grouped.values());
 }
 
 function mergeWallets(localList, remoteList) {
-  const map = new Map();
+  const all = [];
   (localList || []).forEach(item => {
-    if (item && item.name) {
-      const nameKey = item.name.trim().toLowerCase();
-      map.set(nameKey, item);
-      if (item.id) map.set(String(item.id), item);
-    }
+    if (item && item.name) all.push({ ...item, updatedAt: item.updatedAt || 0 });
   });
-
   (remoteList || []).forEach(remote => {
-    if (!remote || !remote.name) return;
-    const idKey = String(remote.id);
-    const nameKey = remote.name.trim().toLowerCase();
-    const local = map.get(idKey) || map.get(nameKey);
-    if (!local) {
-      map.set(idKey, remote);
-      map.set(nameKey, remote);
-    } else {
-      const localTime = local.updatedAt || 0;
-      const remoteTime = remote.updatedAt || 0;
-      const mergedItem = remoteTime >= localTime ? { ...local, ...remote } : { ...remote, ...local };
-      map.set(idKey, mergedItem);
-      map.set(nameKey, mergedItem);
+    if (remote && remote.name) {
+      all.push({
+        id: remote.id,
+        name: remote.name,
+        balance: Number(remote.balance) || 0,
+        updatedAt: remote.updated_at ? new Date(remote.updated_at).getTime() : 0
+      });
     }
   });
 
-  const uniqueMap = new Map();
-  map.forEach(item => {
-    if (item && item.id) {
-      uniqueMap.set(String(item.id), item);
+  const grouped = new Map();
+  all.forEach(item => {
+    const key = item.name.trim().toLowerCase();
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, item);
+    } else {
+      if ((item.updatedAt || 0) >= (existing.updatedAt || 0)) {
+        grouped.set(key, { ...existing, ...item });
+      } else {
+        grouped.set(key, { ...item, ...existing });
+      }
     }
   });
-  return Array.from(uniqueMap.values());
+
+  return Array.from(grouped.values());
 }
 
 async function syncAllWithSupabase(silent = true) {
@@ -1992,7 +1990,9 @@ async function syncAllWithSupabase(silent = true) {
       const merged = mergeWallets(getWallets(), mapped);
       setWalletsLocalOnly(merged);
       const pushRecs = merged.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
-      if (pushRecs.length > 0) await supabaseClient.from('wallets').upsert(pushRecs);
+      if (pushRecs.length > 0) {
+        await supabaseClient.from('wallets').upsert(pushRecs);
+      }
     }
 
     // 2. Transactions
@@ -2020,7 +2020,9 @@ async function syncAllWithSupabase(silent = true) {
       const merged = mergeCategories(getCategories(), mapped);
       setCategoriesLocalOnly(merged);
       const pushRecs = merged.map(c => ({ id: c.id, access_code: code, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
-      if (pushRecs.length > 0) await supabaseClient.from('categories').upsert(pushRecs);
+      if (pushRecs.length > 0) {
+        await supabaseClient.from('categories').upsert(pushRecs);
+      }
     }
 
     // 4. Budgets
