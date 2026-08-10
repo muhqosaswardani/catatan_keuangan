@@ -581,6 +581,7 @@
     #page-laporan.active > .topbar{grid-column:1 / -1;}
     #page-laporan.active .lap-col{display:flex;flex-direction:column;min-width:0;}
     #page-laporan.active .lap-col .section{margin:0;}
+    #page-laporan.active > .analysis-section-full{grid-column:1 / -1;}
 
     /* Budget: gauge di atas tengah (diperbesar) & list di bawahnya */
     #page-budget .budget-gauge-card{max-width:560px;margin:0 auto 20px;}
@@ -1115,6 +1116,33 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <div class="section analysis-section-full" style="margin-top:0;">
+      <div class="section-head"><h2>Analisa AI</h2></div>
+      <div class="insight-card" id="analysisWrap">
+        <div class="insight-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16l4-5 4 3 5-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="t">Analisa lengkap dari AI</div>
+          <button type="button" class="insight-refresh-btn" id="analysisRefreshBtn" onclick="manualRefreshAnalysis()" aria-label="Refresh Analisa">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8M3 12a9 9 0 0 0 15.4 6.4L21 16M21 8V3M21 16v5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div id="analysisLoading" class="insight-empty-loading" style="display:none;">
+          <div class="spin"></div>
+          <p>Membuat analisa lengkap dengan AI...</p>
+        </div>
+        <div id="analysisError" class="insight-empty-error" style="display:none;">
+          <p id="analysisErrorMsg"></p>
+          <button class="btn btn-primary btn-sm" onclick="manualRefreshAnalysis()">Coba Lagi</button>
+        </div>
+        <div id="analysisNoKey" class="insight-nokey" style="display:none;">Isi <a href="javascript:void(0)" onclick="goToSettingsForInsight()">Gemini API Key di Settings</a> dulu supaya AI bisa menganalisa keuanganmu.</div>
+        <div id="analysisContent" style="display:none;">
+          <div class="insight-text" id="analysisText" style="white-space:pre-line;"></div>
+          <div class="insight-time" id="analysisTime"></div>
+          <div class="insight-inline-error" id="analysisInlineError" style="display:none;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1903,6 +1931,7 @@ const LS_KEYS = {
   debts: 'fk_debts',
   navConfig: 'fk_navconfig',
   insights: 'fk_insights',
+  analysis: 'fk_analysis',
   deletedIds: 'fk_deleted_ids'
 };
 
@@ -2425,6 +2454,14 @@ async function syncAllWithSupabase(silent = true) {
             setInsightCacheLocalOnly(remChkSettings.insight_cache);
           }
         }
+        if (remChkSettings.analysis_cache && remChkSettings.analysis_cache.generatedAt) {
+          const localACache = getAnalysisCache();
+          const remAGen = Number(remChkSettings.analysis_cache.generatedAt) || 0;
+          const locAGen = Number(localACache.generatedAt) || 0;
+          if (remAGen >= locAGen) {
+            setAnalysisCacheLocalOnly(remChkSettings.analysis_cache);
+          }
+        }
         if (remChkSettings.onboarded) {
           localStorage.setItem(LS_KEYS.onboarded, '1');
         }
@@ -2435,6 +2472,7 @@ async function syncAllWithSupabase(silent = true) {
         nav_config: (typeof getNavConfig === 'function' ? getNavConfig() : { core: [] }),
         shortcut_overrides: getShortcutOverrides(),
         insight_cache: getInsightCache(),
+        analysis_cache: getAnalysisCache(),
         onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
         deleted_ids: mergedDeleted,
         updated_at: new Date().toISOString()
@@ -2449,6 +2487,7 @@ async function syncAllWithSupabase(silent = true) {
       if (typeof renderBottomNav === 'function') renderBottomNav();
       if (typeof refreshAllViews === 'function') refreshAllViews();
       if (typeof renderInsightUI === 'function') renderInsightUI();
+      if (typeof renderAnalysisUI === 'function') renderAnalysisUI();
     }
     if (!silent) showToast('Sinkronisasi Supabase Berhasil!');
   } catch (err) {
@@ -3971,6 +4010,7 @@ function renderLaporan(){
   if(laporanPeriodMode === 'week') renderLaporanWeek();
   else renderLaporanMonth();
   checkAndRenderInsight();
+  checkAndRenderAnalysis();
 }
 
 function renderLaporanMonth(){
@@ -4913,6 +4953,267 @@ function renderInsightUI(){
     }
   });
 }
+
+// ===================== ANALISA AI (versi lengkap, di tab Laporan) =====================
+function getAnalysisCache(){ return JSON.parse(localStorage.getItem(LS_KEYS.analysis) || '{"text":"","generatedAt":0}'); }
+function setAnalysisCacheLocalOnly(a){ localStorage.setItem(LS_KEYS.analysis, JSON.stringify(a)); }
+function setAnalysisCache(a){
+  setAnalysisCacheLocalOnly(a);
+  if(typeof pushSettingsToSupabase === 'function') pushSettingsToSupabase();
+}
+
+function lastSundayMidnight(){
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diff = day; // how many days since last Sunday
+  const sun = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+  return sun.getTime(); // midnight of last Sunday
+}
+
+function analysisNeedsRefresh(){
+  const cache = getAnalysisCache();
+  if(!cache.generatedAt) return true;
+  return cache.generatedAt < lastSundayMidnight();
+}
+
+function buildAnalysisFullData(){
+  const now = new Date();
+  const months = [];
+  for(let i = 0; i < 3; i++){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(d.getFullYear() + '-' + pad(d.getMonth() + 1));
+  }
+  const allTx = getTransactions();
+  let lines = [];
+
+  // --- Saldo Dompet ---
+  const wallets = getWallets();
+  const totalSaldo = wallets.reduce((s,w) => s + (w.balance || 0), 0);
+  lines.push('=== SALDO DOMPET SAAT INI ===');
+  wallets.forEach(w => lines.push('- ' + w.name + ': ' + formatRupiah(w.balance || 0)));
+  lines.push('Total saldo: ' + formatRupiah(totalSaldo));
+
+  // --- Info hari ---
+  const info = monthDayInfo(months[0]);
+  lines.push('Hari ini: ' + todayStr() + ', sisa ' + info.remainingDays + ' hari di bulan ini');
+
+  // --- Data per bulan (3 bulan terakhir) ---
+  months.forEach((m, idx) => {
+    const tx = allTx.filter(t => t.date.slice(0,7) === m);
+    const inc = tx.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+    const exp = tx.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
+    const label = idx === 0 ? 'BULAN INI' : idx === 1 ? 'BULAN LALU' : '2 BULAN LALU';
+    lines.push('\\n=== ' + label + ' (' + m + ') ===');
+    lines.push('Pemasukan: ' + formatRupiah(inc));
+    lines.push('Pengeluaran: ' + formatRupiah(exp));
+    lines.push('Selisih: ' + formatRupiah(inc - exp));
+
+    const byCat = {};
+    tx.filter(t => t.type === 'expense').forEach(t => { byCat[t.category] = (byCat[t.category] || 0) + t.amount; });
+    const sorted = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+    if(sorted.length){
+      lines.push('Breakdown pengeluaran per kategori:');
+      sorted.forEach(([name, amt]) => {
+        const pct = exp > 0 ? ((amt / exp) * 100).toFixed(1) : 0;
+        lines.push('  - ' + name + ': ' + formatRupiah(amt) + ' (' + pct + '%)');
+      });
+    }
+
+    if(idx === 0){
+      const [y,mo] = m.split('-').map(Number);
+      const daysInM = new Date(y, mo, 0).getDate();
+      const dayNow = Math.max(1, new Date().getDate());
+      const avgDaily = exp / dayNow;
+      const projected = avgDaily * daysInM;
+      lines.push('Rata-rata harian: ' + formatRupiah(avgDaily));
+      lines.push('Proyeksi pengeluaran akhir bulan: ' + formatRupiah(projected));
+    }
+  });
+
+  // --- Transaksi bulan ini (detail, maks 40) ---
+  const monthTx = allTx.filter(t => t.date.slice(0,7) === months[0]);
+  if(monthTx.length > 0){
+    const sorted = monthTx.slice().sort((a,b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0)).slice(0, 40);
+    lines.push('\\n=== DAFTAR TRANSAKSI BULAN INI (maks 40) ===');
+    sorted.forEach(t => {
+      const sign = t.type === 'income' ? '+' : '-';
+      const w = walletById(t.walletId);
+      const noteStr = t.note ? ' · ' + t.note : '';
+      lines.push('- ' + t.date + ' | ' + sign + formatRupiah(t.amount) + ' | ' + (t.category || t.type) + ' | ' + (w ? w.name : '') + noteStr);
+    });
+  }
+
+  // --- Budget ---
+  const expCats = getCategories().filter(c => c.type === 'expense');
+  const budgetLines = [];
+  expCats.forEach(c => {
+    const st = calculateBudgetStatus(c.id, months[0]);
+    if(st.limit === null || st.limit <= 0) return;
+    const pct = (st.spent / st.limit) * 100;
+    budgetLines.push('- ' + c.name + ': ' + formatRupiah(st.spent) + '/' + formatRupiah(st.limit) + ' (' + pct.toFixed(0) + '%)');
+  });
+  if(budgetLines.length){
+    lines.push('\\n=== STATUS BUDGET ===');
+    lines = lines.concat(budgetLines);
+  }
+
+  // --- Tagihan Berulang ---
+  const recurring = getRecurring();
+  if(recurring.length > 0){
+    lines.push('\\n=== TAGIHAN BERULANG ===');
+    recurring.filter(r => r.active).forEach(r => {
+      const s = recurringStatus(r);
+      const statusLabel = s === 'terlambat' ? '⚠ TERLAMBAT' : s === 'jatuh-tempo' ? '⏰ JATUH TEMPO' : s === 'sudah-dibayar' ? '✅ Sudah bayar' : '🔜 Akan datang';
+      lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan');
+    });
+  }
+
+  // --- Utang Piutang ---
+  const activeDebts = getDebts().filter(d => d.status !== 'lunas');
+  if(activeDebts.length > 0){
+    lines.push('\\n=== UTANG PIUTANG AKTIF ===');
+    activeDebts.forEach(d => {
+      const label = (d.type === 'utang' || d.type === 'i_owe') ? 'Saya berhutang' : 'Orang berhutang ke saya';
+      lines.push('- ' + d.personName + ': ' + formatRupiah(d.amount) + ' (' + label + ')' + (d.dueDate ? ' jatuh tempo ' + d.dueDate : ''));
+    });
+  }
+
+  // --- Tujuan Tabungan ---
+  const goals = getGoals();
+  if(goals.length > 0){
+    lines.push('\\n=== TUJUAN TABUNGAN ===');
+    goals.forEach(g => {
+      const w = walletById(g.walletId);
+      const progress = w ? w.balance : 0;
+      const pct = g.targetAmount > 0 ? ((progress / g.targetAmount) * 100).toFixed(0) : 0;
+      lines.push('- ' + g.name + ': ' + formatRupiah(progress) + ' / ' + formatRupiah(g.targetAmount) + ' (' + pct + '%)');
+    });
+  }
+
+  return lines.join('\\n');
+}
+
+async function generateAnalysisWithGemini(key){
+  const data = buildAnalysisFullData();
+  const promptText =
+    'Kamu analis keuangan pribadi yang cermat dan detail. Berdasarkan data keuangan LENGKAP berikut (3 bulan terakhir), buatkan analisa rinci dalam Bahasa Indonesia dengan format TERSTRUKTUR seperti ini:\\n\\n' +
+    '📊 RINGKASAN KONDISI KEUANGAN\\n' +
+    '(1-2 kalimat gambaran umum kondisi keuangan saat ini, termasuk saldo aktual dan apakah cukup untuk sisa bulan ini)\\n\\n' +
+    '📈 TREN PENGELUARAN\\n' +
+    '(Bandingkan pola pengeluaran 3 bulan terakhir, sebutkan tren naik/turun/stabil, dan kategori mana yang berubah signifikan)\\n\\n' +
+    '💡 POIN-POIN PENTING\\n' +
+    '(Daftar 3-5 poin temuan penting, masing-masing 1 kalimat, gunakan format bullet. Contoh: kategori terbesar, budget yang hampir habis, tagihan yang harus segera dibayar, dsb)\\n\\n' +
+    '🎯 SARAN AKSI\\n' +
+    '(2-3 saran konkret dan actionable berdasarkan data, termasuk rekomendasi pengeluaran harian ideal berdasarkan saldo cash yang tersedia dibagi sisa hari bulan ini. Dompet Tabungan sebaiknya jangan dihitung sebagai uang harian)\\n\\n' +
+    'ATURAN:\\n' +
+    '- Gunakan angka spesifik dari data, jangan mengada-ada\\n' +
+    '- Jangan terlalu panjang, setiap bagian cukup padat\\n' +
+    '- Bahasa santai tapi informatif\\n' +
+    '- Variasikan fokus analisa tiap kali di-generate, jangan template\\n\\n' +
+    data +
+    '\\n\\nKembalikan HANYA satu objek JSON: {"analysis": "<teks analisa di sini>"}. Teks analisa boleh multi-baris (pakai \\n) dan teks polos saja tanpa markdown.';
+  const parts = [{ text: promptText }];
+  const result = await callGeminiRaw(key, parts);
+  const rawText = extractGeminiText(result);
+  const cleanedText = rawText.toString().replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
+  let analysisText = '';
+  try{
+    const parsed = JSON.parse(cleanedText);
+    if(parsed && typeof parsed.analysis === 'string') analysisText = parsed.analysis;
+  } catch(e){
+    const match = cleanedText.match(/\{[\s\S]*"analysis"[\s\S]*\}/);
+    if(match){
+      try{
+        const parsed = JSON.parse(match[0]);
+        if(parsed && typeof parsed.analysis === 'string') analysisText = parsed.analysis;
+      } catch(e2){}
+    }
+  }
+  if(!analysisText) analysisText = cleanedText;
+  analysisText = analysisText.toString().trim();
+  if(!analysisText) throw new Error('Format respons AI tidak valid');
+  return analysisText;
+}
+
+let analysisLoading = false;
+let analysisLastError = '';
+
+function manualRefreshAnalysis(){
+  const key = getGeminiApiKey();
+  if(!key){ renderAnalysisUI(); return; }
+  runAnalysisGeneration();
+}
+
+function checkAndRenderAnalysis(){
+  renderAnalysisUI();
+  const key = getGeminiApiKey();
+  if(!key) return;
+  if(analysisNeedsRefresh() && !analysisLoading) runAnalysisGeneration();
+}
+
+function runAnalysisGeneration(){
+  const key = getGeminiApiKey();
+  if(!key || analysisLoading) return;
+  analysisLoading = true;
+  analysisLastError = '';
+  renderAnalysisUI();
+  generateAnalysisWithGemini(key)
+    .then(text => {
+      setAnalysisCache({ text, generatedAt: Date.now() });
+      analysisLoading = false;
+      analysisLastError = '';
+      renderAnalysisUI();
+    })
+    .catch(err => {
+      analysisLoading = false;
+      analysisLastError = (err && err.message) || 'AI gagal membuat analisa.';
+      renderAnalysisUI();
+    });
+}
+
+function renderAnalysisUI(){
+  const wrap = document.getElementById('analysisWrap');
+  if(!wrap) return;
+  const loadingEl = document.getElementById('analysisLoading');
+  const errorEl = document.getElementById('analysisError');
+  const errorMsgEl = document.getElementById('analysisErrorMsg');
+  const noKeyEl = document.getElementById('analysisNoKey');
+  const contentEl = document.getElementById('analysisContent');
+  const textEl = document.getElementById('analysisText');
+  const timeEl = document.getElementById('analysisTime');
+  const inlineErrEl = document.getElementById('analysisInlineError');
+  const refreshBtn = document.getElementById('analysisRefreshBtn');
+
+  loadingEl.style.display = 'none';
+  errorEl.style.display = 'none';
+  noKeyEl.style.display = 'none';
+  contentEl.style.display = 'none';
+  inlineErrEl.style.display = 'none';
+  refreshBtn.classList.toggle('spinning', analysisLoading);
+
+  const key = getGeminiApiKey();
+  const cache = getAnalysisCache();
+
+  if(cache.text){
+    contentEl.style.display = 'block';
+    textEl.textContent = cache.text;
+    timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (analysisLoading ? ' · memperbarui...' : '');
+    if(analysisLastError && !analysisLoading){
+      inlineErrEl.style.display = 'block';
+      inlineErrEl.innerHTML = 'Gagal memperbarui analisa. <a href="javascript:void(0)" onclick="manualRefreshAnalysis()">Coba lagi</a>';
+    }
+  } else if(analysisLoading){
+    loadingEl.style.display = 'block';
+  } else if(analysisLastError){
+    errorEl.style.display = 'block';
+    errorMsgEl.textContent = analysisLastError;
+  } else if(!key){
+    noKeyEl.style.display = 'block';
+  } else {
+    loadingEl.style.display = 'block';
+  }
+}
+
 function guessTypeForNote(note){
   return /masuk|gaji|bonus/i.test(note) ? 'income' : 'expense';
 }
