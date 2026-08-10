@@ -452,10 +452,10 @@
   .settings-row-card .sr-title .sr-arrow{color:var(--ink-soft);font-size:18px;}
   .settings-row-card .sr-sub{font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:3px;}
   .settings-row-card.danger .sr-title{color:var(--expense);}
-  .cat-manage-row{-webkit-user-select:none;user-select:none;touch-action:manipulation;}
-  .cat-manage-row.reordering{background:var(--surface-2);border-radius:10px;padding-left:8px;padding-right:8px;}
-  .cat-manage-actions{display:flex;align-items:center;gap:6px;}
-  .cat-manage-actions .btn-sm{min-width:34px;padding:6px 10px;}
+  .cat-manage-row{-webkit-user-select:none;user-select:none;touch-action:pan-y;position:relative;transition:transform .18s cubic-bezier(0.2,0,0,1),box-shadow .18s cubic-bezier(0.2,0,0,1),background-color .15s ease;}
+  .cat-manage-row.dragging{z-index:200;background:var(--surface);box-shadow:0 12px 30px -4px rgba(15,25,24,0.28),0 4px 12px -2px rgba(15,25,24,0.15);border-radius:14px;transform:scale(1.03);opacity:0.96;cursor:grabbing;}
+  .cat-drag-handle{display:inline-flex;align-items:center;justify-content:center;padding:4px 2px;color:var(--ink-soft);cursor:grab;touch-action:none;margin-right:2px;opacity:0.65;}
+  .cat-drag-handle:active{cursor:grabbing;opacity:1;}
   .settings-row:last-child{border-bottom:none;}
   .settings-row .l{font-size:14px;font-weight:600;}
   .settings-row .l small{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
@@ -6741,50 +6741,125 @@ function closeCatIconPicker(){
   catEditingId = null;
   closeModal('modalIconPicker'); /* pop 1 layer -> balik ke modalCategories yang masih terbuka di bawahnya */
 }
+let catDragActive = false;
+let catDragItem = null;
+let catDragHoldTimer = null;
+let catDragOrderList = [];
+
 function renderCatManageList(){
   const cats = getCategories().filter(c => c.type === catManageType);
   const wrap = document.getElementById('catManageList');
   if(cats.length === 0){ wrap.innerHTML = '<div class="empty-note">Belum ada kategori.</div>'; return; }
   wrap.innerHTML = cats.map((c, i) => `
-    <div class="settings-row cat-manage-row${catReorderId===c.id ? ' reordering':''}" data-id="${c.id}"
-         onpointerdown="catLongPressStart('${c.id}')" onpointerup="catLongPressEnd()" onpointerleave="catLongPressEnd()" onpointercancel="catLongPressEnd()">
+    <div class="settings-row cat-manage-row" data-id="${c.id}">
       <div class="l">
+        <span class="cat-drag-handle" aria-label="Tahan & geser untuk urutkan">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1.5" fill="currentColor"/><circle cx="15" cy="5" r="1.5" fill="currentColor"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><circle cx="9" cy="19" r="1.5" fill="currentColor"/><circle cx="15" cy="19" r="1.5" fill="currentColor"/></svg>
+        </span>
         <span onclick="event.stopPropagation();openCatIconPicker('${c.id}')" style="cursor:pointer;">${categoryIconBoxHtml(c, {size:34, radius:9, iconSize:19})}</span>
-        <span>${c.name}</span>
+        <span>${escAttr(c.name)}</span>
       </div>
       <div class="cat-manage-actions">
-        ${catReorderId===c.id ? `
-          <button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();moveCategoryManaged('${c.id}',-1)" ${i===0?'disabled':''} aria-label="Naikkan">↑</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();moveCategoryManaged('${c.id}',1)" ${i===cats.length-1?'disabled':''} aria-label="Turunkan">↓</button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation();catReorderId=null;renderCatManageList();">Selesai</button>
-        ` : `
-          <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCategoryManaged('${c.id}')">Hapus</button>
-        `}
+        <button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteCategoryManaged('${c.id}')">Hapus</button>
       </div>
     </div>`).join('');
+
+  wrap.querySelectorAll('.cat-manage-row').forEach(row => {
+    bindCatRowDrag(row);
+  });
 }
-function catLongPressStart(id){
-  clearTimeout(catLongPressTimer);
-  catLongPressTimer = setTimeout(() => {
-    catReorderId = id;
-    renderCatManageList();
-    if(navigator.vibrate) navigator.vibrate(15);
-  }, 500);
+
+function bindCatRowDrag(row){
+  const catId = row.dataset.id;
+  const handleStart = (e) => {
+    if(e.target.closest('button') || e.target.closest('.cat-icon-box')) return;
+    const isHandle = !!e.target.closest('.cat-drag-handle');
+    const delay = isHandle ? 0 : 160;
+    
+    clearTimeout(catDragHoldTimer);
+    catDragHoldTimer = setTimeout(() => {
+      startCatRowDrag(row, catId, e);
+    }, delay);
+  };
+  
+  const handleCancel = () => {
+    clearTimeout(catDragHoldTimer);
+  };
+
+  row.addEventListener('pointerdown', handleStart);
+  row.addEventListener('pointerup', handleCancel);
+  row.addEventListener('pointerleave', handleCancel);
+  row.addEventListener('pointercancel', handleCancel);
 }
-function catLongPressEnd(){
-  clearTimeout(catLongPressTimer);
+
+function startCatRowDrag(row, catId, startEvent){
+  if(catDragActive) return;
+  catDragActive = true;
+  catDragItem = catId;
+  
+  if(navigator.vibrate) navigator.vibrate(20);
+  row.classList.add('dragging');
+  
+  const cats = getCategories().filter(c => c.type === catManageType);
+  catDragOrderList = cats.map(c => c.id);
+  const wrap = document.getElementById('catManageList');
+  
+  const onPointerMove = (e) => {
+    if(!catDragActive) return;
+    if(e.cancelable) e.preventDefault();
+    
+    const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cat-manage-row');
+    if(targetEl && targetEl !== row && targetEl.dataset.id && wrap.contains(targetEl)){
+      const targetId = targetEl.dataset.id;
+      const fromIdx = catDragOrderList.indexOf(catDragItem);
+      const toIdx = catDragOrderList.indexOf(targetId);
+      
+      if(fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx){
+        catDragOrderList.splice(fromIdx, 1);
+        catDragOrderList.splice(toIdx, 0, catDragItem);
+        
+        if(fromIdx < toIdx){
+          wrap.insertBefore(row, targetEl.nextSibling);
+        } else {
+          wrap.insertBefore(row, targetEl);
+        }
+        if(navigator.vibrate) navigator.vibrate(10);
+      }
+    }
+  };
+  
+  const onPointerEnd = (e) => {
+    if(!catDragActive) return;
+    catDragActive = false;
+    row.classList.remove('dragging');
+    
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerEnd);
+    window.removeEventListener('pointercancel', onPointerEnd);
+    
+    saveCatDragNewOrder(catDragOrderList);
+  };
+  
+  window.addEventListener('pointermove', onPointerMove, {passive: false});
+  window.addEventListener('pointerup', onPointerEnd);
+  window.addEventListener('pointercancel', onPointerEnd);
 }
-function moveCategoryManaged(id, dir){
+
+function saveCatDragNewOrder(orderedIds){
   const all = getCategories();
-  const sameType = all.filter(c => c.type === catManageType);
-  const idx = sameType.findIndex(c => c.id === id);
-  const swapIdx = idx + dir;
-  if(idx === -1 || swapIdx < 0 || swapIdx >= sameType.length) return;
-  const tmp = sameType[idx];
-  sameType[idx] = sameType[swapIdx];
-  sameType[swapIdx] = tmp;
+  const currentTypeCats = all.filter(c => c.type === catManageType);
+  
+  const sorted = [];
+  orderedIds.forEach(id => {
+    const found = currentTypeCats.find(c => c.id === id);
+    if(found) sorted.push(found);
+  });
+  currentTypeCats.forEach(c => {
+    if(!sorted.some(s => s.id === c.id)) sorted.push(c);
+  });
+  
   let si = 0;
-  const newAll = all.map(c => c.type === catManageType ? sameType[si++] : c);
+  const newAll = all.map(c => c.type === catManageType ? sorted[si++] : c);
   setCategories(newAll);
   renderCatManageList();
 }
