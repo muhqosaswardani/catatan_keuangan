@@ -944,17 +944,6 @@
     </div>
   </div>
 
-  <!-- Modal: Riwayat Utang Piutang (Lunas) -->
-  <div class="modal-backdrop" id="modalDebtHistory">
-    <div class="modal-sheet">
-      <div class="modal-head">
-        <h3>Riwayat Lunas</h3>
-        <button class="modal-close" onclick="closeModal('modalDebtHistory')">&times;</button>
-      </div>
-      <div class="modal-body" id="debtHistoryListWrap" style="max-height:65vh;overflow-y:auto;"></div>
-    </div>
-  </div>
-
   <!-- ============ PAGE: SETTINGS ============ -->
   <div class="page" id="page-settings">
     <div class="topbar">
@@ -1419,6 +1408,16 @@
       </div>
       <div id="debtDetailListWrap"></div>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openDebtFormForDetailPerson()">+ Tambah Catatan Baru</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: RIWAYAT UTANG PIUTANG (LUNAS) ============ -->
+  <div class="modal-overlay" id="modalDebtHistory">
+    <div class="modal">
+      <div class="modal-head"><h3>Riwayat Lunas</h3><button class="modal-close" onclick="closeModal('modalDebtHistory')">&times;</button></div>
+      <div class="modal-body">
+        <div id="debtHistoryListWrap" style="max-height:60vh;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
