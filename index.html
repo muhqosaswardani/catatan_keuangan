@@ -937,7 +937,11 @@
           </div>
           <span class="sync-status-badge badge" style="padding:4px 10px;font-size:11.5px;border-radius:20px;font-weight:600;background:#fef2f2;color:#dc2626;">📱 Mode Offline</span>
         </div>
-        <button class="btn btn-secondary btn-block" style="margin-top:12px;" onclick="syncAllWithSupabase(false)">⚡ Sinkronkan Sekarang (Supabase)</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="syncAllWithSupabase(false)">⚡ Sinkronkan Sekarang</button>
+          <button class="btn btn-ghost btn-sm" onclick="copySyncUrlToClipboard()">📋 Salin Link HP ↔ PC</button>
+        </div>
+        <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px;font-size:11.5px;" onclick="changeAccessCodePrompt()">🔑 Masukkan Kode Akses Lain</button>
       </div>
 
       <div class="card" style="margin-top:14px;">
@@ -1958,12 +1962,38 @@ async function syncAllWithSupabase(silent = true) {
     }
 
     updateSyncStatusUI('online');
+    if (typeof refreshAllViews === 'function') refreshAllViews();
     if (!silent) showToast('Sinkronisasi Supabase Berhasil!');
   } catch (err) {
     console.warn('Sync error:', err);
     updateSyncStatusUI('offline');
   } finally {
     isSyncingData = false;
+  }
+}
+
+function copySyncUrlToClipboard() {
+  const fullUrl = window.location.href;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      showToast('Link sinkron berhasil disalin! Buka link ini di HP/PC Anda.');
+    }).catch(() => {
+      prompt('Salin link ini untuk dibuka di HP/PC Anda:', fullUrl);
+    });
+  } else {
+    prompt('Salin link ini untuk dibuka di HP/PC Anda:', fullUrl);
+  }
+}
+
+function changeAccessCodePrompt() {
+  const current = getAccessCode();
+  const input = prompt('Masukkan Kode Akses unik Anda (atau paste dari HP/PC):', current);
+  if (input && input.trim() && input.trim() !== current) {
+    const cleanCode = input.trim();
+    localStorage.setItem('catatan_keuangan_access_code', cleanCode);
+    const params = new URLSearchParams(window.location.search);
+    params.set('akses', cleanCode);
+    window.location.search = params.toString();
   }
 }
 
