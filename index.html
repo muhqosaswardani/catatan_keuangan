@@ -4822,19 +4822,22 @@ function buildInsightSummaryText(){
   // --- Tagihan Berulang ---
   const recurring = getRecurring();
   if(recurring.length > 0){
-    lines.push('\n=== TAGIHAN BERULANG (CHECKLIST) ===');
-    let terlambat = [], jatuhTempo = [], sudahBayar = [], akanDatang = [];
-    recurring.filter(r => r.active).forEach(r => {
-      const s = recurringStatus(r);
-      if(s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
-      else if(s === 'jatuh-tempo') jatuhTempo.push(r.name + ' (' + formatRupiah(r.amount) + ')');
-      else if(s === 'sudah-dibayar') sudahBayar.push(r.name + ' (' + formatRupiah(r.amount) + ')');
-      else if(s === 'akan-datang') akanDatang.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
-    });
-    if(terlambat.length) lines.push('⚠ TERLAMBAT (sudah lewat jatuh tempo, BELUM dibayar): ' + terlambat.join(', '));
-    if(jatuhTempo.length) lines.push('⏰ JATUH TEMPO HARI INI: ' + jatuhTempo.join(', '));
-    if(sudahBayar.length) lines.push('✅ Sudah dibayar periode ini: ' + sudahBayar.join(', '));
-    if(akanDatang.length) lines.push('🔜 Akan datang (belum waktunya): ' + akanDatang.join(', '));
+    const activeRecurring = recurring.filter(r => r.active && recurringStatus(r) !== 'akan-datang');
+    if(activeRecurring.length > 0){
+      lines.push('\n=== TAGIHAN BERULANG (CHECKLIST) ===');
+      let terlambat = [], jatuhTempo = [], sudahBayar = [], belumBayar = [];
+      activeRecurring.forEach(r => {
+        const s = recurringStatus(r);
+        if(s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
+        else if(s === 'jatuh-tempo') jatuhTempo.push(r.name + ' (' + formatRupiah(r.amount) + ')');
+        else if(s === 'sudah-dibayar') sudahBayar.push(r.name + ' (' + formatRupiah(r.amount) + ')');
+        else if(s === 'belum-bayar') belumBayar.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
+      });
+      if(terlambat.length) lines.push('⚠ TERLAMBAT (BELUM dibayar di siklus ini, sudah lewat jatuh tempo): ' + terlambat.join(', '));
+      if(jatuhTempo.length) lines.push('⏰ JATUH TEMPO HARI INI: ' + jatuhTempo.join(', '));
+      if(belumBayar.length) lines.push('⏳ BELUM DIBAYAR (dalam periode berjalan, belum jatuh tempo): ' + belumBayar.join(', '));
+      if(sudahBayar.length) lines.push('✅ Sudah dibayar periode ini (aman): ' + sudahBayar.join(', '));
+    }
   }
 
   // --- Utang Piutang ---
@@ -5113,17 +5116,19 @@ function buildAnalysisFullData(){
   // --- Tagihan Berulang ---
   const recurring = getRecurring();
   if(recurring.length > 0){
-    lines.push('\\n=== TAGIHAN BERULANG ===');
-    recurring.filter(r => r.active).forEach(r => {
-      const s = recurringStatus(r);
-      let statusLabel = '';
-      if(s === 'terlambat') statusLabel = '⚠ TERLAMBAT (belum bayar)';
-      else if(s === 'jatuh-tempo') statusLabel = '⏰ JATUH TEMPO';
-      else if(s === 'belum-bayar') statusLabel = '⏳ Belum bayar (dalam periode berjalan)';
-      else if(s === 'sudah-dibayar') statusLabel = '✅ Sudah bayar (aman/selesai)';
-      else if(s === 'akan-datang') statusLabel = '🔜 Akan datang / Sudah dibayar (jatuh tempo siklus berikutnya, AMAN/abaikan)';
-      lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + r.nextDue + ')');
-    });
+    const activeRecurring = recurring.filter(r => r.active && recurringStatus(r) !== 'akan-datang');
+    if(activeRecurring.length > 0){
+      lines.push('\\n=== TAGIHAN BERULANG ===');
+      activeRecurring.forEach(r => {
+        const s = recurringStatus(r);
+        let statusLabel = '';
+        if(s === 'terlambat') statusLabel = '⚠ TERLAMBAT (belum bayar)';
+        else if(s === 'jatuh-tempo') statusLabel = '⏰ JATUH TEMPO';
+        else if(s === 'belum-bayar') statusLabel = '⏳ Belum bayar (dalam periode berjalan)';
+        else if(s === 'sudah-dibayar') statusLabel = '✅ Sudah bayar (aman/selesai)';
+        lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + r.nextDue + ')');
+      });
+    }
   }
 
   // --- Utang Piutang ---
