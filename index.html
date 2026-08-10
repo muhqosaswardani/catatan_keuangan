@@ -919,9 +919,15 @@
 
   <!-- ============ PAGE: UTANG PIUTANG ============ -->
   <div class="page" id="page-utang">
-    <div class="topbar">
-      <div class="eyebrow">Catatan</div>
-      <h1>Utang Piutang</h1>
+    <div class="topbar" style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <div class="eyebrow">Catatan</div>
+        <h1>Utang Piutang</h1>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:13px;gap:4px;" onclick="openDebtHistory()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Riwayat
+      </button>
     </div>
     <div class="section" style="margin-top:16px;">
       <div class="lap-subtabs">
@@ -935,6 +941,17 @@
         <div id="debtAllListWrap"></div>
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="openDebtForm(null)">+ Catat Utang / Piutang</button>
+    </div>
+  </div>
+
+  <!-- Modal: Riwayat Utang Piutang (Lunas) -->
+  <div class="modal-backdrop" id="modalDebtHistory">
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h3>Riwayat Lunas</h3>
+        <button class="modal-close" onclick="closeModal('modalDebtHistory')">&times;</button>
+      </div>
+      <div class="modal-body" id="debtHistoryListWrap" style="max-height:65vh;overflow-y:auto;"></div>
     </div>
   </div>
 
@@ -5308,26 +5325,30 @@ function setDebtSubtab(which){
 function renderDebtPersonList(){
   const wrap = document.getElementById('debtPersonListWrap');
   if(!wrap) return;
-  const debts = getDebts();
-  if(debts.length === 0){
+  const allDebts = getDebts();
+  // Only show persons that have active (non-lunas) entries
+  const activeDebts = allDebts.filter(d => d.status !== 'lunas');
+  if(activeDebts.length === 0){
+    const hasHistory = allDebts.some(d => d.status === 'lunas');
     wrap.innerHTML = `<div class="card" style="text-align:center;padding:30px 18px;">
-      <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Belum ada catatan utang piutang</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Belum ada catatan utang piutang aktif</div>
       <div class="empty-note" style="padding:0;">Catat siapa yang berhutang ke kamu, atau kamu berhutang ke siapa.</div>
+      ${hasHistory ? '<div style="margin-top:12px;"><button class="btn btn-ghost btn-sm" onclick="openDebtHistory()">Lihat Riwayat Lunas</button></div>' : ''}
     </div>`;
     return;
   }
-  const grouped = debtsByPerson();
+  const grouped = {};
+  activeDebts.forEach(d => {
+    if(!grouped[d.personName]) grouped[d.personName] = [];
+    grouped[d.personName].push(d);
+  });
   const names = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
   wrap.innerHTML = names.map(name => {
     const entries = grouped[name];
-    const active = entries.filter(e => e.status !== 'lunas');
     let net = 0;
-    active.forEach(e => { net += (e.type === 'piutang' ? e.amount : -e.amount); });
+    entries.forEach(e => { net += (e.type === 'piutang' ? e.amount : -e.amount); });
     let amtHtml, amtClass = '', subLabel;
-    if(active.length === 0){
-      amtHtml = 'Lunas';
-      subLabel = 'Semua sudah lunas';
-    } else if(net > 0){
+    if(net > 0){
       amtHtml = formatRupiah(net);
       amtClass = 'income';
       subLabel = 'Berhutang ke Anda';
@@ -5356,26 +5377,26 @@ function renderDebtPersonList(){
 function renderDebtAllList(){
   const wrap = document.getElementById('debtAllListWrap');
   if(!wrap) return;
-  const debts = getDebts().slice().sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+  // Only show active (non-lunas) debts in the main list; lunas ones go to history
+  const debts = getDebts().filter(d => d.status !== 'lunas').slice().sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
   if(debts.length === 0){
-    wrap.innerHTML = '<div class="empty-note" style="padding:14px 0;">Belum ada riwayat utang piutang.</div>';
+    const hasHistory = getDebts().some(d => d.status === 'lunas');
+    wrap.innerHTML = `<div class="empty-note" style="padding:14px 0;">Belum ada utang piutang aktif.${hasHistory ? ' <a href="#" onclick="event.preventDefault();openDebtHistory()">Lihat riwayat lunas</a>' : ''}</div>`;
     return;
   }
   wrap.innerHTML = debts.map(d => {
-    const isLunas = d.status === 'lunas';
     const sign = d.type === 'piutang' ? '+' : '-';
     const amtClass = d.type === 'piutang' ? 'income' : 'expense';
     const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
     const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
-    const statusHtml = isLunas ? ' · <span class="rec-status rec-status-nonaktif">Lunas</span>' : '';
-    return `<div class="tx-item debt-all-row" data-id="${d.id}" style="${isLunas ? 'opacity:.55;' : ''}flex-wrap:wrap;">
+    return `<div class="tx-item debt-all-row" data-id="${d.id}" style="flex-wrap:wrap;">
       <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
-        <div class="tx-meta">${d.date}${dueHtml}${statusHtml}</div>
+        <div class="tx-meta">${d.date}${dueHtml}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
-      ${!isLunas ? `<button type="button" class="btn btn-primary btn-sm debt-payoff-btn" data-id="${d.id}" style="flex-shrink:0;margin-left:auto;">Lunas</button>` : ''}
+      <button type="button" class="btn btn-primary btn-sm debt-payoff-btn" data-id="${d.id}" style="flex-shrink:0;margin-left:auto;">Lunas</button>
     </div>`;
   }).join('');
   wrap.querySelectorAll('.debt-all-row').forEach(row => {
@@ -5388,6 +5409,46 @@ function renderDebtAllList(){
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       openDebtPayoffModal(btn.dataset.id);
+    });
+  });
+}
+
+function openDebtHistory(){
+  renderDebtHistory();
+  openModal('modalDebtHistory');
+}
+
+function renderDebtHistory(){
+  const wrap = document.getElementById('debtHistoryListWrap');
+  if(!wrap) return;
+  const lunas = getDebts().filter(d => d.status === 'lunas').slice().sort((a, b) => {
+    const da = a.payoffDate || a.date || '';
+    const db = b.payoffDate || b.date || '';
+    return da < db ? 1 : (da > db ? -1 : 0);
+  });
+  if(lunas.length === 0){
+    wrap.innerHTML = '<div class="empty-note" style="padding:20px 0;text-align:center;">Belum ada utang piutang yang lunas.</div>';
+    return;
+  }
+  wrap.innerHTML = lunas.map(d => {
+    const sign = d.type === 'piutang' ? '+' : '-';
+    const amtClass = d.type === 'piutang' ? 'income' : 'expense';
+    const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
+    const payoffInfo = d.payoffDate ? 'Lunas ' + d.payoffDate : 'Lunas';
+    return `<div class="tx-item debt-history-row" data-id="${d.id}" style="opacity:.8;flex-wrap:wrap;cursor:pointer;">
+      <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
+      <div class="tx-body">
+        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
+        <div class="tx-meta">${d.date}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
+        <div class="tx-meta" style="color:var(--income);">${payoffInfo}</div>
+      </div>
+      <div class="tx-amt ${amtClass}" style="text-decoration:line-through;">${sign}${formatRupiah(d.amount)}</div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.debt-history-row').forEach(row => {
+    row.addEventListener('click', () => {
+      closeModal('modalDebtHistory');
+      setTimeout(() => openDebtForm(row.dataset.id), 200);
     });
   });
 }
