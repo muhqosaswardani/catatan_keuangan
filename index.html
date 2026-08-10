@@ -2053,13 +2053,17 @@ async function syncAllWithSupabase(silent = true) {
   const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
 
   try {
-    // A. Check if the database has been reset/purged on another device
-    const { data: remSettings, error: settErr } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
-    if (!settErr && !remSettings && getTransactions().length > 0) {
+    // A. Check if the database has been reset/purged on another device.
+    // We check both user_settings and wallets — if the server has NOTHING but local still has data,
+    // it means another device reset the data. Reload this device to sync the cleared state.
+    const { data: remChkSettings, error: chkErr1 } = await supabaseClient.from('user_settings').select('id').eq('access_code', code).maybeSingle();
+    const { data: remChkWallets, error: chkErr2 } = await supabaseClient.from('wallets').select('id').eq('access_code', code);
+    const localHasData = (getTransactions().length > 0 || getWallets().filter(w => w.id !== 'wallet_utama' && w.id !== 'wallet_tabungan').length > 0 || getGoals().length > 0);
+    const serverIsEmpty = !chkErr1 && !chkErr2 && !remChkSettings && (!remChkWallets || remChkWallets.length === 0);
+    if (localHasData && serverIsEmpty) {
       console.log('Database reset detected on server. Resetting local state...');
-      Object.values(LS_KEYS).forEach(k => {
-        if (k !== 'catatan_keuangan_access_code') localStorage.removeItem(k);
-      });
+      // Clear all local data keys but KEEP the access code so we stay on the same sync link
+      Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
       location.reload();
       return;
     }
@@ -6305,7 +6309,7 @@ async function confirmResetAllData(){
   const input = document.getElementById('resetConfirmInput');
   if(input.value.trim() !== RESET_CONFIRM_WORD) return;
 
-  const code = getAccessCode();
+  const code = getAccessCode(); // KEEP the same access code so other devices on the same link sync the reset
   if(supabaseClient && navigator.onLine && code){
     try {
       showToast('Menghapus data di server...');
@@ -6324,13 +6328,10 @@ async function confirmResetAllData(){
     }
   }
 
+  // Clear all local data but KEEP the access code and URL so other devices detect the reset via sync
   Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
-  localStorage.removeItem('catatan_keuangan_access_code');
-
-  const url = new URL(window.location.href);
-  url.searchParams.delete('akses');
-  url.searchParams.delete('access_code');
-  window.history.replaceState({}, '', url.pathname + url.hash);
+  // Keep catatan_keuangan_access_code so the access code stays the same after reload
+  // Keep URL as-is so all linked devices remain on the same access code
 
   location.reload();
 }
