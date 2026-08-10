@@ -1929,7 +1929,7 @@ function mergeCategories(localList, remoteList) {
 function mergeWallets(localList, remoteList) {
   const all = [];
   (localList || []).forEach(item => {
-    if (item && item.name) all.push({ ...item, updatedAt: item.updatedAt || 0 });
+    if (item && item.name) all.push({ id: item.id || uid(), name: item.name, balance: Number(item.balance) || 0, updatedAt: item.updatedAt || 0 });
   });
   (remoteList || []).forEach(remote => {
     if (remote && remote.name) {
@@ -1951,9 +1951,7 @@ function mergeWallets(localList, remoteList) {
       grouped.set(key, item);
     } else {
       if ((item.updatedAt || 0) >= (existing.updatedAt || 0)) {
-        grouped.set(key, { ...existing, ...item });
-      } else {
-        grouped.set(key, { ...item, ...existing });
+        grouped.set(key, item);
       }
     }
   });
@@ -2516,9 +2514,11 @@ function categoryById(id){ return getCategories().find(c => c.id === id); }
 function addTransaction(tx){
   const txs = getTransactions();
   tx.id = uid();
+  tx.updatedAt = Date.now();
   txs.push(tx);
-  setTransactions(txs);
+  setTransactionsLocalOnly(txs);
   applyBalanceDelta(tx.walletId, tx.type === 'income' ? tx.amount : -tx.amount);
+  syncAllWithSupabase(true);
   return tx;
 }
 
@@ -2534,9 +2534,9 @@ function editTransaction(id, updated){
   } else {
     applyBalanceDelta(old.walletId, old.type === 'income' ? -old.amount : old.amount);
   }
-  const merged = Object.assign({}, old, updated);
+  const merged = Object.assign({}, old, updated, { updatedAt: Date.now() });
   txs[idx] = merged;
-  setTransactions(txs);
+  setTransactionsLocalOnly(txs);
   // apply new balance effect
   if(merged.type === 'transfer'){
     applyBalanceDelta(merged.walletId, -merged.amount);
@@ -2544,6 +2544,7 @@ function editTransaction(id, updated){
   } else {
     applyBalanceDelta(merged.walletId, merged.type === 'income' ? merged.amount : -merged.amount);
   }
+  syncAllWithSupabase(true);
 }
 
 function deleteTransaction(id){
@@ -2558,7 +2559,8 @@ function deleteTransaction(id){
     applyBalanceDelta(tx.walletId, tx.type === 'income' ? -tx.amount : tx.amount);
   }
   txs.splice(idx,1);
-  setTransactions(txs);
+  setTransactionsLocalOnly(txs);
+  syncAllWithSupabase(true);
 }
 
 function addTransfer(transfer){
@@ -2566,10 +2568,12 @@ function addTransfer(transfer){
   transfer.id = uid();
   transfer.type = 'transfer';
   transfer.category = 'Transfer';
+  transfer.updatedAt = Date.now();
   txs.push(transfer);
-  setTransactions(txs);
+  setTransactionsLocalOnly(txs);
   applyBalanceDelta(transfer.walletId, -transfer.amount);
   applyBalanceDelta(transfer.toWalletId, transfer.amount);
+  syncAllWithSupabase(true);
 }
 
 function applyBalanceDelta(walletId, delta){
@@ -2577,7 +2581,8 @@ function applyBalanceDelta(walletId, delta){
   const w = wallets.find(w => w.id === walletId);
   if(!w) return;
   w.balance = Math.round((w.balance + delta) * 100) / 100;
-  setWallets(wallets);
+  w.updatedAt = Date.now();
+  setWalletsLocalOnly(wallets);
 }
 
 /* =========================================================
