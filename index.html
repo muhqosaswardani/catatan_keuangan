@@ -3130,16 +3130,18 @@ function daysInMonth(year, monthIndex0){ return new Date(year, monthIndex0 + 1, 
 // Kalau dayOfMonth bulan ini masih akan datang (>= baseDate), pakai bulan ini; kalau tidak, maju ke bulan depan.
 // Tanggal di-clamp ke hari terakhir bulan itu kalau dayOfMonth melebihi jumlah hari bulan tsb (mis. 31 di Februari).
 function computeInitialDueDate(dayOfMonth, baseDateStr){
-  const base = new Date(baseDateStr + 'T00:00:00');
-  const y = base.getFullYear(), m = base.getMonth();
-  const dThisMonth = Math.min(dayOfMonth, daysInMonth(y, m));
-  const thisMonthDate = new Date(y, m, dThisMonth);
-  if(thisMonthDate >= new Date(y, base.getMonth(), base.getDate())){
-    return y + '-' + pad(m+1) + '-' + pad(dThisMonth);
+  const resetDay = getRecurringResetDay();
+  const startStr = recurringPeriodStart(baseDateStr, resetDay);
+  const startDate = new Date(startStr + 'T00:00:00');
+  let y = startDate.getFullYear(), m = startDate.getMonth();
+  
+  if (dayOfMonth < resetDay) {
+    m = m === 11 ? 0 : m + 1;
+    if (m === 0) y++;
   }
-  const ny = m === 11 ? y+1 : y, nm = m === 11 ? 0 : m+1;
-  const dNextMonth = Math.min(dayOfMonth, daysInMonth(ny, nm));
-  return ny + '-' + pad(nm+1) + '-' + pad(dNextMonth);
+  
+  const d = Math.min(dayOfMonth, daysInMonth(y, m));
+  return y + '-' + pad(m+1) + '-' + pad(d);
 }
 // Majukan tanggal jatuh tempo satu bulan dari currentDueStr (dipakai setelah item dikonfirmasi lunas).
 function advanceDueDateOneMonth(dayOfMonth, currentDueStr){
@@ -3148,6 +3150,29 @@ function advanceDueDateOneMonth(dayOfMonth, currentDueStr){
   const ny = m === 11 ? y+1 : y, nm = m === 11 ? 0 : m+1;
   const d = Math.min(dayOfMonth, daysInMonth(ny, nm));
   return ny + '-' + pad(nm+1) + '-' + pad(d);
+}
+// Satu kali perbaikan data lama yang terlanjur salah hitung tanggal jatuh tempo (nextDue) akibat tidak sinkron dengan siklus reset.
+function adjustLegacyRecurringItems(){
+  let list = getRecurring();
+  let changed = false;
+  const today = todayStr();
+  const resetDay = getRecurringResetDay();
+  const currentStart = recurringPeriodStart(today, resetDay);
+  
+  list.forEach(item => {
+    if (item.active) {
+      if (item.lastPaidPeriod !== currentStart) {
+        const currentDue = computeInitialDueDate(item.dayOfMonth, today);
+        if (currentDue < item.nextDue) {
+          item.nextDue = currentDue;
+          changed = true;
+        }
+      }
+    }
+  });
+  if (changed) {
+    setRecurringLocalOnly(list);
+  }
 }
 // Tanggal siklus reset tagihan berulang (default tgl 25 tiap bulan, bisa diatur di Checklist > "Atur Reset").
 function getRecurringResetDay(){
@@ -3175,6 +3200,14 @@ function recurringStatus(item){
   const today = todayStr();
   if(item.nextDue < today) return 'terlambat';
   if(item.nextDue === today) return 'jatuh-tempo';
+  
+  // Bedakan status 'belum-bayar' (siklus aktif berjalan) vs 'akan-datang' (siklus masa depan)
+  const resetDay = getRecurringResetDay();
+  const currentCycleStart = recurringPeriodStart(today, resetDay);
+  const nextCycleStart = advanceDueDateOneMonth(resetDay, currentCycleStart);
+  if(item.nextDue < nextCycleStart){
+    return 'belum-bayar';
+  }
   return 'akan-datang';
 }
 function addRecurringItem(item){
@@ -7347,6 +7380,7 @@ function recStatusLabel(item){
   if(s === 'sudah-dibayar') return { text:'Sudah Dibayar', cls:'akan-datang' };
   if(s === 'terlambat') return { text:'Terlambat', cls:'terlambat' };
   if(s === 'jatuh-tempo') return { text:'Jatuh Tempo Hari Ini', cls:'jatuh-tempo' };
+  if(s === 'belum-bayar') return { text:'Belum Bayar', cls:'belum-bayar' };
   return { text:'Akan Datang', cls:'akan-datang' };
 }
 
@@ -7451,8 +7485,8 @@ function renderRecurringManageList(){
     wrap.innerHTML = '<div class="empty-note" style="padding:8px 0;font-size:13px;color:var(--ink-soft);">Belum ada item berulang. Tambahkan tagihan, cicilan, atau gaji rutin di bawah ini.</div>';
     return;
   }
-  // Urutkan: perlu aksi (terlambat/jatuh tempo) dulu paling atas, baru yang sudah dibayar periode ini/akan datang & nonaktif di bawah — biar item yang masih perlu dibayar tidak nyampur sama yang sudah beres.
-  const rank = { 'terlambat':0, 'jatuh-tempo':1, 'akan-datang':2, 'sudah-dibayar':2, 'nonaktif':3 };
+  // Urutkan: perlu aksi (terlambat/jatuh tempo) dulu paling atas, baru belum bayar, baru yang sudah dibayar periode ini/akan datang & nonaktif di bawah.
+  const rank = { 'terlambat':0, 'jatuh-tempo':1, 'belum-bayar':2, 'akan-datang':3, 'sudah-dibayar':3, 'nonaktif':4 };
   const list = all.slice().sort((a,b) => {
     const ra = rank[recurringStatus(a)], rb = rank[recurringStatus(b)];
     if(ra !== rb) return ra - rb;
@@ -7465,8 +7499,9 @@ function renderRecurringManageList(){
     const cat = categoryById(item.categoryId);
     const canPay = item.active && s !== 'sudah-dibayar';
     const needsAction = (s === 'terlambat' || s === 'jatuh-tempo');
+    const isPendingThisPeriod = (s === 'terlambat' || s === 'jatuh-tempo' || s === 'belum-bayar');
     const payBtnClass = needsAction ? 'btn-primary' : 'btn-ghost';
-    return `<div class="tx-item rec-item${needsAction ? '' : ' rec-item-muted'}" style="flex-wrap:wrap;cursor:default;">
+    return `<div class="tx-item rec-item${isPendingThisPeriod ? '' : ' rec-item-muted'}" style="flex-wrap:wrap;cursor:default;">
       <div class="tx-icon ${item.type}">${cat ? iconSvgMarkup(cat.icon, 20) : ''}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(item.name)}</div>
@@ -7511,6 +7546,7 @@ function saveRecurringResetSettings(){
   s.recurringResetDay = (d >= 1 && d <= 31) ? d : 25;
   setSettings(s);
   closeModal('modalRecurringResetSettings');
+  adjustLegacyRecurringItems();
   renderRecurringManageList();
   renderRecurringHomeAlert();
   showToast('Tanggal reset tagihan disimpan');
@@ -7913,6 +7949,7 @@ async function init(){
   }
 
   // 4. Render ulang seluruh tampilan jika ada pembaruan data dari Supabase
+  adjustLegacyRecurringItems();
   refreshAllViews();
   switchTabUI(currentTab);
 
