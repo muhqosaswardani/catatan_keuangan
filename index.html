@@ -1961,7 +1961,7 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs.length > 0) await supabaseClient.from('budgets').upsert(pushRecs);
     }
 
-    // 5. User Settings & Nav Config Sync
+    // 5. User Settings, Nav Config, Shortcuts & AI Insights Sync
     try {
       const { data: remSettings } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
       if (remSettings) {
@@ -1972,11 +1972,23 @@ async function syncAllWithSupabase(silent = true) {
           const curS = getSettings();
           setSettingsLocalOnly({ ...curS, sheetsWebAppUrl: remSettings.sheets_web_app_url });
         }
+        if (remSettings.shortcut_overrides) {
+          setShortcutOverridesLocalOnly(remSettings.shortcut_overrides);
+        }
+        if (remSettings.insight_cache) {
+          setInsightCache(remSettings.insight_cache);
+        }
+        if (remSettings.onboarded) {
+          localStorage.setItem(LS_KEYS.onboarded, '1');
+        }
       }
       await supabaseClient.from('user_settings').upsert({
         access_code: code,
         sheets_web_app_url: (getSettings().sheetsWebAppUrl || ''),
         nav_config: (typeof getNavConfig === 'function' ? getNavConfig() : { core: [] }),
+        shortcut_overrides: getShortcutOverrides(),
+        insight_cache: getInsightCache(),
+        onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
         updated_at: new Date().toISOString()
       });
     } catch (sErr) {
@@ -2095,7 +2107,11 @@ function getInsightCache(){ return JSON.parse(localStorage.getItem(LS_KEYS.insig
 function setInsightCache(i){ localStorage.setItem(LS_KEYS.insights, JSON.stringify(i)); }
 
 function getShortcutOverrides(){ return JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '{}'); }
-function setShortcutOverrides(o){ localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(o)); }
+function setShortcutOverridesLocalOnly(o){ localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(o)); }
+function setShortcutOverrides(o){
+  setShortcutOverridesLocalOnly(o);
+  syncAllWithSupabase(true);
+}
 
 function getGoals(){ return JSON.parse(localStorage.getItem(LS_KEYS.goals) || '[]'); }
 function setGoalsLocalOnly(g){ localStorage.setItem(LS_KEYS.goals, JSON.stringify(g)); }

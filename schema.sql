@@ -92,6 +92,9 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
     access_code TEXT PRIMARY KEY,
     sheets_web_app_url TEXT,
     nav_config JSONB,
+    shortcut_overrides JSONB,
+    insight_cache JSONB,
+    onboarded BOOLEAN DEFAULT false,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
