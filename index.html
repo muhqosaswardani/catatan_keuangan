@@ -6,7 +6,7 @@
 <title>Catatan Keuangan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* Chart.js v4.4.4 - dibundel offline agar tetap jalan saat file dibuka lokal (content://, file://) tanpa internet */
@@ -7429,6 +7429,14 @@ function refreshAllViews(){
 }
 
 async function init(){
+  // Load custom web fonts only on desktop screens (>=900px) to prevent modifying native system styling on mobile
+  if (window.innerWidth >= 900) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap';
+    document.head.appendChild(link);
+  }
+
   getAccessCode();
   navInit();
   renderBottomNav();
