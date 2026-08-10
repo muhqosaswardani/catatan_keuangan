@@ -4656,8 +4656,6 @@ function insightPctChangeLabel(now, prev){
   return (pct > 0 ? 'naik ' : 'turun ') + Math.abs(pct).toFixed(0) + '% dari bulan lalu (' + formatRupiah(prev) + ')';
 }
 
-// Semua kalkulasi murni lokal (bukan lewat AI) — hasilnya dirangkai jadi teks ringkasan
-// yang dikirim ke Gemini sebagai bagian dari promptText.
 function buildInsightSummaryText(){
   const month = currentMonthStr();
   const prevMonth = prevMonthStr(month);
@@ -4671,9 +4669,23 @@ function buildInsightSummaryText(){
   const incPrev = prevTx.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
 
   let lines = [];
-  lines.push('Pengeluaran bulan ini: ' + formatRupiah(expNow) + ' (bulan lalu: ' + formatRupiah(expPrev) + ')');
-  lines.push('Pemasukan bulan ini: ' + formatRupiah(incNow) + ' (bulan lalu: ' + formatRupiah(incPrev) + ')');
 
+  // --- Saldo Dompet ---
+  const wallets = getWallets();
+  const totalSaldo = wallets.reduce((s,w) => s + (w.balance || 0), 0);
+  lines.push('=== SALDO DOMPET ===');
+  wallets.forEach(w => {
+    lines.push('- ' + w.name + ': ' + formatRupiah(w.balance || 0));
+  });
+  lines.push('Total saldo seluruh dompet: ' + formatRupiah(totalSaldo));
+
+  // --- Arus Kas Bulan Ini ---
+  lines.push('\n=== ARUS KAS BULAN INI (' + month + ') ===');
+  lines.push('Pemasukan bulan ini: ' + formatRupiah(incNow) + ' (bulan lalu: ' + formatRupiah(incPrev) + ')');
+  lines.push('Pengeluaran bulan ini: ' + formatRupiah(expNow) + ' (bulan lalu: ' + formatRupiah(expPrev) + ')');
+  lines.push('Selisih (net): ' + formatRupiah(incNow - expNow));
+
+  // --- Breakdown Kategori ---
   const byCatNow = {};
   monthTx.filter(t => t.type === 'expense').forEach(t => { byCatNow[t.category] = (byCatNow[t.category] || 0) + t.amount; });
   const byCatPrev = {};
@@ -4689,9 +4701,10 @@ function buildInsightSummaryText(){
 
   const newCats = Object.keys(byCatNow).filter(n => !(n in byCatPrev));
   const goneCats = Object.keys(byCatPrev).filter(n => !(n in byCatNow));
-  if(newCats.length) lines.push('Kategori baru muncul bulan ini (nihil bulan lalu): ' + newCats.join(', '));
-  if(goneCats.length) lines.push('Kategori yang biasanya ada tapi nihil bulan ini: ' + goneCats.join(', '));
+  if(newCats.length) lines.push('Kategori baru muncul bulan ini: ' + newCats.join(', '));
+  if(goneCats.length) lines.push('Kategori biasa ada tapi nihil bulan ini: ' + goneCats.join(', '));
 
+  // --- Budget ---
   const info = monthDayInfo(month);
   const expCats = getCategories().filter(c => c.type === 'expense');
   const budgetLines = [];
@@ -4701,36 +4714,84 @@ function buildInsightSummaryText(){
     const pct = (st.spent / st.limit) * 100;
     budgetLines.push('- ' + c.name + ': terpakai ' + formatRupiah(st.spent) + ' dari budget ' + formatRupiah(st.limit) +
       ' (' + pct.toFixed(0) + '%), sisa ' + formatRupiah(Math.max(0, st.limit - st.spent)) +
-      ' untuk ' + info.remainingDays + ' hari sisa bulan ini');
+      ' untuk ' + info.remainingDays + ' hari sisa');
   });
   if(budgetLines.length){
-    lines.push('Status budget aktif bulan ini:');
+    lines.push('\n=== STATUS BUDGET ===');
     lines = lines.concat(budgetLines);
   }
 
+  // --- Rata-rata Harian ---
   const dayOfMonth = Math.max(1, info.dayOfMonth || new Date().getDate());
   const avgNow = expNow / dayOfMonth;
   const [py, pm] = prevMonth.split('-').map(Number);
   const avgPrev = expPrev / daysInMonth(py, pm);
   lines.push('Rata-rata pengeluaran harian bulan ini: ' + formatRupiah(avgNow) + ' (bulan lalu: ' + formatRupiah(avgPrev) + ')');
 
+  // --- Tagihan Berulang ---
+  const recurring = getRecurring();
+  if(recurring.length > 0){
+    lines.push('\n=== TAGIHAN BERULANG (CHECKLIST) ===');
+    let terlambat = [], jatuhTempo = [], sudahBayar = [];
+    recurring.filter(r => r.active).forEach(r => {
+      const s = recurringStatus(r);
+      if(s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ')');
+      else if(s === 'jatuh-tempo') jatuhTempo.push(r.name + ' (' + formatRupiah(r.amount) + ')');
+      else if(s === 'sudah-dibayar') sudahBayar.push(r.name);
+    });
+    if(terlambat.length) lines.push('TERLAMBAT: ' + terlambat.join(', '));
+    if(jatuhTempo.length) lines.push('JATUH TEMPO: ' + jatuhTempo.join(', '));
+    if(sudahBayar.length) lines.push('Sudah dibayar periode ini: ' + sudahBayar.join(', '));
+    const belumBayar = recurring.filter(r => r.active && recurringStatus(r) !== 'sudah-dibayar');
+    const totalBelum = belumBayar.reduce((s,r) => s + r.amount, 0);
+    if(totalBelum > 0) lines.push('Total tagihan belum terbayar: ' + formatRupiah(totalBelum));
+  }
+
+  // --- Utang Piutang ---
+  const debts = getDebts();
+  const activeDebts = debts.filter(d => d.status !== 'lunas');
+  if(activeDebts.length > 0){
+    lines.push('\n=== UTANG PIUTANG AKTIF ===');
+    let totalUtang = 0, totalPiutang = 0;
+    activeDebts.forEach(d => {
+      if(d.type === 'utang' || d.type === 'i_owe') totalUtang += d.amount;
+      else totalPiutang += d.amount;
+    });
+    if(totalUtang > 0) lines.push('Total utang kamu: ' + formatRupiah(totalUtang));
+    if(totalPiutang > 0) lines.push('Total piutang (orang lain berhutang ke kamu): ' + formatRupiah(totalPiutang));
+    const overdue = activeDebts.filter(d => d.dueDate && d.dueDate < new Date().toISOString().slice(0,10));
+    if(overdue.length) lines.push('Utang/piutang LEWAT jatuh tempo: ' + overdue.map(d => d.personName + ' ' + formatRupiah(d.amount)).join(', '));
+  }
+
+  // --- Tujuan Tabungan ---
+  const goals = getGoals();
+  if(goals.length > 0){
+    lines.push('\n=== TUJUAN TABUNGAN ===');
+    goals.forEach(g => {
+      const w = walletById(g.walletId);
+      const progress = w ? w.balance : 0;
+      const pct = g.targetAmount > 0 ? ((progress / g.targetAmount) * 100).toFixed(0) : 0;
+      lines.push('- ' + g.name + ': ' + formatRupiah(progress) + ' / ' + formatRupiah(g.targetAmount) + ' (' + pct + '%)');
+    });
+  }
+
   return lines.join('\n');
 }
-// Sambungan Gemini teks — dipakai untuk bikin insight keuangan otomatis (bukan vision, teks saja).
-// Kalau Gemini API Key belum diisi, fitur ini tidak dipanggil sama sekali (lihat checkAndRenderInsight/manualRefreshInsight).
+
 async function generateInsightWithGemini(key){
   const summary = buildInsightSummaryText();
   const promptText =
-    'Kamu asisten keuangan pribadi. Berdasarkan data ringkasan berikut, buatkan 2-4 kalimat insight berbahasa Indonesia ' +
-    'yang natural, santai tapi jelas dan mudah dipahami (bukan istilah teknis berat). Sambungkan beberapa fakta jadi satu ' +
-    'observasi yang mengalir, bukan sekadar membacakan ulang angka satu-satu. Kalau datanya kosong/tidak signifikan di suatu ' +
-    'bagian, jangan dipaksakan dibahas.\n\n' + summary +
-    '\n\nKembalikan HANYA satu objek JSON: {"insight": "<teks insight di sini>"}. Teks insight itu sendiri harus teks polos ' +
-    'saja, tanpa markdown/format lain di dalamnya.';
+    'Kamu asisten keuangan pribadi yang cerdas dan perhatian. Berdasarkan data LENGKAP berikut (saldo dompet, arus kas, budget, tagihan berulang, utang piutang, dan tujuan tabungan), buatkan 2-4 kalimat insight berbahasa Indonesia yang:\n' +
+    '- HOLISTIK: pertimbangkan saldo aktual dompet (bukan hanya selisih pemasukan-pengeluaran), tagihan yang masih harus dibayar, dan kondisi keseluruhan keuangan user.\n' +
+    '- REALISTIS: jangan bilang "aman" hanya karena pemasukan tinggi — lihat saldo cash yang tersedia sekarang. Dompet Tabungan sebisa mungkin jangan dianggap uang yang bisa dipakai sehari-hari.\n' +
+    '- BERVARIASI: jangan pakai template/format yang sama terus. Kadang soroti saldo, kadang tagihan mendatang, kadang pola spending, kadang progress tabungan. Buat tiap kali berbeda sudut pandangnya.\n' +
+    '- NATURAL & SANTAI: seperti teman dekat yang peduli soal keuanganmu, bukan robot yang baca angka.\n' +
+    '- TIDAK TERLALU PANJANG: cukup 2-4 kalimat padat dan berguna.\n\n' +
+    summary +
+    '\n\nKembalikan HANYA satu objek JSON: {"insight": "<teks insight di sini>"}. Teks insight itu sendiri harus teks polos saja, tanpa markdown/format lain di dalamnya.';
   const parts = [{ text: promptText }];
   const data = await callGeminiRaw(key, parts);
   const rawText = extractGeminiText(data);
-  // Bersihkan pagar markdown ```json ... ``` DULU sebelum coba parse,
   // karena Gemini sering membungkus JSON-nya dengan code fence.
   const cleanedText = rawText.toString().replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
   let insightText = '';
