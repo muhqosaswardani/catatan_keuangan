@@ -3237,7 +3237,9 @@ let navStack = [{navId:0, type:'tab', tab:'beranda'}];
 let isHandlingPopState = false;
 
 function navInit(){
-  const root = {navId:0, type:'tab', tab:'beranda'};
+  const savedTab = localStorage.getItem('last_active_tab') || 'beranda';
+  currentTab = savedTab;
+  const root = {navId:0, type:'tab', tab:savedTab};
   navStack = [root];
   history.replaceState(root, '', location.href);
 }
@@ -3256,7 +3258,8 @@ function navReplaceTop(entry){
 
 function switchTabUI(tab){
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + tab).classList.add('active');
+  const pageEl = document.getElementById('page-' + tab);
+  if(pageEl) pageEl.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   const bottomNavMore = document.querySelector('#bottomNav [data-tab="lainnya"]');
   if(bottomNavMore){
@@ -3264,6 +3267,7 @@ function switchTabUI(tab){
     bottomNavMore.classList.toggle('active', !core.includes(tab));
   }
   currentTab = tab;
+  localStorage.setItem('last_active_tab', tab);
   if(tab === 'beranda') renderHome();
   if(tab === 'transaksi') renderTransactions();
   if(tab === 'laporan') renderLaporan();
@@ -7444,7 +7448,7 @@ async function init(){
   setCatManageType('expense');
 
   // 1. LANGSUNG render data lokal tersimpan secara instan di frame 1 (0ms render tanpa glitch Rp 0)
-  renderHome();
+  switchTabUI(currentTab);
 
   // 2. DAHULUKAN narik data terbaru dari Supabase di background
   await syncAllWithSupabase(true);
@@ -7457,6 +7461,7 @@ async function init(){
 
   // 4. Render ulang seluruh tampilan jika ada pembaruan data dari Supabase
   refreshAllViews();
+  switchTabUI(currentTab);
 
   // 5. Tampilkan onboarding HANYA jika pengguna memang belum pernah onboarded di Supabase
   if(!localStorage.getItem(LS_KEYS.onboarded)){
