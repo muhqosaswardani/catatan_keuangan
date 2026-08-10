@@ -5232,8 +5232,8 @@ async function deleteCurrentGoal(){
   if(!id) return;
   const goal = getGoals().find(g => g.id === id);
   const walletId = goal ? goal.walletId : null;
-  const willDeleteWallet = walletId && walletById(walletId) && !isWalletStillUsed(walletId, id);
-  const wallet = willDeleteWallet ? walletById(walletId) : null;
+  const willDeleteWallet = walletId && (walletId !== 'wallet_utama' && walletId !== 'wallet_tabungan') && (!walletById(walletId) || !isWalletStillUsed(walletId, id));
+  const wallet = walletById(walletId);
 
   let msg = 'Hapus tujuan tabungan ini?';
   if(willDeleteWallet && wallet){
