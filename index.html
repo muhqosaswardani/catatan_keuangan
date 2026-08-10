@@ -1063,7 +1063,7 @@
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="insightLapSection">
       <div class="section-head"><h2>Insight AI</h2></div>
       <div class="insight-card" id="insightLapWrap">
         <div class="insight-card-head">
@@ -1123,7 +1123,7 @@
     </div>
     </div>
 
-    <div class="section analysis-section-full" style="margin-top:0;">
+    <div class="section analysis-section-full" id="analysisLapSection" style="margin-top:0;">
       <div class="section-head"><h2>Analisa AI</h2></div>
       <div class="insight-card" id="analysisWrap">
         <div class="insight-card-head">
@@ -4047,8 +4047,21 @@ function computeMonthBalances(monthStr){
 function renderLaporan(){
   if(laporanPeriodMode === 'week') renderLaporanWeek();
   else renderLaporanMonth();
-  checkAndRenderInsight();
-  checkAndRenderAnalysis();
+
+  const isCurrentMonthMode = (laporanPeriodMode === 'month' && laporanMonth === currentMonthStr());
+  
+  const insightSec = document.getElementById('insightLapSection');
+  const analysisSec = document.getElementById('analysisLapSection');
+  
+  if (isCurrentMonthMode) {
+    if (insightSec) insightSec.style.display = 'block';
+    if (analysisSec) analysisSec.style.display = 'block';
+    checkAndRenderInsight();
+    checkAndRenderAnalysis();
+  } else {
+    if (insightSec) insightSec.style.display = 'none';
+    if (analysisSec) analysisSec.style.display = 'none';
+  }
 }
 
 function renderLaporanMonth(){
