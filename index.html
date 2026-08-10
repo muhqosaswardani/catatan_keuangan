@@ -4435,7 +4435,13 @@ async function aiScanWithGemini(key){
     '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n\n' +
     'CARA MEMBACA DOKUMEN:\n' +
     '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
-    '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli (misal: Mentos/camilan -> kategori "Jajan", Abon/mie -> kategori "Makan", Sabun/odol -> kategori "Belanja", dsb.). Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
+    '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
+    '   - Aturan klasifikasi kategori penting (Ikuti panduan ini agar klasifikasi akurat):\n' +
+    '     * "Makan" (atau kategori makanan utama): Khusus untuk makanan berat, lauk-pauk siap saji (seperti abon, sarden, sosis lauk), mie instan, telur, atau kebutuhan pangan pokok berat.\n' +
+    '     * "Jajan" (atau kategori snack/camilan): Khusus untuk makanan ringan, permen (seperti Mentos), cokelat, snack, es krim, roti manis, serta minuman manis/soda (seperti Sprite, Fanta, Coca-Cola) atau kopi instan/botolan.\n' +
+    '     * "Sembako": Khusus untuk bahan mentah dapur dasar (minyak goreng, beras karung, gula pasir, garam, dsb).\n' +
+    '     * "Belanja": Khusus untuk kebutuhan rumah tangga non-konsumsi (seperti sabun mandi, detergen, pasta gigi, tisu, shampoo, sikat gigi, dsb).\n' +
+    '     * Jika ada kategori kustom baru yang baru saja ditambahkan oleh pengguna, pilihlah jika nama kategorinya lebih spesifik dan cocok dengan barang yang dibeli.\n' +
     '   - Kelompokkan barang-barang belanjaan tersebut ke dalam kategori-kategori yang sesuai. Untuk SETIAP kategori yang ditemukan, buat SATU objek pengeluaran ("type": "expense").\n' +
     '   - Hitung nilai "amount" bersih untuk kategori tersebut. Caranya: hitung subtotal harga barang dalam kategori tersebut, lalu kurangi diskon barang tersebut, dan TAMBAHKAN PPN/Pajak secara proporsional. Pastikan jika jumlah "amount" dari semua kategori pengeluaran ini dijumlahkan, hasilnya cocok 100% dengan Grand Total (Total Bayar) yang tertera di struk belanja.\n' +
     '   - Berikan "note" berupa deskripsi ringkas berisi nama toko diikuti rincian barang dalam kategori tersebut (misal: "Alfamart - Makan (Abon)" atau "Alfamart - Jajan (Mentos)").\n' +
