@@ -581,11 +581,11 @@
     #page-laporan.active .lap-col{display:flex;flex-direction:column;min-width:0;}
     #page-laporan.active .lap-col .section{margin:0;}
 
-    /* Budget: gauge & list berdampingan (flex agar tinggi kolom independen) */
-    #page-budget .section{display:flex;flex-wrap:wrap;gap:0 28px;align-items:flex-start;}
-    #page-budget .month-nav{flex:1 1 100%;}
-    #page-budget .section > div[style*="margin-top:12px"]{flex:0 0 280px;margin-top:14px !important;}
-    #page-budget .section > div[style*="margin-top:16px"]{flex:1 1 320px;min-width:0;margin-top:14px !important;}
+    /* Budget: gauge di atas tengah (diperbesar) & list di bawahnya */
+    #page-budget .budget-gauge-card{max-width:560px;margin:0 auto 20px;}
+    #page-budget .budget-gauge-wrap{max-width:380px;}
+    #page-budget .budget-gauge-center .val{font-size:30px;}
+    #page-budget .budget-gauge-center .days-left{font-size:16px;}
 
     /* Card-heavy list pages: sedikit lega */
     .card{padding:18px;}
