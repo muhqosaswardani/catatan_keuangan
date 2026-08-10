@@ -1417,7 +1417,23 @@
     <div class="modal">
       <div class="modal-head"><h3>Riwayat Lunas</h3><button class="modal-close" onclick="closeModal('modalDebtHistory')">&times;</button></div>
       <div class="modal-body">
-        <div id="debtHistoryListWrap" style="max-height:60vh;overflow-y:auto;"></div>
+        <div class="lap-subtabs" style="margin-bottom:12px;">
+          <button type="button" class="lap-subtab-btn active" id="debtHistFilterAllBtn" onclick="setDebtHistoryFilterMode('all')">Semua</button>
+          <button type="button" class="lap-subtab-btn" id="debtHistFilterMonthBtn" onclick="setDebtHistoryFilterMode('month')">Per Bulan</button>
+          <button type="button" class="lap-subtab-btn" id="debtHistFilterYearBtn" onclick="setDebtHistoryFilterMode('year')">Per Tahun</button>
+        </div>
+        <div id="debtHistMonthNavWrap" style="display:none;margin-bottom:12px;">
+          <div class="month-nav">
+            <button type="button" class="month-nav-arrow" onclick="debtHistoryShiftPeriod(-1)" aria-label="Periode sebelumnya">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div class="month-nav-label" id="debtHistPeriodLabel">Bulan Ini</div>
+            <button type="button" class="month-nav-arrow" id="debtHistNextBtn" onclick="debtHistoryShiftPeriod(1)" aria-label="Periode berikutnya">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="debtHistoryListWrap" style="max-height:50vh;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
@@ -5412,38 +5428,102 @@ function renderDebtAllList(){
   });
 }
 
+let debtHistoryFilterMode = 'all'; // 'all' | 'month' | 'year'
+let debtHistoryMonth = null; // 'YYYY-MM'
+let debtHistoryYear = null; // 'YYYY'
+
 function openDebtHistory(){
+  debtHistoryFilterMode = 'all';
+  debtHistoryMonth = currentMonthStr();
+  debtHistoryYear = String(new Date().getFullYear());
+  updateDebtHistoryFilterUI();
   renderDebtHistory();
   openModal('modalDebtHistory');
+}
+
+function setDebtHistoryFilterMode(mode){
+  debtHistoryFilterMode = mode;
+  updateDebtHistoryFilterUI();
+  renderDebtHistory();
+}
+
+function updateDebtHistoryFilterUI(){
+  document.getElementById('debtHistFilterAllBtn').classList.toggle('active', debtHistoryFilterMode === 'all');
+  document.getElementById('debtHistFilterMonthBtn').classList.toggle('active', debtHistoryFilterMode === 'month');
+  document.getElementById('debtHistFilterYearBtn').classList.toggle('active', debtHistoryFilterMode === 'year');
+  
+  const navWrap = document.getElementById('debtHistMonthNavWrap');
+  if(debtHistoryFilterMode === 'all'){
+    navWrap.style.display = 'none';
+  } else {
+    navWrap.style.display = 'block';
+    if(debtHistoryFilterMode === 'month'){
+      document.getElementById('debtHistPeriodLabel').textContent = monthLabel(debtHistoryMonth);
+      document.getElementById('debtHistNextBtn').disabled = (debtHistoryMonth >= currentMonthStr());
+    } else if(debtHistoryFilterMode === 'year'){
+      document.getElementById('debtHistPeriodLabel').textContent = 'Tahun ' + debtHistoryYear;
+      document.getElementById('debtHistNextBtn').disabled = (debtHistoryYear >= String(new Date().getFullYear()));
+    }
+  }
+}
+
+function debtHistoryShiftPeriod(delta){
+  if(debtHistoryFilterMode === 'month'){
+    const [y,m] = debtHistoryMonth.split('-').map(Number);
+    const d = new Date(y, m-1+delta, 1);
+    debtHistoryMonth = d.getFullYear() + '-' + pad(d.getMonth()+1);
+  } else if(debtHistoryFilterMode === 'year'){
+    debtHistoryYear = String(Number(debtHistoryYear) + delta);
+  }
+  updateDebtHistoryFilterUI();
+  renderDebtHistory();
 }
 
 function renderDebtHistory(){
   const wrap = document.getElementById('debtHistoryListWrap');
   if(!wrap) return;
-  const lunas = getDebts().filter(d => d.status === 'lunas').slice().sort((a, b) => {
+  
+  let lunas = getDebts().filter(d => d.status === 'lunas');
+  
+  if(debtHistoryFilterMode === 'month'){
+    lunas = lunas.filter(d => {
+      const pDate = d.payoffDate || d.date || '';
+      return pDate.slice(0,7) === debtHistoryMonth;
+    });
+  } else if(debtHistoryFilterMode === 'year'){
+    lunas = lunas.filter(d => {
+      const pDate = d.payoffDate || d.date || '';
+      return pDate.slice(0,4) === debtHistoryYear;
+    });
+  }
+
+  lunas.sort((a, b) => {
     const da = a.payoffDate || a.date || '';
     const db = b.payoffDate || b.date || '';
     return da < db ? 1 : (da > db ? -1 : 0);
   });
+  
   if(lunas.length === 0){
-    wrap.innerHTML = '<div class="empty-note" style="padding:20px 0;text-align:center;">Belum ada utang piutang yang lunas.</div>';
+    wrap.innerHTML = '<div class="empty-note" style="padding:20px 0;text-align:center;">Belum ada utang piutang lunas di periode ini.</div>';
     return;
   }
+  
   wrap.innerHTML = lunas.map(d => {
     const sign = d.type === 'piutang' ? '+' : '-';
     const amtClass = d.type === 'piutang' ? 'income' : 'expense';
     const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
     const payoffInfo = d.payoffDate ? 'Lunas ' + d.payoffDate : 'Lunas';
-    return `<div class="tx-item debt-history-row" data-id="${d.id}" style="opacity:.8;flex-wrap:wrap;cursor:pointer;">
+    return `<div class="tx-item debt-history-row" data-id="${d.id}" style="flex-wrap:wrap;cursor:pointer;">
       <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
         <div class="tx-meta">${d.date}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
-        <div class="tx-meta" style="color:var(--income);">${payoffInfo}</div>
+        <div class="tx-meta" style="color:var(--income);font-weight:600;">${payoffInfo}</div>
       </div>
-      <div class="tx-amt ${amtClass}" style="text-decoration:line-through;">${sign}${formatRupiah(d.amount)}</div>
+      <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
     </div>`;
   }).join('');
+  
   wrap.querySelectorAll('.debt-history-row').forEach(row => {
     row.addEventListener('click', () => {
       closeModal('modalDebtHistory');
