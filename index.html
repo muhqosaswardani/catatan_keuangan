@@ -4429,26 +4429,22 @@ async function aiScanWithGemini(key){
   const expenseCats = getCategories().filter(c => c.type === 'expense').map(c => c.name);
   const incomeCats = getCategories().filter(c => c.type === 'income').map(c => c.name);
   const promptText =
-    'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini, dan kamu HARUS bisa membaca semuanya dengan baik: ' +
-    '(a) foto struk belanja kertas fisik (termasuk yang miring, buram, pencahayaan kurang, atau kertas thermal yang mulai pudar), ' +
-    '(b) screenshot riwayat/mutasi m-banking atau e-wallet dari aplikasi HP (list transaksi bertumpuk ke bawah dengan ikon di kiri dan nominal di kanan), ' +
-    '(c) file dokumen PDF seperti e-statement/rekening koran/riwayat mutasi (bisa lebih dari 1 halaman — baca SEMUA halaman). ' +
-    'Perlakukan tiap lampiran sesuai jenisnya, jangan asumsikan semua berformat sama.\n\n' +
-    'CARA MEMBACA (PENTING, supaya tidak salah hitung transaksi ganda/duplikat): ' +
-    'Baca dokumen baris per baris dari atas ke bawah persis seperti tersusun di gambar/halaman. ' +
-    'Setiap baris/blok transaksi yang terpisah (punya ikon/waktu/keterangan sendiri-sendiri) WAJIB dicatat sebagai transaksi TERSENDIRI, ' +
-    'WALAUPUN nominal dan tanggalnya SAMA PERSIS dengan baris lain (contoh nyata: biaya admin transfer Rp2.500 yang muncul dua kali di hari yang sama karena user melakukan 2x transfer berbeda — itu 2 transaksi biaya yang BENAR-BENAR terpisah, BUKAN satu transaksi yang terbaca dobel). ' +
-    'Nominal/tanggal yang sama BUKAN indikasi duplikat — yang jadi indikasi duplikat HANYA kalau kamu yakin baris yang sama di gambar tidak sengaja kamu baca/tulis dua kali dalam output ini. ' +
-    'Sertakan field "order" (nomor urut posisi baris tersebut dari atas ke bawah di seluruh lampiran, mulai dari 1) supaya urutan aslinya bisa dilacak, dan field "isDuplicateRead" (boolean) — isi true HANYA jika kamu sadar baris ini adalah hasil kamu membaca ulang baris yang sama persis (bukan transaksi baru), isi false untuk semua transaksi yang memang berdiri sendiri di dokumen meskipun mirip transaksi lain.\n\n' +
-    'Untuk SETIAP transaksi berbeda yang kamu temukan di semua lampiran, buat satu objek dengan field: ' +
-    '"order" (integer urutan seperti dijelaskan di atas), ' +
-    '"date" (format YYYY-MM-DD, asumsikan tahun ' + new Date().getFullYear() + ' kalau tidak tertulis di gambar), ' +
-    '"type" ("expense" atau "income"), "amount" (angka rupiah, integer, tanpa titik/koma/simbol, JANGAN ikutkan digit desimal ".00"/",00" kalau ada), ' +
-    '"note" (deskripsi ringkas tapi tetap spesifik/khas dari baris tersebut, boleh sampai 10 kata Bahasa Indonesia — sertakan nama toko/tujuan/nomor referensi kalau ada, supaya baris yang mirip tetap bisa dibedakan satu sama lain), ' +
-    '"category" (pilih SATU nama paling cocok sesuai type dari daftar ini — expense: [' + expenseCats.join(', ') + '], income: [' + incomeCats.join(', ') + ']; kalau tidak ada yang cocok isi "Lainnya"), ' +
-    '"isDuplicateRead" (boolean, sesuai penjelasan di atas). ' +
-    'Kalau ada angka yang buram/kurang yakin, tetap berikan tebakan terbaikmu daripada melewatkan transaksi itu. ' +
-    'Kembalikan HANYA array JSON berisi objek-objek tersebut, tanpa teks lain, tanpa markdown code fence.';
+    'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini:\n' +
+    '(a) Foto/gambar struk belanja kasir/supermarket/toko (seperti Alfamart, Indomaret, dsb.) yang berisi daftar barang belanjaan (items) beserta diskon, PPN/pajak, dan grand total.\n' +
+    '(b) Screenshot riwayat/mutasi m-banking atau e-wallet (list transaksi bertumpuk ke bawah).\n' +
+    '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n\n' +
+    'CARA MEMBACA DOKUMEN:\n' +
+    '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
+    '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli (misal: Mentos/camilan -> kategori "Jajan", Abon/mie -> kategori "Makan", Sabun/odol -> kategori "Belanja", dsb.). Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
+    '   - Kelompokkan barang-barang belanjaan tersebut ke dalam kategori-kategori yang sesuai. Untuk SETIAP kategori yang ditemukan, buat SATU objek pengeluaran ("type": "expense").\n' +
+    '   - Hitung nilai "amount" bersih untuk kategori tersebut. Caranya: hitung subtotal harga barang dalam kategori tersebut, lalu kurangi diskon barang tersebut, dan TAMBAHKAN PPN/Pajak secara proporsional. Pastikan jika jumlah "amount" dari semua kategori pengeluaran ini dijumlahkan, hasilnya cocok 100% dengan Grand Total (Total Bayar) yang tertera di struk belanja.\n' +
+    '   - Berikan "note" berupa deskripsi ringkas berisi nama toko diikuti rincian barang dalam kategori tersebut (misal: "Alfamart - Makan (Abon)" atau "Alfamart - Jajan (Mentos)").\n' +
+    '   - Tetapkan tanggal "date" (YYYY-MM-DD) sesuai tanggal transaksi di struk belanja.\n\n' +
+    '2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n' +
+    '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
+    '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
+    '   - Untuk setiap transaksi mutasi, buat satu objek dengan field: "order" (integer), "date" (YYYY-MM-DD, asumsikan tahun ' + new Date().getFullYear() + ' jika tidak tertulis), "type" ("expense" atau "income"), "amount" (integer rupiah), "note" (keterangan transaksi), "category" (pilih yang paling cocok dari daftar: expense: [' + expenseCats.join(', ') + '], income: [' + incomeCats.join(', ') + ']; atau "Lainnya"), "isDuplicateRead" (boolean).\n\n' +
+    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut, tanpa penjelasan markdown, tanpa code fence.';
   const parts = [{ text: promptText }];
   for(const f of aiCaptureFiles){ parts.push(await fileToGenerativePart(f)); }
   const data = await callGeminiRaw(key, parts);
