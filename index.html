@@ -1922,6 +1922,7 @@ function getAccessCode() {
 }
 
 let isSyncingData = false;
+let isResettingData = false; // blocks sync interval during full data reset
 
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
@@ -2041,6 +2042,8 @@ function mergeWallets(localList, remoteList) {
 }
 
 async function syncAllWithSupabase(silent = true) {
+  // Hard block: never run sync while a full data reset is in progress
+  if (isResettingData) return;
   if (!supabaseClient || !navigator.onLine) {
     updateSyncStatusUI('offline', !silent);
     if (!silent) showToast('Mode Offline (Lokal) - Data disimpan di HP');
@@ -6309,6 +6312,10 @@ async function confirmResetAllData(){
   const input = document.getElementById('resetConfirmInput');
   if(input.value.trim() !== RESET_CONFIRM_WORD) return;
 
+  // Block all sync operations immediately so no background sync can restore data during reset
+  isResettingData = true;
+  isSyncingData = true;
+
   const code = getAccessCode(); // KEEP the same access code so other devices on the same link sync the reset
   if(supabaseClient && navigator.onLine && code){
     try {
@@ -6323,8 +6330,13 @@ async function confirmResetAllData(){
         supabaseClient.from('recurring_items').delete().eq('access_code', code),
         supabaseClient.from('user_settings').delete().eq('access_code', code)
       ]);
+      showToast('Data server berhasil dihapus ✓');
     } catch(err) {
       console.warn('Supabase reset err:', err);
+      showToast('Gagal hapus data server, coba lagi');
+      isResettingData = false;
+      isSyncingData = false;
+      return; // Don't reload if Supabase delete failed
     }
   }
 
@@ -7032,7 +7044,7 @@ async function init(){
 
   // Auto-sync real-time tiap 3 detik agar perubahan dari HP langsung update di PC tanpa reload
   setInterval(() => {
-    if (document.visibilityState === 'visible' && !isSyncingData) {
+    if (document.visibilityState === 'visible' && !isSyncingData && !isResettingData) {
       syncAllWithSupabase(true);
     }
   }, 3000);
