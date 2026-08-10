@@ -672,11 +672,11 @@
     <p>Sebelum mulai, catat dulu saldo awal di masing-masing dompet kamu. Ini jadi titik awal semua catatan keuangan.</p>
     <div class="field">
       <label>Saldo awal — Dompet Utama</label>
-      <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="onbUtama" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+      <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="onbUtama" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
     </div>
     <div class="field">
       <label>Saldo awal — Dompet Tabungan</label>
-      <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="onbTabungan" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+      <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="onbTabungan" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
     </div>
     <button class="btn btn-primary btn-block" onclick="finishOnboarding()">Mulai Catat</button>
   </div>
@@ -954,7 +954,7 @@
       <div class="card">
         <div class="field">
           <label>Google Sheets Web App URL</label>
-          <input type="text" id="settSheetsUrl" placeholder="Belum diisi (untuk Fase 2)">
+          <input type="text" id="settSheetsUrl" placeholder="Belum diisi (untuk Fase 2)" autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
         <button class="btn btn-primary btn-block" onclick="saveSettings()">Simpan Pengaturan</button>
       </div>
@@ -1138,11 +1138,11 @@
           <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink);">Tambah Dompet Baru</div>
           <div class="field" style="margin-bottom:10px;">
             <label>Nama Dompet</label>
-            <input type="text" id="newWalletName" placeholder="Contoh: Dompet Kas, Mandiri, dll">
+            <input type="text" id="newWalletName" placeholder="Contoh: Dompet Kas, Mandiri, dll" autocomplete="off" autocorrect="off" spellcheck="false">
           </div>
           <div class="field" style="margin-bottom:12px;">
             <label>Saldo Awal</label>
-            <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="newWalletBalance" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+            <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="newWalletBalance" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
           </div>
           <button type="button" class="btn btn-primary btn-block" onclick="addNewWalletFromManage()">+ Tambah Dompet</button>
         </div>
@@ -1240,17 +1240,17 @@
       </div>
       <div class="field">
         <label>Jumlah</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="txAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="txAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="quick-chip-row" id="txAmountQuickRow"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
         <label>Tanggal</label>
-        <input type="date" id="txDate">
+        <input type="date" id="txDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Catatan (opsional)</label>
-        <input type="text" id="txNote" placeholder="">
+        <input type="text" id="txNote" placeholder="" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTransaction()">Hapus</button>
@@ -1281,16 +1281,16 @@
       </div>
       <div class="field">
         <label>Jumlah</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="trAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="trAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
         <label>Tanggal</label>
-        <input type="date" id="trDate">
+        <input type="date" id="trDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Catatan (opsional)</label>
-        <input type="text" id="trNote">
+        <input type="text" id="trNote" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button class="btn btn-primary btn-block" onclick="submitTransfer()">Simpan Transfer</button>
@@ -1306,11 +1306,11 @@
       <div class="modal-body">      <input type="hidden" id="goalId">
       <div class="field">
         <label>Nama Tujuan</label>
-        <input type="text" id="goalName" placeholder="">
+        <input type="text" id="goalName" placeholder="" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Nominal Target</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="goalTarget" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="goalTarget" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="err">Nominal target harus lebih dari 0</div>
       </div>
       <div class="field" id="goalWalletField">
@@ -1324,7 +1324,7 @@
       </div>
       <div class="field">
         <label>Tanggal Target (opsional)</label>
-        <input type="date" id="goalTargetDate">
+        <input type="date" id="goalTargetDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="goalDeleteBtn" style="display:none;" onclick="deleteCurrentGoal()">Hapus</button>
@@ -1345,25 +1345,25 @@
       </div>
       <div class="field">
         <label>Nama Orang</label>
-        <input type="text" id="debtPersonName" placeholder="" list="debtPersonNamesList">
+        <input type="text" id="debtPersonName" placeholder="" list="debtPersonNamesList" autocomplete="off" autocorrect="off" spellcheck="false">
         <datalist id="debtPersonNamesList"></datalist>
       </div>
       <div class="field">
         <label>Jumlah</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="debtAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="debtAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
         <label>Tanggal</label>
-        <input type="date" id="debtDate">
+        <input type="date" id="debtDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Tanggal Jatuh Tempo (opsional)</label>
-        <input type="date" id="debtDueDate">
+        <input type="date" id="debtDueDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="field">
         <label>Catatan (opsional)</label>
-        <input type="text" id="debtNote" placeholder="">
+        <input type="text" id="debtNote" placeholder="" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="debtDeleteBtn" style="display:none;" onclick="deleteCurrentDebt()">Hapus</button>
@@ -1389,7 +1389,7 @@
       </div>
       <div class="field">
         <label>Tanggal Pelunasan</label>
-        <input type="date" id="debtPayoffDate">
+        <input type="date" id="debtPayoffDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button class="btn btn-primary btn-block" onclick="submitDebtPayoff()">Tandai Lunas</button>
@@ -1445,7 +1445,7 @@
       <div class="modal-body">      <input type="hidden" id="budgetLimitCatId">
       <div class="field">
         <label>Limit Bulanan</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="budgetLimitAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="budgetLimitAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-primary btn-block" onclick="saveBudgetLimit()">Simpan Limit</button>
@@ -1492,7 +1492,7 @@
       <div class="cat-add-form">
         <div class="cat-add-row">
           <button type="button" class="cat-icon-trigger" id="catManageIconTrigger" onclick="openCatIconPicker()"></button>
-          <input type="text" id="catManageNewName" placeholder="Nama kategori baru">
+          <input type="text" id="catManageNewName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
         <button class="btn btn-primary btn-block btn-sm" style="margin-top:8px;" onclick="addCategoryFromManager()">+ Tambah Kategori</button>
       </div>
@@ -1522,7 +1522,7 @@
       </div>
       <div class="field">
         <label>Nama</label>
-        <input type="text" id="recName" placeholder="">
+        <input type="text" id="recName" placeholder="" autocomplete="off" autocorrect="off" spellcheck="false">
         <div class="err">Nama wajib diisi</div>
       </div>
       <div class="field" id="recWalletField">
@@ -1543,7 +1543,7 @@
       </div>
       <div class="field">
         <label>Jumlah (perkiraan, boleh diedit tiap konfirmasi)</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="recAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="recAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
@@ -1572,12 +1572,12 @@
       </div>
       <div class="field">
         <label>Jumlah</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="recConfirmAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="recConfirmAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
         <label>Tanggal</label>
-        <input type="date" id="recConfirmDate">
+        <input type="date" id="recConfirmDate" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-primary btn-block" id="recConfirmSubmitBtn" onclick="submitRecurringConfirm()">Tandai Bayar</button>
@@ -1601,13 +1601,13 @@
       </div>
       <div class="field">
         <label>Jumlah</label>
-        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="qtxAmount" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+        <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="qtxAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="quick-chip-row" id="qtxAmountQuickRow"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
       <div class="field">
         <label>Keterangan (opsional)</label>
-        <input type="text" id="qtxNote" placeholder="">
+        <input type="text" id="qtxNote" placeholder="" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-primary btn-block" onclick="submitQuickTx()">Simpan Transaksi</button>
@@ -1831,6 +1831,16 @@
 </div>
 
 <script>
+// Disable browser autocomplete history dropdown on all inputs globally
+document.addEventListener('focusin', function(e){
+  if(e.target && e.target.tagName === 'INPUT'){
+    if(e.target.type !== 'checkbox' && e.target.type !== 'file' && e.target.type !== 'radio'){
+      e.target.setAttribute('autocomplete', 'off');
+      e.target.setAttribute('autocorrect', 'off');
+      e.target.setAttribute('spellcheck', 'false');
+    }
+  }
+});
 /* =========================================================
    DATA LAYER — localStorage
    ========================================================= */
@@ -4814,10 +4824,10 @@ function renderAiRowHtml(row){
       </button>
     </div>
     <div class="scan-fields">
-      <div><label>Tanggal</label><input type="date" id="aiDate_${row.id}" value="${row.date}"></div>
-      <div><label>Nominal</label><input type="text" id="aiAmt_${row.id}" inputmode="decimal" value="${row.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')}" oninput="formatThousandInput(this)"></div>
+      <div><label>Tanggal</label><input type="date" id="aiDate_${row.id}" value="${row.date}" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <div><label>Nominal</label><input type="text" id="aiAmt_${row.id}" inputmode="decimal" value="${row.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.')}" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
       <div class="full"><label>Kategori</label><select id="aiCat_${row.id}">${categoryOptionsHtml(row.type, row.categoryId)}</select></div>
-      <div class="full"><label>Keterangan</label><input type="text" id="aiNote_${row.id}" value="${escAttr(row.note)}"></div>
+      <div class="full"><label>Keterangan</label><input type="text" id="aiNote_${row.id}" value="${escAttr(row.note)}" autocomplete="off" autocorrect="off" spellcheck="false"></div>
     </div>
   </div>`;
 }
@@ -4941,7 +4951,7 @@ function renderTxCategoryPickerList(showAddForm){
   if(showAddForm){
     html += `
       <div class="picker-add-form">
-        <input type="text" id="pickerNewCatName" placeholder="Nama kategori baru">
+        <input type="text" id="pickerNewCatName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false">
         <div class="picker-add-actions">
           <button type="button" class="btn btn-ghost btn-sm" onclick="renderTxCategoryPickerList(false)">Batal</button>
           <button type="button" class="btn btn-primary btn-sm" onclick="confirmAddCategoryFromPicker()">Tambah</button>
@@ -5166,7 +5176,7 @@ function renderGoalWalletPickerList(showAddForm){
   if(showAddForm){
     html += `
       <div class="picker-add-form">
-        <input type="text" id="pickerNewWalletName" placeholder="Nama dompet baru">
+        <input type="text" id="pickerNewWalletName" placeholder="Nama dompet baru" autocomplete="off" autocorrect="off" spellcheck="false">
         <div class="picker-add-actions">
           <button type="button" class="btn btn-ghost btn-sm" onclick="renderGoalWalletPickerList(false)">Batal</button>
           <button type="button" class="btn btn-primary btn-sm" onclick="confirmAddWalletFromGoalPicker()">Tambah</button>
@@ -6026,12 +6036,12 @@ function renderCcaItems(){
   const wrap = document.getElementById('ccaItemsWrap');
   let html = `<div class="cc-item-row">
     <div class="l"><div class="name">Uang Cash</div></div>
-    <div class="amt"><input type="text" id="ccaCashAmt" inputmode="decimal" placeholder="0" value="${ccaItems.cash ? ccaItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateCcaTotal();"></div>
+    <div class="amt"><input type="text" id="ccaCashAmt" inputmode="decimal" placeholder="0" value="${ccaItems.cash ? ccaItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateCcaTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
   </div>`;
   html += ccaItems.items.map(it => `
     <div class="cc-item-row" data-id="${it.id}">
-      <div class="l"><input type="text" class="cca-name-input" id="ccaName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama" oninput="renameCcaItem('${it.id}', this.value)"></div>
-      <div class="amt"><input type="text" id="ccaAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateCcaTotal();"></div>
+      <div class="l"><input type="text" class="cca-name-input" id="ccaName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama" oninput="renameCcaItem('${it.id}', this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <div class="amt"><input type="text" id="ccaAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateCcaTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
       <button type="button" class="cc-item-del" onclick="deleteCcaItem('${it.id}')" aria-label="Hapus">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
@@ -6111,12 +6121,12 @@ function renderManualAdjItems(){
   const wrap = document.getElementById('manualAdjItemsWrap');
   let html = `<div class="cc-item-row">
     <div class="l"><div class="name">Uang Cash</div></div>
-    <div class="amt"><input type="text" id="manualAdjCashAmt" inputmode="decimal" placeholder="0" value="${manualAdjItems.cash ? manualAdjItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateManualAdjTotal();"></div>
+    <div class="amt"><input type="text" id="manualAdjCashAmt" inputmode="decimal" placeholder="0" value="${manualAdjItems.cash ? manualAdjItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateManualAdjTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
   </div>`;
   html += manualAdjItems.items.map(it => `
     <div class="cc-item-row" data-id="${it.id}">
-      <div class="l"><input type="text" class="cca-name-input" id="manualAdjName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama Dompet" oninput="renameManualAdjItem('${it.id}', this.value)"></div>
-      <div class="amt"><input type="text" id="manualAdjAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateManualAdjTotal();"></div>
+      <div class="l"><input type="text" class="cca-name-input" id="manualAdjName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama Dompet" oninput="renameManualAdjItem('${it.id}', this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <div class="amt"><input type="text" id="manualAdjAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateManualAdjTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
       <button type="button" class="cc-item-del" onclick="deleteManualAdjItem('${it.id}')" aria-label="Hapus">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
