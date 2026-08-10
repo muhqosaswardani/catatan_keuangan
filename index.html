@@ -1900,6 +1900,78 @@ function mergeEntities(localList, remoteList) {
   return Array.from(map.values());
 }
 
+function mergeCategories(localList, remoteList) {
+  const map = new Map();
+  (localList || []).forEach(item => {
+    if (item && item.name) {
+      const nameKey = (item.type || 'expense') + '_' + item.name.trim().toLowerCase();
+      map.set(nameKey, item);
+      if (item.id) map.set(String(item.id), item);
+    }
+  });
+
+  (remoteList || []).forEach(remote => {
+    if (!remote || !remote.name) return;
+    const idKey = String(remote.id);
+    const nameKey = (remote.type || 'expense') + '_' + remote.name.trim().toLowerCase();
+    const local = map.get(idKey) || map.get(nameKey);
+    if (!local) {
+      map.set(idKey, remote);
+      map.set(nameKey, remote);
+    } else {
+      const localTime = local.updatedAt || 0;
+      const remoteTime = remote.updatedAt || 0;
+      const mergedItem = remoteTime >= localTime ? { ...local, ...remote } : { ...remote, ...local };
+      map.set(idKey, mergedItem);
+      map.set(nameKey, mergedItem);
+    }
+  });
+
+  const uniqueMap = new Map();
+  map.forEach(item => {
+    if (item && item.id) {
+      uniqueMap.set(String(item.id), item);
+    }
+  });
+  return Array.from(uniqueMap.values());
+}
+
+function mergeWallets(localList, remoteList) {
+  const map = new Map();
+  (localList || []).forEach(item => {
+    if (item && item.name) {
+      const nameKey = item.name.trim().toLowerCase();
+      map.set(nameKey, item);
+      if (item.id) map.set(String(item.id), item);
+    }
+  });
+
+  (remoteList || []).forEach(remote => {
+    if (!remote || !remote.name) return;
+    const idKey = String(remote.id);
+    const nameKey = remote.name.trim().toLowerCase();
+    const local = map.get(idKey) || map.get(nameKey);
+    if (!local) {
+      map.set(idKey, remote);
+      map.set(nameKey, remote);
+    } else {
+      const localTime = local.updatedAt || 0;
+      const remoteTime = remote.updatedAt || 0;
+      const mergedItem = remoteTime >= localTime ? { ...local, ...remote } : { ...remote, ...local };
+      map.set(idKey, mergedItem);
+      map.set(nameKey, mergedItem);
+    }
+  });
+
+  const uniqueMap = new Map();
+  map.forEach(item => {
+    if (item && item.id) {
+      uniqueMap.set(String(item.id), item);
+    }
+  });
+  return Array.from(uniqueMap.values());
+}
+
 async function syncAllWithSupabase(silent = true) {
   if (!supabaseClient || !navigator.onLine) {
     updateSyncStatusUI('offline');
@@ -1916,7 +1988,7 @@ async function syncAllWithSupabase(silent = true) {
     const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
     if (remWallets) {
       const mapped = remWallets.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
-      const merged = mergeEntities(getWallets(), mapped);
+      const merged = mergeWallets(getWallets(), mapped);
       setWalletsLocalOnly(merged);
       const pushRecs = merged.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
       if (pushRecs.length > 0) await supabaseClient.from('wallets').upsert(pushRecs);
@@ -1944,7 +2016,7 @@ async function syncAllWithSupabase(silent = true) {
     const { data: remCats } = await supabaseClient.from('categories').select('*').eq('access_code', code);
     if (remCats) {
       const mapped = remCats.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: new Date(r.updated_at).getTime() }));
-      const merged = mergeEntities(getCategories(), mapped);
+      const merged = mergeCategories(getCategories(), mapped);
       setCategoriesLocalOnly(merged);
       const pushRecs = merged.map(c => ({ id: c.id, access_code: code, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
       if (pushRecs.length > 0) await supabaseClient.from('categories').upsert(pushRecs);
@@ -2186,8 +2258,8 @@ function seedIfEmpty(){
     const presetIncome = ['Gaji','Bonus','Lainnya'];
     const cats = [];
     let i = 0;
-    presetExpense.forEach(n => cats.push({id: uid(), name: n, type: 'expense', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++)}));
-    presetIncome.forEach(n => cats.push({id: uid(), name: n, type: 'income', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++)}));
+    presetExpense.forEach(n => cats.push({id: 'cat_expense_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'expense', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++)}));
+    presetIncome.forEach(n => cats.push({id: 'cat_income_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'income', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++)}));
     setCategories(cats);
   } else {
     // Migrasi kategori lama (belum punya icon/color kustom, atau tersangkut di icon "Lainnya"
