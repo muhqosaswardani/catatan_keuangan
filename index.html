@@ -964,6 +964,9 @@
         <button type="button" class="settings-row-card" onclick="setCatManageType('expense');openModal('modalCategories')">
           <div class="sr-title">Kelola Kategori <span class="sr-arrow">›</span></div>
         </button>
+        <button type="button" class="settings-row-card" onclick="openWalletManageModal()">
+          <div class="sr-title">Kelola Dompet <span class="sr-arrow">›</span></div>
+        </button>
         <button type="button" class="settings-row-card" onclick="openNavConfigManage()">
           <div class="sr-title">Susun Bottom Nav <span class="sr-arrow">›</span></div>
         </button>
@@ -1113,6 +1116,33 @@
         <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Pilih dompet mana saja yang dihitung ke dalam <b>TOTAL SALDO</b> di Beranda:</p>
         <div id="heroWalletsChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
         <button type="button" class="btn btn-primary btn-block" style="margin-top:16px;" onclick="saveHeroWalletSetting()">Simpan Pengaturan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: KELOLA DOMPET ============ -->
+  <div class="modal-overlay" id="modalWallets">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Kelola Dompet</h3>
+        <button class="modal-close" onclick="closeModal('modalWallets')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink);">Tambah Dompet Baru</div>
+          <div class="field" style="margin-bottom:10px;">
+            <label>Nama Dompet</label>
+            <input type="text" id="newWalletName" placeholder="Contoh: Dompet Kas, Mandiri, dll">
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label>Saldo Awal</label>
+            <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="newWalletBalance" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)"></div>
+          </div>
+          <button type="button" class="btn btn-primary btn-block" onclick="addNewWalletFromManage()">+ Tambah Dompet</button>
+        </div>
+
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink);">Daftar Dompet Saat Ini</div>
+        <div id="walletManageList" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </div>
   </div>
@@ -4932,6 +4962,20 @@ function deleteCurrentGoal(){
   setGoals(getGoals().filter(g => g.id !== id));
   if(willDeleteWallet){
     setWallets(getWallets().filter(w => w.id !== walletId));
+    if(supabaseClient && navigator.onLine){
+      try {
+        const code = getAccessCode();
+        supabaseClient.from('wallets').delete().eq('access_code', code).eq('id', walletId);
+        supabaseClient.from('savings_goals').delete().eq('access_code', code).eq('id', id);
+      } catch(err){}
+    }
+  } else {
+    if(supabaseClient && navigator.onLine){
+      try {
+        const code = getAccessCode();
+        supabaseClient.from('savings_goals').delete().eq('access_code', code).eq('id', id);
+      } catch(err){}
+    }
   }
   closeModal('modalGoalForm');
   showToast(willDeleteWallet ? 'Tujuan & dompetnya dihapus' : 'Tujuan dihapus');
@@ -5883,6 +5927,95 @@ function saveHeroWalletSetting(){
   closeModal('modalHeroWallets');
   renderHome();
   showToast('Pengaturan Total Saldo disimpan');
+}
+
+/* =========================================================
+   KELOLA DOMPET
+   ========================================================= */
+function openWalletManageModal(){
+  renderWalletManageList();
+  openModal('modalWallets');
+}
+
+function renderWalletManageList(){
+  const wallets = getWallets();
+  const listWrap = document.getElementById('walletManageList');
+  if(!listWrap) return;
+
+  listWrap.innerHTML = wallets.map(w => {
+    const isDefault = (w.id === 'wallet_utama' || w.id === 'wallet_tabungan');
+    return `
+      <div class="settings-row cat-manage-row" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;">
+        <div class="l" style="flex:1;">
+          <div style="font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;">${formatRupiah(w.balance)}</div>
+        </div>
+        <div>
+          ${isDefault ? '<span style="font-size:11px;color:var(--ink-soft);font-weight:600;">Bawaan</span>' : `
+            <button type="button" class="btn btn-danger btn-sm" onclick="deleteWalletManual('${w.id}')">Hapus</button>
+          `}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addNewWalletFromManage(){
+  const nameInput = document.getElementById('newWalletName');
+  const balInput = document.getElementById('newWalletBalance');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if(!name){
+    showToast('Nama dompet tidak boleh kosong');
+    return;
+  }
+  const balance = balInput ? parseRupiahInput(balInput.value) : 0;
+  const wallets = getWallets();
+  if(wallets.some(w => w.name.trim().toLowerCase() === name.toLowerCase())){
+    showToast('Nama dompet sudah ada');
+    return;
+  }
+  const newWallet = {
+    id: 'w_' + uid(),
+    name,
+    balance,
+    updatedAt: Date.now()
+  };
+  wallets.push(newWallet);
+  setWallets(wallets);
+  if(nameInput) nameInput.value = '';
+  if(balInput) balInput.value = '';
+  renderWalletManageList();
+  renderHome();
+  showToast('Dompet baru berhasil ditambahkan');
+}
+
+async function deleteWalletManual(walletId){
+  if(walletId === 'wallet_utama' || walletId === 'wallet_tabungan') return;
+  const wallet = walletById(walletId);
+  if(!wallet) return;
+
+  if(!confirm(`Hapus dompet "${wallet.name}"? Saldo ${formatRupiah(wallet.balance)} dan dompet ini akan dihapus.`)) return;
+
+  // Remove from local storage
+  const nextWallets = getWallets().filter(w => w.id !== walletId);
+  setWallets(nextWallets);
+
+  // Remove from heroWallets setting if present
+  const heroW = getHeroWallets().filter(id => id !== walletId);
+  setHeroWallets(heroW.length > 0 ? heroW : ['wallet_utama']);
+
+  // Delete from Supabase
+  if(supabaseClient && navigator.onLine){
+    try {
+      const code = getAccessCode();
+      await supabaseClient.from('wallets').delete().eq('access_code', code).eq('id', walletId);
+    } catch(err){
+      console.warn('Supabase wallet delete err:', err);
+    }
+  }
+
+  renderWalletManageList();
+  renderHome();
+  showToast('Dompet berhasil dihapus');
 }
 
 function exportData(){
