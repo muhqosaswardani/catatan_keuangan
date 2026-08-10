@@ -1635,9 +1635,9 @@
         Tindakan ini akan menghapus <b>seluruh</b> dompet, transaksi, budget, dan pengaturan secara permanen dan tidak bisa dibatalkan.
       </p>
       <div class="field" id="resetConfirmField">
-        <label>Ketik <b>HAPUS</b> untuk konfirmasi</label>
-        <input type="text" id="resetConfirmInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik HAPUS di sini" oninput="validateResetConfirmInput()">
-        <div class="err">Ketikan belum sesuai. Ketik persis: HAPUS</div>
+        <label>Masukkan Password Konfirmasi Reset</label>
+        <input type="password" id="resetConfirmInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Masukkan password konfirmasi" oninput="validateResetConfirmInput()">
+        <div class="err">Password konfirmasi salah.</div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger btn-block" id="resetConfirmBtn" onclick="confirmResetAllData()" disabled>Hapus Semua Data</button>
@@ -6543,7 +6543,7 @@ function importData(e){
   e.target.value = '';
 }
 
-const RESET_CONFIRM_WORD = 'HAPUS';
+const RESET_CONFIRM_WORD = 'rND92kG.=R*K_qi';
 function openResetConfirm(){
   const input = document.getElementById('resetConfirmInput');
   input.value = '';
