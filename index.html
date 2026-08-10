@@ -5098,23 +5098,27 @@ async function deleteCurrentGoal(){
   if(!confirmed) return;
   await new Promise(r => setTimeout(r, 150));
 
+  // 1. Delete from Supabase FIRST and AWAIT it to prevent race conditions!
+  if(supabaseClient && navigator.onLine){
+    try {
+      const code = getAccessCode();
+      if(willDeleteWallet){
+        await Promise.all([
+          supabaseClient.from('wallets').delete().eq('access_code', code).eq('id', walletId),
+          supabaseClient.from('savings_goals').delete().eq('access_code', code).eq('id', id)
+        ]);
+      } else {
+        await supabaseClient.from('savings_goals').delete().eq('access_code', code).eq('id', id);
+      }
+    } catch(err){
+      console.warn('Supabase goal delete err:', err);
+    }
+  }
+
+  // 2. Then update local storage and trigger sync (which will pull updated database state)
   setGoals(getGoals().filter(g => g.id !== id));
   if(willDeleteWallet){
     setWallets(getWallets().filter(w => w.id !== walletId));
-    if(supabaseClient && navigator.onLine){
-      try {
-        const code = getAccessCode();
-        supabaseClient.from('wallets').delete().eq('access_code', code).eq('id', walletId);
-        supabaseClient.from('savings_goals').delete().eq('access_code', code).eq('id', id);
-      } catch(err){}
-    }
-  } else {
-    if(supabaseClient && navigator.onLine){
-      try {
-        const code = getAccessCode();
-        supabaseClient.from('savings_goals').delete().eq('access_code', code).eq('id', id);
-      } catch(err){}
-    }
   }
   closeModal('modalGoalForm');
   showToast(willDeleteWallet ? 'Tujuan & dompetnya dihapus' : 'Tujuan dihapus');
@@ -6146,15 +6150,7 @@ async function deleteWalletManual(walletId){
   if(!confirmed) return;
   await new Promise(r => setTimeout(r, 150));
 
-  // Remove from local storage
-  const nextWallets = getWallets().filter(w => w.id !== walletId);
-  setWallets(nextWallets);
-
-  // Remove from heroWallets setting if present
-  const heroW = getHeroWallets().filter(id => id !== walletId);
-  setHeroWallets(heroW.length > 0 ? heroW : ['wallet_utama']);
-
-  // Delete from Supabase
+  // 1. Delete from Supabase FIRST and AWAIT it to prevent race conditions!
   if(supabaseClient && navigator.onLine){
     try {
       const code = getAccessCode();
@@ -6163,6 +6159,14 @@ async function deleteWalletManual(walletId){
       console.warn('Supabase wallet delete err:', err);
     }
   }
+
+  // 2. Then update local storage and trigger sync (which will pull updated database state)
+  const nextWallets = getWallets().filter(w => w.id !== walletId);
+  setWallets(nextWallets);
+
+  // Remove from heroWallets setting if present
+  const heroW = getHeroWallets().filter(id => id !== walletId);
+  setHeroWallets(heroW.length > 0 ? heroW : ['wallet_utama']);
 
   renderWalletManageList();
   renderHome();
