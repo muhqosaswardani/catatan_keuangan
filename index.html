@@ -4775,6 +4775,20 @@ function buildInsightSummaryText(){
     });
   }
 
+  // --- Transaksi Bulan Ini (detail) ---
+  if(monthTx.length > 0){
+    const sorted = monthTx.slice().sort((a,b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0)).slice(0, 30);
+    lines.push('\n=== DAFTAR TRANSAKSI BULAN INI (terbaru, maks 30) ===');
+    sorted.forEach(t => {
+      const sign = t.type === 'income' ? '+' : '-';
+      const w = walletById(t.walletId);
+      const wName = w ? w.name : '';
+      const noteStr = t.note ? ' · ' + t.note : '';
+      lines.push('- ' + t.date + ' | ' + sign + formatRupiah(t.amount) + ' | ' + (t.category || t.type) + ' | ' + wName + noteStr);
+    });
+    if(monthTx.length > 30) lines.push('(... dan ' + (monthTx.length - 30) + ' transaksi lainnya)');
+  }
+
   return lines.join('\n');
 }
 
