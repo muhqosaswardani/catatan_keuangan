@@ -674,10 +674,10 @@
     <div class="beranda-col beranda-col-left">
     <div class="hero">
       <div class="label">Total Saldo <span style="opacity:.75;font-weight:500;text-transform:none;letter-spacing:0;">(di luar Tabungan)</span></div>
-      <div class="amount num" id="heroTotal">Rp 0</div>
+      <div class="amount num" id="heroTotal">—</div>
       <div class="sub-wallets">
-        <div class="sub-wallet"><div class="n">Dompet Utama</div><div class="v" id="heroUtama">Rp 0</div></div>
-        <div class="sub-wallet"><div class="n">Dompet Tabungan</div><div class="v" id="heroTabungan">Rp 0</div></div>
+        <div class="sub-wallet"><div class="n">Dompet Utama</div><div class="v" id="heroUtama">—</div></div>
+        <div class="sub-wallet"><div class="n">Dompet Tabungan</div><div class="v" id="heroTabungan">—</div></div>
       </div>
     </div>
 
@@ -688,11 +688,11 @@
         <button type="button" data-period="month" class="active" onclick="setHomePeriod('month')">Bulan</button>
       </div>
       <div class="grid-2">
-        <div class="stat income"><div class="t">Pemasukan</div><div class="v num" id="statIncome">Rp 0</div><div id="cmpIncome"></div></div>
-        <div class="stat expense"><div class="t">Pengeluaran</div><div class="v num" id="statExpense">Rp 0</div><div id="cmpExpense"></div></div>
+        <div class="stat income"><div class="t">Pemasukan</div><div class="v num" id="statIncome">—</div><div id="cmpIncome"></div></div>
+        <div class="stat expense"><div class="t">Pengeluaran</div><div class="v num" id="statExpense">—</div><div id="cmpExpense"></div></div>
       </div>
       <div class="stat net" style="margin-top:10px;">
-        <div class="t">Selisih (Net)</div><div class="v num" id="statNet">Rp 0</div>
+        <div class="t">Selisih (Net)</div><div class="v num" id="statNet">—</div>
         <div class="compare-bar-wrap">
           <div class="compare-bar-track"><div class="seg-expense" id="cmpBarExpense" style="width:50%"></div><div class="seg-income" id="cmpBarIncome" style="width:50%"></div></div>
           <div class="compare-bar-legend">
@@ -700,8 +700,8 @@
             <span><span class="dot" style="background:var(--income);"></span>Pemasukan</span>
           </div>
         </div>
-        <div class="saldo-row"><span>Saldo Awal Periode</span><b id="saldoAwal">Rp 0</b></div>
-        <div class="saldo-row" style="border-top:none;padding-top:0;"><span>Saldo Akhir (Sekarang)</span><b id="saldoAkhir">Rp 0</b></div>
+        <div class="saldo-row"><span>Saldo Awal Periode</span><b id="saldoAwal">—</b></div>
+        <div class="saldo-row" style="border-top:none;padding-top:0;"><span>Saldo Akhir (Sekarang)</span><b id="saldoAkhir">—</b></div>
       </div>
       <div id="dailyRecoHome"></div>
       <div id="budgetAlertHome"></div>
@@ -6479,19 +6479,22 @@ async function init(){
   const codeEl = document.getElementById('accessCodeText');
   if(codeEl) codeEl.textContent = 'Kode Akses URL: ' + getAccessCode();
 
-  // 1. DAHULUKAN narik data terbaru dari Supabase sebelum seeding atau menampilkan onboarding
+  // 1. LANGSUNG render data lokal tersimpan secara instan di frame 1 (0ms render tanpa glitch Rp 0)
+  renderHome();
+
+  // 2. DAHULUKAN narik data terbaru dari Supabase di background
   await syncAllWithSupabase(true);
 
-  // 2. Jika setelah sync Supabase data lokal MASIH kosong (link/access_code baru), baru buatkan data bawaan
+  // 3. Jika setelah sync Supabase data lokal MASIH kosong (link/access_code baru), baru buatkan data bawaan
   if(getCategories().length === 0 || getWallets().length === 0){
     seedIfEmpty();
-    syncAllWithSupabase(true);
+    await syncAllWithSupabase(true);
   }
 
-  // 3. Render ulang seluruh tampilan dengan data asli yang ditarik dari Supabase
+  // 4. Render ulang seluruh tampilan jika ada pembaruan data dari Supabase
   refreshAllViews();
 
-  // 4. Tampilkan onboarding HANYA jika pengguna memang belum pernah onboarded di Supabase
+  // 5. Tampilkan onboarding HANYA jika pengguna memang belum pernah onboarded di Supabase
   if(!localStorage.getItem(LS_KEYS.onboarded)){
     document.getElementById('onboarding').classList.add('open');
   }
