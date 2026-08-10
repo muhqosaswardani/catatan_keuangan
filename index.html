@@ -2258,12 +2258,11 @@ function seedIfEmpty(){
     const presetIncome = ['Gaji','Bonus','Lainnya'];
     const cats = [];
     let i = 0;
-    presetExpense.forEach(n => cats.push({id: 'cat_expense_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'expense', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++)}));
-    presetIncome.forEach(n => cats.push({id: 'cat_income_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'income', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++)}));
-    setCategories(cats);
+    presetExpense.forEach(n => cats.push({id: 'cat_expense_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'expense', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++), updatedAt: 1}));
+    presetIncome.forEach(n => cats.push({id: 'cat_income_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'income', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++), updatedAt: 1}));
+    setCategoriesLocalOnly(cats);
   } else {
-    // Migrasi kategori lama (belum punya icon/color kustom, atau tersangkut di icon "Lainnya"
-    // padahal namanya cocok dengan salah satu preset bawaan — bug versi lama)
+    // Migrasi kategori lama
     const cats = getCategories();
     let changed = false;
     cats.forEach((c, i) => {
@@ -2271,12 +2270,12 @@ function seedIfEmpty(){
       else if(c.icon === 'more' && defaultIconForCategoryName(c.name) !== 'more'){ c.icon = defaultIconForCategoryName(c.name); changed = true; }
       if(!c.color){ c.color = defaultColorForIndex(i); changed = true; }
     });
-    if(changed) setCategories(cats);
+    if(changed) setCategoriesLocalOnly(cats);
   }
   if(getWallets().length === 0){
-    setWallets([
-      {id:'wallet_utama', name:'Dompet Utama', balance:0},
-      {id:'wallet_tabungan', name:'Dompet Tabungan', balance:0}
+    setWalletsLocalOnly([
+      {id:'wallet_utama', name:'Dompet Utama', balance:0, updatedAt: 1},
+      {id:'wallet_tabungan', name:'Dompet Tabungan', balance:0, updatedAt: 1}
     ]);
   }
 }
@@ -6441,20 +6440,32 @@ function refreshAllViews(){
   if(document.getElementById('page-utang')) renderDebts();
 }
 
-function init(){
+async function init(){
   getAccessCode();
   navInit();
-  seedIfEmpty();
   renderBottomNav();
   document.getElementById('trDate') && (document.getElementById('trDate').value = todayStr());
-  renderHome();
-  if(!localStorage.getItem(LS_KEYS.onboarded)){
-    document.getElementById('onboarding').classList.add('open');
-  }
   setCatManageType('expense');
   const codeEl = document.getElementById('accessCodeText');
   if(codeEl) codeEl.textContent = 'Kode Akses URL: ' + getAccessCode();
-  syncAllWithSupabase(true);
+
+  // 1. DAHULUKAN narik data terbaru dari Supabase sebelum seeding atau menampilkan onboarding
+  await syncAllWithSupabase(true);
+
+  // 2. Jika setelah sync Supabase data lokal MASIH kosong (link/access_code baru), baru buatkan data bawaan
+  if(getCategories().length === 0 || getWallets().length === 0){
+    seedIfEmpty();
+    syncAllWithSupabase(true);
+  }
+
+  // 3. Render ulang seluruh tampilan dengan data asli yang ditarik dari Supabase
+  refreshAllViews();
+
+  // 4. Tampilkan onboarding HANYA jika pengguna memang belum pernah onboarded di Supabase
+  if(!localStorage.getItem(LS_KEYS.onboarded)){
+    document.getElementById('onboarding').classList.add('open');
+  }
+
   window.addEventListener('online', () => syncAllWithSupabase(true));
   window.addEventListener('offline', () => updateSyncStatusUI('offline'));
 }
