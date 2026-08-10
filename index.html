@@ -6,6 +6,7 @@
 <title>Catatan Keuangan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* Chart.js v4.4.4 - dibundel offline agar tetap jalan saat file dibuka lokal (content://, file://) tanpa internet */
@@ -54,8 +55,11 @@
   body{
     background:var(--bg);
     color:var(--ink);
-    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    font-family:'Inter', sans-serif;
     -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;
+    font-synthesis:none;
     min-height:100vh;
     padding-bottom:calc(78px + env(safe-area-inset-bottom));
   }
