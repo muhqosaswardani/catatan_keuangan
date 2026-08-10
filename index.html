@@ -1841,6 +1841,7 @@ const GEMINI_API_KEYS = [
   'QVEuQWI4Uk42SmJJbEhGbmVueElSWGlZZXp4dXJiUlNYQnpUUE0wV1ZYeHlhMWo5TWFQVlE=',
   'QVEuQWI4Uk42SVJEQW1jWUJPSG1hWURCSDZNNlZKRVZZaXRMYlA0Z3Q5MW1ZZG1UQm9YM1E='
 ].map(k => atob(k));
+let currentApiKeyIndex = 0;
 
 function getSettings(){ return JSON.parse(localStorage.getItem(LS_KEYS.settings) || '{"geminiApiKey":"","sheetsWebAppUrl":""}'); }
 function getGeminiApiKey(){
