@@ -55,11 +55,8 @@
   body{
     background:var(--bg);
     color:var(--ink);
-    font-family:'Inter', sans-serif;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
     -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    text-rendering:optimizeLegibility;
-    font-synthesis:none;
     min-height:100vh;
     padding-bottom:calc(78px + env(safe-area-inset-bottom));
   }
@@ -609,7 +606,14 @@
     .toast{left:calc(248px + (100vw - 248px)/2);}
 
     /* Desktop Typography Overrides (Menipiskan font khusus PC) */
-    h1, h2, h3, .num { font-weight: 600 !important; }
+    body {
+      font-family: 'Inter', sans-serif !important;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-synthesis: none;
+    }
+    h1, h2, h3, .num { font-family: 'Sora', sans-serif !important; font-weight: 600 !important; }
     .hero .amount { font-weight: 700 !important; }
     .tx-amt, .legend-card-item .amt { font-weight: 700 !important; }
     .tx-cat, .settings-row-card .sr-title, .modal-head h3, .section-head h2 { font-weight: 600 !important; }
