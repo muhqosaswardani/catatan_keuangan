@@ -1908,13 +1908,14 @@ function mergeCategories(localList, remoteList) {
   });
   (remoteList || []).forEach(remote => {
     if (remote && remote.name) {
+      const rTime = (remote.updatedAt != null) ? remote.updatedAt : (remote.updated_at ? new Date(remote.updated_at).getTime() : 0);
       all.push({
         id: remote.id,
         name: remote.name,
         type: remote.type,
         icon: remote.icon,
         color: remote.color,
-        updatedAt: remote.updated_at ? new Date(remote.updated_at).getTime() : 0
+        updatedAt: rTime
       });
     }
   });
@@ -1944,11 +1945,12 @@ function mergeWallets(localList, remoteList) {
   });
   (remoteList || []).forEach(remote => {
     if (remote && remote.name) {
+      const rTime = (remote.updatedAt != null) ? remote.updatedAt : (remote.updated_at ? new Date(remote.updated_at).getTime() : 0);
       all.push({
         id: remote.id,
         name: remote.name,
         balance: Number(remote.balance) || 0,
-        updatedAt: remote.updated_at ? new Date(remote.updated_at).getTime() : 0
+        updatedAt: rTime
       });
     }
   });
@@ -1981,6 +1983,7 @@ async function syncAllWithSupabase(silent = true) {
   isSyncingData = true;
   updateSyncStatusUI('syncing');
   const code = getAccessCode();
+  const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig()]);
 
   try {
     // 1. Wallets
@@ -2070,9 +2073,12 @@ async function syncAllWithSupabase(silent = true) {
       console.warn('User settings sync warn:', sErr);
     }
 
+    const afterHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig()]);
     updateSyncStatusUI('online');
-    if (typeof renderBottomNav === 'function') renderBottomNav();
-    if (typeof refreshAllViews === 'function') refreshAllViews();
+    if (beforeHash !== afterHash) {
+      if (typeof renderBottomNav === 'function') renderBottomNav();
+      if (typeof refreshAllViews === 'function') refreshAllViews();
+    }
     if (!silent) showToast('Sinkronisasi Supabase Berhasil!');
   } catch (err) {
     console.warn('Sync error:', err);
