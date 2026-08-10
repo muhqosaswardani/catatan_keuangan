@@ -4845,6 +4845,7 @@ async function deleteCurrentTransaction(){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
+  await new Promise(r => setTimeout(r, 150));
   deleteTransaction(txId);
   closeModal('modalTransaction');
   showToast('Transaksi dihapus');
@@ -5090,6 +5091,7 @@ async function deleteCurrentGoal(){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
+  await new Promise(r => setTimeout(r, 150));
 
   setGoals(getGoals().filter(g => g.id !== id));
   if(willDeleteWallet){
@@ -5335,6 +5337,7 @@ async function deleteCurrentDebt(){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
+  await new Promise(r => setTimeout(r, 150));
   setDebts(getDebts().filter(d => d.id !== id));
   closeModal('modalDebtForm');
   showToast('Catatan dihapus');
@@ -6136,6 +6139,7 @@ async function deleteWalletManual(walletId){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
+  await new Promise(r => setTimeout(r, 150));
 
   // Remove from local storage
   const nextWallets = getWallets().filter(w => w.id !== walletId);
@@ -6196,6 +6200,7 @@ function importData(e){
         actionText: 'Ya, Timpa Data'
       });
       if(!confirmed) return;
+      await new Promise(r => setTimeout(r, 150));
       if(data.wallets) setWallets(data.wallets);
       if(data.transactions) setTransactions(data.transactions);
       if(data.categories) setCategories(data.categories);
@@ -6232,10 +6237,35 @@ function validateResetConfirmInput(){
   document.getElementById('resetConfirmBtn').disabled = !match;
   document.getElementById('resetConfirmField').classList.toggle('invalid', input.value.length > 0 && !match);
 }
-function confirmResetAllData(){
+async function confirmResetAllData(){
   const input = document.getElementById('resetConfirmInput');
   if(input.value.trim() !== RESET_CONFIRM_WORD) return;
+
+  const code = getAccessCode();
+  if(supabaseClient && navigator.onLine && code){
+    try {
+      showToast('Menghapus data di server...');
+      await Promise.all([
+        supabaseClient.from('wallets').delete().eq('access_code', code),
+        supabaseClient.from('transactions').delete().eq('access_code', code),
+        supabaseClient.from('categories').delete().eq('access_code', code),
+        supabaseClient.from('budgets').delete().eq('access_code', code),
+        supabaseClient.from('savings_goals').delete().eq('access_code', code),
+        supabaseClient.from('user_settings').delete().eq('access_code', code)
+      ]);
+    } catch(err) {
+      console.warn('Supabase reset err:', err);
+    }
+  }
+
   Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+  localStorage.removeItem('catatan_keuangan_access_code');
+
+  const url = new URL(window.location.href);
+  url.searchParams.delete('akses');
+  url.searchParams.delete('access_code');
+  window.history.replaceState({}, '', url.pathname + url.hash);
+
   location.reload();
 }
 
@@ -6390,6 +6420,7 @@ async function deleteCategoryManaged(id){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
+  await new Promise(r => setTimeout(r, 150));
   setCategories(getCategories().filter(c => c.id !== id));
   renderCatManageList();
 }
@@ -6632,6 +6663,7 @@ async function deleteCurrentRecurringItem(){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
+  await new Promise(r => setTimeout(r, 150));
   deleteRecurringItem(id);
   closeModal('modalRecurringForm');
   renderRecurringManageList();
