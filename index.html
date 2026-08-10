@@ -2003,11 +2003,11 @@ function mergeWallets(localList, remoteList) {
   (localList || []).forEach(item => {
     if (item && item.name) {
       const isDefault = (item.id === 'wallet_utama' || item.id === 'wallet_tabungan');
-      const isNew = (Date.now() - (item.updatedAt || 0)) < 300000; // created or modified in last 5 minutes
       const isUsed = (typeof isWalletStillUsed === 'function' && isWalletStillUsed(item.id));
       const isActiveSelection = (typeof goalWalletValue !== 'undefined' && goalWalletValue === item.id);
-
-      if (isDefault || isNew || isUsed || isActiveSelection || remoteIds.has(item.id)) {
+      // Only keep local-only wallets if they are default, actively used, or currently selected in a form.
+      // Don't preserve wallets that exist only locally and aren't in server — they were deleted on another device.
+      if (isDefault || isUsed || isActiveSelection || remoteIds.has(item.id)) {
         all.push({ id: item.id || uid(), name: item.name, balance: Number(item.balance) || 0, updatedAt: item.updatedAt || 0 });
       }
     }
@@ -2050,7 +2050,7 @@ async function syncAllWithSupabase(silent = true) {
   isSyncingData = true;
   updateSyncStatusUI('syncing', !silent);
   const code = getAccessCode();
-  const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals()]);
+  const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
 
   try {
     // A. Check if the database has been reset/purged on another device
@@ -2133,6 +2133,48 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs.length > 0) await supabaseClient.from('savings_goals').upsert(pushRecs);
     }
 
+    // 6. Debts (debt_entries)
+    const { data: remDebts } = await supabaseClient.from('debt_entries').select('*').eq('access_code', code);
+    if (remDebts) {
+      const mapped = remDebts.map(r => ({
+        id: r.id, personName: r.person_name, type: r.type, amount: Number(r.amount) || 0,
+        date: r.date, note: r.note, dueDate: r.due_date, status: r.status,
+        payoffWalletId: r.payoff_wallet_id, payoffDate: r.payoff_date,
+        updatedAt: new Date(r.updated_at).getTime()
+      }));
+      const merged = mergeEntities(getDebts(), mapped);
+      setDebtsLocalOnly(merged);
+      const pushRecs2 = merged.map(d => ({
+        id: d.id, access_code: code, person_name: d.personName, type: d.type,
+        amount: d.amount, date: d.date, note: d.note || '', due_date: d.dueDate || null,
+        status: d.status || 'belum', payoff_wallet_id: d.payoffWalletId || null,
+        payoff_date: d.payoffDate || null, updated_at: new Date(d.updatedAt || Date.now()).toISOString()
+      }));
+      if (pushRecs2.length > 0) await supabaseClient.from('debt_entries').upsert(pushRecs2);
+    }
+
+    // 7. Recurring items (recurring_items)
+    const { data: remRec } = await supabaseClient.from('recurring_items').select('*').eq('access_code', code);
+    if (remRec) {
+      const mapped = remRec.map(r => ({
+        id: r.id, name: r.name, type: r.type, amount: Number(r.amount) || 0,
+        walletId: r.wallet_id, categoryId: r.category_id,
+        dayOfMonth: r.day_of_month, active: r.active !== false,
+        lastConfirmedDate: r.last_confirmed_date || null,
+        updatedAt: new Date(r.updated_at).getTime()
+      }));
+      const merged = mergeEntities(getRecurring(), mapped);
+      setRecurringLocalOnly(merged);
+      const pushRecs3 = merged.map(r => ({
+        id: r.id, access_code: code, name: r.name, type: r.type, amount: r.amount,
+        wallet_id: r.walletId, category_id: r.categoryId || null,
+        day_of_month: r.dayOfMonth, active: r.active !== false,
+        last_confirmed_date: r.lastConfirmedDate || null,
+        updated_at: new Date(r.updatedAt || Date.now()).toISOString()
+      }));
+      if (pushRecs3.length > 0) await supabaseClient.from('recurring_items').upsert(pushRecs3);
+    }
+
     // 6. User Settings, Nav Config, Shortcuts & AI Insights Sync
     try {
       const { data: remSettings } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
@@ -2172,7 +2214,7 @@ async function syncAllWithSupabase(silent = true) {
       console.warn('User settings sync warn:', sErr);
     }
 
-    const afterHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals()]);
+    const afterHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
     updateSyncStatusUI('online');
     if (beforeHash !== afterHash) {
       if (typeof renderBottomNav === 'function') renderBottomNav();
@@ -4022,11 +4064,13 @@ function txItemHtml(t){
   const w = walletById(t.walletId);
   let iconHtml, sign, amtClass, metaExtra = '';
   if(t.type === 'income'){
-    const cat = t.categoryId ? categoryById(t.categoryId) : categoryByNameAndType(t.category, 'income');
+    // Look up by ID first (reliable), then fall back to name+type search
+    const cat = (t.categoryId ? categoryById(t.categoryId) : null) || categoryByNameAndType(t.category, 'income');
     iconHtml = cat ? categoryIconBoxHtml(cat, {size:38}) : `<div class="tx-icon income">${incomeSvg()}</div>`;
     sign = '+'; amtClass = 'income'; metaExtra = w ? w.name : '';
   } else if(t.type === 'expense'){
-    const cat = t.categoryId ? categoryById(t.categoryId) : categoryByNameAndType(t.category, 'expense');
+    // Look up by ID first (reliable), then fall back to name+type search
+    const cat = (t.categoryId ? categoryById(t.categoryId) : null) || categoryByNameAndType(t.category, 'expense');
     iconHtml = cat ? categoryIconBoxHtml(cat, {size:38}) : `<div class="tx-icon expense">${expenseSvg()}</div>`;
     sign = '-'; amtClass = 'expense'; metaExtra = w ? w.name : '';
   } else {
@@ -6271,6 +6315,8 @@ async function confirmResetAllData(){
         supabaseClient.from('categories').delete().eq('access_code', code),
         supabaseClient.from('budgets').delete().eq('access_code', code),
         supabaseClient.from('savings_goals').delete().eq('access_code', code),
+        supabaseClient.from('debt_entries').delete().eq('access_code', code),
+        supabaseClient.from('recurring_items').delete().eq('access_code', code),
         supabaseClient.from('user_settings').delete().eq('access_code', code)
       ]);
     } catch(err) {
