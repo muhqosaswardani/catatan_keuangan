@@ -5080,11 +5080,11 @@ async function deleteCurrentGoal(){
   if(!id) return;
   const goal = getGoals().find(g => g.id === id);
   const walletId = goal ? goal.walletId : null;
-  const willDeleteWallet = walletId && !isWalletStillUsed(walletId, id);
+  const willDeleteWallet = walletId && walletById(walletId) && !isWalletStillUsed(walletId, id);
   const wallet = willDeleteWallet ? walletById(walletId) : null;
 
   let msg = 'Hapus tujuan tabungan ini?';
-  if(willDeleteWallet){
+  if(willDeleteWallet && wallet){
     msg += ' Dompet "' + wallet.name + '" sudah tidak dipakai di mana pun, jadi dompetnya bakal ikut dihapus.';
   } else {
     msg += ' Saldo di dompetnya tidak akan hilang, cuma catatan tujuannya yang dihapus.';
