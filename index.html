@@ -270,6 +270,15 @@
   .fab.drag-ready{box-shadow:0 0 0 9px var(--accent-soft),0 10px 24px -6px rgba(15,118,110,.55);}
   @media (max-width:480px){.fab{right:18px;}}
 
+  /* Overlay tak-terlihat yang dipasang sesaat (lihat fabArmClickGuard) setelah gesture FAB
+     selesai. Diletakkan di atas SEGALANYA (z-index sangat tinggi) supaya ghost-click susulan
+     dari browser "kena" overlay ini dulu (jadi tidak sampai ke tombol manapun), dan supaya
+     tombol di bawahnya juga tidak sempat kelihatan seolah "ditekan" (state :hover/:active)
+     karena secara hit-test yang disentuh cuma overlay ini, bukan tombolnya. */
+  .fab-click-guard-overlay{
+    position:fixed;inset:0;z-index:999999;background:transparent;pointer-events:auto;
+  }
+
   /* Gesture "tarik ke atas / kiri" pada FAB: buka Transaksi via AI / Transaksi manual (mirip lock-mic WA) */
   .fab-drag-hint{
     position:fixed;z-index:41;display:flex;align-items:center;justify-content:center;
@@ -1299,7 +1308,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
   </div>
-  <button class="fab" onpointerdown="fabPressStart(event)" onpointermove="fabPressMove(event)" onpointerup="fabPressEnd(event)" onpointercancel="fabPressEnd(event)" oncontextmenu="return false" aria-label="Tambah">
+  <button class="fab" onpointerdown="fabPressStart(event)" oncontextmenu="return false" aria-label="Tambah">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
   </button>
 
@@ -3704,67 +3713,95 @@ function swapModal(oldId, newId){
   navReplaceTop({type:'modal', id:newId});
 }
 function openAddChoice(){ openModal('modalAddChoice'); }
+/* ==================================================================
+   Gesture FAB — REWRITE TOTAL #2 (murni jarak, tanpa syarat waktu sama sekali).
+   - TAP (sentuh & lepas, geser tidak berarti apa2)   -> buka menu pilihan (openAddChoice)
+   - DRAG ke ATAS sampai mentok (jarak >= threshold)  -> buka Transaksi via AI
+   - DRAG ke KIRI sampai mentok (jarak >= threshold)  -> buka Transaksi manual
+   - Drag yang TIDAK sampai mentok / dilepas di tengah -> fallback ke menu pilihan (sama seperti tap)
+   Animasi tetap ada: FAB mengikuti jari selama drag, indikator panah muncul &
+   berubah warna saat sudah "mentok", lalu snapback saat dilepas.
 
-/* =========================================================
-   GESTURE TOMBOL FAB — DITULIS ULANG DARI NOL (logic bersih)
-   =========================================================
-   Cuma 2 hasil akhir yang mungkin:
-     - TAP (atau geser yang tidak sampai mentok)  -> buka menu pilihan "Tambah".
-     - GESER sampai MENTOK (jarak >= FAB_MAX_DRAG) ke atas -> "Transaksi via AI".
-     - GESER sampai MENTOK ke kiri                          -> "Transaksi (Income/Expense)".
-   Tidak ada lagi konsep "tahan sekian detik". Keputusan diambil SEKALI saja,
-   persis saat jari dilepas (pointerup), berdasarkan jarak geser.
+   Kenapa syarat durasi (FAB_DRAG_MIN_MS) dihapus total: dari testing terbukti
+   kasus jarak = 0px (menu pilihan yang kebuka, isRealDrag pasti false) tetap
+   berujung ke Transaksi via AI. Artinya penyebabnya BUKAN logic drag/durasi
+   sama sekali, jadi threshold waktu cuma nambah kerumitan tanpa guna. Sekarang
+   keputusan cuma dari SATU angka: jarak geser (px) dari titik sentuh awal ke
+   titik saat lepas. Mentok (>= FAB_DRAG_THRESHOLD) & arah terkunci -> drag.
+   Selain itu -> tap/menu. Titik.
 
-   Kenapa versi lama sering salah baca tap cepat sebagai geser:
-   layar sentuh HP fisik punya kebiasaan melaporkan lompatan koordinat kecil-tapi-nyata
-   tepat di titik kontak terakhir sebelum jari benar2 terangkat (area sentuh menyempit
-   asimetris). Itu FAKTA SENSOR, bukan bug event JS — jadi tidak bisa diperbaiki dengan
-   menambah/mengubah timer. Solusinya: jangan pernah pakai sampel koordinat yang PALING
-   BARU untuk menentukan keputusan akhir. Selama gesture berlangsung kita simpan histori
-   singkat (posisi + waktu). Begitu jari lepas, kita cari sampel yang usianya sudah lewat
-   FAB_STABLE_MS sebelum saat itu (bukan sampel detik terakhir yang rawan lompat) dan
-   HANYA sampel itu yang dipakai untuk mengukur jarak geser. Lompatan di milidetik
-   terakhir otomatis tidak pernah terhitung, tanpa perlu menunggu apa pun. */
-const FAB_MAX_DRAG   = 70; // px geser untuk dianggap "mentok" (memicu aksi cepat)
-const FAB_DEADZONE   = 12; // px minimal sebelum arah (atas/kiri) mulai dikunci & animasi muncul
-const FAB_STABLE_MS  = 60; // sampel yang lebih baru dari ini (menjelang lepas jari) diabaikan
+   Penyebab sebenarnya: GHOST-CLICK (dan ghost-hover). Begitu menu pilihan
+   (bottom-sheet) kebuka dari sebuah tap, browser masih bisa mengirim sequence
+   event mouse kompatibilitas (mouseover/mousedown/mouseup/click) susulan dari
+   touch, yang jatuh tepat di koordinat bekas jari — dan kebetulan titik itu
+   sering pas menimpa tombol "Transaksi via AI" di modal yang baru muncul,
+   karena FAB & modal sama-sama di area kanan-bawah. `preventDefault()` di
+   pointerdown ternyata tidak selalu cukup menahan sequence ini pada kombinasi
+   `setPointerCapture()` + touch Android tertentu — bukan cuma click yang bisa
+   nyelonong, tapi mousedown/mouseover juga, yang bikin tombol kelihatan
+   "ditekan" (background gelap) padahal user belum menyentuhnya. Fix: pasang
+   overlay tak-terlihat sesaat (lihat fabArmClickGuard) setelah setiap gesture
+   FAB selesai, yang menutupi seluruh layar di depan semuanya — jadi sequence
+   ghost itu jatuh ke overlay, bukan ke tombol manapun, sehingga baik klik
+   maupun efek visual "ditekan" sama-sama tidak bisa lolos. */
+const FAB_DRAG_THRESHOLD = 70;   // px yang harus ditempuh sampai dianggap "mentok"
+const FAB_DRAG_DEADZONE  = 12;   // px minimal sebelum arah geser mulai dikunci (up/left)
+const FAB_CLICK_GUARD_MS = 400;  // durasi "penjegal klik" setelah gesture FAB selesai, buat nahan ghost-click
 
-let fabGesture = null; // null saat idle; object saat sedang ditekan
+/* Penjegal ghost-click & ghost-hover: pasang overlay tak-terlihat SEKALI di atas seluruh
+   layar sesaat setelah setiap gesture FAB selesai. Ini menggantikan pendekatan lama yang
+   cuma "menelan" event click — karena ternyata event mouseover/mousedown susulan (bagian
+   dari sequence kompatibilitas mouse yang dikirim browser setelah sentuhan touch) tetap bisa
+   membuat tombol yang kebetulan ada di titik itu terlihat "ditekan" (background jadi gelap,
+   state :hover/:active CSS), padahal user tidak benar-benar menekannya. Dengan overlay fisik
+   di depan semuanya, hit-test dari sequence itu jatuh ke overlay (yang tidak melakukan
+   apa-apa), bukan ke tombol di baliknya — jadi baik klik maupun efek visual "ditekan" sama-
+   sama tidak bisa menembus ke tombol manapun. */
+let fabClickGuardEl = null;
+let fabClickGuardTimer = null;
+function fabArmClickGuard(){
+  if(fabClickGuardEl){ fabClickGuardEl.remove(); fabClickGuardEl = null; }
+  if(fabClickGuardTimer){ clearTimeout(fabClickGuardTimer); fabClickGuardTimer = null; }
+  const el = document.createElement('div');
+  el.className = 'fab-click-guard-overlay';
+  document.body.appendChild(el);
+  fabClickGuardEl = el;
+  fabClickGuardTimer = setTimeout(() => {
+    if(fabClickGuardEl === el){ el.remove(); fabClickGuardEl = null; }
+    fabClickGuardTimer = null;
+  }, FAB_CLICK_GUARD_MS);
+}
 
-function fabHintEl(){ return document.getElementById('fabDragHint'); }
+let fabDrag = {
+  active: false,
+  pointerId: null,
+  fabEl: null,
+  startX: 0, startY: 0, startTime: 0,
+  dir: null // null selama belum dianggap drag; 'up' atau 'left' setelah terkunci
+};
+
+function fabDragHintEl(){ return document.getElementById('fabDragHint'); }
 
 function fabPositionHint(fabEl, dir){
-  const hint = fabHintEl();
+  const hint = fabDragHintEl();
   const rect = fabEl.getBoundingClientRect();
   if(dir === 'left'){
     hint.style.left = (rect.left - 34) + 'px';
     hint.style.bottom = (window.innerHeight - rect.top - rect.height/2 - 16) + 'px';
+    hint.style.transform = 'translateX(-50%)';
   } else {
     hint.style.left = (rect.left + rect.width/2) + 'px';
     hint.style.bottom = (window.innerHeight - rect.top + 14) + 'px';
+    hint.style.transform = 'translateX(-50%)';
   }
-  hint.style.transform = 'translateX(-50%)';
 }
 
-// Menggambar animasi FAB (posisi/scale) & panah indikator mengikuti jarak geser LIVE,
-// murni untuk feedback visual — TIDAK dipakai untuk memutuskan aksi.
-function fabRenderDrag(fabEl, dir, dist){
-  const hint = fabHintEl();
-  if(dir){
-    if(!hint.classList.contains('visible')){
-      hint.classList.toggle('left', dir === 'left');
-      fabPositionHint(fabEl, dir);
-      hint.classList.add('visible');
-    }
-    const clamped = Math.min(Math.max(dist, 0), FAB_MAX_DRAG);
-    const progress = clamped / FAB_MAX_DRAG;
-    const scale = 1 + progress * 0.08;
-    fabEl.style.transform = dir === 'up'
-      ? `translateY(${-clamped * 0.55}px) scale(${scale})`
-      : `translateX(${-clamped * 0.55}px) scale(${scale})`;
-    const ready = clamped >= FAB_MAX_DRAG;
-    hint.classList.toggle('ready', ready);
-    fabEl.classList.toggle('drag-ready', ready);
+function fabDetachListeners(fabEl){
+  fabEl.removeEventListener('pointermove', fabPressMove);
+  fabEl.removeEventListener('pointerup', fabPressEnd);
+  fabEl.removeEventListener('pointercancel', fabPressCancel);
+  if(fabDrag.pointerId !== null){
+    try{ fabEl.releasePointerCapture(fabDrag.pointerId); }catch(e){}
   }
 }
 
@@ -3773,68 +3810,102 @@ function fabResetVisual(fabEl){
   fabEl.style.transform = '';
   fabEl.classList.remove('drag-ready');
   setTimeout(() => fabEl.classList.remove('drag-snapback'), 300);
-  const hint = fabHintEl();
-  hint.classList.remove('visible', 'ready', 'left');
+  const hint = fabDragHintEl();
+  hint.classList.remove('visible');
+  hint.classList.remove('ready');
+  hint.classList.remove('left');
 }
 
 function fabPressStart(ev){
-  ev.preventDefault(); // wajib: cegah browser mengirim ghost-click setelah pointerup (lihat catatan di fabPressEnd)
+  /* preventDefault di pointerdown: mencegah browser mengirim ghost-click ("click"
+     kompatibilitas mouse) sesaat setelah pointerup, tepat di koordinat bekas jari
+     tadi — yang kalau tidak dicegah bisa "mengenai" tombol di modal yang baru
+     terbuka (krn FAB & modal sama2 di area kanan-bawah). */
+  ev.preventDefault();
   const fabEl = ev.currentTarget;
+  // Pointer capture: pastikan pointermove/up/cancel milik jari ini tetap terkirim
+  // ke fabEl walau jari bergeser keluar area tombol saat drag.
+  try{ fabEl.setPointerCapture(ev.pointerId); }catch(e){}
+  fabDrag.active = true;
+  fabDrag.pointerId = ev.pointerId;
+  fabDrag.fabEl = fabEl;
+  fabDrag.startX = ev.clientX;
+  fabDrag.startY = ev.clientY;
+  fabDrag.startTime = ev.timeStamp;
+  fabDrag.dir = null;
   fabEl.classList.remove('drag-snapback');
-  fabEl.setPointerCapture(ev.pointerId); // pastikan move/up tetap terkirim ke tombol ini walau jari geser jauh
-  fabGesture = {
-    pointerId: ev.pointerId,
-    fabEl,
-    startX: ev.clientX,
-    startY: ev.clientY,
-    dir: null, // 'up' | 'left' | null (belum terkunci)
-    history: [{ t: ev.timeStamp, x: ev.clientX, y: ev.clientY }],
-  };
+  fabEl.addEventListener('pointermove', fabPressMove);
+  fabEl.addEventListener('pointerup', fabPressEnd);
+  fabEl.addEventListener('pointercancel', fabPressCancel);
 }
 
 function fabPressMove(ev){
-  if(!fabGesture || ev.pointerId !== fabGesture.pointerId) return;
-  fabGesture.history.push({ t: ev.timeStamp, x: ev.clientX, y: ev.clientY });
-  // Histori cukup sisakan ~400ms terakhir saja, tidak perlu lebih.
-  const cutoff = ev.timeStamp - 400;
-  while(fabGesture.history.length > 1 && fabGesture.history[0].t < cutoff) fabGesture.history.shift();
+  if(!fabDrag.active || ev.pointerId !== fabDrag.pointerId) return;
+  const dy = fabDrag.startY - ev.clientY; // positif = ke atas
+  const dx = fabDrag.startX - ev.clientX; // positif = ke kiri
+  const fabEl = fabDrag.fabEl;
+  const hint = fabDragHintEl();
 
-  const dy = fabGesture.startY - ev.clientY; // positif = ke atas
-  const dx = fabGesture.startX - ev.clientX; // positif = ke kiri
-  if(!fabGesture.dir){
-    if(Math.abs(dy) < FAB_DEADZONE && Math.abs(dx) < FAB_DEADZONE) return;
-    fabGesture.dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
+  if(fabDrag.dir === null){
+    if(Math.abs(dy) < FAB_DRAG_DEADZONE && Math.abs(dx) < FAB_DRAG_DEADZONE) return; // masih dianggap noise/tap
+    fabDrag.dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
+    hint.classList.toggle('left', fabDrag.dir === 'left');
+    fabPositionHint(fabEl, fabDrag.dir);
+    hint.classList.add('visible');
   }
-  const dist = fabGesture.dir === 'up' ? dy : dx;
-  fabRenderDrag(fabGesture.fabEl, fabGesture.dir, dist);
+
+  const raw = fabDrag.dir === 'up' ? dy : dx;
+  const clamped = Math.min(Math.max(raw, 0), FAB_DRAG_THRESHOLD);
+  const progress = clamped / FAB_DRAG_THRESHOLD;
+  const scale = 1 + progress * 0.08;
+  fabEl.style.transform = fabDrag.dir === 'up'
+    ? `translateY(${-clamped * 0.55}px) scale(${scale})`
+    : `translateX(${-clamped * 0.55}px) scale(${scale})`;
+
+  // Murni feedback visual (warna "siap lepas" + getar) — TIDAK menentukan hasil akhir.
+  // Keputusan sesungguhnya baru diambil satu kali di fabPressEnd.
+  const wasReady = fabEl.classList.contains('drag-ready');
+  const ready = clamped >= FAB_DRAG_THRESHOLD;
+  if(ready && !wasReady && navigator.vibrate) navigator.vibrate(20);
+  hint.classList.toggle('ready', ready);
+  fabEl.classList.toggle('drag-ready', ready);
 }
 
-// Ambil sampel histori yang "aman" (bukan sampel mepet-mepet saat jari lepas).
-function fabStableSample(history, releaseTime){
-  const safe = releaseTime - FAB_STABLE_MS;
-  let pick = history[0];
-  for(const s of history){
-    if(s.t > safe) break; // sampel ini (dan seterusnya) terlalu baru, terlalu dekat momen lepas -> berhenti
-    pick = s;
-  }
-  return pick;
+function fabPressCancel(ev){
+  if(!fabDrag.active || (ev && ev.pointerId !== fabDrag.pointerId)) return;
+  const fabEl = fabDrag.fabEl;
+  fabDetachListeners(fabEl);
+  fabDrag.active = false;
+  fabDrag.pointerId = null;
+  fabResetVisual(fabEl);
+  fabArmClickGuard(); // jaga-jaga: ghost-click tetap bisa menyusul walau gesture di-cancel sistem
+  // Cancel = gesture diinterupsi sistem (mis. notifikasi masuk) -> tidak ada aksi apapun.
 }
 
 function fabPressEnd(ev){
-  if(!fabGesture || (ev && ev.pointerId !== fabGesture.pointerId)) return;
-  const { fabEl, startX, startY, history } = fabGesture;
-  fabGesture = null;
+  if(!fabDrag.active || ev.pointerId !== fabDrag.pointerId) return;
+  const fabEl = fabDrag.fabEl;
+  fabDetachListeners(fabEl);
+
+  const dir = fabDrag.dir;
+  const dy = fabDrag.startY - ev.clientY;
+  const dx = fabDrag.startX - ev.clientX;
+  const displacement = dir === 'up' ? dy : (dir === 'left' ? dx : 0);
+
+  fabDrag.active = false;
+  fabDrag.pointerId = null;
   fabResetVisual(fabEl);
 
-  const releaseTime = ev ? ev.timeStamp : history[history.length - 1].t;
-  const stable = fabStableSample(history, releaseTime);
-  const dy = startY - stable.y;
-  const dx = startX - stable.x;
-  const dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
-  const dist = dir === 'up' ? dy : dx;
+  // Nyalakan penjegal klik SEKARANG, sebelum modal manapun dibuka di bawah ini —
+  // supaya ghost-click susulan dari gesture ini (apapun hasilnya: drag atau tap)
+  // tidak bisa menembus ke tombol manapun yang kebetulan baru muncul di titik ini.
+  fabArmClickGuard();
 
-  if(dist >= FAB_MAX_DRAG){
-    if(navigator.vibrate) navigator.vibrate(20);
+  // Dianggap drag sungguhan HANYA kalau arah sudah terkunci DAN jarak sampai mentok.
+  // Tidak ada syarat waktu/durasi sama sekali — murni jarak.
+  const isRealDrag = dir !== null && displacement >= FAB_DRAG_THRESHOLD;
+
+  if(isRealDrag){
     if(dir === 'up'){
       if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
       openAiScanModal();
@@ -3843,7 +3914,6 @@ function fabPressEnd(ev){
     }
     return;
   }
-  // Tap biasa, atau geser yang tidak sampai mentok -> menu pilihan.
   openAddChoice();
 }
 /* Klik di area luar card (backdrop) menutup modal; klik/scroll di dalam card tidak menembus ke halaman utama */
