@@ -4808,12 +4808,47 @@ async function aiScanWithGemini(key){
   const freeText = (aiScanTextValue || '').toString().trim();
   if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + annotateSlangNominalForAi(freeText) }); }
   for(const f of aiCaptureFiles){ parts.push(await fileToGenerativePart(f)); }
-  // Temperature rendah supaya hasil parsing transaksi konsisten & tidak "kadang berhasil kadang gagal"
-  // untuk input yang sebenarnya sama jelasnya (mis. ada typo tapi maksudnya jelas).
-  const data = await callGeminiRaw(key, parts, 0.15);
-  const text = extractGeminiText(data);
-  const items = parseAiJson(text, 'array');
-  if(!Array.isArray(items)) throw new Error('Format respons AI tidak valid');
+  // Schema JSON eksplisit — memaksa Gemini balikin struktur ini persis (constrained decoding),
+  // bukan cuma "diharapkan" lewat instruksi teks di prompt. Ini yang paling menentukan validitas
+  // JSON-nya, terlepas dari aturan "angka=valid" (itu cuma ngatur ISI, bukan FORMAT).
+  const transactionSchema = {
+    type: 'ARRAY',
+    items: {
+      type: 'OBJECT',
+      properties: {
+        order: { type: 'INTEGER' },
+        date: { type: 'STRING' },
+        type: { type: 'STRING', enum: ['income', 'expense'] },
+        amount: { type: 'NUMBER' },
+        note: { type: 'STRING' },
+        category: { type: 'STRING' },
+        isDuplicateRead: { type: 'BOOLEAN' },
+        groupId: { type: 'STRING' },
+        groupTotal: { type: 'NUMBER' }
+      },
+      required: ['type', 'amount', 'note', 'category']
+    }
+  };
+  // Panggilan AI yang parsing JSON-nya gagal itu masalah stokastik (sama persis inputnya, kadang
+  // Gemini "kepeleset" formatnya) — bukan salah aturan prompt. Daripada langsung lempar error ke
+  // user, retry otomatis 1-2x dulu di background sebelum benar-benar dianggap gagal.
+  const MAX_ATTEMPTS = 3;
+  let items = null, lastParseErr = null;
+  for(let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++){
+    try{
+      const data = await callGeminiRaw(key, parts, 0.15, transactionSchema);
+      const text = extractGeminiText(data);
+      const parsed = parseAiJson(text, 'array');
+      if(!Array.isArray(parsed)) throw new Error('Format respons AI tidak valid');
+      items = parsed;
+      break;
+    } catch(e){
+      lastParseErr = e;
+      console.warn('aiScanWithGemini: percobaan ' + attempt + '/' + MAX_ATTEMPTS + ' gagal — ' + (e && e.message));
+      if(attempt < MAX_ATTEMPTS){ continue; }
+    }
+  }
+  if(!items) throw lastParseErr || new Error('Format respons AI tidak valid');
   const rows = items.map((it, idx) => {
     const type = it && it.type === 'income' ? 'income' : 'expense';
     const groupId = (it && it.groupId) ? String(it.groupId) : null;
@@ -5003,7 +5038,7 @@ function compressImageFile(file, maxDim, quality){
     img.src = url;
   });
 }
-async function callGeminiRaw(key, parts, temperature){
+async function callGeminiRaw(key, parts, temperature, responseSchema){
   /* Rotasi otomatis untuk semua key di GEMINI_API_KEYS. Jika satu key limit/quota habis (429/403)
      atau server error (503/404), otomatis berganti ke key berikutnya. */
   let keysToTry = [...GEMINI_API_KEYS];
@@ -5037,6 +5072,12 @@ async function callGeminiRaw(key, parts, temperature){
       };
       if(!/2\.0/.test(model)){
         generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
+      // responseSchema memaksa Gemini ikut struktur JSON persis (grammar-constrained decoding),
+      // jauh lebih kuat daripada cuma mengandalkan instruksi teks di prompt. Ini yang paling
+      // ngurangin kasus "Format respons AI tidak valid" yang muncul acak walau input sama persis.
+      if(responseSchema){
+        generationConfig.responseSchema = responseSchema;
       }
       let res;
       try{
