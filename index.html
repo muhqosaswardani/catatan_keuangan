@@ -168,7 +168,20 @@
 
   /* Laporan: filter periode (dropdown) di pojok kanan atas */
   .lap-topbar-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-  .lap-period-dropdown{position:relative;flex-shrink:0;margin-top:3px;}
+  .lap-topbar-actions{display:flex;align-items:center;gap:8px;margin-top:3px;flex-shrink:0;}
+  .lap-search-toggle-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--surface-2);border:none;border-radius:100px;color:var(--ink);cursor:pointer;flex-shrink:0;padding:0;transition:background .15s ease,color .15s ease;}
+  .lap-search-toggle-btn:active{transform:scale(.95);}
+  .lap-search-toggle-btn.active{background:var(--accent);color:#fff;}
+  .lap-search-bar-wrap{max-height:0;overflow:hidden;opacity:0;margin-top:0;transition:max-height .22s ease, opacity .18s ease, margin-top .22s ease;}
+  .lap-search-bar-wrap.open{max-height:96px;opacity:1;margin-top:10px;}
+  .lap-search-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:9px 13px;}
+  .lap-search-bar svg{flex-shrink:0;color:var(--ink-soft);}
+  .lap-search-bar input{flex:1;min-width:0;border:none;outline:none;background:transparent;font-family:inherit;font-size:14.5px;color:var(--ink);padding:4px 0;}
+  .lap-search-bar input::placeholder{color:var(--ink-soft);}
+  .lap-search-clear-btn{background:var(--surface-2);border:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);cursor:pointer;flex-shrink:0;padding:0;}
+  .lap-search-clear-btn:active{transform:scale(.92);}
+  .lap-search-hint{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:8px 2px 0;}
+  .lap-period-dropdown{position:relative;flex-shrink:0;}
   .lap-period-btn{display:flex;align-items:center;gap:5px;background:var(--surface-2);border:none;border-radius:100px;padding:8px 10px 8px 13px;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer;font-family:inherit;}
   .lap-period-btn svg{transition:transform .15s ease;flex-shrink:0;}
   .lap-period-dropdown.open .lap-period-btn svg{transform:rotate(180deg);}
@@ -874,16 +887,21 @@
           <div class="eyebrow">Riwayat</div>
           <h1>Transaksi</h1>
         </div>
-        <div class="lap-period-dropdown" id="txPeriodDropdown">
-          <button type="button" class="lap-period-btn" onclick="toggleTxPeriodDropdown(event)">
-            <span id="txPeriodBtnLabel">Bulanan</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="lap-topbar-actions">
+          <button type="button" class="lap-search-toggle-btn" id="txSearchToggleBtn" onclick="toggleTxSearch()" aria-label="Cari transaksi">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20.5 20.5l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
-          <div class="lap-period-menu" id="txPeriodMenu">
-            <button type="button" class="lap-period-menu-item" id="txPeriodItemDay" onclick="setTxPeriodMode('day')">Harian</button>
-            <button type="button" class="lap-period-menu-item" id="txPeriodItemWeek" onclick="setTxPeriodMode('week')">Mingguan</button>
-            <button type="button" class="lap-period-menu-item active" id="txPeriodItemMonth" onclick="setTxPeriodMode('month')">Bulanan</button>
-            <button type="button" class="lap-period-menu-item" id="txPeriodItemYear" onclick="setTxPeriodMode('year')">Tahunan</button>
+          <div class="lap-period-dropdown" id="txPeriodDropdown">
+            <button type="button" class="lap-period-btn" onclick="toggleTxPeriodDropdown(event)">
+              <span id="txPeriodBtnLabel">Bulanan</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="lap-period-menu" id="txPeriodMenu">
+              <button type="button" class="lap-period-menu-item" id="txPeriodItemDay" onclick="setTxPeriodMode('day')">Harian</button>
+              <button type="button" class="lap-period-menu-item" id="txPeriodItemWeek" onclick="setTxPeriodMode('week')">Mingguan</button>
+              <button type="button" class="lap-period-menu-item active" id="txPeriodItemMonth" onclick="setTxPeriodMode('month')">Bulanan</button>
+              <button type="button" class="lap-period-menu-item" id="txPeriodItemYear" onclick="setTxPeriodMode('year')">Tahunan</button>
+            </div>
           </div>
         </div>
       </div>
@@ -897,6 +915,16 @@
         <button type="button" class="month-nav-arrow" id="txNextMonthBtn" onclick="txShiftPeriod(1)" aria-label="Periode berikutnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+      </div>
+      <div class="lap-search-bar-wrap" id="txSearchBarWrap">
+        <div class="lap-search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20.5 20.5l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="text" id="txSearchInput" placeholder="Cari kategori, keterangan, nominal, tanggal..." oninput="onTxSearchInput(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+          <button type="button" class="lap-search-clear-btn" id="txSearchClearBtn" onclick="clearTxSearchInput()" style="display:none;" aria-label="Hapus pencarian">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="lap-search-hint" id="txSearchHint"></div>
       </div>
       <div class="tx-filters" style="margin-top:10px;">
         <button type="button" class="picker-btn pill" id="filterWalletBtn" onclick="openFilterWalletPicker()"><span id="filterWalletLabel">Semua Dompet</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -1070,16 +1098,21 @@
           <div class="eyebrow">Rincian</div>
           <h1 id="laporanTitle">Laporan Bulanan</h1>
         </div>
-        <div class="lap-period-dropdown" id="lapPeriodDropdown">
-          <button type="button" class="lap-period-btn" onclick="toggleLaporanPeriodDropdown(event)">
-            <span id="lapPeriodBtnLabel">Bulanan</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="lap-topbar-actions">
+          <button type="button" class="lap-search-toggle-btn" id="lapSearchToggleBtn" onclick="toggleLapSearch()" aria-label="Cari laporan">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20.5 20.5l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
-          <div class="lap-period-menu" id="lapPeriodMenu">
-            <button type="button" class="lap-period-menu-item" id="lapPeriodItemDay" onclick="setLaporanPeriodMode('day')">Harian</button>
-            <button type="button" class="lap-period-menu-item" id="lapPeriodItemWeek" onclick="setLaporanPeriodMode('week')">Mingguan</button>
-            <button type="button" class="lap-period-menu-item active" id="lapPeriodItemMonth" onclick="setLaporanPeriodMode('month')">Bulanan</button>
-            <button type="button" class="lap-period-menu-item" id="lapPeriodItemYear" onclick="setLaporanPeriodMode('year')">Tahunan</button>
+          <div class="lap-period-dropdown" id="lapPeriodDropdown">
+            <button type="button" class="lap-period-btn" onclick="toggleLaporanPeriodDropdown(event)">
+              <span id="lapPeriodBtnLabel">Bulanan</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="lap-period-menu" id="lapPeriodMenu">
+              <button type="button" class="lap-period-menu-item" id="lapPeriodItemDay" onclick="setLaporanPeriodMode('day')">Harian</button>
+              <button type="button" class="lap-period-menu-item" id="lapPeriodItemWeek" onclick="setLaporanPeriodMode('week')">Mingguan</button>
+              <button type="button" class="lap-period-menu-item active" id="lapPeriodItemMonth" onclick="setLaporanPeriodMode('month')">Bulanan</button>
+              <button type="button" class="lap-period-menu-item" id="lapPeriodItemYear" onclick="setLaporanPeriodMode('year')">Tahunan</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1095,6 +1128,16 @@
         <button type="button" class="month-nav-arrow" id="laporanNextBtn" onclick="laporanShiftPeriod(1)" aria-label="Periode berikutnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+      </div>
+      <div class="lap-search-bar-wrap" id="lapSearchBarWrap">
+        <div class="lap-search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20.5 20.5l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="text" id="lapSearchInput" placeholder="Cari kategori, keterangan, nominal, tanggal..." oninput="onLapSearchInput(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+          <button type="button" class="lap-search-clear-btn" id="lapSearchClearBtn" onclick="clearLapSearchInput()" style="display:none;" aria-label="Hapus pencarian">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="lap-search-hint" id="lapSearchHint"></div>
       </div>
 
       <div class="grid-2" style="margin-top:14px;">
@@ -4224,6 +4267,26 @@ function renderLaporan(){
   else if(laporanPeriodMode === 'year') renderLaporanYear();
   else renderLaporanMonth();
 
+  const lapHint = document.getElementById('lapSearchHint');
+  if(lapHint){
+    if(lapSearchOpen && lapSearchQuery.trim()){
+      const q = lapSearchQuery.trim();
+      const words = normalizeSearchText(q).split(/\s+/).filter(Boolean);
+      let periodTx;
+      if(laporanPeriodMode === 'day') periodTx = getTransactions().filter(t => t.date === laporanDay);
+      else if(laporanPeriodMode === 'week'){
+        const weekEndDate = new Date(laporanWeekStart + 'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate() + 6);
+        const weekEnd = toDateStr(weekEndDate);
+        periodTx = getTransactions().filter(t => t.date >= laporanWeekStart && t.date <= weekEnd);
+      } else if(laporanPeriodMode === 'year') periodTx = getTransactions().filter(t => t.date.slice(0,4) === laporanYear);
+      else periodTx = getTransactions().filter(t => t.date.slice(0,7) === laporanMonth);
+      const matchCount = words.length ? periodTx.filter(t => txMatchesSearchQuery(t, q)).length : periodTx.length;
+      lapHint.textContent = `${matchCount} transaksi cocok dengan "${q}"`;
+    } else {
+      lapHint.textContent = '';
+    }
+  }
+
   const isCurrentMonthMode = (laporanPeriodMode === 'month' && laporanMonth === currentMonthStr());
   const analysisSec = document.getElementById('analysisLapSection');
   
@@ -4241,7 +4304,8 @@ function renderLaporanMonth(){
   document.getElementById('laporanNextBtn').disabled = (laporanMonth >= currentMonthStr());
 
   const allTx = getTransactions();
-  const monthTx = allTx.filter(t => t.date.slice(0,7) === laporanMonth);
+  let monthTx = allTx.filter(t => t.date.slice(0,7) === laporanMonth);
+  if(lapSearchOpen && lapSearchQuery.trim()) monthTx = applySearchFilter(monthTx, lapSearchQuery);
   const income = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
@@ -4284,7 +4348,8 @@ function renderLaporanWeek(){
   document.getElementById('laporanNextBtn').disabled = (weekStart >= currentWeekStart);
 
   const allTx = getTransactions();
-  const weekTx = allTx.filter(t => t.date >= weekStart && t.date <= weekEnd);
+  let weekTx = allTx.filter(t => t.date >= weekStart && t.date <= weekEnd);
+  if(lapSearchOpen && lapSearchQuery.trim()) weekTx = applySearchFilter(weekTx, lapSearchQuery);
   const income = weekTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = weekTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
@@ -4327,7 +4392,8 @@ function renderLaporanDay(){
   document.getElementById('laporanNextBtn').disabled = (day >= todayStr());
 
   const allTx = getTransactions();
-  const dayTx = allTx.filter(t => t.date === day);
+  let dayTx = allTx.filter(t => t.date === day);
+  if(lapSearchOpen && lapSearchQuery.trim()) dayTx = applySearchFilter(dayTx, lapSearchQuery);
   const income = dayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = dayTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
@@ -4368,7 +4434,8 @@ function renderLaporanYear(){
   document.getElementById('laporanNextBtn').disabled = (Number(year) >= new Date().getFullYear());
 
   const allTx = getTransactions();
-  const yearTx = allTx.filter(t => t.date.slice(0,4) === year);
+  let yearTx = allTx.filter(t => t.date.slice(0,4) === year);
+  if(lapSearchOpen && lapSearchQuery.trim()) yearTx = applySearchFilter(yearTx, lapSearchQuery);
   const income = yearTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = yearTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
@@ -4654,6 +4721,130 @@ function openFilterCategoryPicker(){
   openPicker('Pilih Kategori', options, filterCategoryValue, v => { filterCategoryValue = v; renderTransactions(); });
 }
 
+/* =========================================================
+   PENCARIAN (Transaksi & Laporan)
+   — Cocokkan berdasar kategori, keterangan, nominal, dan tanggal.
+   — Multi-kata: tiap kata query harus ada di teks transaksi, TIDAK
+     harus berurutan (mis. query "kopi 20000 senin" tetap cocok walau
+     urutan kemunculan kata di transaksi beda).
+   — Hasil selalu mengikuti filter periode (hari/minggu/bulan/tahun)
+     yang sedang aktif di tab masing-masing.
+   ========================================================= */
+let txSearchOpen = false, txSearchQuery = '';
+let lapSearchOpen = false, lapSearchQuery = '';
+
+function normalizeSearchText(s){
+  return (s == null ? '' : String(s)).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+
+function txSearchHaystack(t){
+  const w = walletById(t.walletId);
+  const tw = t.toWalletId ? walletById(t.toWalletId) : null;
+  const typeWords = t.type === 'income' ? 'pemasukan masuk income'
+    : t.type === 'expense' ? 'pengeluaran keluar expense'
+    : 'transfer pindah';
+  const parts = [
+    t.category || '',
+    t.note || '',
+    w ? w.name : '',
+    tw ? tw.name : '',
+    typeWords,
+    String(t.amount != null ? t.amount : ''),
+    formatRupiah(t.amount || 0),
+    t.date || '',
+    dateOnlyLabel(t.date) || ''
+  ];
+  return normalizeSearchText(parts.join(' | '));
+}
+
+function txMatchesSearchQuery(t, query){
+  const words = normalizeSearchText(query).split(/\s+/).filter(Boolean);
+  if(words.length === 0) return true;
+  const hay = txSearchHaystack(t);
+  return words.every(w => hay.includes(w));
+}
+
+/* Filter array transaksi (yg SUDAH difilter periode) berdasar query pencarian. */
+function applySearchFilter(txs, query){
+  const words = normalizeSearchText(query).split(/\s+/).filter(Boolean);
+  if(words.length === 0) return txs;
+  return txs.filter(t => txMatchesSearchQuery(t, query));
+}
+
+/* ---- Tab Transaksi ---- */
+function toggleTxSearch(){
+  txSearchOpen = !txSearchOpen;
+  const btn = document.getElementById('txSearchToggleBtn');
+  const wrap = document.getElementById('txSearchBarWrap');
+  if(btn) btn.classList.toggle('active', txSearchOpen);
+  if(wrap) wrap.classList.toggle('open', txSearchOpen);
+  if(txSearchOpen){
+    setTimeout(() => { const inp = document.getElementById('txSearchInput'); if(inp) inp.focus(); }, 180);
+  } else {
+    txSearchQuery = '';
+    const inp = document.getElementById('txSearchInput');
+    if(inp) inp.value = '';
+    const clearBtn = document.getElementById('txSearchClearBtn');
+    if(clearBtn) clearBtn.style.display = 'none';
+    const hint = document.getElementById('txSearchHint');
+    if(hint) hint.textContent = '';
+    renderTransactions();
+  }
+}
+function clearTxSearchInput(){
+  txSearchQuery = '';
+  const inp = document.getElementById('txSearchInput');
+  if(inp){ inp.value = ''; inp.focus(); }
+  const clearBtn = document.getElementById('txSearchClearBtn');
+  if(clearBtn) clearBtn.style.display = 'none';
+  const hint = document.getElementById('txSearchHint');
+  if(hint) hint.textContent = '';
+  renderTransactions();
+}
+function onTxSearchInput(value){
+  txSearchQuery = value;
+  const clearBtn = document.getElementById('txSearchClearBtn');
+  if(clearBtn) clearBtn.style.display = value ? 'flex' : 'none';
+  renderTransactions();
+}
+
+/* ---- Tab Laporan ---- */
+function toggleLapSearch(){
+  lapSearchOpen = !lapSearchOpen;
+  const btn = document.getElementById('lapSearchToggleBtn');
+  const wrap = document.getElementById('lapSearchBarWrap');
+  if(btn) btn.classList.toggle('active', lapSearchOpen);
+  if(wrap) wrap.classList.toggle('open', lapSearchOpen);
+  if(lapSearchOpen){
+    setTimeout(() => { const inp = document.getElementById('lapSearchInput'); if(inp) inp.focus(); }, 180);
+  } else {
+    lapSearchQuery = '';
+    const inp = document.getElementById('lapSearchInput');
+    if(inp) inp.value = '';
+    const clearBtn = document.getElementById('lapSearchClearBtn');
+    if(clearBtn) clearBtn.style.display = 'none';
+    const hint = document.getElementById('lapSearchHint');
+    if(hint) hint.textContent = '';
+    renderLaporan();
+  }
+}
+function clearLapSearchInput(){
+  lapSearchQuery = '';
+  const inp = document.getElementById('lapSearchInput');
+  if(inp){ inp.value = ''; inp.focus(); }
+  const clearBtn = document.getElementById('lapSearchClearBtn');
+  if(clearBtn) clearBtn.style.display = 'none';
+  const hint = document.getElementById('lapSearchHint');
+  if(hint) hint.textContent = '';
+  renderLaporan();
+}
+function onLapSearchInput(value){
+  lapSearchQuery = value;
+  const clearBtn = document.getElementById('lapSearchClearBtn');
+  if(clearBtn) clearBtn.style.display = value ? 'flex' : 'none';
+  renderLaporan();
+}
+
 function renderTransactions(){
   populateFilterOptions();
   const walletFilter = filterWalletValue;
@@ -4677,11 +4868,18 @@ function renderTransactions(){
   }
   if(walletFilter !== 'all') txs = txs.filter(t => t.walletId === walletFilter || t.toWalletId === walletFilter);
   if(catFilter !== 'all') txs = txs.filter(t => t.category === catFilter);
+  if(txSearchOpen && txSearchQuery.trim()) txs = applySearchFilter(txs, txSearchQuery);
   txs.sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+  const hint = document.getElementById('txSearchHint');
+  if(hint){
+    hint.textContent = (txSearchOpen && txSearchQuery.trim()) ? `${txs.length} transaksi cocok dengan "${txSearchQuery.trim()}"` : '';
+  }
 
   const wrap = document.getElementById('txListWrap');
   if(txs.length === 0){
-    wrap.innerHTML = '<div class="empty-note">Tidak ada transaksi pada filter ini.</div>';
+    const msg = (txSearchOpen && txSearchQuery.trim()) ? 'Tidak ada transaksi yang cocok dengan pencarian.' : 'Tidak ada transaksi pada filter ini.';
+    wrap.innerHTML = `<div class="empty-note">${msg}</div>`;
     return;
   }
   const groups = {};
