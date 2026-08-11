@@ -4696,10 +4696,7 @@ function populateFilterOptions(){
     const nextBtn = document.getElementById('txNextMonthBtn');
     if(nextBtn) nextBtn.disabled = (Number(filterYearValue) >= new Date().getFullYear());
   } else {
-    const txs = getTransactions();
-    const months = Array.from(new Set(txs.map(t => t.date.slice(0,7)))).sort().reverse();
-    if(!months.includes(cur)) months.unshift(cur);
-    if(!filterMonthValue || !months.includes(filterMonthValue)) filterMonthValue = cur;
+    if(!filterMonthValue) filterMonthValue = cur;
     document.getElementById('filterMonthLabel').textContent = monthLabel(filterMonthValue);
     const nextBtn = document.getElementById('txNextMonthBtn');
     if(nextBtn) nextBtn.disabled = (filterMonthValue >= cur);
