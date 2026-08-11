@@ -3791,10 +3791,17 @@ function fabPressEnd(){
   document.removeEventListener('pointercancel', fabPressEnd);
   const fabEl = fabDrag.fabEl;
   const wasTriggered = fabDrag.triggered;
-  const wasDrag = fabDrag.isDrag;
   const dir = fabDrag.dir;
   fabDrag.active = false;
   fabResetVisual(fabEl);
+  /* Keputusan HANYA berdasarkan apakah geseran benar-benar melewati ambang batas
+     (wasTriggered), bukan berdasarkan "isDrag" (yang cuma menandai jari sempat
+     bergerak sedikit melewati deadzone). Sebelumnya, tap biasa yang jarinya
+     sedikit bergeser (>deadzone tapi <threshold) dianggap "drag" sehingga tidak
+     memicu apa pun sampai jari ditahan lebih lama (menumpuk jitter ke arah atas
+     hingga tanpa sengaja melewati threshold dan membuka Transaksi AI). Sekarang:
+     kalau belum melewati threshold sama sekali → selalu buka pilihan Tambah,
+     seperti tap normal semestinya. */
   if(wasTriggered){
     if(dir === 'up'){
       if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
@@ -3804,7 +3811,7 @@ function fabPressEnd(){
     }
     return;
   }
-  if(!wasDrag){ openAddChoice(); }
+  openAddChoice();
 }
 /* Klik di area luar card (backdrop) menutup modal; klik/scroll di dalam card tidak menembus ke halaman utama */
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
