@@ -4786,8 +4786,7 @@ async function aiScanWithGemini(key){
   // untuk input yang sebenarnya sama jelasnya (mis. ada typo tapi maksudnya jelas).
   const data = await callGeminiRaw(key, parts, 0.15);
   const text = extractGeminiText(data);
-  let items;
-  try{ items = JSON.parse(text); } catch(e){ throw new Error('Format respons AI tidak valid'); }
+  const items = parseAiJson(text, 'array');
   if(!Array.isArray(items)) throw new Error('Format respons AI tidak valid');
   const rows = items.map((it, idx) => {
     const type = it && it.type === 'income' ? 'income' : 'expense';
@@ -5042,9 +5041,33 @@ async function callGeminiRaw(key, parts, temperature){
 }
 function extractGeminiText(data){
   const cand = data && data.candidates && data.candidates[0];
-  const part = cand && cand.content && cand.content.parts && cand.content.parts[0];
-  if(!part || typeof part.text !== 'string' || !part.text.trim()) throw new Error('Respons AI kosong');
-  return part.text;
+  const parts = cand && cand.content && cand.content.parts;
+  if(!Array.isArray(parts) || !parts.length) throw new Error('Respons AI kosong');
+  // Gemini (terutama varian "thinking") kadang kirim beberapa parts — bagian reasoning/"thought"
+  // ditandai part.thought === true dan HARUS diabaikan, cuma parts jawaban final yang dipakai.
+  const text = parts
+    .filter(p => p && typeof p.text === 'string' && !p.thought)
+    .map(p => p.text)
+    .join('');
+  if(!text.trim()) throw new Error('Respons AI kosong');
+  return text;
+}
+// Helper umum: bersihkan code fence markdown (```json ... ``` atau ``` ... ```) yang kadang
+// disisipkan Gemini di sekitar JSON meskipun sudah diminta responseMimeType application/json,
+// lalu coba JSON.parse. Kalau masih gagal, coba ekstrak substring array/objek JSON pertama yang
+// valid dari teksnya (fallback untuk kasus ada teks nyasar sebelum/sesudah JSON).
+function parseAiJson(rawText, kind){
+  const cleaned = (rawText || '').toString().replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/, '').trim();
+  try{
+    return JSON.parse(cleaned);
+  } catch(e){
+    const pattern = kind === 'array' ? /\[[\s\S]*\]/ : /\{[\s\S]*\}/;
+    const match = cleaned.match(pattern);
+    if(match){
+      try{ return JSON.parse(match[0]); } catch(e2){ /* jatuh ke throw di bawah */ }
+    }
+    throw new Error('Format respons AI tidak valid');
+  }
 }
 /* =========================================================
    INSIGHT OTOMATIS DARI AI — muncul di Beranda & Laporan.
@@ -6956,8 +6979,7 @@ async function ccAnalyzeWithGemini(key){
   for(const f of ccFiles){ parts.push(await fileToGenerativePart(f)); }
   const data = await callGeminiRaw(key, parts);
   const text = extractGeminiText(data);
-  let parsed;
-  try{ parsed = JSON.parse(text); } catch(e){ throw new Error('Format respons AI tidak valid'); }
+  const parsed = parseAiJson(text, 'object');
   const cash = Math.max(0, Math.round(Number(parsed && parsed.cash) || 0));
   const items = Array.isArray(parsed && parsed.items) ? parsed.items.map(it => ({
     id: uid(),
