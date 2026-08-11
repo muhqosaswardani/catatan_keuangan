@@ -831,6 +831,12 @@
     </div>
 
     <div class="section">
+      <div class="section-head"><h2>Rata-rata Harian</h2><a href="javascript:void(0)" onclick="openDashboardAvgCategorySetting()">Atur Kategori →</a></div>
+      <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:-6px 0 4px;" id="dailyAvgDaysLabel"></div>
+      <div class="legend-card-list" id="dailyAvgList"></div>
+    </div>
+
+    <div class="section">
       <div class="section-head"><h2>Insight AI</h2></div>
       <div class="insight-card" id="insightHomeWrap">
         <div class="insight-card-head">
@@ -875,13 +881,6 @@
           <div class="empty-note" id="pieEmpty" style="display:none;padding:8px 0;font-size:12px;">Belum ada pengeluaran.</div>
         </div>
       </div>
-    </div>
-
-    <div class="section">
-      <div class="section-head"><h2>Rata-rata Harian</h2><a href="javascript:void(0)" onclick="switchTab('settings')">Atur Kategori →</a></div>
-      <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:-6px 0 4px;" id="dailyAvgDaysLabel"></div>
-      <div class="legend-card-list" id="dailyAvgList"></div>
-      <div class="empty-note" id="dailyAvgEmpty" style="display:none;padding:8px 0 0;font-size:12px;">Belum ada kategori dipilih. Atur di Settings → Kategori Rata-rata Harian.</div>
     </div>
 
     <div class="section">
@@ -1091,10 +1090,6 @@
         <input type="file" id="importFileInput" accept="application/json" style="display:none" onchange="importData(event)">
         <button type="button" class="settings-row-card" onclick="setCatManageType('expense');openModal('modalCategories')">
           <div class="sr-title">Kelola Kategori <span class="sr-arrow">›</span></div>
-        </button>
-        <button type="button" class="settings-row-card" onclick="openDashboardAvgCategorySetting()">
-          <div class="sr-title">Kategori Rata-rata Harian <span class="sr-arrow">›</span></div>
-          <div class="sr-sub">Pilih kategori yang ditampilkan di Beranda</div>
         </button>
         <button type="button" class="settings-row-card" onclick="openWalletManageModal()">
           <div class="sr-title">Kelola Dompet <span class="sr-arrow">›</span></div>
@@ -2564,6 +2559,15 @@ async function syncAllWithSupabase(silent = true) {
           if (localCfg.heroWallets && (!remoteCfg.heroWallets || !Array.isArray(remoteCfg.heroWallets))) {
             merged.heroWallets = localCfg.heroWallets;
           }
+          // Keep local dashboardAvgCatIds if it was changed more recently than remote's copy,
+          // so an in-flight upload doesn't get clobbered by a stale read from the server
+          // (fixes: kategori rata-rata harian hilang lagi setelah dipilih).
+          const localAvgTs = Number(localCfg.dashboardAvgCatIdsUpdatedAt) || 0;
+          const remoteAvgTs = Number(remoteCfg.dashboardAvgCatIdsUpdatedAt) || 0;
+          if (localAvgTs > remoteAvgTs) {
+            merged.dashboardAvgCatIds = localCfg.dashboardAvgCatIds;
+            merged.dashboardAvgCatIdsUpdatedAt = localAvgTs;
+          }
           setNavConfigLocalOnly(merged);
         }
         if (remChkSettings.sheets_web_app_url != null) {
@@ -2833,7 +2837,8 @@ function getNavConfig(){
   if(core.length > 5) core = core.slice(0, 5);
   const heroWallets = (raw && Array.isArray(raw.heroWallets)) ? raw.heroWallets : ['wallet_utama'];
   const dashboardAvgCatIds = (raw && Array.isArray(raw.dashboardAvgCatIds)) ? raw.dashboardAvgCatIds : [];
-  return { core, heroWallets, dashboardAvgCatIds };
+  const dashboardAvgCatIdsUpdatedAt = (raw && Number(raw.dashboardAvgCatIdsUpdatedAt)) || 0;
+  return { core, heroWallets, dashboardAvgCatIds, dashboardAvgCatIdsUpdatedAt };
 }
 function getHeroWallets(){
   const cfg = getNavConfig();
@@ -2851,6 +2856,7 @@ function getDashboardAvgCatIds(){
 function setDashboardAvgCatIds(ids){
   const cfg = getNavConfig();
   cfg.dashboardAvgCatIds = ids;
+  cfg.dashboardAvgCatIdsUpdatedAt = Date.now();
   setNavConfigLocalOnly(cfg);
   if (supabaseClient && navigator.onLine) {
     const code = getAccessCode();
@@ -4245,12 +4251,11 @@ function renderHome(){
 }
 
 /* Rata-rata Harian (Beranda): total pengeluaran bulan berjalan & per kategori pilihan
-   (diatur di Settings > Kategori Rata-rata Harian), dibagi jumlah hari yang sudah
-   berjalan di bulan ini — supaya dasbord tetap ringkas, hanya kategori yang dipilih
-   user yang muncul. */
+   (diatur langsung dari tombol "Atur Kategori" di Beranda), dibagi jumlah hari yang
+   sudah berjalan di bulan ini — supaya dasbord tetap ringkas, hanya kategori yang
+   dipilih user yang muncul. */
 function renderDailyAverages(){
   const wrap = document.getElementById('dailyAvgList');
-  const emptyEl = document.getElementById('dailyAvgEmpty');
   const daysLabelEl = document.getElementById('dailyAvgDaysLabel');
   if(!wrap) return;
 
@@ -4286,7 +4291,6 @@ function renderDailyAverages(){
   });
 
   wrap.innerHTML = rows.join('');
-  if(emptyEl) emptyEl.style.display = selectedCats.length === 0 ? 'block' : 'none';
 }
 
 function warnSvg(){ return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>'; }
