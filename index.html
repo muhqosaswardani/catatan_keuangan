@@ -880,8 +880,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="lap-period-menu" id="txPeriodMenu">
-            <button type="button" class="lap-period-menu-item active" id="txPeriodItemMonth" onclick="setTxPeriodMode('month')">Bulanan</button>
+            <button type="button" class="lap-period-menu-item" id="txPeriodItemDay" onclick="setTxPeriodMode('day')">Harian</button>
             <button type="button" class="lap-period-menu-item" id="txPeriodItemWeek" onclick="setTxPeriodMode('week')">Mingguan</button>
+            <button type="button" class="lap-period-menu-item active" id="txPeriodItemMonth" onclick="setTxPeriodMode('month')">Bulanan</button>
+            <button type="button" class="lap-period-menu-item" id="txPeriodItemYear" onclick="setTxPeriodMode('year')">Tahunan</button>
           </div>
         </div>
       </div>
@@ -4063,6 +4065,8 @@ function renderDonut(canvasId, emptyId, legendId, byCat, total, opts){
    ke tab asal (Beranda/Laporan) dengan tampilan yang sama seperti sebelum di-tap,
    bukan langsung loncat ke Beranda. */
 function viewCategoryBreakdown(catName, monthOverride){
+  txPeriodMode = 'month';
+  syncTxPeriodUI('month');
   filterMonthValue = monthOverride || getPeriodRanges(homePeriod).start.slice(0,7);
   filterCategoryValue = catName;
   filterWalletValue = 'all';
@@ -4537,22 +4541,45 @@ function renderTrendChart(){
    RENDER: TRANSAKSI
    ========================================================= */
 let filterMonthValue = null, filterWalletValue = 'all', filterCategoryValue = 'all';
-let txPeriodMode = 'month'; // 'month' | 'week' — pola sama dengan laporanPeriodMode di tab Laporan
+let txPeriodMode = 'month'; // 'day' | 'week' | 'month' | 'year' — pola sama dengan laporanPeriodMode di tab Laporan
 let txWeekStart = null; // 'YYYY-MM-DD' (Senin), dipakai saat txPeriodMode === 'week'
+let filterDayValue = null; // 'YYYY-MM-DD', dipakai saat txPeriodMode === 'day'
+let filterYearValue = null; // 'YYYY', dipakai saat txPeriodMode === 'year'
+
+function syncTxPeriodUI(mode){
+  document.getElementById('txPeriodItemDay').classList.toggle('active', mode === 'day');
+  document.getElementById('txPeriodItemWeek').classList.toggle('active', mode === 'week');
+  document.getElementById('txPeriodItemMonth').classList.toggle('active', mode === 'month');
+  document.getElementById('txPeriodItemYear').classList.toggle('active', mode === 'year');
+  const labels = {day:'Harian', week:'Mingguan', month:'Bulanan', year:'Tahunan'};
+  document.getElementById('txPeriodBtnLabel').textContent = labels[mode];
+}
 
 function setTxPeriodMode(mode){
   if(txPeriodMode === mode){ closeTxPeriodDropdown(); return; }
   txPeriodMode = mode;
-  document.getElementById('txPeriodItemMonth').classList.toggle('active', mode === 'month');
-  document.getElementById('txPeriodItemWeek').classList.toggle('active', mode === 'week');
-  document.getElementById('txPeriodBtnLabel').textContent = mode === 'week' ? 'Mingguan' : 'Bulanan';
+  syncTxPeriodUI(mode);
+  if(mode === 'day' && !filterDayValue){
+    filterDayValue = todayStr();
+  }
   if(mode === 'week' && !txWeekStart){
     txWeekStart = toDateStr(mondayOf(new Date()));
   }
   if(mode === 'month' && !filterMonthValue){
     filterMonthValue = currentMonthStr();
   }
+  if(mode === 'year' && !filterYearValue){
+    filterYearValue = String(new Date().getFullYear());
+  }
   closeTxPeriodDropdown();
+  renderTransactions();
+}
+
+function txShiftDay(delta){
+  if(!filterDayValue) filterDayValue = todayStr();
+  const d = new Date(filterDayValue + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  filterDayValue = toDateStr(d);
   renderTransactions();
 }
 
@@ -4571,19 +4598,36 @@ function txShiftMonth(delta){
   filterMonthValue = d.getFullYear()+'-'+pad(d.getMonth()+1);
   renderTransactions();
 }
+function txShiftYear(delta){
+  if(!filterYearValue) filterYearValue = String(new Date().getFullYear());
+  filterYearValue = String(Number(filterYearValue) + delta);
+  renderTransactions();
+}
 function txShiftPeriod(delta){
-  if(txPeriodMode === 'week') txShiftWeek(delta);
+  if(txPeriodMode === 'day') txShiftDay(delta);
+  else if(txPeriodMode === 'week') txShiftWeek(delta);
+  else if(txPeriodMode === 'year') txShiftYear(delta);
   else txShiftMonth(delta);
 }
 
 function populateFilterOptions(){
   const cur = currentMonthStr();
-  if(txPeriodMode === 'week'){
+  if(txPeriodMode === 'day'){
+    if(!filterDayValue) filterDayValue = todayStr();
+    document.getElementById('filterMonthLabel').textContent = dateOnlyLabel(filterDayValue);
+    const nextBtn = document.getElementById('txNextMonthBtn');
+    if(nextBtn) nextBtn.disabled = (filterDayValue >= todayStr());
+  } else if(txPeriodMode === 'week'){
     if(!txWeekStart) txWeekStart = toDateStr(mondayOf(new Date()));
     const currentWeekStart = toDateStr(mondayOf(new Date()));
     document.getElementById('filterMonthLabel').textContent = weekRangeLabel(txWeekStart);
     const nextBtn = document.getElementById('txNextMonthBtn');
     if(nextBtn) nextBtn.disabled = (txWeekStart >= currentWeekStart);
+  } else if(txPeriodMode === 'year'){
+    if(!filterYearValue) filterYearValue = String(new Date().getFullYear());
+    document.getElementById('filterMonthLabel').textContent = filterYearValue;
+    const nextBtn = document.getElementById('txNextMonthBtn');
+    if(nextBtn) nextBtn.disabled = (Number(filterYearValue) >= new Date().getFullYear());
   } else {
     const txs = getTransactions();
     const months = Array.from(new Set(txs.map(t => t.date.slice(0,7)))).sort().reverse();
@@ -4616,11 +4660,17 @@ function renderTransactions(){
   const catFilter = filterCategoryValue;
 
   let txs;
-  if(txPeriodMode === 'week'){
+  if(txPeriodMode === 'day'){
+    const day = filterDayValue;
+    txs = getTransactions().filter(t => t.date === day);
+  } else if(txPeriodMode === 'week'){
     const weekStart = txWeekStart;
     const weekEndDate = new Date(weekStart + 'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate() + 6);
     const weekEnd = toDateStr(weekEndDate);
     txs = getTransactions().filter(t => t.date >= weekStart && t.date <= weekEnd);
+  } else if(txPeriodMode === 'year'){
+    const year = filterYearValue;
+    txs = getTransactions().filter(t => t.date.slice(0,4) === year);
   } else {
     const month = filterMonthValue;
     txs = getTransactions().filter(t => t.date.slice(0,7) === month);
