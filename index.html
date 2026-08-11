@@ -2536,7 +2536,13 @@ async function syncAllWithSupabase(silent = true) {
           setSettingsLocalOnly({ ...curS, sheetsWebAppUrl: remChkSettings.sheets_web_app_url });
         }
         if (remChkSettings.shortcut_overrides) {
-          setShortcutOverridesLocalOnly(remChkSettings.shortcut_overrides);
+          const remoteMeta = Array.isArray(remChkSettings.shortcut_overrides)
+            ? { ids: remChkSettings.shortcut_overrides, updatedAt: 0 }
+            : remChkSettings.shortcut_overrides;
+          const localMeta = getShortcutMeta();
+          if (Number(remoteMeta.updatedAt || 0) > localMeta.updatedAt) {
+            setShortcutOverridesLocalOnly(remoteMeta);
+          }
         }
         if (remChkSettings.insight_cache && remChkSettings.insight_cache.generatedAt) {
           const localCache = getInsightCache();
@@ -2562,7 +2568,7 @@ async function syncAllWithSupabase(silent = true) {
         access_code: code,
         sheets_web_app_url: (getSettings().sheetsWebAppUrl || ''),
         nav_config: (typeof getNavConfig === 'function' ? getNavConfig() : { core: [] }),
-        shortcut_overrides: getShortcutOverrides(),
+        shortcut_overrides: getShortcutMeta(),
         insight_cache: getInsightCache(),
         analysis_cache: getAnalysisCache(),
         onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
@@ -2723,17 +2729,26 @@ function setInsightCache(i){
   syncAllWithSupabase(true);
 }
 
-function getShortcutOverrides(){
-  const raw = JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '[]');
-  // Migrasi data lama (format object {catId:true/false}) ke format array manual baru
-  if(raw && !Array.isArray(raw) && typeof raw === 'object'){
-    return Object.keys(raw).filter(id => raw[id] === true);
+// Shortcut kategori manual disimpan dengan timestamp (updatedAt) agar sinkronisasi tidak pernah
+// menimpa toggle yang baru saja dilakukan dengan data lama dari cloud (mencegah bug "switch balik sendiri").
+function getShortcutMeta(){
+  const raw = JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '{"ids":[],"updatedAt":0}');
+  // Migrasi format lama: array polos, atau object override {catId:true/false}
+  if(Array.isArray(raw)) return { ids: raw, updatedAt: 0 };
+  if(raw && typeof raw === 'object' && Array.isArray(raw.ids)) return { ids: raw.ids, updatedAt: Number(raw.updatedAt) || 0 };
+  if(raw && typeof raw === 'object'){
+    return { ids: Object.keys(raw).filter(id => raw[id] === true), updatedAt: 0 };
   }
-  return Array.isArray(raw) ? raw : [];
+  return { ids: [], updatedAt: 0 };
 }
-function setShortcutOverridesLocalOnly(o){ localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(o)); }
-function setShortcutOverrides(o){
-  setShortcutOverridesLocalOnly(o);
+function getShortcutOverrides(){ return getShortcutMeta().ids; }
+function setShortcutOverridesLocalOnly(meta){
+  // Terima array polos (lama) atau object {ids, updatedAt}
+  const m = Array.isArray(meta) ? { ids: meta, updatedAt: Date.now() } : meta;
+  localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(m));
+}
+function setShortcutOverrides(ids){
+  setShortcutOverridesLocalOnly({ ids, updatedAt: Date.now() });
   syncAllWithSupabase(true);
 }
 
