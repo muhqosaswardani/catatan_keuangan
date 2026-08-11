@@ -1776,9 +1776,9 @@
   <div class="modal-overlay" id="modalShortcutManage">
     <div class="modal">
       <div class="modal-head"><h3>Kelola Shortcut</h3><button class="modal-close" onclick="closeModal('modalShortcutManage')">&times;</button></div>
-      <div class="modal-body">      <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 10px;">Shortcut otomatis dibuat dari kategori yang paling sering dipakai dalam 30 hari terakhir. Aktifkan/nonaktifkan manual di sini untuk override.</p>
+      <div class="modal-body">      <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 10px;">Pilih sendiri kategori mana yang mau dijadikan shortcut. Tidak ada batas jumlah — aktifkan sebanyak yang kamu mau.</p>
       <div id="shortcutManageList"></div>
-      <button type="button" class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="resetShortcutOverrides()">Reset ke Otomatis</button>
+      <button type="button" class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="resetShortcutOverrides()">Kosongkan Semua</button>
       </div>
     </div>
   </div>
@@ -2723,7 +2723,14 @@ function setInsightCache(i){
   syncAllWithSupabase(true);
 }
 
-function getShortcutOverrides(){ return JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '{}'); }
+function getShortcutOverrides(){
+  const raw = JSON.parse(localStorage.getItem(LS_KEYS.shortcuts) || '[]');
+  // Migrasi data lama (format object {catId:true/false}) ke format array manual baru
+  if(raw && !Array.isArray(raw) && typeof raw === 'object'){
+    return Object.keys(raw).filter(id => raw[id] === true);
+  }
+  return Array.isArray(raw) ? raw : [];
+}
 function setShortcutOverridesLocalOnly(o){ localStorage.setItem(LS_KEYS.shortcuts, JSON.stringify(o)); }
 function setShortcutOverrides(o){
   setShortcutOverridesLocalOnly(o);
@@ -8714,47 +8721,28 @@ function submitRecurringConfirm(){
 /* =========================================================
    SHORTCUT TRANSAKSI CEPAT — UI (Checklist, Bagian B)
    ========================================================= */
-// Transaksi (bukan transfer) dalam 30 hari terakhir, dihitung dari tanggal transaksi (bukan urutan pencatatan).
-function last30CategorizedTx(){
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
-  const cutoffStr = cutoff.getFullYear() + '-' + pad(cutoff.getMonth()+1) + '-' + pad(cutoff.getDate());
-  return getTransactions().filter(t => (t.type === 'income' || t.type === 'expense') && t.categoryId && t.date >= cutoffStr);
-}
-function categoryFrequencyMap(txs){
-  const freq = {};
-  txs.forEach(t => { freq[t.categoryId] = (freq[t.categoryId] || 0) + 1; });
-  return freq;
-}
-function computeAutoShortcutCategoryIds(limit){
-  const freq = categoryFrequencyMap(last30CategorizedTx());
-  return Object.keys(freq).sort((a,b) => freq[b] - freq[a]).slice(0, limit || 6);
-}
 // Nominal shortcut = nominal yang paling sering dipakai untuk kategori itu (dari seluruh riwayat transaksi kategori tsb).
+// Ini tetap otomatis dari kebiasaan (habit-based) — hanya rekomendasi NOMINAL, bukan pemilihan kategori.
 function modeAmountForCategory(categoryId){
   const txs = getTransactions().filter(t => t.categoryId === categoryId && t.amount > 0);
   if(txs.length === 0) return 0;
   const top = topFrequent(txs, t => t.amount, 1);
   return top.length ? Number(top[0]) : 0;
 }
-function effectiveShortcutState(categoryId, autoTopIds, overrides){
-  if(Object.prototype.hasOwnProperty.call(overrides, categoryId)) return !!overrides[categoryId];
-  return autoTopIds.includes(categoryId);
+// Kategori shortcut SEPENUHNYA manual — user pilih sendiri lewat "Kelola", tidak ada lagi otomatis dari kebiasaan.
+function getShortcutCategoryIds(){
+  const ids = getShortcutOverrides(); // array of categoryId, urutan = urutan pilih
+  const validIds = new Set(getCategories().map(c => c.id));
+  return ids.filter(id => validIds.has(id));
+}
+function isShortcutCategory(categoryId){
+  return getShortcutCategoryIds().includes(categoryId);
 }
 function computeShortcutList(){
-  const overrides = getShortcutOverrides();
-  const autoTop = computeAutoShortcutCategoryIds(6);
-  const freq = categoryFrequencyMap(last30CategorizedTx());
-  let ids = autoTop.slice();
-  Object.keys(overrides).forEach(id => {
-    if(overrides[id] === true && !ids.includes(id)) ids.push(id);
-    if(overrides[id] === false) ids = ids.filter(x => x !== id);
-  });
-  const list = ids.map(id => categoryById(id)).filter(Boolean).map(c => ({
-    cat: c, amount: modeAmountForCategory(c.id), freq: freq[c.id] || 0
+  const ids = getShortcutCategoryIds();
+  return ids.map(id => categoryById(id)).filter(Boolean).map(c => ({
+    cat: c, amount: modeAmountForCategory(c.id)
   }));
-  list.sort((a,b) => b.freq - a.freq);
-  return list;
 }
 function renderQuickShortcuts(){
   const wrap = document.getElementById('quickShortcutGrid');
@@ -8850,21 +8838,20 @@ function submitQuickTx(){
   refreshAllViews();
 }
 
-// ---- Modal: Kelola Shortcut ----
+// ---- Modal: Kelola Shortcut (manual sepenuhnya) ----
 function renderShortcutManageList(){
   const wrap = document.getElementById('shortcutManageList');
   if(!wrap) return;
-  const overrides = getShortcutOverrides();
-  const autoTop = computeAutoShortcutCategoryIds(6);
+  const selected = getShortcutCategoryIds();
   const cats = getCategories();
   const rowHtml = (c) => {
-    const on = effectiveShortcutState(c.id, autoTop, overrides);
+    const on = selected.includes(c.id);
     return `<div class="settings-row">
       <div class="l" style="display:flex;align-items:center;gap:10px;">
         ${categoryIconBoxHtml(c, {size:32, iconSize:18, radius:9})}
         <span>${escAttr(c.name)}</span>
       </div>
-      <button type="button" class="btn ${on ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="toggleShortcutOverride('${c.id}')">${on ? 'Aktif' : 'Nonaktif'}</button>
+      <button type="button" class="btn ${on ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="toggleShortcutCategory('${c.id}')">${on ? 'Aktif' : 'Nonaktif'}</button>
     </div>`;
   };
   const expense = cats.filter(c => c.type === 'expense');
@@ -8873,20 +8860,22 @@ function renderShortcutManageList(){
     '<div class="eyebrow" style="margin:4px 0 2px;">Pengeluaran</div>' + (expense.map(rowHtml).join('') || '<div class="empty-note">Belum ada kategori.</div>') +
     '<div class="eyebrow" style="margin:14px 0 2px;">Pemasukan</div>' + (income.map(rowHtml).join('') || '<div class="empty-note">Belum ada kategori.</div>');
 }
-function toggleShortcutOverride(categoryId){
-  const overrides = getShortcutOverrides();
-  const autoTop = computeAutoShortcutCategoryIds(6);
-  const current = effectiveShortcutState(categoryId, autoTop, overrides);
-  overrides[categoryId] = !current;
-  setShortcutOverrides(overrides);
+function toggleShortcutCategory(categoryId){
+  let selected = getShortcutOverrides();
+  if(selected.includes(categoryId)){
+    selected = selected.filter(id => id !== categoryId);
+  } else {
+    selected = selected.concat([categoryId]);
+  }
+  setShortcutOverrides(selected);
   renderShortcutManageList();
   renderQuickShortcuts();
 }
 function resetShortcutOverrides(){
-  setShortcutOverrides({});
+  setShortcutOverrides([]);
   renderShortcutManageList();
   renderQuickShortcuts();
-  showToast('Shortcut dikembalikan ke otomatis');
+  showToast('Semua shortcut dikosongkan');
 }
 
 /* =========================================================
