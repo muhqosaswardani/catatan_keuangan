@@ -1751,11 +1751,10 @@
     <div class="modal">
       <div class="modal-head"><h3>Tambah via AI</h3><button class="modal-close" onclick="closeModal('modalAiScan')">&times;</button></div>
       <div class="modal-body">
-      <div id="aiScanCaptureView">
-        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Ketik catatan transaksi dengan bahasa sehari-hari, dan/atau lampirkan foto — boleh struk kertas / screenshot m-banking / PDF e-statement seperti biasa, atau foto bebas (barang, tempat, gerobak, banner, papan menu, dll). Salah satu saja cukup, boleh juga digabung — semua dianalisis sekaligus oleh AI.</p>
+        <div id="aiScanCaptureView">
         <div class="field" style="margin-bottom:12px;">
           <label>Teks Bebas (opsional)</label>
-          <textarea id="aiScanTextInput" rows="3" placeholder='Contoh: "makan siang 35rb, beli pulsa 20rb" atau "gaji masuk"' oninput="onAiTextInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+          <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini" oninput="onAiTextInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         </div>
         <div class="ai-choice-grid ai-choice-grid-3">
           <div class="ai-choice-btn" onclick="document.getElementById('aiCameraInput').click()">
