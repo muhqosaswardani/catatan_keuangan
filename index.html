@@ -412,6 +412,14 @@
   .ai-choice-btn{border:1.5px dashed var(--line);border-radius:var(--radius-m);padding:18px 8px;text-align:center;background:var(--surface);cursor:pointer;font-size:12.5px;font-weight:700;color:var(--ink-soft);}
   .ai-choice-btn svg{display:block;margin:0 auto 8px;}
   .ai-choice-btn:active{background:var(--surface-2);}
+  /* Layout: Galeri & File/PDF ditumpuk kiri, Kamera besar di kanan */
+  .ai-choice-grid-camright{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;}
+  .ai-choice-grid-camright .ai-choice-btn-stack{grid-column:1;display:flex;flex-direction:column;justify-content:center;padding:10px 8px;}
+  .ai-choice-grid-camright .ai-choice-btn-stack svg{width:19px;height:19px;margin-bottom:5px;}
+  .ai-choice-grid-camright .ai-choice-btn-cam{grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 8px;}
+  .ai-choice-grid-camright .ai-choice-btn-cam svg{width:26px;height:26px;margin-bottom:6px;}
+  .ai-choice-grid-camright .ai-choice-btn-cam{font-size:12.5px;}
+  .ai-choice-grid-camright .ai-choice-btn-stack{font-size:12px;}
   .file-thumb.file-thumb-doc{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--surface-2);gap:2px;}
   .file-thumb.file-thumb-doc span.doc-ext{font-size:9px;font-weight:800;color:var(--ink-soft);letter-spacing:.3px;}
   .ai-loading{text-align:center;padding:36px 10px;}
@@ -429,6 +437,7 @@
   .scan-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--warn);background:#fff;border:1px solid var(--warn);border-radius:6px;padding:3px 8px;}
   .scan-badge-info{color:var(--accent);background:var(--accent-soft);border-color:var(--accent);}
   .scan-badge-manual{color:var(--expense);background:var(--expense-soft);border-color:var(--expense);}
+  .scan-badge-estimate{color:var(--warn);background:var(--warn-soft);border-color:var(--warn);}
   .scan-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .scan-fields .full{grid-column:1/-1;}
   .scan-fields label{font-size:11px;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:4px;}
@@ -684,7 +693,7 @@
       <span>Settings</span>
     </button>
   </div>
-  <button type="button" class="side-nav-fab" onclick="openAddChoice()">
+  <button type="button" class="side-nav-fab" onclick="fabClick()" onpointerdown="fabPressStart()" onpointerup="fabPressEnd()" onpointerleave="fabPressEnd()" onpointercancel="fabPressEnd()">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
     Tambah
   </button>
@@ -1200,7 +1209,7 @@
   </div>
 
   <!-- ============ FAB ============ -->
-  <button class="fab" onclick="openAddChoice()" aria-label="Tambah">
+  <button class="fab" onclick="fabClick()" onpointerdown="fabPressStart()" onpointerup="fabPressEnd()" onpointerleave="fabPressEnd()" onpointercancel="fabPressEnd()" aria-label="Tambah">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
   </button>
 
@@ -1209,9 +1218,9 @@
     <div class="modal">
       <div class="modal-head"><h3>Tambah</h3><button class="modal-close" onclick="closeModal('modalAddChoice')">&times;</button></div>
       <div class="modal-body">      <button class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="chooseAddTransaction()">Transaksi (Income/Expense)</button>
+      <button class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="chooseAddAI()">Transaksi via AI</button>
       <button class="btn btn-ghost btn-block" style="margin-bottom:10px;" onclick="chooseAddQuickTx()">Transaksi Cepat</button>
-      <button class="btn btn-ghost btn-block" style="margin-bottom:10px;" onclick="chooseAddTransfer()">Transfer Antar Dompet</button>
-      <button class="btn btn-ghost btn-block" onclick="chooseAddAI()">Tambah via AI (Scan Foto)</button>
+      <button class="btn btn-ghost btn-block" onclick="chooseAddTransfer()">Transfer Antar Dompet</button>
       </div>
     </div>
   </div>
@@ -1749,25 +1758,25 @@
   <!-- ============ MODAL: TAMBAH VIA AI (SCAN FOTO) — fitur 4 ============ -->
   <div class="modal-overlay" id="modalAiScan">
     <div class="modal">
-      <div class="modal-head"><h3>Tambah via AI</h3><button class="modal-close" onclick="closeModal('modalAiScan')">&times;</button></div>
+      <div class="modal-head"><h3>Transaksi via AI</h3><button class="modal-close" onclick="closeModal('modalAiScan')">&times;</button></div>
       <div class="modal-body">
         <div id="aiScanCaptureView">
         <div class="field" style="margin-bottom:12px;">
           <label>Teks Bebas (opsional)</label>
           <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini" oninput="onAiTextInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         </div>
-        <div class="ai-choice-grid ai-choice-grid-3">
-          <div class="ai-choice-btn" onclick="document.getElementById('aiCameraInput').click()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="#5B6A68" stroke-width="1.6"/></svg>
-            Kamera
-          </div>
-          <div class="ai-choice-btn" onclick="document.getElementById('aiGalleryInput').click()">
+        <div class="ai-choice-grid ai-choice-grid-camright">
+          <div class="ai-choice-btn ai-choice-btn-stack" onclick="document.getElementById('aiGalleryInput').click()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#5B6A68" stroke-width="1.6"/><path d="M3 16l5-5 4 4 3-3 6 6" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="9" r="1.4" fill="#5B6A68"/></svg>
             Galeri
           </div>
-          <div class="ai-choice-btn" onclick="document.getElementById('aiDocInput').click()">
+          <div class="ai-choice-btn ai-choice-btn-stack" onclick="document.getElementById('aiDocInput').click()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 13h6M9 16h6" stroke="#5B6A68" stroke-width="1.6" stroke-linecap="round"/></svg>
             File / PDF
+          </div>
+          <div class="ai-choice-btn ai-choice-btn-cam" onclick="document.getElementById('aiCameraInput').click()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="#5B6A68" stroke-width="1.6"/></svg>
+            Kamera
           </div>
         </div>
         <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none" onchange="onAiFilesAdded(event)">
@@ -3541,6 +3550,29 @@ function swapModal(oldId, newId){
   navReplaceTop({type:'modal', id:newId});
 }
 function openAddChoice(){ openModal('modalAddChoice'); }
+// Tekan-tahan tombol "+" (FAB) selama 2 detik = langsung buka modal "Transaksi via AI",
+// tanpa lewat modal pilihan "Tambah" dulu. Tap biasa (dilepas sebelum 2 detik) tetap
+// jalan seperti semula (buka modalAddChoice).
+let fabLongPressTimer = null;
+let fabLongPressTriggered = false;
+function fabPressStart(){
+  fabLongPressTriggered = false;
+  clearTimeout(fabLongPressTimer);
+  fabLongPressTimer = setTimeout(() => {
+    fabLongPressTriggered = true;
+    if(navigator.vibrate) navigator.vibrate(15);
+    if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
+    openAiScanModal();
+  }, 2000);
+}
+function fabPressEnd(){
+  clearTimeout(fabLongPressTimer);
+  fabLongPressTimer = null;
+}
+function fabClick(){
+  if(fabLongPressTriggered){ fabLongPressTriggered = false; return; } // sudah ditangani long-press, jangan buka modalAddChoice juga
+  openAddChoice();
+}
 /* Klik di area luar card (backdrop) menutup modal; klik/scroll di dalam card tidak menembus ke halaman utama */
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
@@ -4552,6 +4584,11 @@ async function aiScanWithGemini(key){
     '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n' +
     '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
     'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan).\n\n' +
+    '0. VALIDASI WAJIB SEBELUM MEMBUAT TRANSAKSI APAPUN:\n' +
+    '   - JANGAN PERNAH membuat objek transaksi kalau isi lampiran/teks TIDAK merujuk pada barang, jasa, aktivitas, atau nominal apapun yang berkaitan dengan uang masuk/keluar.\n' +
+    '   - Ini termasuk (tapi tidak terbatas pada): sapaan biasa ("halo", "hai", "hallo", "test", "tes"), obrolan/pertanyaan ke asisten yang tidak ada kaitan finansial, kalimat kosong/acak/typo tanpa makna, atau foto yang sama sekali tidak menunjukkan konteks belanja/transaksi/barang/jasa/tempat usaha.\n' +
+    '   - Untuk kasus seperti itu, JANGAN dipaksakan jadi transaksi dengan kategori "Lainnya" atau catatan seperti "menyapa asisten" — cukup ABAIKAN, jangan hasilkan objek apapun untuk bagian itu (kalau seluruh input begini, keluarkan array kosong []).\n' +
+    '   - Aturan ini HANYA berlaku untuk memfilter input yang jelas BUKAN transaksi. Kalau ada indikasi transaksi sekecil apapun (nama barang/jasa/tempat/aktivitas finansial), tetap proses sesuai aturan di bawah walau nominalnya tidak disebutkan (amount boleh 0).\n\n' +
     'CARA MEMBACA DOKUMEN:\n' +
     '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
     '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
@@ -4577,7 +4614,7 @@ async function aiScanWithGemini(key){
     '   - "date": default hari ini (' + todayStr() + ') kalau tidak ada info tanggal di foto/caption.\n\n' +
     '4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER (dan bukan sekadar caption untuk kasus 3 di atas, atau memang berdiri sendiri tanpa foto):\n' +
     '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda (dipisah koma, kata "dan", atau baris baru) — jangan digabung jadi satu baris.\n' +
-    '   - Kenali nama barang/makanan meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu, contoh: "naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek), lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu, tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks.\n' +
+    '   - Kenali nama barang/makanan meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu, contoh: "naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek), lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu TAPI tetap ada indikasi itu adalah barang/jasa/aktivitas finansial, tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks. Ini TIDAK berlaku untuk teks yang sama sekali bukan transaksi (lihat aturan 0) — untuk kasus itu jangan buat objek sama sekali, bukan "tulis apa adanya".\n' +
     '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; "2,5" (konteks nominal singkat)=2500 (koma dibaca sebagai desimal dari satuan ribu); "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu, tetap keluarkan hasil terbaik (jangan sampai transaksi gagal terbaca sama sekali).\n' +
     '   - "type": "income" kalau jelas pemasukan (mis. "gaji masuk", "dapat bonus"), selain itu "expense".\n' +
     '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) → set "amount" ke 0, JANGAN MENEBAK.\n' +
@@ -4640,6 +4677,7 @@ function applyAiGroupAllocationScaling(rows){
     let scaledSum = 0;
     members.forEach(r => {
       r.amount = Math.round((weightOf(r) / weightSum) * total);
+      r.amountSource = 'estimate';
       scaledSum += r.amount;
     });
     const diff = total - scaledSum; // koreksi sisa pembulatan supaya total akhir tidak meleset sepeser pun
@@ -5526,6 +5564,7 @@ function renderAiRowHtml(row){
   // manual ditandai badge merah + garis tepi putus-putus supaya gampang dikenali sekilas.
   const needsManual = !(row.amount > 0);
   const historyBadge = (row.amountSource === 'history') ? '<span class="scan-badge scan-badge-info">🕘 Dari histori</span>' : '';
+  const estimateBadge = (row.amountSource === 'estimate') ? '<span class="scan-badge scan-badge-estimate">~ Estimasi</span>' : '';
   const manualBadge = needsManual ? '<span class="scan-badge scan-badge-manual">✏ Isi nominal manual</span>' : '';
   const rowClasses = ['scan-row'];
   if(row.dup) rowClasses.push('dup');
@@ -5536,7 +5575,7 @@ function renderAiRowHtml(row){
         <option value="expense" ${row.type==='expense'?'selected':''}>Pengeluaran</option>
         <option value="income" ${row.type==='income'?'selected':''}>Pemasukan</option>
       </select>
-      ${dupBadge}${historyBadge}${manualBadge}
+      ${dupBadge}${historyBadge}${estimateBadge}${manualBadge}
       <button type="button" class="scan-row-del" onclick="deleteAiRow('${row.id}')" aria-label="Hapus">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
