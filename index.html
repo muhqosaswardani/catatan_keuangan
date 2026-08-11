@@ -420,12 +420,15 @@
   .ai-loading p{font-size:13.5px;color:var(--ink-soft);font-weight:600;margin:0;}
   .scan-row{border:1.5px solid var(--line);border-radius:var(--radius-l);padding:16px;margin-bottom:12px;}
   .scan-row.dup{border-color:var(--warn);background:var(--warn-soft);}
-  .scan-row-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .scan-row.needs-manual{border-color:var(--expense);border-style:dashed;}
+  .scan-row-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
   .scan-type-select{border:1.5px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12.5px;font-weight:700;font-family:inherit;background:var(--surface);color:var(--ink-soft);}
   .scan-type-select[data-type="expense"]{color:var(--expense);border-color:var(--expense);background:var(--expense-soft);}
   .scan-type-select[data-type="income"]{color:var(--income);border-color:var(--income);background:var(--income-soft);}
   .scan-row-del{margin-left:auto;background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:2px;flex-shrink:0;}
   .scan-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--warn);background:#fff;border:1px solid var(--warn);border-radius:6px;padding:3px 8px;}
+  .scan-badge-info{color:var(--accent);background:var(--accent-soft);border-color:var(--accent);}
+  .scan-badge-manual{color:var(--expense);background:var(--expense-soft);border-color:var(--expense);}
   .scan-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .scan-fields .full{grid-column:1/-1;}
   .scan-fields label{font-size:11px;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:4px;}
@@ -1749,7 +1752,11 @@
       <div class="modal-head"><h3>Tambah via AI</h3><button class="modal-close" onclick="closeModal('modalAiScan')">&times;</button></div>
       <div class="modal-body">
       <div id="aiScanCaptureView">
-        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Ambil foto struk kertas / screenshot m-banking, pilih beberapa sekaligus dari galeri, atau lampirkan file PDF (e-statement/mutasi rekening). Semua akan digabung jadi satu batch lalu dianalisis sekaligus oleh AI.</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Ketik catatan transaksi dengan bahasa sehari-hari, dan/atau lampirkan foto — boleh struk kertas / screenshot m-banking / PDF e-statement seperti biasa, atau foto bebas (barang, tempat, gerobak, banner, papan menu, dll). Salah satu saja cukup, boleh juga digabung — semua dianalisis sekaligus oleh AI.</p>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Teks Bebas (opsional)</label>
+          <textarea id="aiScanTextInput" rows="3" placeholder='Contoh: "makan siang 35rb, beli pulsa 20rb" atau "gaji masuk"' oninput="onAiTextInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+        </div>
         <div class="ai-choice-grid ai-choice-grid-3">
           <div class="ai-choice-btn" onclick="document.getElementById('aiCameraInput').click()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="#5B6A68" stroke-width="1.6"/></svg>
@@ -4434,6 +4441,7 @@ function chooseAddQuickTx(){
 let aiCaptureFiles = [];
 let aiScanRows = [];
 let aiWalletValue = null;
+let aiScanTextValue = ''; // input teks bebas (BARU) — dipakai berdampingan dengan lampiran foto
 
 function chooseAddAI(){
   closeModalUI('modalAddChoice');
@@ -4444,6 +4452,9 @@ function chooseAddAI(){
 function openAiScanModal(opts){
   aiCaptureFiles = [];
   aiScanRows = [];
+  aiScanTextValue = '';
+  const textEl = document.getElementById('aiScanTextInput');
+  if(textEl) textEl.value = '';
   renderAiFileChips();
   document.getElementById('aiScanCaptureView').style.display = 'block';
   document.getElementById('aiScanLoadingView').style.display = 'none';
@@ -4461,6 +4472,12 @@ function onAiFilesAdded(e){
   e.target.value = ''; // biar bisa ambil foto kamera berkali-kali / pilih file yang sama lagi
   renderAiFileChips();
 }
+// Dipanggil saat user mengetik di kolom teks bebas (BARU) — dipakai untuk menentukan aktif/
+// tidaknya tombol "Analisis dengan AI" (aktif kalau teks ATAU foto terisi, salah satu saja cukup).
+function onAiTextInput(el){
+  aiScanTextValue = el.value;
+  updateAiScanAnalyzeBtnState();
+}
 // Render thumbnail untuk foto (image) atau ikon dokumen generik untuk PDF/file non-gambar.
 function fileThumbHtml(f, i, removeFnName){
   const isPdf = (f.type === 'application/pdf') || /\.pdf$/i.test(f.name || '');
@@ -4472,14 +4489,21 @@ function fileThumbHtml(f, i, removeFnName){
 function renderAiFileChips(){
   const wrap = document.getElementById('aiFileChipRow');
   wrap.innerHTML = aiCaptureFiles.map((f,i) => fileThumbHtml(f, i, 'removeAiFile')).join('');
-  document.getElementById('aiScanAnalyzeBtn').disabled = aiCaptureFiles.length === 0;
+  updateAiScanAnalyzeBtnState();
+}
+// Tombol "Analisis dengan AI" aktif kalau SALAH SATU dari teks bebas atau foto terisi
+// (boleh dua-duanya sekaligus, boleh salah satu saja) — lihat bagian 5.1 PRD perluasan.
+function updateAiScanAnalyzeBtnState(){
+  const hasText = (aiScanTextValue || '').trim().length > 0;
+  document.getElementById('aiScanAnalyzeBtn').disabled = !hasText && aiCaptureFiles.length === 0;
 }
 function removeAiFile(i){
   aiCaptureFiles.splice(i,1);
   renderAiFileChips();
 }
 function startAiScanAnalysis(){
-  if(aiCaptureFiles.length === 0) return;
+  const hasText = (aiScanTextValue || '').trim().length > 0;
+  if(aiCaptureFiles.length === 0 && !hasText) return;
   document.getElementById('aiScanCaptureView').style.display = 'none';
   document.getElementById('aiScanErrorView').style.display = 'none';
   document.getElementById('aiScanLoadingView').style.display = 'block';
@@ -4503,14 +4527,14 @@ function startAiScanAnalysis(){
   aiScanWithGemini(key)
     .then(rows => {
       if(rows.length === 0){
-        showAiScanError('AI tidak menemukan transaksi apa pun di foto ini. Coba foto yang lebih jelas/terang, atau pastikan struk/screenshot-nya terbaca penuh.');
+        showAiScanError('AI tidak menemukan transaksi apa pun dari teks/foto ini. Coba tulis ulang teksnya, atau foto yang lebih jelas/terang.');
         return;
       }
       finish(rows);
     })
     .catch(err => {
       console.error('Gemini scan error:', err);
-      showAiScanError((err && err.message) || 'AI gagal membaca foto.');
+      showAiScanError((err && err.message) || 'AI gagal membaca teks/foto.');
     });
 }
 function retryAiScanAnalysis(){
@@ -4526,7 +4550,9 @@ async function aiScanWithGemini(key){
     'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini:\n' +
     '(a) Foto/gambar struk belanja kasir/supermarket/toko (seperti Alfamart, Indomaret, dsb.) yang berisi daftar barang belanjaan (items) beserta diskon, PPN/pajak, dan grand total.\n' +
     '(b) Screenshot riwayat/mutasi m-banking atau e-wallet (list transaksi bertumpuk ke bawah).\n' +
-    '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n\n' +
+    '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n' +
+    '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
+    'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan).\n\n' +
     'CARA MEMBACA DOKUMEN:\n' +
     '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
     '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
@@ -4544,16 +4570,38 @@ async function aiScanWithGemini(key){
     '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
     '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
     '   - Untuk setiap transaksi mutasi, buat satu objek dengan field: "order" (integer), "date" (YYYY-MM-DD, asumsikan tahun ' + new Date().getFullYear() + ' jika tidak tertulis), "type" ("expense" atau "income"), "amount" (integer rupiah), "note" (keterangan transaksi), "category" (pilih yang paling cocok dari daftar: expense: [' + expenseCats.join(', ') + '], income: [' + incomeCats.join(', ') + ']; atau "Lainnya"), "isDuplicateRead" (boolean).\n\n' +
-    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut, tanpa penjelasan markdown, tanpa code fence.';
+    '3. JIKA FOTO BUKAN STRUK/DOKUMEN FINANSIAL (foto bebas — barang, tempat, gerobak, banner, papan menu, antrian, dsb):\n' +
+    '   - Kenali & interpretasikan isi foto seluas-luasnya: apa yang terlihat, termasuk tulisan pada banner/plang/papan menu kalau ada.\n' +
+    '   - Susun "note" yang jelas dari isi foto (contoh: foto gerobak bertuliskan "Bakso Pak Kumis" → note "Bakso Pak Kumis"; foto plang "Bengkel Motor Jaya" → note "Servis di Bengkel Motor Jaya").\n' +
+    '   - Tebak "category" paling masuk akal dari daftar kategori yang ada (expense: [' + expenseCats.join(', ') + '], income: [' + incomeCats.join(', ') + ']; atau "Lainnya" kalau tidak ada yang cocok).\n' +
+    '   - "amount": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set "amount" ke 0 — JANGAN MENEBAK nominal untuk jenis foto ini.\n' +
+    '   - "date": default hari ini (' + todayStr() + ') kalau tidak ada info tanggal di foto/caption.\n\n' +
+    '4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER (dan bukan sekadar caption untuk kasus 3 di atas, atau memang berdiri sendiri tanpa foto):\n' +
+    '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda (dipisah koma, kata "dan", atau baris baru) — jangan digabung jadi satu baris.\n' +
+    '   - Kenali nama barang/makanan meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu, contoh: "naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek), lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu, tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks.\n' +
+    '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; "2,5" (konteks nominal singkat)=2500 (koma dibaca sebagai desimal dari satuan ribu); "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu, tetap keluarkan hasil terbaik (jangan sampai transaksi gagal terbaca sama sekali).\n' +
+    '   - "type": "income" kalau jelas pemasukan (mis. "gaji masuk", "dapat bonus"), selain itu "expense".\n' +
+    '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) → set "amount" ke 0, JANGAN MENEBAK.\n' +
+    '   - "date": default hari ini (' + todayStr() + ') kalau tidak disebutkan tanggal lain di teks.\n\n' +
+    '5. ALOKASI KATEGORI & ESTIMASI HARGA DARI SATU TOTAL TANPA RINCIAN PER ITEM (berlaku untuk foto belanjaan ATAU teks bebas yang menyebut beberapa barang beda kategori tapi HANYA memberi satu total nominal, TANPA rincian harga per barang — beda dengan kasus 1 di atas yang rinciannya memang tertulis di struk):\n' +
+    '   - Kenali semua barang berbeda yang disebut/terlihat, masing-masing dengan "category" paling sesuai (JANGAN taruh semua barang di satu kategori sama demi kemudahan — ini sama pentingnya dengan total yang presisi).\n' +
+    '   - Untuk tiap barang buat SATU objek transaksi terpisah (bukan digabung jadi satu baris gabungan), dengan "amount" diisi ESTIMASI KASAR harga barang tersebut berdasarkan pengetahuan umum harga pasar Indonesia (nilai ini hanya dipakai sisi aplikasi sebagai BOBOT proporsional antar barang, boleh kasar/tidak presisi).\n' +
+    '   - Beri SEMUA objek dari satu kelompok alokasi ini "groupId" yang SAMA (string bebas, unik per kelompok dalam satu respons ini, mis. "g1", "g2" kalau ada lebih dari satu kelompok begini dalam satu respons), dan "groupTotal" (integer) berisi TOTAL NOMINAL PERSIS seperti yang disebutkan/diinput user untuk kelompok itu. Kedua field ini WAJIB diisi kalau baris berasal dari kasus alokasi tanpa rincian ini (di luar kasus ini, boleh dikosongkan/tidak disertakan).\n' +
+    '   - JANGAN mencoba menjumlahkan sendiri "amount" tiap barang supaya pas dengan total — sisi aplikasi yang akan menyesuaikan angka final secara presisi memakai "groupTotal" yang kamu berikan. Fokusmu cukup: kategori tiap barang benar & proporsi estimasi harga antar barang masuk akal.\n\n' +
+    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.';
   const parts = [{ text: promptText }];
+  const freeText = (aiScanTextValue || '').toString().trim();
+  if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + freeText }); }
   for(const f of aiCaptureFiles){ parts.push(await fileToGenerativePart(f)); }
   const data = await callGeminiRaw(key, parts);
   const text = extractGeminiText(data);
   let items;
   try{ items = JSON.parse(text); } catch(e){ throw new Error('Format respons AI tidak valid'); }
   if(!Array.isArray(items)) throw new Error('Format respons AI tidak valid');
-  return items.map((it, idx) => {
+  const rows = items.map((it, idx) => {
     const type = it && it.type === 'income' ? 'income' : 'expense';
+    const groupId = (it && it.groupId) ? String(it.groupId) : null;
+    const groupTotal = (it && Number.isFinite(Number(it.groupTotal)) && Number(it.groupTotal) > 0) ? Math.round(Number(it.groupTotal)) : null;
     return {
       id: uid(),
       order: (it && Number.isFinite(Number(it.order))) ? Number(it.order) : idx,
@@ -4562,9 +4610,110 @@ async function aiScanWithGemini(key){
       note: ((it && it.note) || '').toString().slice(0, 80),
       type,
       categoryId: matchCategoryByName(it && it.category, type),
-      aiFlaggedDup: !!(it && it.isDuplicateRead)
+      aiFlaggedDup: !!(it && it.isDuplicateRead),
+      _groupId: groupId,
+      _groupTotal: groupTotal
     };
   });
+  // Perluasan baru: 1) skalakan proporsional baris yang berasal dari alokasi 1-total-tanpa-rincian
+  // (bagian 5.3 PRD) supaya jumlahnya presisi 100% sama dengan total yang disebutkan user, lalu
+  // 2) untuk baris yang nominalnya masih 0/tidak diketahui (teks bebas / foto bebas non-struk),
+  // coba isi dari histori transaksi tersimpan sebelum ditandai "butuh diisi manual".
+  // Tidak menyentuh baris hasil baca struk/mutasi yang sudah punya amount > 0 seperti biasa.
+  applyAiGroupAllocationScaling(rows);
+  applyAiHistoryAmountFallback(rows);
+  return rows;
+}
+// Menyesuaikan baris-baris yang dikelompokkan AI lewat "groupId"/"groupTotal" (kasus 1 total
+// tanpa rincian per item — lihat bagian 5.3 PRD) supaya jumlah amount dalam satu kelompok PERSIS
+// sama dengan groupTotal yang disebutkan/diinput user. amount tiap baris dari AI sebelum fungsi
+// ini dipakai sebagai bobot proporsional kasar (estimasi harga), bukan nilai akhir.
+function applyAiGroupAllocationScaling(rows){
+  const groups = {};
+  rows.forEach(r => { if(r._groupId){ (groups[r._groupId] = groups[r._groupId] || []).push(r); } });
+  Object.keys(groups).forEach(gid => {
+    const members = groups[gid];
+    const total = members[0]._groupTotal;
+    if(!(total > 0)) return;
+    const weightOf = r => r.amount > 0 ? r.amount : 1; // hindari bobot 0 kalau AI tidak kasih estimasi
+    const weightSum = members.reduce((s, r) => s + weightOf(r), 0);
+    if(!(weightSum > 0)) return;
+    let scaledSum = 0;
+    members.forEach(r => {
+      r.amount = Math.round((weightOf(r) / weightSum) * total);
+      scaledSum += r.amount;
+    });
+    const diff = total - scaledSum; // koreksi sisa pembulatan supaya total akhir tidak meleset sepeser pun
+    if(diff !== 0){
+      let maxR = members[0];
+      members.forEach(r => { if(r.amount > maxR.amount) maxR = r; });
+      maxR.amount += diff;
+    }
+  });
+}
+// Bagian 5.5 PRD — kalau nominal suatu baris tidak diketahui (amount masih 0 setelah dibaca
+// AI/diskalakan), cari dulu ke histori transaksi tersimpan sebelum baris ditandai "butuh diisi
+// manual". Menandai row.amountSource = 'history' kalau berhasil ketemu, supaya UI bisa kasih
+// badge visual pembeda dari nominal hasil bacaan langsung.
+function applyAiHistoryAmountFallback(rows){
+  rows.forEach(row => {
+    if(row.amount > 0) return; // sudah ada sumber eksplisit (struk/mutasi/teks/caption/alokasi), tidak perlu histori
+    const found = findHistoryAmount(row.note, row.categoryId, row.type);
+    if(found != null && found > 0){
+      row.amount = found;
+      row.amountSource = 'history';
+    } else {
+      row.amountSource = 'manual';
+    }
+  });
+}
+// Tokenisasi & normalisasi keterangan untuk pencocokan kata kunci (bagian 5.5 PRD).
+function normalizeNoteText(s){
+  return (s || '').toString().toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+const AI_HISTORY_STOPWORDS = ['masuk','keluar','tadi','baru','buat','untuk','dari','yang','sama','lagi','saya','aku','dapat','terima','bayar','beli','dan'];
+function tokenizeNoteForHistory(note){
+  const norm = normalizeNoteText(note);
+  if(!norm) return [];
+  return norm.split(' ').filter(w => w && !AI_HISTORY_STOPWORDS.includes(w));
+}
+function pickMostRecentTx(list){
+  return list.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
+}
+// Cari nominal dari daftar transaksi tersimpan `candidates` berdasarkan: 1) keterangan sama
+// persis (setelah normalisasi), 2) kecocokan kata kunci terbanyak, 3) fallback substring longgar.
+// Kalau beberapa kandidat skor sama, prioritaskan tanggal paling baru.
+function searchAmountInTxCandidates(rowTokens, rowNoteNorm, candidates){
+  if(candidates.length === 0) return null;
+  if(rowNoteNorm){
+    const exact = candidates.filter(t => normalizeNoteText(t.note) === rowNoteNorm);
+    if(exact.length) return pickMostRecentTx(exact).amount;
+  }
+  if(rowTokens.length){
+    const scored = candidates
+      .map(t => ({ t, overlap: tokenizeNoteForHistory(t.note).filter(tok => rowTokens.includes(tok)).length }))
+      .filter(x => x.overlap > 0)
+      .sort((a, b) => b.overlap - a.overlap || String(b.t.date || '').localeCompare(String(a.t.date || '')));
+    if(scored.length) return scored[0].t.amount;
+  }
+  if(rowNoteNorm){
+    const subs = candidates.filter(t => {
+      const tn = normalizeNoteText(t.note);
+      return tn && (tn.includes(rowNoteNorm) || rowNoteNorm.includes(tn));
+    });
+    if(subs.length) return pickMostRecentTx(subs).amount;
+  }
+  return null;
+}
+// Implementasi algoritma pencarian histori bagian 5.5 PRD: kategori sama dulu, baru lintas kategori.
+function findHistoryAmount(note, categoryId, type){
+  const rowTokens = tokenizeNoteForHistory(note);
+  const rowNoteNorm = normalizeNoteText(note);
+  const existing = getTransactions().filter(t => Number(t.amount) > 0 && t.type === type);
+  const sameCategory = existing.filter(t => t.categoryId === categoryId);
+  let amt = searchAmountInTxCandidates(rowTokens, rowNoteNorm, sameCategory);
+  if(amt == null){ amt = searchAmountInTxCandidates(rowTokens, rowNoteNorm, existing); }
+  return amt;
 }
 function matchCategoryByName(name, type){
   const cats = getCategories().filter(c => c.type === type);
@@ -5373,13 +5522,22 @@ function renderAiRowHtml(row){
     else dupLabel = '⚠ Terbaca dobel?';
   }
   const dupBadge = dupLabel ? '<span class="scan-badge">'+dupLabel+'</span>' : '';
-  return `<div class="scan-row ${row.dup?'dup':''}" data-row-id="${row.id}">
+  // Perluasan baru (bagian 5.5/5.8 PRD): baris yang nominalnya terisi otomatis dari histori
+  // transaksi tersimpan ditandai badge biru "Dari histori", baris yang masih butuh nominal
+  // manual ditandai badge merah + garis tepi putus-putus supaya gampang dikenali sekilas.
+  const needsManual = !(row.amount > 0);
+  const historyBadge = (row.amountSource === 'history') ? '<span class="scan-badge scan-badge-info">🕘 Dari histori</span>' : '';
+  const manualBadge = needsManual ? '<span class="scan-badge scan-badge-manual">✏ Isi nominal manual</span>' : '';
+  const rowClasses = ['scan-row'];
+  if(row.dup) rowClasses.push('dup');
+  if(needsManual) rowClasses.push('needs-manual');
+  return `<div class="${rowClasses.join(' ')}" data-row-id="${row.id}">
     <div class="scan-row-top">
       <select class="scan-type-select" data-type="${row.type}" onchange="setAiRowType('${row.id}', this.value)">
         <option value="expense" ${row.type==='expense'?'selected':''}>Pengeluaran</option>
         <option value="income" ${row.type==='income'?'selected':''}>Pemasukan</option>
       </select>
-      ${dupBadge}
+      ${dupBadge}${historyBadge}${manualBadge}
       <button type="button" class="scan-row-del" onclick="deleteAiRow('${row.id}')" aria-label="Hapus">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
@@ -5421,25 +5579,47 @@ function openAiWalletPicker(){
 function saveAiScanSelected(){
   if(!aiWalletValue){ showToast('Pilih dompet tujuan terlebih dahulu'); return; }
   let saved = 0;
+  const remaining = [];
   aiScanRows.forEach(row => {
     const dateEl = document.getElementById('aiDate_'+row.id);
     const amtEl = document.getElementById('aiAmt_'+row.id);
     const noteEl = document.getElementById('aiNote_'+row.id);
     const catEl = document.getElementById('aiCat_'+row.id);
-    if(!dateEl || !amtEl || !noteEl || !catEl) return;
+    if(!dateEl || !amtEl || !noteEl || !catEl){ remaining.push(row); return; }
     const date = dateEl.value || row.date;
     const amount = parseRupiahInput(amtEl.value);
     const note = noteEl.value.trim();
     const categoryId = catEl.value;
-    if(!(amount > 0) || !categoryId) return;
-    const cat = categoryById(categoryId);
-    addTransaction({ walletId: aiWalletValue, categoryId, category: cat ? cat.name : '', type: row.type, amount, date, note, toWalletId: null });
-    saved++;
+    if(amount > 0 && categoryId){
+      const cat = categoryById(categoryId);
+      addTransaction({ walletId: aiWalletValue, categoryId, category: cat ? cat.name : '', type: row.type, amount, date, note, toWalletId: null });
+      saved++;
+    } else {
+      // Perluasan (bagian 5.6 PRD): baris yang belum lengkap (nominal masih 0) TIDAK menghalangi
+      // baris lain yang sudah valid untuk tersimpan — baris ini disimpan state editnya (tanggal/
+      // keterangan/kategori yang sudah diketik user tetap kepakai) dan tetap ditampilkan di modal
+      // supaya user bisa melengkapi nominalnya lalu tekan simpan lagi, bukan hilang begitu saja.
+      row.date = date;
+      row.note = note;
+      if(categoryId) row.categoryId = categoryId;
+      row.amount = amount;
+      remaining.push(row);
+    }
   });
-  if(saved === 0){ showToast('Tidak ada transaksi valid untuk disimpan'); return; }
-  showToast(saved + ' transaksi berhasil disimpan');
-  closeModal('modalAiScan');
+  aiScanRows = remaining;
+  if(saved === 0){
+    showToast(aiScanRows.length ? 'Belum ada yang tersimpan — lengkapi dulu nominal yang masih kosong' : 'Tidak ada transaksi valid untuk disimpan');
+    renderAiScanRows();
+    return;
+  }
   refreshAllViews();
+  if(aiScanRows.length === 0){
+    showToast(saved + ' transaksi berhasil disimpan');
+    closeModal('modalAiScan');
+    return;
+  }
+  showToast(saved + ' transaksi tersimpan, ' + aiScanRows.length + ' baris masih menunggu nominal diisi');
+  renderAiScanRows();
 }
 function escAttr(str){
   return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
