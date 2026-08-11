@@ -1074,8 +1074,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="lap-period-menu" id="lapPeriodMenu">
-            <button type="button" class="lap-period-menu-item active" id="lapPeriodItemMonth" onclick="setLaporanPeriodMode('month')">Bulanan</button>
+            <button type="button" class="lap-period-menu-item" id="lapPeriodItemDay" onclick="setLaporanPeriodMode('day')">Harian</button>
             <button type="button" class="lap-period-menu-item" id="lapPeriodItemWeek" onclick="setLaporanPeriodMode('week')">Mingguan</button>
+            <button type="button" class="lap-period-menu-item active" id="lapPeriodItemMonth" onclick="setLaporanPeriodMode('month')">Bulanan</button>
+            <button type="button" class="lap-period-menu-item" id="lapPeriodItemYear" onclick="setLaporanPeriodMode('year')">Tahunan</button>
           </div>
         </div>
       </div>
@@ -1106,8 +1108,8 @@
             <span><span class="dot" style="background:var(--income);"></span>Pemasukan</span>
           </div>
         </div>
-        <div class="saldo-row"><span>Saldo Awal Bulan</span><b id="lapSaldoAwal">Rp 0</b></div>
-        <div class="saldo-row" style="border-top:none;padding-top:0;"><span>Saldo Akhir Bulan</span><b id="lapSaldoAkhir">Rp 0</b></div>
+        <div class="saldo-row"><span id="lapSaldoAwalLabel">Saldo Awal Bulan</span><b id="lapSaldoAwal">Rp 0</b></div>
+        <div class="saldo-row" style="border-top:none;padding-top:0;"><span id="lapSaldoAkhirLabel">Saldo Akhir Bulan</span><b id="lapSaldoAkhir">Rp 0</b></div>
       </div>
     </div>
 
@@ -4071,8 +4073,10 @@ function viewCategoryBreakdown(catName, monthOverride){
    RENDER: LAPORAN (breakdown bulanan detail)
    ========================================================= */
 let laporanMonth = null;
-let laporanPeriodMode = 'month'; // 'month' | 'week'
+let laporanPeriodMode = 'month'; // 'day' | 'week' | 'month' | 'year'
 let laporanWeekStart = null; // 'YYYY-MM-DD' (Senin)
+let laporanDay = null; // 'YYYY-MM-DD'
+let laporanYear = null; // 'YYYY'
 
 function goToLaporan(month){
   laporanPeriodMode = 'month';
@@ -4105,17 +4109,36 @@ function closeTxPeriodDropdown(){
 function setLaporanPeriodMode(mode){
   if(laporanPeriodMode === mode){ closeLaporanPeriodDropdown(); return; }
   laporanPeriodMode = mode;
-  document.getElementById('lapPeriodItemMonth').classList.toggle('active', mode === 'month');
+  document.getElementById('lapPeriodItemDay').classList.toggle('active', mode === 'day');
   document.getElementById('lapPeriodItemWeek').classList.toggle('active', mode === 'week');
-  document.getElementById('lapPeriodBtnLabel').textContent = mode === 'week' ? 'Mingguan' : 'Bulanan';
-  document.getElementById('laporanTitle').textContent = mode === 'week' ? 'Laporan Mingguan' : 'Laporan Bulanan';
+  document.getElementById('lapPeriodItemMonth').classList.toggle('active', mode === 'month');
+  document.getElementById('lapPeriodItemYear').classList.toggle('active', mode === 'year');
+  const labels = {day:'Harian', week:'Mingguan', month:'Bulanan', year:'Tahunan'};
+  document.getElementById('lapPeriodBtnLabel').textContent = labels[mode];
+  document.getElementById('laporanTitle').textContent = 'Laporan ' + labels[mode];
+  const saldoNoun = {day:'Hari', week:'Minggu', month:'Bulan', year:'Tahun'}[mode];
+  document.getElementById('lapSaldoAwalLabel').textContent = 'Saldo Awal ' + saldoNoun;
+  document.getElementById('lapSaldoAkhirLabel').textContent = 'Saldo Akhir ' + saldoNoun;
+  if(mode === 'day' && !laporanDay){
+    laporanDay = todayStr();
+  }
   if(mode === 'week' && !laporanWeekStart){
     laporanWeekStart = toDateStr(mondayOf(new Date()));
   }
   if(mode === 'month' && !laporanMonth){
     laporanMonth = currentMonthStr();
   }
+  if(mode === 'year' && !laporanYear){
+    laporanYear = String(new Date().getFullYear());
+  }
   closeLaporanPeriodDropdown();
+  renderLaporan();
+}
+
+function laporanShiftDay(delta){
+  const d = new Date(laporanDay + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  laporanDay = toDateStr(d);
   renderLaporan();
 }
 
@@ -4133,8 +4156,15 @@ function laporanShiftWeek(delta){
   renderLaporan();
 }
 
+function laporanShiftYear(delta){
+  laporanYear = String(Number(laporanYear) + delta);
+  renderLaporan();
+}
+
 function laporanShiftPeriod(delta){
-  if(laporanPeriodMode === 'week') laporanShiftWeek(delta);
+  if(laporanPeriodMode === 'day') laporanShiftDay(delta);
+  else if(laporanPeriodMode === 'week') laporanShiftWeek(delta);
+  else if(laporanPeriodMode === 'year') laporanShiftYear(delta);
   else laporanShiftMonth(delta);
 }
 
@@ -4185,7 +4215,9 @@ function computeMonthBalances(monthStr){
 }
 
 function renderLaporan(){
-  if(laporanPeriodMode === 'week') renderLaporanWeek();
+  if(laporanPeriodMode === 'day') renderLaporanDay();
+  else if(laporanPeriodMode === 'week') renderLaporanWeek();
+  else if(laporanPeriodMode === 'year') renderLaporanYear();
   else renderLaporanMonth();
 
   const isCurrentMonthMode = (laporanPeriodMode === 'month' && laporanMonth === currentMonthStr());
@@ -4278,6 +4310,88 @@ function renderLaporanWeek(){
   weekTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
   const byCatInc = {};
   weekTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
+
+  renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
+  renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
+}
+
+function renderLaporanDay(){
+  if(!laporanDay) laporanDay = todayStr();
+  const day = laporanDay;
+
+  document.getElementById('laporanMonthLabel').textContent = dateOnlyLabel(day);
+  document.getElementById('laporanNextBtn').disabled = (day >= todayStr());
+
+  const allTx = getTransactions();
+  const dayTx = allTx.filter(t => t.date === day);
+  const income = dayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = dayTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('lapIncome').textContent = formatRupiah(income);
+  document.getElementById('lapExpense').textContent = formatRupiah(expense);
+  document.getElementById('lapNet').textContent = formatRupiah(income - expense);
+
+  const prevDayDate = new Date(day + 'T00:00:00'); prevDayDate.setDate(prevDayDate.getDate() - 1);
+  const prevDay = toDateStr(prevDayDate);
+  const prevDayTx = allTx.filter(t => t.date === prevDay);
+  const prevIncome = prevDayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevDayTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs kemarin</span>';
+  document.getElementById('lapCmpExpense').innerHTML = compareBadgeHtml(expense, prevExpense) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs kemarin</span>';
+
+  const barTotal = income + expense;
+  const expPct = barTotal > 0 ? (expense / barTotal) * 100 : 50;
+  document.getElementById('lapCmpBarExpense').style.width = expPct + '%';
+  document.getElementById('lapCmpBarIncome').style.width = (100 - expPct) + '%';
+
+  const { saldoAkhir } = computeRangeBalances(day);
+  document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
+  document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
+
+  const byCatExp = {};
+  dayTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
+  const byCatInc = {};
+  dayTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
+
+  renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
+  renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
+}
+
+function renderLaporanYear(){
+  if(!laporanYear) laporanYear = String(new Date().getFullYear());
+  const year = laporanYear;
+
+  document.getElementById('laporanMonthLabel').textContent = year;
+  document.getElementById('laporanNextBtn').disabled = (Number(year) >= new Date().getFullYear());
+
+  const allTx = getTransactions();
+  const yearTx = allTx.filter(t => t.date.slice(0,4) === year);
+  const income = yearTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = yearTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('lapIncome').textContent = formatRupiah(income);
+  document.getElementById('lapExpense').textContent = formatRupiah(expense);
+  document.getElementById('lapNet').textContent = formatRupiah(income - expense);
+
+  const prevYear = String(Number(year) - 1);
+  const prevYearTx = allTx.filter(t => t.date.slice(0,4) === prevYear);
+  const prevIncome = prevYearTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevYearTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs tahun lalu</span>';
+  document.getElementById('lapCmpExpense').innerHTML = compareBadgeHtml(expense, prevExpense) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs tahun lalu</span>';
+
+  const barTotal = income + expense;
+  const expPct = barTotal > 0 ? (expense / barTotal) * 100 : 50;
+  document.getElementById('lapCmpBarExpense').style.width = expPct + '%';
+  document.getElementById('lapCmpBarIncome').style.width = (100 - expPct) + '%';
+
+  const yearEndStr = year + '-12-31';
+  const { saldoAkhir } = computeRangeBalances(yearEndStr);
+  document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
+  document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
+
+  const byCatExp = {};
+  yearTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
+  const byCatInc = {};
+  yearTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
 
   renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
   renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
