@@ -1299,7 +1299,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
   </div>
-  <button class="fab" onpointerdown="fabPressStart(event)" oncontextmenu="return false" aria-label="Tambah">
+  <button class="fab" onpointerdown="fabPressStart(event)" onpointermove="fabPressMove(event)" onpointerup="fabPressEnd(event)" onpointercancel="fabPressEnd(event)" oncontextmenu="return false" aria-label="Tambah">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
   </button>
 
@@ -3704,129 +3704,146 @@ function swapModal(oldId, newId){
   navReplaceTop({type:'modal', id:newId});
 }
 function openAddChoice(){ openModal('modalAddChoice'); }
-// Gesture pada FAB (mirip lock-mic WA): tekan lalu geser jari/kursor.
-// - Geser ke ATAS melewati ambang batas = buka "Transaksi via AI".
-// - Geser ke KIRI melewati ambang batas = buka "Transaksi (Income/Expense)".
-// Panah indikator muncul mengikuti arah geser & berubah warna saat sudah cukup jauh ditarik.
-// Tap biasa (tanpa geser) tetap membuka modal pilihan "Tambah" seperti semula.
-const FAB_DRAG_THRESHOLD = 70;
-const FAB_DRAG_DEADZONE = 12;
-/* Percobaan sebelumnya (durasi tekan total, lalu jumlah sample berturut-turut) masih bisa
-   kebobolan di sebagian HP karena OS/browser tertentu bisa mengirim beberapa sample
-   pointermove berturut-turut yang SAMA-SAMA sudah "meloncat" tepat saat jari terangkat dari
-   layar (bukan cuma 1 sample tunggal seperti dugaan awal).
-   Fix final: ukur DURASI NYATA (wall-clock time) posisi jari bertahan TERUS-MENERUS di atas
-   threshold (FAB_DRAG_SUSTAIN_MS), bukan cuma menghitung sample. Begitu raw turun di bawah
-   threshold sesaat saja, penghitung direset ke 0. Artefak "lompat saat lepas" selalu terjadi
-   dalam sekejap tepat sebelum pointerup, jadi walau sample-nya banyak, DURASI bertahannya
-   nyaris 0ms — otomatis gagal syarat ini dan jatuh ke menu pilihan Tambah, bukan buka AI.
-   Drag asli yang disengaja (menahan sampai "mentok"/terasa getar) wajar bertahan lebih dari
-   50ms di posisi itu, jadi tidak terganggu. */
-const FAB_DRAG_SUSTAIN_MS = 50;
-let fabDrag = { active:false, startX:0, startY:0, dir:null, triggered:false, isDrag:false, fabEl:null, aboveSince:0 };
-function fabDragHintEl(){ return document.getElementById('fabDragHint'); }
+
+/* =========================================================
+   GESTURE TOMBOL FAB — DITULIS ULANG DARI NOL (logic bersih)
+   =========================================================
+   Cuma 2 hasil akhir yang mungkin:
+     - TAP (atau geser yang tidak sampai mentok)  -> buka menu pilihan "Tambah".
+     - GESER sampai MENTOK (jarak >= FAB_MAX_DRAG) ke atas -> "Transaksi via AI".
+     - GESER sampai MENTOK ke kiri                          -> "Transaksi (Income/Expense)".
+   Tidak ada lagi konsep "tahan sekian detik". Keputusan diambil SEKALI saja,
+   persis saat jari dilepas (pointerup), berdasarkan jarak geser.
+
+   Kenapa versi lama sering salah baca tap cepat sebagai geser:
+   layar sentuh HP fisik punya kebiasaan melaporkan lompatan koordinat kecil-tapi-nyata
+   tepat di titik kontak terakhir sebelum jari benar2 terangkat (area sentuh menyempit
+   asimetris). Itu FAKTA SENSOR, bukan bug event JS — jadi tidak bisa diperbaiki dengan
+   menambah/mengubah timer. Solusinya: jangan pernah pakai sampel koordinat yang PALING
+   BARU untuk menentukan keputusan akhir. Selama gesture berlangsung kita simpan histori
+   singkat (posisi + waktu). Begitu jari lepas, kita cari sampel yang usianya sudah lewat
+   FAB_STABLE_MS sebelum saat itu (bukan sampel detik terakhir yang rawan lompat) dan
+   HANYA sampel itu yang dipakai untuk mengukur jarak geser. Lompatan di milidetik
+   terakhir otomatis tidak pernah terhitung, tanpa perlu menunggu apa pun. */
+const FAB_MAX_DRAG   = 70; // px geser untuk dianggap "mentok" (memicu aksi cepat)
+const FAB_DEADZONE   = 12; // px minimal sebelum arah (atas/kiri) mulai dikunci & animasi muncul
+const FAB_STABLE_MS  = 60; // sampel yang lebih baru dari ini (menjelang lepas jari) diabaikan
+
+let fabGesture = null; // null saat idle; object saat sedang ditekan
+
+function fabHintEl(){ return document.getElementById('fabDragHint'); }
+
 function fabPositionHint(fabEl, dir){
-  const hint = fabDragHintEl();
+  const hint = fabHintEl();
   const rect = fabEl.getBoundingClientRect();
   if(dir === 'left'){
     hint.style.left = (rect.left - 34) + 'px';
     hint.style.bottom = (window.innerHeight - rect.top - rect.height/2 - 16) + 'px';
-    hint.style.transform = 'translateX(-50%)';
   } else {
     hint.style.left = (rect.left + rect.width/2) + 'px';
     hint.style.bottom = (window.innerHeight - rect.top + 14) + 'px';
-    hint.style.transform = 'translateX(-50%)';
   }
+  hint.style.transform = 'translateX(-50%)';
 }
-function fabPressStart(ev){
-  const fabEl = ev.currentTarget;
-  fabDrag.active = true;
-  fabDrag.triggered = false;
-  fabDrag.isDrag = false;
-  fabDrag.dir = null;
-  fabDrag.aboveSince = 0;
-  fabDrag.startX = ev.clientX;
-  fabDrag.startY = ev.clientY;
-  fabDrag.fabEl = fabEl;
-  fabEl.classList.remove('drag-snapback');
-  document.addEventListener('pointermove', fabPressMove);
-  document.addEventListener('pointerup', fabPressEnd);
-  document.addEventListener('pointercancel', fabPressEnd);
-}
-function fabPressMove(ev){
-  if(!fabDrag.active) return;
-  const dy = fabDrag.startY - ev.clientY; // positif = ke atas
-  const dx = fabDrag.startX - ev.clientX; // positif = ke kiri
-  const fabEl = fabDrag.fabEl;
-  const hint = fabDragHintEl();
-  if(!fabDrag.dir){
-    if(Math.abs(dy) < FAB_DRAG_DEADZONE && Math.abs(dx) < FAB_DRAG_DEADZONE) return;
-    fabDrag.isDrag = true;
-    fabDrag.dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
-    hint.classList.toggle('left', fabDrag.dir === 'left');
-    fabPositionHint(fabEl, fabDrag.dir);
-    hint.classList.add('visible');
-  }
-  const raw = fabDrag.dir === 'up' ? dy : dx;
-  const clamped = Math.min(Math.max(raw, 0), FAB_DRAG_THRESHOLD);
-  const progress = clamped / FAB_DRAG_THRESHOLD;
-  const scale = 1 + progress * 0.08;
-  fabEl.style.transform = fabDrag.dir === 'up'
-    ? `translateY(${-clamped * 0.55}px) scale(${scale})`
-    : `translateX(${-clamped * 0.55}px) scale(${scale})`;
-  if(raw >= FAB_DRAG_THRESHOLD){
-    if(!fabDrag.aboveSince) fabDrag.aboveSince = Date.now();
-    if(!fabDrag.triggered && (Date.now() - fabDrag.aboveSince) >= FAB_DRAG_SUSTAIN_MS){
-      fabDrag.triggered = true;
-      hint.classList.add('ready');
-      fabEl.classList.add('drag-ready');
-      if(navigator.vibrate) navigator.vibrate(20);
+
+// Menggambar animasi FAB (posisi/scale) & panah indikator mengikuti jarak geser LIVE,
+// murni untuk feedback visual — TIDAK dipakai untuk memutuskan aksi.
+function fabRenderDrag(fabEl, dir, dist){
+  const hint = fabHintEl();
+  if(dir){
+    if(!hint.classList.contains('visible')){
+      hint.classList.toggle('left', dir === 'left');
+      fabPositionHint(fabEl, dir);
+      hint.classList.add('visible');
     }
-  } else {
-    fabDrag.aboveSince = 0;
-    if(fabDrag.triggered){
-      fabDrag.triggered = false;
-      hint.classList.remove('ready');
-      fabEl.classList.remove('drag-ready');
-    }
+    const clamped = Math.min(Math.max(dist, 0), FAB_MAX_DRAG);
+    const progress = clamped / FAB_MAX_DRAG;
+    const scale = 1 + progress * 0.08;
+    fabEl.style.transform = dir === 'up'
+      ? `translateY(${-clamped * 0.55}px) scale(${scale})`
+      : `translateX(${-clamped * 0.55}px) scale(${scale})`;
+    const ready = clamped >= FAB_MAX_DRAG;
+    hint.classList.toggle('ready', ready);
+    fabEl.classList.toggle('drag-ready', ready);
   }
 }
+
 function fabResetVisual(fabEl){
   fabEl.classList.add('drag-snapback');
   fabEl.style.transform = '';
   fabEl.classList.remove('drag-ready');
   setTimeout(() => fabEl.classList.remove('drag-snapback'), 300);
-  const hint = fabDragHintEl();
-  hint.classList.remove('visible');
-  hint.classList.remove('ready');
-  hint.classList.remove('left');
+  const hint = fabHintEl();
+  hint.classList.remove('visible', 'ready', 'left');
 }
-function fabPressEnd(){
-  if(!fabDrag.active) return;
-  document.removeEventListener('pointermove', fabPressMove);
-  document.removeEventListener('pointerup', fabPressEnd);
-  document.removeEventListener('pointercancel', fabPressEnd);
-  const fabEl = fabDrag.fabEl;
-  const wasTriggered = fabDrag.triggered;
-  const dir = fabDrag.dir;
-  fabDrag.active = false;
+
+function fabPressStart(ev){
+  ev.preventDefault(); // wajib: cegah browser mengirim ghost-click setelah pointerup (lihat catatan di fabPressEnd)
+  const fabEl = ev.currentTarget;
+  fabEl.classList.remove('drag-snapback');
+  fabEl.setPointerCapture(ev.pointerId); // pastikan move/up tetap terkirim ke tombol ini walau jari geser jauh
+  fabGesture = {
+    pointerId: ev.pointerId,
+    fabEl,
+    startX: ev.clientX,
+    startY: ev.clientY,
+    dir: null, // 'up' | 'left' | null (belum terkunci)
+    history: [{ t: ev.timeStamp, x: ev.clientX, y: ev.clientY }],
+  };
+}
+
+function fabPressMove(ev){
+  if(!fabGesture || ev.pointerId !== fabGesture.pointerId) return;
+  fabGesture.history.push({ t: ev.timeStamp, x: ev.clientX, y: ev.clientY });
+  // Histori cukup sisakan ~400ms terakhir saja, tidak perlu lebih.
+  const cutoff = ev.timeStamp - 400;
+  while(fabGesture.history.length > 1 && fabGesture.history[0].t < cutoff) fabGesture.history.shift();
+
+  const dy = fabGesture.startY - ev.clientY; // positif = ke atas
+  const dx = fabGesture.startX - ev.clientX; // positif = ke kiri
+  if(!fabGesture.dir){
+    if(Math.abs(dy) < FAB_DEADZONE && Math.abs(dx) < FAB_DEADZONE) return;
+    fabGesture.dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
+  }
+  const dist = fabGesture.dir === 'up' ? dy : dx;
+  fabRenderDrag(fabGesture.fabEl, fabGesture.dir, dist);
+}
+
+// Ambil sampel histori yang "aman" (bukan sampel mepet-mepet saat jari lepas).
+function fabStableSample(history, releaseTime){
+  const safe = releaseTime - FAB_STABLE_MS;
+  let pick = history[0];
+  for(const s of history){
+    if(s.t > safe) break; // sampel ini (dan seterusnya) terlalu baru, terlalu dekat momen lepas -> berhenti
+    pick = s;
+  }
+  return pick;
+}
+
+function fabPressEnd(ev){
+  if(!fabGesture || (ev && ev.pointerId !== fabGesture.pointerId)) return;
+  const { fabEl, startX, startY, history } = fabGesture;
+  fabGesture = null;
   fabResetVisual(fabEl);
-  /* Keputusan HANYA berdasarkan apakah geseran benar-benar melewati ambang batas DAN bertahan
-     di sana (wasTriggered), bukan berdasarkan "isDrag" (yang cuma menandai jari sempat
-     bergerak sedikit melewati deadzone), dan bukan cuma sample tunggal yang kebetulan lewat
-     threshold sesaat. Kalau belum benar-benar "mentok" (mencapai & bertahan di threshold) →
-     selalu buka pilihan Tambah, seperti tap normal semestinya. Lihat FAB_DRAG_SUSTAIN_MS di
-     atas untuk penjelasan lengkap kenapa ini aman dari artefak lompatan koordinat saat jari
-     terangkat dari layar. */
-  if(wasTriggered){
+
+  const releaseTime = ev ? ev.timeStamp : history[history.length - 1].t;
+  const stable = fabStableSample(history, releaseTime);
+  const dy = startY - stable.y;
+  const dx = startX - stable.x;
+  const dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
+  const dist = dir === 'up' ? dy : dx;
+
+  if(dist >= FAB_MAX_DRAG){
+    if(navigator.vibrate) navigator.vibrate(20);
     if(dir === 'up'){
       if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
       openAiScanModal();
-    } else if(dir === 'left'){
+    } else {
       chooseAddTransaction();
     }
     return;
   }
+  // Tap biasa, atau geser yang tidak sampai mentok -> menu pilihan.
   openAddChoice();
 }
 /* Klik di area luar card (backdrop) menutup modal; klik/scroll di dalam card tidak menembus ke halaman utama */
