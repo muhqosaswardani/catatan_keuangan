@@ -250,6 +250,7 @@
     width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;
     box-shadow:0 10px 24px -6px rgba(15,118,110,.55);display:flex;align-items:center;justify-content:center;
     cursor:pointer;z-index:40;
+    touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
   }
   @media (max-width:480px){.fab{right:18px;}}
 
@@ -1209,7 +1210,7 @@
   </div>
 
   <!-- ============ FAB ============ -->
-  <button class="fab" onclick="fabClick()" onpointerdown="fabPressStart()" onpointerup="fabPressEnd()" onpointerleave="fabPressEnd()" onpointercancel="fabPressEnd()" aria-label="Tambah">
+  <button class="fab" onclick="fabClick()" onpointerdown="fabPressStart()" onpointerup="fabPressEnd()" onpointerleave="fabPressEnd()" onpointercancel="fabPressEnd()" oncontextmenu="return false" aria-label="Tambah">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
   </button>
 
@@ -3550,11 +3551,14 @@ function swapModal(oldId, newId){
   navReplaceTop({type:'modal', id:newId});
 }
 function openAddChoice(){ openModal('modalAddChoice'); }
-// Tekan-tahan tombol "+" (FAB) selama 2 detik = langsung buka modal "Transaksi via AI",
-// tanpa lewat modal pilihan "Tambah" dulu. Tap biasa (dilepas sebelum 2 detik) tetap
+// Tekan-tahan tombol "+" (FAB) sebentar (600ms) ATAU tap 2x cepat = langsung buka modal
+// "Transaksi via AI", tanpa lewat modal pilihan "Tambah" dulu. Tap tunggal biasa tetap
 // jalan seperti semula (buka modalAddChoice).
+// Catatan: touch-action:none + -webkit-touch-callout:none di CSS .fab mencegah browser
+// mobile membatalkan gesture tekan-tahan (context-menu/selection/scroll) sebelum timernya sempat jalan.
 let fabLongPressTimer = null;
 let fabLongPressTriggered = false;
+let fabLastTapAt = 0;
 function fabPressStart(){
   fabLongPressTriggered = false;
   clearTimeout(fabLongPressTimer);
@@ -3563,7 +3567,7 @@ function fabPressStart(){
     if(navigator.vibrate) navigator.vibrate(15);
     if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
     openAiScanModal();
-  }, 2000);
+  }, 600);
 }
 function fabPressEnd(){
   clearTimeout(fabLongPressTimer);
@@ -3571,6 +3575,14 @@ function fabPressEnd(){
 }
 function fabClick(){
   if(fabLongPressTriggered){ fabLongPressTriggered = false; return; } // sudah ditangani long-press, jangan buka modalAddChoice juga
+  const now = Date.now();
+  if(now - fabLastTapAt < 350){ // tap ke-2 dalam 350ms = double-tap, buka langsung "Transaksi via AI"
+    fabLastTapAt = 0;
+    if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
+    openAiScanModal();
+    return;
+  }
+  fabLastTapAt = now;
   openAddChoice();
 }
 /* Klik di area luar card (backdrop) menutup modal; klik/scroll di dalam card tidak menembus ke halaman utama */
