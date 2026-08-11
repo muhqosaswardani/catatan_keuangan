@@ -252,7 +252,26 @@
     cursor:pointer;z-index:40;
     touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
   }
+  .fab.drag-snapback{transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s ease;}
+  .fab.drag-ready{box-shadow:0 0 0 9px var(--accent-soft),0 10px 24px -6px rgba(15,118,110,.55);}
   @media (max-width:480px){.fab{right:18px;}}
+
+  /* Gesture "tarik ke atas / kiri" pada FAB: buka Transaksi via AI / Transaksi manual (mirip lock-mic WA) */
+  .fab-drag-hint{
+    position:fixed;z-index:41;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;opacity:0;transition:opacity .15s ease;
+  }
+  .fab-drag-hint.visible{opacity:1;}
+  .fab-drag-hint .fdh-arrow{
+    width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--ink);color:#fff;animation:fabArrowBounceUp 1.1s ease-in-out infinite;
+    transition:background .15s ease,transform .15s ease;
+  }
+  .fab-drag-hint.left .fdh-arrow{animation:fabArrowBounceLeft 1.1s ease-in-out infinite;}
+  .fab-drag-hint.ready .fdh-arrow{background:var(--accent);transform:scale(1.15);animation:none;}
+  .fab-drag-hint.left .fdh-arrow svg{transform:rotate(-90deg);}
+  @keyframes fabArrowBounceUp{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+  @keyframes fabArrowBounceLeft{0%,100%{transform:translateX(0);}50%{transform:translateX(-6px);}}
 
   /* Forms */
   .field{margin-bottom:11px;}
@@ -573,6 +592,19 @@
     }
     .side-nav .side-nav-fab:hover{background:var(--accent-dark);}
 
+    .side-nav .side-nav-add-list{
+      margin-top:auto;display:flex;flex-direction:column;gap:8px;
+    }
+    .side-nav .side-nav-add-btn{
+      display:flex;align-items:center;justify-content:center;text-align:center;
+      border:none;border-radius:12px;padding:11px 10px;
+      font-family:inherit;font-weight:700;font-size:12.5px;line-height:1.25;cursor:pointer;
+      background:var(--surface-2);color:var(--ink);
+    }
+    .side-nav .side-nav-add-btn:hover{background:var(--line);}
+    .side-nav .side-nav-add-btn--primary{background:var(--accent);color:#fff;}
+    .side-nav .side-nav-add-btn--primary:hover{background:var(--accent-dark);}
+
     .bottom-nav,.fab{display:none;}
 
     .app{
@@ -639,6 +671,7 @@
     .side-nav .brand .txt { font-weight: 600 !important; }
     .side-nav .nav-item span { font-weight: 600 !important; }
     .side-nav .side-nav-fab { font-weight: 600 !important; }
+    .side-nav .side-nav-add-btn { font-weight: 600 !important; }
     .side-nav .brand .txt small { font-weight: 500 !important; }
     .btn { font-weight: 600 !important; }
     .field label { font-weight: 500 !important; }
@@ -694,10 +727,12 @@
       <span>Settings</span>
     </button>
   </div>
-  <button type="button" class="side-nav-fab" onclick="fabClick()" onpointerdown="fabPressStart()" onpointerup="fabPressEnd()" onpointerleave="fabPressEnd()" onpointercancel="fabPressEnd()">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
-    Tambah
-  </button>
+  <div class="side-nav-add-list">
+    <button type="button" class="side-nav-add-btn side-nav-add-btn--primary" onclick="chooseAddTransaction()">Transaksi (Income/Expense)</button>
+    <button type="button" class="side-nav-add-btn side-nav-add-btn--primary" onclick="chooseAddAI()">Transaksi via AI</button>
+    <button type="button" class="side-nav-add-btn" onclick="chooseAddQuickTx()">Transaksi Cepat</button>
+    <button type="button" class="side-nav-add-btn" onclick="chooseAddTransfer()">Transfer Antar Dompet</button>
+  </div>
 </nav>
 
 <div class="app" id="app">
@@ -1210,7 +1245,12 @@
   </div>
 
   <!-- ============ FAB ============ -->
-  <button class="fab" onclick="fabClick()" onpointerdown="fabPressStart()" onpointerup="fabPressEnd()" onpointerleave="fabPressEnd()" onpointercancel="fabPressEnd()" oncontextmenu="return false" aria-label="Tambah">
+  <div class="fab-drag-hint" id="fabDragHint">
+    <div class="fdh-arrow" id="fabDragArrow">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+  <button class="fab" onpointerdown="fabPressStart(event)" oncontextmenu="return false" aria-label="Tambah">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
   </button>
 
@@ -1764,7 +1804,7 @@
         <div id="aiScanCaptureView">
         <div class="field" style="margin-bottom:12px;">
           <label>Teks Bebas (opsional)</label>
-          <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini" oninput="onAiTextInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+          <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini" oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         </div>
         <div class="ai-choice-grid ai-choice-grid-camright">
           <div class="ai-choice-btn ai-choice-btn-stack" onclick="document.getElementById('aiGalleryInput').click()">
@@ -3551,39 +3591,107 @@ function swapModal(oldId, newId){
   navReplaceTop({type:'modal', id:newId});
 }
 function openAddChoice(){ openModal('modalAddChoice'); }
-// Tekan-tahan tombol "+" (FAB) sebentar (600ms) ATAU tap 2x cepat = langsung buka modal
-// "Transaksi via AI", tanpa lewat modal pilihan "Tambah" dulu. Tap tunggal biasa tetap
-// jalan seperti semula (buka modalAddChoice).
-// Catatan: touch-action:none + -webkit-touch-callout:none di CSS .fab mencegah browser
-// mobile membatalkan gesture tekan-tahan (context-menu/selection/scroll) sebelum timernya sempat jalan.
-let fabLongPressTimer = null;
-let fabLongPressTriggered = false;
-let fabLastTapAt = 0;
-function fabPressStart(){
-  fabLongPressTriggered = false;
-  clearTimeout(fabLongPressTimer);
-  fabLongPressTimer = setTimeout(() => {
-    fabLongPressTriggered = true;
-    if(navigator.vibrate) navigator.vibrate(15);
-    if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
-    openAiScanModal();
-  }, 600);
+// Gesture pada FAB (mirip lock-mic WA): tekan lalu geser jari/kursor.
+// - Geser ke ATAS melewati ambang batas = buka "Transaksi via AI".
+// - Geser ke KIRI melewati ambang batas = buka "Transaksi (Income/Expense)".
+// Panah indikator muncul mengikuti arah geser & berubah warna saat sudah cukup jauh ditarik.
+// Tap biasa (tanpa geser) tetap membuka modal pilihan "Tambah" seperti semula.
+const FAB_DRAG_THRESHOLD = 70;
+const FAB_DRAG_DEADZONE = 12;
+let fabDrag = { active:false, startX:0, startY:0, dir:null, triggered:false, isDrag:false, fabEl:null };
+function fabDragHintEl(){ return document.getElementById('fabDragHint'); }
+function fabPositionHint(fabEl, dir){
+  const hint = fabDragHintEl();
+  const rect = fabEl.getBoundingClientRect();
+  if(dir === 'left'){
+    hint.style.left = (rect.left - 34) + 'px';
+    hint.style.bottom = (window.innerHeight - rect.top - rect.height/2 - 16) + 'px';
+    hint.style.transform = 'translateX(-50%)';
+  } else {
+    hint.style.left = (rect.left + rect.width/2) + 'px';
+    hint.style.bottom = (window.innerHeight - rect.top + 14) + 'px';
+    hint.style.transform = 'translateX(-50%)';
+  }
+}
+function fabPressStart(ev){
+  const fabEl = ev.currentTarget;
+  fabDrag.active = true;
+  fabDrag.triggered = false;
+  fabDrag.isDrag = false;
+  fabDrag.dir = null;
+  fabDrag.startX = ev.clientX;
+  fabDrag.startY = ev.clientY;
+  fabDrag.fabEl = fabEl;
+  fabEl.classList.remove('drag-snapback');
+  document.addEventListener('pointermove', fabPressMove);
+  document.addEventListener('pointerup', fabPressEnd);
+  document.addEventListener('pointercancel', fabPressEnd);
+}
+function fabPressMove(ev){
+  if(!fabDrag.active) return;
+  const dy = fabDrag.startY - ev.clientY; // positif = ke atas
+  const dx = fabDrag.startX - ev.clientX; // positif = ke kiri
+  const fabEl = fabDrag.fabEl;
+  const hint = fabDragHintEl();
+  if(!fabDrag.dir){
+    if(Math.abs(dy) < FAB_DRAG_DEADZONE && Math.abs(dx) < FAB_DRAG_DEADZONE) return;
+    fabDrag.isDrag = true;
+    fabDrag.dir = Math.abs(dy) >= Math.abs(dx) ? 'up' : 'left';
+    hint.classList.toggle('left', fabDrag.dir === 'left');
+    fabPositionHint(fabEl, fabDrag.dir);
+    hint.classList.add('visible');
+  }
+  const raw = fabDrag.dir === 'up' ? dy : dx;
+  const clamped = Math.min(Math.max(raw, 0), FAB_DRAG_THRESHOLD);
+  const progress = clamped / FAB_DRAG_THRESHOLD;
+  const scale = 1 + progress * 0.08;
+  fabEl.style.transform = fabDrag.dir === 'up'
+    ? `translateY(${-clamped * 0.55}px) scale(${scale})`
+    : `translateX(${-clamped * 0.55}px) scale(${scale})`;
+  if(raw >= FAB_DRAG_THRESHOLD){
+    if(!fabDrag.triggered){
+      fabDrag.triggered = true;
+      hint.classList.add('ready');
+      fabEl.classList.add('drag-ready');
+      if(navigator.vibrate) navigator.vibrate(20);
+    }
+  } else if(fabDrag.triggered){
+    fabDrag.triggered = false;
+    hint.classList.remove('ready');
+    fabEl.classList.remove('drag-ready');
+  }
+}
+function fabResetVisual(fabEl){
+  fabEl.classList.add('drag-snapback');
+  fabEl.style.transform = '';
+  fabEl.classList.remove('drag-ready');
+  setTimeout(() => fabEl.classList.remove('drag-snapback'), 300);
+  const hint = fabDragHintEl();
+  hint.classList.remove('visible');
+  hint.classList.remove('ready');
+  hint.classList.remove('left');
 }
 function fabPressEnd(){
-  clearTimeout(fabLongPressTimer);
-  fabLongPressTimer = null;
-}
-function fabClick(){
-  if(fabLongPressTriggered){ fabLongPressTriggered = false; return; } // sudah ditangani long-press, jangan buka modalAddChoice juga
-  const now = Date.now();
-  if(now - fabLastTapAt < 350){ // tap ke-2 dalam 350ms = double-tap, buka langsung "Transaksi via AI"
-    fabLastTapAt = 0;
-    if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
-    openAiScanModal();
+  if(!fabDrag.active) return;
+  document.removeEventListener('pointermove', fabPressMove);
+  document.removeEventListener('pointerup', fabPressEnd);
+  document.removeEventListener('pointercancel', fabPressEnd);
+  const fabEl = fabDrag.fabEl;
+  const wasTriggered = fabDrag.triggered;
+  const wasDrag = fabDrag.isDrag;
+  const dir = fabDrag.dir;
+  fabDrag.active = false;
+  fabResetVisual(fabEl);
+  if(wasTriggered){
+    if(dir === 'up'){
+      if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
+      openAiScanModal();
+    } else if(dir === 'left'){
+      chooseAddTransaction();
+    }
     return;
   }
-  fabLastTapAt = now;
-  openAddChoice();
+  if(!wasDrag){ openAddChoice(); }
 }
 /* Klik di area luar card (backdrop) menutup modal; klik/scroll di dalam card tidak menembus ke halaman utama */
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -4544,6 +4652,17 @@ function removeAiFile(i){
   aiCaptureFiles.splice(i,1);
   renderAiFileChips();
 }
+/* Khusus mode desktop (>=900px): tekan Enter (tanpa Shift) di textarea "Teks Bebas"
+   langsung memicu tombol "Analisis dengan AI" (kalau tombolnya lagi aktif/tidak disabled),
+   bukan bikin baris baru. Shift+Enter tetap bikin baris baru seperti biasa. */
+function onAiScanTextKeydown(e){
+  if(e.key !== 'Enter' || e.shiftKey) return;
+  if(window.innerWidth < 900) return; // di HP, Enter tetap bikin baris baru
+  const btn = document.getElementById('aiScanAnalyzeBtn');
+  if(!btn || btn.disabled) return;
+  e.preventDefault();
+  btn.click();
+}
 function startAiScanAnalysis(){
   const hasText = (aiScanTextValue || '').trim().length > 0;
   if(aiCaptureFiles.length === 0 && !hasText) return;
@@ -4597,10 +4716,11 @@ async function aiScanWithGemini(key){
     '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
     'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan).\n\n' +
     '0. VALIDASI WAJIB SEBELUM MEMBUAT TRANSAKSI APAPUN:\n' +
-    '   - JANGAN PERNAH membuat objek transaksi kalau isi lampiran/teks TIDAK merujuk pada barang, jasa, aktivitas, atau nominal apapun yang berkaitan dengan uang masuk/keluar.\n' +
-    '   - Ini termasuk (tapi tidak terbatas pada): sapaan biasa ("halo", "hai", "hallo", "test", "tes"), obrolan/pertanyaan ke asisten yang tidak ada kaitan finansial, kalimat kosong/acak/typo tanpa makna, atau foto yang sama sekali tidak menunjukkan konteks belanja/transaksi/barang/jasa/tempat usaha.\n' +
-    '   - Untuk kasus seperti itu, JANGAN dipaksakan jadi transaksi dengan kategori "Lainnya" atau catatan seperti "menyapa asisten" — cukup ABAIKAN, jangan hasilkan objek apapun untuk bagian itu (kalau seluruh input begini, keluarkan array kosong []).\n' +
-    '   - Aturan ini HANYA berlaku untuk memfilter input yang jelas BUKAN transaksi. Kalau ada indikasi transaksi sekecil apapun (nama barang/jasa/tempat/aktivitas finansial), tetap proses sesuai aturan di bawah walau nominalnya tidak disebutkan (amount boleh 0).\n\n' +
+    '   - Sikap default kamu adalah PERMISIF/INKLUSIF: kalau ragu, ANGGAP itu transaksi dan proses, jangan ditolak. Yang boleh ditolak (dikeluarkan array kosong []) HANYA input yang JELAS-JELAS 100% tidak ada kaitan finansial sama sekali — misalnya sapaan murni tanpa konteks lain ("halo", "hai", "hallo", "test", "tes", "p"), pertanyaan umum ke asisten yang tidak menyebut barang/jasa/aktivitas/tempat/nominal apapun (mis. "gimana cuaca hari ini", "kamu siapa"), atau teks acak/gibberish yang benar-benar tidak bisa dimaknai sama sekali.\n' +
+    '   - JANGAN tertipu oleh typo, singkatan, bahasa gaul, atau ejaan tidak baku — koreksi dulu di kepalamu sebelum memutuskan apakah itu transaksi. Contoh: "beneirn hp rusak lcd rusak 300 rb" adalah typo dari "benerin hp rusak lcd rusak 300rb" = jasa servis/reparasi HP (LCD rusak) senilai Rp300.000 — ini transaksi expense yang VALID dan JELAS, bukan gibberish, dan HARUS diproses (bukan ditolak) meskipun ada typo/ejaan berantakan.\n' +
+    '   - Kata kerja jasa/servis umum (typo maupun baku) seperti "benerin/perbaiki/servis/reparasi/betulin/ganti [barang]" SELALU dianggap transaksi jasa yang valid, dengan kategori paling mendekati "Jasa"/"Servis"/kategori sejenis dari daftar kategori yang tersedia, atau "Lainnya" kalau tidak ada yang cocok.\n' +
+    '   - Kalau ada indikasi transaksi sekecil apapun — nama barang/jasa/tempat/aktivitas finansial, ATAU ada nominal uang (angka + "rb"/"ribu"/"rp"/"k"/"jt"/"juta" dsb) di dalam kalimat — WAJIB diproses jadi transaksi, walaupun konteksnya tidak lengkap 100% jelas. Cukup lakukan tebakan terbaik untuk "category" dan "note"; JANGAN dibuang.\n' +
+    '   - Untuk kasus yang benar-benar tidak ada kaitan finansial (lihat contoh di atas), JANGAN dipaksakan jadi transaksi dengan kategori "Lainnya" — cukup ABAIKAN, jangan hasilkan objek apapun untuk bagian itu (kalau seluruh input begini, keluarkan array kosong []).\n\n' +
     'CARA MEMBACA DOKUMEN:\n' +
     '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
     '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
@@ -4641,7 +4761,9 @@ async function aiScanWithGemini(key){
   const freeText = (aiScanTextValue || '').toString().trim();
   if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + freeText }); }
   for(const f of aiCaptureFiles){ parts.push(await fileToGenerativePart(f)); }
-  const data = await callGeminiRaw(key, parts);
+  // Temperature rendah supaya hasil parsing transaksi konsisten & tidak "kadang berhasil kadang gagal"
+  // untuk input yang sebenarnya sama jelasnya (mis. ada typo tapi maksudnya jelas).
+  const data = await callGeminiRaw(key, parts, 0.15);
   const text = extractGeminiText(data);
   let items;
   try{ items = JSON.parse(text); } catch(e){ throw new Error('Format respons AI tidak valid'); }
@@ -4835,7 +4957,7 @@ function compressImageFile(file, maxDim, quality){
     img.src = url;
   });
 }
-async function callGeminiRaw(key, parts){
+async function callGeminiRaw(key, parts, temperature){
   /* Rotasi otomatis untuk semua key di GEMINI_API_KEYS. Jika satu key limit/quota habis (429/403)
      atau server error (503/404), otomatis berganti ke key berikutnya. */
   let keysToTry = [...GEMINI_API_KEYS];
@@ -4864,7 +4986,7 @@ async function callGeminiRaw(key, parts){
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts }],
-            generationConfig: { responseMimeType: 'application/json' }
+            generationConfig: { responseMimeType: 'application/json', temperature: (typeof temperature === 'number' ? temperature : 0.7) }
           })
         });
       } catch(networkErr){
