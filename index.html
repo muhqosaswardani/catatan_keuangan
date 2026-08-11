@@ -435,7 +435,7 @@
   .scan-type-select[data-type="expense"]{color:var(--expense);border-color:var(--expense);background:var(--expense-soft);}
   .scan-type-select[data-type="income"]{color:var(--income);border-color:var(--income);background:var(--income-soft);}
   .scan-row-del{margin-left:auto;background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:2px;flex-shrink:0;}
-  .scan-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--warn);background:#fff;border:1px solid var(--warn);border-radius:6px;padding:3px 8px;}
+  .scan-badge{display:inline-block;font-size:13px;font-weight:700;color:var(--warn);background:#fff;border:1px solid var(--warn);border-radius:7px;padding:5px 11px;}
   .scan-badge-info{color:var(--accent);background:var(--accent-soft);border-color:var(--accent);}
   .scan-badge-manual{color:var(--expense);background:var(--expense-soft);border-color:var(--expense);}
   .scan-badge-estimate{color:var(--warn);background:var(--warn-soft);border-color:var(--warn);}
@@ -5567,17 +5567,17 @@ function renderAiScanRows(){
 function renderAiRowHtml(row){
   let dupLabel = '';
   if(row.dup){
-    if(row.dupReason === 'existing') dupLabel = '⚠ Sudah tercatat?';
-    else dupLabel = '⚠ Terbaca dobel?';
+    if(row.dupReason === 'existing') dupLabel = 'Sudah tercatat?';
+    else dupLabel = 'Terbaca dobel?';
   }
   const dupBadge = dupLabel ? '<span class="scan-badge">'+dupLabel+'</span>' : '';
   // Perluasan baru (bagian 5.5/5.8 PRD): baris yang nominalnya terisi otomatis dari histori
   // transaksi tersimpan ditandai badge biru "Dari histori", baris yang masih butuh nominal
   // manual ditandai badge merah + garis tepi putus-putus supaya gampang dikenali sekilas.
   const needsManual = !(row.amount > 0);
-  const historyBadge = (row.amountSource === 'history') ? '<span class="scan-badge scan-badge-info">🕘 Dari histori</span>' : '';
-  const estimateBadge = (row.amountSource === 'estimate') ? '<span class="scan-badge scan-badge-estimate">~ Estimasi</span>' : '';
-  const manualBadge = needsManual ? '<span class="scan-badge scan-badge-manual">✏ Isi nominal manual</span>' : '';
+  const historyBadge = (row.amountSource === 'history') ? '<span class="scan-badge scan-badge-info">Dari histori</span>' : '';
+  const estimateBadge = (row.amountSource === 'estimate') ? '<span class="scan-badge scan-badge-estimate">Estimasi</span>' : '';
+  const manualBadge = needsManual ? '<span class="scan-badge scan-badge-manual">Isi nominal manual</span>' : '';
   const rowClasses = ['scan-row'];
   if(row.dup) rowClasses.push('dup');
   if(needsManual) rowClasses.push('needs-manual');
