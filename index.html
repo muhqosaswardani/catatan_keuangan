@@ -794,7 +794,8 @@
 
     <div class="section">
       <div class="section-head"><h2 id="periodHeading">Bulan Ini</h2></div>
-      <div class="period-toggle">
+      <div class="period-toggle" id="homePeriodToggle">
+        <button type="button" data-period="day" onclick="setHomePeriod('day')">Hari</button>
         <button type="button" data-period="week" onclick="setHomePeriod('week')">Minggu</button>
         <button type="button" data-period="month" class="active" onclick="setHomePeriod('month')">Bulan</button>
       </div>
@@ -3805,7 +3806,7 @@ const trendCrosshairPlugin = {
   }
 };
 let chartRegistry = {};
-let homePeriod = 'month'; // 'week' | 'month'
+let homePeriod = 'month'; // 'day' | 'week' | 'month'
 const CHART_PALETTE = ['#0F766E','#C4453B','#B7791F','#8A6D3B','#1E8F5A','#5B6A68','#0B5951','#D97757','#3D5A80','#9B5DE5'];
 
 /* Donut selection state — hanya untuk pie compact di Dashboard */
@@ -3865,7 +3866,7 @@ document.addEventListener('click', (e) => {
 
 function setHomePeriod(period){
   homePeriod = period;
-  document.querySelectorAll('.period-toggle button').forEach(b => b.classList.toggle('active', b.dataset.period === period));
+  document.querySelectorAll('#homePeriodToggle button').forEach(b => b.classList.toggle('active', b.dataset.period === period));
   renderHome();
 }
 
@@ -3880,7 +3881,12 @@ function toDateStr(d){ return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' 
 
 function getPeriodRanges(period){
   const now = new Date();
-  if(period === 'week'){
+  if(period === 'day'){
+    const start = now;
+    const end = now;
+    const prevDate = new Date(now); prevDate.setDate(prevDate.getDate() - 1);
+    return { start: toDateStr(start), end: toDateStr(end), prevStart: toDateStr(prevDate), prevEnd: toDateStr(prevDate), label: 'Hari Ini' };
+  } else if(period === 'week'){
     const start = mondayOf(now);
     const end = now;
     const prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 7);
