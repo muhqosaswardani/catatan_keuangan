@@ -3711,14 +3711,18 @@ function openAddChoice(){ openModal('modalAddChoice'); }
 // Tap biasa (tanpa geser) tetap membuka modal pilihan "Tambah" seperti semula.
 const FAB_DRAG_THRESHOLD = 70;
 const FAB_DRAG_DEADZONE = 12;
-/* Ambang waktu minimum (ms) sebelum drag boleh dianggap "triggered". Ini untuk menutup bug nyata
-   di HP: saat jari diangkat dari layar (pointerup), sensor touch kadang melaporkan koordinat
-   terakhir yang meloncat beberapa puluh px (pergeseran kontak jari saat lepas), yang tanpa
-   pengecekan ini bisa kebaca sebagai "geser melewati threshold" walau usernya cuma tap biasa.
-   Drag yang benar-benar disengaja (geser 70px) secara wajar makan waktu lebih lama dari ini,
-   sedangkan lompatan-saat-lepas terjadi seketika di ujung gesture. */
-const FAB_DRAG_MIN_DURATION = 120;
-let fabDrag = { active:false, startX:0, startY:0, startTime:0, dir:null, triggered:false, isDrag:false, fabEl:null };
+/* Sebelumnya dicoba pakai ambang waktu tekan minimum, tapi ternyata tap manusia normal pun
+   sering berdurasi >120ms, jadi itu tidak cukup membedakan tap dari drag.
+   Fix yang benar: syaratkan drag terkonfirmasi lewat MINIMAL 2 sample pointermove berturut-turut
+   yang sama-sama sudah melewati threshold (FAB_DRAG_CONFIRM_SAMPLES), bukan cukup 1 sample saja.
+   Ini menutup bug nyata di HP: saat jari diangkat dari layar, sensor touch kadang melaporkan
+   SATU koordinat terakhir yang meloncat jauh ke atas (pergeseran kontak jari saat lepas) —
+   itu cuma 1 sample tunggal tanpa sample lanjutan yang mengkonfirmasi, karena pointerup langsung
+   menyusul. Drag asli yang disengaja selalu menghasilkan beberapa sample berturut-turut selama
+   jari masih bergerak/tertahan melewati threshold, jadi tetap terdeteksi normal & tetap bisa
+   langsung dilepas begitu terasa getar konfirmasi (vibrate) tanpa perlu menahan lebih lama. */
+const FAB_DRAG_CONFIRM_SAMPLES = 2;
+let fabDrag = { active:false, startX:0, startY:0, dir:null, triggered:false, isDrag:false, fabEl:null, aboveCount:0 };
 function fabDragHintEl(){ return document.getElementById('fabDragHint'); }
 function fabPositionHint(fabEl, dir){
   const hint = fabDragHintEl();
@@ -3739,9 +3743,9 @@ function fabPressStart(ev){
   fabDrag.triggered = false;
   fabDrag.isDrag = false;
   fabDrag.dir = null;
+  fabDrag.aboveCount = 0;
   fabDrag.startX = ev.clientX;
   fabDrag.startY = ev.clientY;
-  fabDrag.startTime = Date.now();
   fabDrag.fabEl = fabEl;
   fabEl.classList.remove('drag-snapback');
   document.addEventListener('pointermove', fabPressMove);
@@ -3770,16 +3774,20 @@ function fabPressMove(ev){
     ? `translateY(${-clamped * 0.55}px) scale(${scale})`
     : `translateX(${-clamped * 0.55}px) scale(${scale})`;
   if(raw >= FAB_DRAG_THRESHOLD){
-    if(!fabDrag.triggered){
+    fabDrag.aboveCount++;
+    if(fabDrag.aboveCount >= FAB_DRAG_CONFIRM_SAMPLES && !fabDrag.triggered){
       fabDrag.triggered = true;
       hint.classList.add('ready');
       fabEl.classList.add('drag-ready');
       if(navigator.vibrate) navigator.vibrate(20);
     }
-  } else if(fabDrag.triggered){
-    fabDrag.triggered = false;
-    hint.classList.remove('ready');
-    fabEl.classList.remove('drag-ready');
+  } else {
+    fabDrag.aboveCount = 0;
+    if(fabDrag.triggered){
+      fabDrag.triggered = false;
+      hint.classList.remove('ready');
+      fabEl.classList.remove('drag-ready');
+    }
   }
 }
 function fabResetVisual(fabEl){
@@ -3798,8 +3806,7 @@ function fabPressEnd(){
   document.removeEventListener('pointerup', fabPressEnd);
   document.removeEventListener('pointercancel', fabPressEnd);
   const fabEl = fabDrag.fabEl;
-  const elapsed = Date.now() - fabDrag.startTime;
-  const wasTriggered = fabDrag.triggered && elapsed >= FAB_DRAG_MIN_DURATION;
+  const wasTriggered = fabDrag.triggered;
   const dir = fabDrag.dir;
   fabDrag.active = false;
   fabResetVisual(fabEl);
@@ -3811,10 +3818,9 @@ function fabPressEnd(){
      hingga tanpa sengaja melewati threshold dan membuka Transaksi AI). Sekarang:
      kalau belum melewati threshold sama sekali → selalu buka pilihan Tambah,
      seperti tap normal semestinya.
-     Selain itu, wasTriggered juga mensyaratkan durasi tekan minimal (elapsed >=
-     FAB_DRAG_MIN_DURATION) untuk menutup bug nyata di HP: saat jari diangkat,
-     koordinat sentuh bisa "meloncat" ke atas dalam sekejap sehingga tap biasa
-     terhitung melewati threshold. Drag asli butuh waktu lebih lama dari itu. */
+     wasTriggered sendiri sudah "aman dari tap" sejak sumbernya (lihat FAB_DRAG_CONFIRM_SAMPLES
+     di fabPressMove): hanya jadi true kalau ada minimal 2 sample pointermove berturut-turut
+     yang sama-sama melewati threshold, bukan cuma 1 lompatan tunggal saat jari lepas. */
   if(wasTriggered){
     if(dir === 'up'){
       if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
