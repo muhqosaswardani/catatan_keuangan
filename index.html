@@ -4594,6 +4594,30 @@ let aiScanRows = [];
 let aiWalletValue = null;
 let aiScanTextValue = ''; // input teks bebas (BARU) — dipakai berdampingan dengan lampiran foto
 
+// Peta slang nominal Indonesia yang nilainya SUDAH PASTI/TIDAK AMBIGU (beda dengan mis. "cepek"
+// yang bisa berarti 100 ATAU 100.000 tergantung konteks — sengaja TIDAK dimasukkan ke peta ini,
+// biar tetap diserahkan ke penalaran AI seperti biasa).
+const SLANG_NOMINAL_MAP = {
+  seceng: 1000,
+  goceng: 5000,
+  ceban: 10000,
+  noceng: 9000,
+  goban: 50000,
+  gocap: 50000
+};
+// Sisipkan angka literal di sebelah kata slang nominal SEBELUM teks dikirim ke AI. Ini bikin
+// aturan "ADA ANGKA APAPUN = otomatis valid" di prompt kepicu secara PASTI (angkanya beneran
+// tertulis, bukan cuma dikira-kira AI dari kata gaulnya) — jadi gak gantung 100% ke kepatuhan
+// model terhadap instruksi soal daftar slang. Teks asli user TETAP dipakai apa adanya untuk
+// ditampilkan di UI; ini cuma dipakai buat versi yang dikirim ke API.
+function annotateSlangNominalForAi(text){
+  if(!text) return text;
+  return text.replace(/\b(seceng|goceng|ceban|noceng|goban|gocap)\b/gi, (m) => {
+    const val = SLANG_NOMINAL_MAP[m.toLowerCase()];
+    return val ? (m + '(' + val + ')') : m;
+  });
+}
+
 function chooseAddAI(){
   closeModalUI('modalAddChoice');
   if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
@@ -4714,7 +4738,7 @@ async function aiScanWithGemini(key){
     '(b) Screenshot riwayat/mutasi m-banking atau e-wallet (list transaksi bertumpuk ke bawah).\n' +
     '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n' +
     '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
-    'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan).\n\n' +
+    'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan). CATATAN: di bagian ini, beberapa kata slang nominal (seceng/goceng/ceban/noceng/goban/gocap) mungkin sudah diberi angka literal dalam kurung tepat setelahnya oleh sistem (mis. "parkir seceng(1000)") — itu HANYA petunjuk nilai nominal buat kamu, JANGAN disalin apa adanya (termasuk tanda kurungnya) ke field "note", tulis "note" secara natural seperti biasa (mis. "Parkir").\n\n' +
     '0. VALIDASI WAJIB SEBELUM MEMBUAT TRANSAKSI APAPUN (baca pelan-pelan, ini aturan PALING PENTING):\n' +
     '   - ATURAN JALAN PINTAS (paling utama, cek ini duluan sebelum aturan lain di bawah): kalau di dalam teks ADA ANGKA APAPUN yang bisa dibaca sebagai nominal uang — angka polos (mis. "2", "200", "300"), angka+satuan (mis. "300rb", "2rb", "2k", "4.3jt"), ATAU slang nominal (mis. "seceng", "goceng", "cepek", "ceban", "goban/gocap") — maka TERLEPAS SEAMBIGU APAPUN sisa kalimatnya, teks itu OTOMATIS DIANGGAP VALID dan WAJIB dibuatkan objek transaksinya. JANGAN PERNAH ditolak/dikeluarkan array kosong kalau ada angka semacam ini, apapun alasannya — cukup tentukan tebakan terbaik untuk "type"/"category"/"note", dan "amount" diisi sesuai angka yang terdeteksi.\n' +
     '   - Kalau di dalam teks TIDAK ADA angka/nominal sama sekali DAN sisa kalimatnya juga ambigu (tidak jelas ada aktivitas ekonominya), barulah boleh dipertimbangkan untuk ditolak (array kosong) — TAPI tetap usahakan SEMINIMAL MUNGKIN menolak: kalau masih ada kata benda/kata kerja/nama tempat apapun yang berpotensi berkaitan aktivitas ekonomi meski tanpa angka (mis. "kopi", "parkir", "token listrik" tanpa nominal), tetap WAJIB diproses dengan amount 0 (lihat poin 4), BUKAN ditolak.\n' +
@@ -4782,7 +4806,7 @@ async function aiScanWithGemini(key){
     'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.';
   const parts = [{ text: promptText }];
   const freeText = (aiScanTextValue || '').toString().trim();
-  if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + freeText }); }
+  if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + annotateSlangNominalForAi(freeText) }); }
   for(const f of aiCaptureFiles){ parts.push(await fileToGenerativePart(f)); }
   // Temperature rendah supaya hasil parsing transaksi konsisten & tidak "kadang berhasil kadang gagal"
   // untuk input yang sebenarnya sama jelasnya (mis. ada typo tapi maksudnya jelas).
