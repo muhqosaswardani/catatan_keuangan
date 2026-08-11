@@ -165,6 +165,8 @@
   .month-nav-arrow{background:var(--surface-2);border:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--ink);cursor:pointer;flex-shrink:0;}
   .month-nav-arrow:disabled{opacity:.35;cursor:default;}
   .month-nav-label{font-family:'Sora',sans-serif;font-weight:700;font-size:16px;text-align:center;flex:1;}
+  .future-tx-banner{background:var(--surface-2);border-radius:var(--radius-m);padding:10px 12px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
+  .tx-pending-badge{display:inline-block;font-size:10px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 6px;margin-left:6px;vertical-align:middle;}
 
   /* Laporan: filter periode (dropdown) di pojok kanan atas */
   .lap-topbar-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
@@ -3133,13 +3135,18 @@ function categoryById(id){ return getCategories().find(c => c.id === id); }
 /* =========================================================
    CORE ACTIONS
    ========================================================= */
+function isFutureDate(dateStr){ return !!dateStr && dateStr > todayStr(); }
+
 function addTransaction(tx){
   const txs = getTransactions();
   tx.id = uid();
   tx.updatedAt = Date.now();
+  tx.pending = isFutureDate(tx.date); // transaksi masa depan: dicatat, TAPI belum masuk ke saldo dompet
   txs.push(tx);
   setTransactionsLocalOnly(txs);
-  applyBalanceDelta(tx.walletId, tx.type === 'income' ? tx.amount : -tx.amount);
+  if(!tx.pending){
+    applyBalanceDelta(tx.walletId, tx.type === 'income' ? tx.amount : -tx.amount);
+  }
   syncAllWithSupabase(true);
   return tx;
 }
@@ -3149,22 +3156,27 @@ function editTransaction(id, updated){
   const idx = txs.findIndex(t => t.id === id);
   if(idx === -1) return;
   const old = txs[idx];
-  // rollback old balance effect
-  if(old.type === 'transfer'){
-    applyBalanceDelta(old.walletId, old.amount);
-    applyBalanceDelta(old.toWalletId, -old.amount);
-  } else {
-    applyBalanceDelta(old.walletId, old.type === 'income' ? -old.amount : old.amount);
+  // rollback efek saldo LAMA — cuma kalau dulu beneran udah "cair" ke saldo (bukan pending)
+  if(!old.pending){
+    if(old.type === 'transfer'){
+      applyBalanceDelta(old.walletId, old.amount);
+      applyBalanceDelta(old.toWalletId, -old.amount);
+    } else {
+      applyBalanceDelta(old.walletId, old.type === 'income' ? -old.amount : old.amount);
+    }
   }
   const merged = Object.assign({}, old, updated, { updatedAt: Date.now() });
+  merged.pending = isFutureDate(merged.date);
   txs[idx] = merged;
   setTransactionsLocalOnly(txs);
-  // apply new balance effect
-  if(merged.type === 'transfer'){
-    applyBalanceDelta(merged.walletId, -merged.amount);
-    applyBalanceDelta(merged.toWalletId, merged.amount);
-  } else {
-    applyBalanceDelta(merged.walletId, merged.type === 'income' ? merged.amount : -merged.amount);
+  // terapkan efek saldo BARU — cuma kalau tanggal barunya bukan masa depan
+  if(!merged.pending){
+    if(merged.type === 'transfer'){
+      applyBalanceDelta(merged.walletId, -merged.amount);
+      applyBalanceDelta(merged.toWalletId, merged.amount);
+    } else {
+      applyBalanceDelta(merged.walletId, merged.type === 'income' ? merged.amount : -merged.amount);
+    }
   }
   syncAllWithSupabase(true);
 }
@@ -3179,11 +3191,14 @@ function deleteTransaction(id){
   const idx = txs.findIndex(t => t.id === id);
   if(idx === -1) return;
   const tx = txs[idx];
-  if(tx.type === 'transfer'){
-    applyBalanceDelta(tx.walletId, tx.amount);
-    applyBalanceDelta(tx.toWalletId, -tx.amount);
-  } else {
-    applyBalanceDelta(tx.walletId, tx.type === 'income' ? -tx.amount : tx.amount);
+  // rollback saldo cuma kalau transaksinya beneran udah "cair" (bukan pending/masa depan)
+  if(!tx.pending){
+    if(tx.type === 'transfer'){
+      applyBalanceDelta(tx.walletId, tx.amount);
+      applyBalanceDelta(tx.toWalletId, -tx.amount);
+    } else {
+      applyBalanceDelta(tx.walletId, tx.type === 'income' ? -tx.amount : tx.amount);
+    }
   }
   txs.splice(idx,1);
   setTransactionsLocalOnly(txs);
@@ -3196,11 +3211,40 @@ function addTransfer(transfer){
   transfer.type = 'transfer';
   transfer.category = 'Transfer';
   transfer.updatedAt = Date.now();
+  transfer.pending = isFutureDate(transfer.date); // transfer masa depan juga belum masuk saldo
   txs.push(transfer);
   setTransactionsLocalOnly(txs);
-  applyBalanceDelta(transfer.walletId, -transfer.amount);
-  applyBalanceDelta(transfer.toWalletId, transfer.amount);
+  if(!transfer.pending){
+    applyBalanceDelta(transfer.walletId, -transfer.amount);
+    applyBalanceDelta(transfer.toWalletId, transfer.amount);
+  }
   syncAllWithSupabase(true);
+}
+
+// Dipanggil saat app dibuka / fokus / tiap beberapa detik: cek transaksi "masa depan" (pending)
+// yang tanggalnya udah tiba (<= hari ini) — begitu ketemu, "cairkan" ke saldo dompet otomatis.
+function activateDuePendingTransactions(){
+  const txs = getTransactions();
+  const today = todayStr();
+  let changed = false;
+  txs.forEach(t => {
+    if(t.pending && t.date <= today){
+      if(t.type === 'transfer'){
+        applyBalanceDelta(t.walletId, -t.amount);
+        applyBalanceDelta(t.toWalletId, t.amount);
+      } else {
+        applyBalanceDelta(t.walletId, t.type === 'income' ? t.amount : -t.amount);
+      }
+      t.pending = false;
+      changed = true;
+    }
+  });
+  if(changed){
+    setTransactionsLocalOnly(txs);
+    syncAllWithSupabase(true);
+    refreshAllViews();
+  }
+  return changed;
 }
 
 function applyBalanceDelta(walletId, delta){
@@ -4618,6 +4662,7 @@ let txPeriodMode = 'month'; // 'day' | 'week' | 'month' | 'year' — pola sama d
 let txWeekStart = null; // 'YYYY-MM-DD' (Senin), dipakai saat txPeriodMode === 'week'
 let filterDayValue = null; // 'YYYY-MM-DD', dipakai saat txPeriodMode === 'day'
 let filterYearValue = null; // 'YYYY', dipakai saat txPeriodMode === 'year'
+let txViewFuture = false; // true = lagi nampilin tab "Masa Depan" (transaksi yg tanggalnya belum tiba)
 
 function syncTxPeriodUI(mode){
   document.getElementById('txPeriodItemDay').classList.toggle('active', mode === 'day');
@@ -4629,7 +4674,13 @@ function syncTxPeriodUI(mode){
 }
 
 function setTxPeriodMode(mode){
-  if(txPeriodMode === mode){ closeTxPeriodDropdown(); return; }
+  const cameFromFuture = txViewFuture;
+  txViewFuture = false;
+  if(txPeriodMode === mode){
+    closeTxPeriodDropdown();
+    if(cameFromFuture) renderTransactions();
+    return;
+  }
   txPeriodMode = mode;
   syncTxPeriodUI(mode);
   if(mode === 'day' && !filterDayValue){
@@ -4676,7 +4727,28 @@ function txShiftYear(delta){
   filterYearValue = String(Number(filterYearValue) + delta);
   renderTransactions();
 }
+function txIsAtPresentPeriod(){
+  const cur = currentMonthStr();
+  if(txPeriodMode === 'day') return !filterDayValue || filterDayValue >= todayStr();
+  if(txPeriodMode === 'week'){
+    const currentWeekStart = toDateStr(mondayOf(new Date()));
+    return !txWeekStart || txWeekStart >= currentWeekStart;
+  }
+  if(txPeriodMode === 'year') return !filterYearValue || Number(filterYearValue) >= new Date().getFullYear();
+  return !filterMonthValue || filterMonthValue >= cur;
+}
 function txShiftPeriod(delta){
+  if(txViewFuture){
+    // di tab Masa Depan, cuma bisa mundur (balik ke periode normal), gabisa maju lagi
+    if(delta < 0){ txViewFuture = false; renderTransactions(); }
+    return;
+  }
+  if(delta > 0 && txIsAtPresentPeriod()){
+    // geser ke kanan pas udah di periode "sekarang" -> masuk ke tab Masa Depan
+    txViewFuture = true;
+    renderTransactions();
+    return;
+  }
   if(txPeriodMode === 'day') txShiftDay(delta);
   else if(txPeriodMode === 'week') txShiftWeek(delta);
   else if(txPeriodMode === 'year') txShiftYear(delta);
@@ -4685,27 +4757,26 @@ function txShiftPeriod(delta){
 
 function populateFilterOptions(){
   const cur = currentMonthStr();
-  if(txPeriodMode === 'day'){
+  const nextBtn = document.getElementById('txNextMonthBtn');
+  if(txViewFuture){
+    document.getElementById('filterMonthLabel').textContent = 'Masa Depan';
+    if(nextBtn) nextBtn.disabled = true;
+  } else if(txPeriodMode === 'day'){
     if(!filterDayValue) filterDayValue = todayStr();
     document.getElementById('filterMonthLabel').textContent = dateOnlyLabel(filterDayValue);
-    const nextBtn = document.getElementById('txNextMonthBtn');
-    if(nextBtn) nextBtn.disabled = (filterDayValue >= todayStr());
+    if(nextBtn) nextBtn.disabled = false;
   } else if(txPeriodMode === 'week'){
     if(!txWeekStart) txWeekStart = toDateStr(mondayOf(new Date()));
-    const currentWeekStart = toDateStr(mondayOf(new Date()));
     document.getElementById('filterMonthLabel').textContent = weekRangeLabel(txWeekStart);
-    const nextBtn = document.getElementById('txNextMonthBtn');
-    if(nextBtn) nextBtn.disabled = (txWeekStart >= currentWeekStart);
+    if(nextBtn) nextBtn.disabled = false;
   } else if(txPeriodMode === 'year'){
     if(!filterYearValue) filterYearValue = String(new Date().getFullYear());
     document.getElementById('filterMonthLabel').textContent = filterYearValue;
-    const nextBtn = document.getElementById('txNextMonthBtn');
-    if(nextBtn) nextBtn.disabled = (Number(filterYearValue) >= new Date().getFullYear());
+    if(nextBtn) nextBtn.disabled = false;
   } else {
     if(!filterMonthValue) filterMonthValue = cur;
     document.getElementById('filterMonthLabel').textContent = monthLabel(filterMonthValue);
-    const nextBtn = document.getElementById('txNextMonthBtn');
-    if(nextBtn) nextBtn.disabled = (filterMonthValue >= cur);
+    if(nextBtn) nextBtn.disabled = false;
   }
 
   const wallets = getWallets();
@@ -4852,27 +4923,35 @@ function renderTransactions(){
   populateFilterOptions();
   const walletFilter = filterWalletValue;
   const catFilter = filterCategoryValue;
+  const today = todayStr();
 
   let txs;
-  if(txPeriodMode === 'day'){
+  if(txViewFuture){
+    // tab Masa Depan: SEMUA transaksi yg tanggalnya belum tiba, ga peduli hari/bulan/tahun
+    txs = getTransactions().filter(t => t.date > today);
+  } else if(txPeriodMode === 'day'){
     const day = filterDayValue;
-    txs = getTransactions().filter(t => t.date === day);
+    txs = getTransactions().filter(t => t.date === day && t.date <= today);
   } else if(txPeriodMode === 'week'){
     const weekStart = txWeekStart;
     const weekEndDate = new Date(weekStart + 'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate() + 6);
     const weekEnd = toDateStr(weekEndDate);
-    txs = getTransactions().filter(t => t.date >= weekStart && t.date <= weekEnd);
+    txs = getTransactions().filter(t => t.date >= weekStart && t.date <= weekEnd && t.date <= today);
   } else if(txPeriodMode === 'year'){
     const year = filterYearValue;
-    txs = getTransactions().filter(t => t.date.slice(0,4) === year);
+    txs = getTransactions().filter(t => t.date.slice(0,4) === year && t.date <= today);
   } else {
     const month = filterMonthValue;
-    txs = getTransactions().filter(t => t.date.slice(0,7) === month);
+    txs = getTransactions().filter(t => t.date.slice(0,7) === month && t.date <= today);
   }
   if(walletFilter !== 'all') txs = txs.filter(t => t.walletId === walletFilter || t.toWalletId === walletFilter);
   if(catFilter !== 'all') txs = txs.filter(t => t.category === catFilter);
   if(txSearchOpen && txSearchQuery.trim()) txs = applySearchFilter(txs, txSearchQuery);
-  txs.sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  if(txViewFuture){
+    txs.sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // yg paling deket dulu
+  } else {
+    txs.sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  }
 
   const hint = document.getElementById('txSearchHint');
   if(hint){
@@ -4880,15 +4959,18 @@ function renderTransactions(){
   }
 
   const wrap = document.getElementById('txListWrap');
+  const banner = txViewFuture ? '<div class="future-tx-banner">Transaksi di sini belum memengaruhi saldo dompet. Saldo bakal otomatis nyesuaian begitu tanggalnya tiba.</div>' : '';
   if(txs.length === 0){
-    const msg = (txSearchOpen && txSearchQuery.trim()) ? 'Tidak ada transaksi yang cocok dengan pencarian.' : 'Tidak ada transaksi pada filter ini.';
-    wrap.innerHTML = `<div class="empty-note">${msg}</div>`;
+    const msg = (txSearchOpen && txSearchQuery.trim())
+      ? 'Tidak ada transaksi yang cocok dengan pencarian.'
+      : (txViewFuture ? 'Belum ada transaksi yang dijadwalkan ke masa depan.' : 'Tidak ada transaksi pada filter ini.');
+    wrap.innerHTML = banner + `<div class="empty-note">${msg}</div>`;
     return;
   }
   const groups = {};
   txs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
-  const dates = Object.keys(groups).sort().reverse();
-  wrap.innerHTML = dates.map(date => {
+  const dates = txViewFuture ? Object.keys(groups).sort() : Object.keys(groups).sort().reverse();
+  wrap.innerHTML = banner + dates.map(date => {
     const items = groups[date].map(t => txItemHtml(t)).join('');
     return `<div class="tx-day-group"><div class="tx-day-label">${dateOnlyLabel(date)}</div>${items}</div>`;
   }).join('');
@@ -4912,10 +4994,11 @@ function txItemHtml(t){
     sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w?w.name:'') + ' → ' + (tw?tw.name:'');
   }
   const note = t.note ? ' · ' + t.note : '';
+  const pendingBadge = t.pending ? ' <span class="tx-pending-badge">Terjadwal</span>' : '';
   return `<div class="tx-item" onclick="openTransactionModal('${t.id}')">
     ${iconHtml}
     <div class="tx-body">
-      <div class="tx-cat">${t.category}</div>
+      <div class="tx-cat">${t.category}${pendingBadge}</div>
       <div class="tx-meta">${metaExtra}${note}</div>
     </div>
     <div class="tx-amt ${amtClass}">${sign}${formatRupiah(t.amount)}</div>
@@ -8868,6 +8951,7 @@ async function init(){
 
   // 4. Render ulang seluruh tampilan jika ada pembaruan data dari Supabase
   adjustLegacyRecurringItems();
+  activateDuePendingTransactions(); // cairkan transaksi "masa depan" yang tanggalnya udah tiba
   refreshAllViews();
   switchTabUI(currentTab);
 
@@ -8878,7 +8962,7 @@ async function init(){
 
   window.addEventListener('online', () => syncAllWithSupabase(true));
   window.addEventListener('offline', () => updateSyncStatusUI('offline'));
-  window.addEventListener('focus', () => syncAllWithSupabase(true));
+  window.addEventListener('focus', () => { syncAllWithSupabase(true); activateDuePendingTransactions(); });
 
   // Setup auto-trigger keypad for amount inputs on mobile
   setupAmountKeypadAutoTrigger();
@@ -8891,6 +8975,7 @@ async function init(){
   setInterval(() => {
     if (document.visibilityState === 'visible' && !isSyncingData && !isResettingData) {
       syncAllWithSupabase(true);
+      activateDuePendingTransactions(); // jaga-jaga kalau tanggal berganti pas app dibiarkan terbuka
     }
   }, 3000);
 }
