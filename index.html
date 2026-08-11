@@ -5025,6 +5025,19 @@ async function callGeminiRaw(key, parts, temperature){
     for(let i = 0; i < GEMINI_MODELS.length; i++){
       const model = GEMINI_MODELS[i];
       const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
+      // Model "2.5"/"3.5" flash punya mode "thinking" yang nyala default — buat tugas ekstraksi
+      // JSON deterministik kayak gini, thinking cuma nambah risiko token output kepotong
+      // (finishReason MAX_TOKENS) sehingga JSON-nya jadi setengah/rusak. Matikan thinking
+      // (thinkingBudget: 0) khusus untuk model yang mendukungnya (gemini-2.0-flash TIDAK
+      // mendukung thinkingConfig, jadi dilewati biar gak bikin request-nya error).
+      const generationConfig = {
+        responseMimeType: 'application/json',
+        temperature: (typeof temperature === 'number' ? temperature : 0.7),
+        maxOutputTokens: 8192
+      };
+      if(!/2\.0/.test(model)){
+        generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
       let res;
       try{
         res = await fetch(url, {
@@ -5032,7 +5045,7 @@ async function callGeminiRaw(key, parts, temperature){
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts }],
-            generationConfig: { responseMimeType: 'application/json', temperature: (typeof temperature === 'number' ? temperature : 0.7) }
+            generationConfig
           })
         });
       } catch(networkErr){
@@ -5084,16 +5097,31 @@ function extractGeminiText(data){
 // valid dari teksnya (fallback untuk kasus ada teks nyasar sebelum/sesudah JSON).
 function parseAiJson(rawText, kind){
   const cleaned = (rawText || '').toString().replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/, '').trim();
+  const tryParse = (s) => {
+    // Trailing comma sebelum `]`/`}` bukan JSON valid tapi kadang disisipkan model — bersihkan dulu.
+    const noTrailingComma = s.replace(/,(\s*[\]}])/g, '$1');
+    return JSON.parse(noTrailingComma);
+  };
+  let result;
   try{
-    return JSON.parse(cleaned);
+    result = tryParse(cleaned);
   } catch(e){
     const pattern = kind === 'array' ? /\[[\s\S]*\]/ : /\{[\s\S]*\}/;
     const match = cleaned.match(pattern);
     if(match){
-      try{ return JSON.parse(match[0]); } catch(e2){ /* jatuh ke throw di bawah */ }
+      try{ result = tryParse(match[0]); } catch(e2){ throw new Error('Format respons AI tidak valid'); }
+    } else {
+      throw new Error('Format respons AI tidak valid');
     }
-    throw new Error('Format respons AI tidak valid');
   }
+  // Kalau yang diminta array tapi hasilnya malah objek (mis. model membungkus jadi
+  // {"transactions":[...]} walau sudah diminta HANYA array telanjang), cari properti pertama
+  // yang isinya array dan pakai itu — daripada langsung gagal total.
+  if(kind === 'array' && !Array.isArray(result) && result && typeof result === 'object'){
+    const arrProp = Object.keys(result).find(k => Array.isArray(result[k]));
+    if(arrProp) return result[arrProp];
+  }
+  return result;
 }
 /* =========================================================
    INSIGHT OTOMATIS DARI AI — muncul di Beranda & Laporan.
