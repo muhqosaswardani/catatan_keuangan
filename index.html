@@ -45,6 +45,9 @@
     --transfer-soft:#F4ECDB;
     --warn:#B7791F;
     --warn-soft:#FCF0DC;
+    --info:#2F6FED;
+    --info-dark:#1E4FB8;
+    --info-soft:#E7EEFE;
     --radius-l:20px;
     --radius-m:14px;
     --radius-s:10px;
@@ -203,11 +206,28 @@
   .chart-wrap h3{font-size:13px;margin:0 0 10px;font-weight:700;color:var(--ink-soft);}
   .empty-note{font-size:13px;color:var(--ink-soft);text-align:center;padding:18px 0;}
 
-  .daily-reco-row{display:flex;align-items:stretch;gap:0;background:var(--surface-2);border-radius:var(--radius-m);padding:10px 14px;margin-top:10px;}
-  .daily-reco-row .drc{flex:1;text-align:center;}
-  .daily-reco-row .drc:first-child{border-right:1px solid var(--line);}
-  .daily-reco-row .drc .n{font-family:'Sora',sans-serif;font-weight:700;font-size:15px;color:var(--ink);}
-  .daily-reco-row .drc .l{font-size:11px;color:var(--ink-soft);font-weight:600;margin-top:2px;}
+  .reco-wrap{margin-top:12px;}
+  .reco-days-pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 9px;margin-bottom:9px;}
+  .reco-days-pill svg{flex:none;color:var(--accent);width:16px;height:16px;}
+  .reco-days-pill b{color:var(--ink);font-weight:800;}
+  .ai-text-wrap{position:relative;}
+  .ai-text-wrap textarea{padding-right:44px;}
+  .ai-mic-btn{position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:50%;border:none;background:var(--surface);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.15);cursor:pointer;transition:background .15s,color .15s;padding:0;}
+  .ai-mic-btn:active{transform:scale(.94);}
+  .ai-mic-btn.recording{background:#e11d48;color:#fff;animation:aiMicPulse 1.2s ease-in-out infinite;}
+  @keyframes aiMicPulse{0%,100%{box-shadow:0 0 0 0 rgba(225,29,72,.45);}50%{box-shadow:0 0 0 8px rgba(225,29,72,0);}}
+  .ai-mic-hint{font-size:11.5px;color:var(--ink-soft);margin:6px 2px 0;display:none;}
+  .reco-cards{display:flex;gap:10px;}
+  .reco-card{flex:1;min-width:0;border-radius:var(--radius-m);padding:10px 12px;display:flex;align-items:center;gap:10px;background:var(--surface);box-shadow:var(--shadow);border:1px solid rgba(21,37,36,.05);}
+  .reco-card--budget{color:var(--accent);}
+  .reco-card--saldo{color:var(--info);}
+  .reco-card .ic{flex:none;width:26px;height:26px;border-radius:8px;background:currentColor;display:flex;align-items:center;justify-content:center;}
+  .reco-card .ic svg{color:var(--surface);}
+  .reco-card .txt{min-width:0;}
+  .reco-card .lbl{font-size:10.5px;font-weight:700;letter-spacing:.2px;color:var(--ink-soft);}
+  .reco-card .val{font-family:'Sora',sans-serif;font-weight:800;font-size:14.5px;color:var(--ink);line-height:1.25;word-break:break-word;}
+  .reco-card .val .unit{font-size:10.5px;font-weight:600;color:var(--ink-soft);}
+  @media (max-width:340px){ .reco-card .val{font-size:13px;} }
   .budget-alert-row{display:flex;align-items:center;gap:10px;background:var(--warn-soft);border-radius:var(--radius-m);padding:12px 14px;margin-top:10px;}
   .budget-alert-row svg{flex-shrink:0;color:var(--warn);}
   .budget-alert-row span{font-size:13px;color:#7A4E12;font-weight:600;}
@@ -1274,8 +1294,16 @@
         <button class="modal-close" onclick="closeModal('modalDashboardAvgCategories')">&times;</button>
       </div>
       <div class="modal-body">
-        <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5;">Pilih kategori pengeluaran yang rata-rata harian bulan berjalannya mau ditampilkan di <b>Beranda</b>. Biar dasbord tetap rapi, kosongkan kalau tidak perlu.</p>
-        <div id="dashboardAvgCatChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div style="display:flex;gap:8px;background:var(--card-alt,#f3f4f6);padding:4px;border-radius:11px;margin-bottom:14px;">
+          <button type="button" class="lap-subtab-btn active" id="dashboardAvgSubtabShowBtn" onclick="setDashboardAvgSubtab('show')">Tampilkan</button>
+          <button type="button" class="lap-subtab-btn" id="dashboardAvgSubtabExcludeBtn" onclick="setDashboardAvgSubtab('exclude')">Pengecualian</button>
+        </div>
+        <div id="dashboardAvgSubtabShow">
+          <div id="dashboardAvgCatChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+        <div id="dashboardAvgSubtabExclude" style="display:none;">
+          <div id="dashboardAvgExcludeChecklist" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
         <button type="button" class="btn btn-primary btn-block" style="margin-top:16px;" onclick="saveDashboardAvgCategorySetting()">Simpan Pengaturan</button>
       </div>
     </div>
@@ -1878,12 +1906,18 @@
   <!-- ============ MODAL: TAMBAH VIA AI (SCAN FOTO) — fitur 4 ============ -->
   <div class="modal-overlay" id="modalAiScan">
     <div class="modal">
-      <div class="modal-head"><h3>Transaksi via AI</h3><button class="modal-close" onclick="closeModal('modalAiScan')">&times;</button></div>
+      <div class="modal-head"><h3>Transaksi via AI</h3><button class="modal-close" onclick="stopAiVoiceRecording();setAiMicUiRecording(false);closeModal('modalAiScan')">&times;</button></div>
       <div class="modal-body">
         <div id="aiScanCaptureView">
         <div class="field" style="margin-bottom:12px;">
           <label>Teks Bebas (opsional)</label>
-          <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini" oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+          <div class="ai-text-wrap">
+            <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini" oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+            <button type="button" class="ai-mic-btn" id="aiMicBtn" onclick="toggleAiVoiceRecording()" aria-label="Rekam suara">
+              <svg id="aiMicIcon" width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <p class="ai-mic-hint" id="aiMicHint"></p>
         </div>
         <div class="ai-choice-grid ai-choice-grid-camright">
           <div class="ai-choice-btn ai-choice-btn-stack" onclick="document.getElementById('aiGalleryInput').click()">
@@ -2568,6 +2602,13 @@ async function syncAllWithSupabase(silent = true) {
             merged.dashboardAvgCatIds = localCfg.dashboardAvgCatIds;
             merged.dashboardAvgCatIdsUpdatedAt = localAvgTs;
           }
+          // Same logic for dashboardAvgExcludeCatIds (kategori pengecualian rata-rata harian)
+          const localExclTs = Number(localCfg.dashboardAvgExcludeCatIdsUpdatedAt) || 0;
+          const remoteExclTs = Number(remoteCfg.dashboardAvgExcludeCatIdsUpdatedAt) || 0;
+          if (localExclTs > remoteExclTs) {
+            merged.dashboardAvgExcludeCatIds = localCfg.dashboardAvgExcludeCatIds;
+            merged.dashboardAvgExcludeCatIdsUpdatedAt = localExclTs;
+          }
           setNavConfigLocalOnly(merged);
         }
         if (remChkSettings.sheets_web_app_url != null) {
@@ -2838,7 +2879,9 @@ function getNavConfig(){
   const heroWallets = (raw && Array.isArray(raw.heroWallets)) ? raw.heroWallets : ['wallet_utama'];
   const dashboardAvgCatIds = (raw && Array.isArray(raw.dashboardAvgCatIds)) ? raw.dashboardAvgCatIds : [];
   const dashboardAvgCatIdsUpdatedAt = (raw && Number(raw.dashboardAvgCatIdsUpdatedAt)) || 0;
-  return { core, heroWallets, dashboardAvgCatIds, dashboardAvgCatIdsUpdatedAt };
+  const dashboardAvgExcludeCatIds = (raw && Array.isArray(raw.dashboardAvgExcludeCatIds)) ? raw.dashboardAvgExcludeCatIds : [];
+  const dashboardAvgExcludeCatIdsUpdatedAt = (raw && Number(raw.dashboardAvgExcludeCatIdsUpdatedAt)) || 0;
+  return { core, heroWallets, dashboardAvgCatIds, dashboardAvgCatIdsUpdatedAt, dashboardAvgExcludeCatIds, dashboardAvgExcludeCatIdsUpdatedAt };
 }
 function getHeroWallets(){
   const cfg = getNavConfig();
@@ -2853,6 +2896,10 @@ function getDashboardAvgCatIds(){
   const cfg = getNavConfig();
   return (cfg && Array.isArray(cfg.dashboardAvgCatIds)) ? cfg.dashboardAvgCatIds : [];
 }
+function getDashboardAvgExcludeCatIds(){
+  const cfg = getNavConfig();
+  return (cfg && Array.isArray(cfg.dashboardAvgExcludeCatIds)) ? cfg.dashboardAvgExcludeCatIds : [];
+}
 function setDashboardAvgCatIds(ids){
   const cfg = getNavConfig();
   cfg.dashboardAvgCatIds = ids;
@@ -2865,6 +2912,20 @@ function setDashboardAvgCatIds(ids){
       nav_config: cfg,
       updated_at: new Date().toISOString()
     }).then(() => { console.log('Dashboard avg category setting synced'); }).catch(e => { console.warn('Dashboard avg sync error:', e); });
+  }
+}
+function setDashboardAvgExcludeCatIds(ids){
+  const cfg = getNavConfig();
+  cfg.dashboardAvgExcludeCatIds = ids;
+  cfg.dashboardAvgExcludeCatIdsUpdatedAt = Date.now();
+  setNavConfigLocalOnly(cfg);
+  if (supabaseClient && navigator.onLine) {
+    const code = getAccessCode();
+    supabaseClient.from('user_settings').upsert({
+      access_code: code,
+      nav_config: cfg,
+      updated_at: new Date().toISOString()
+    }).then(() => { console.log('Dashboard avg exclude setting synced'); }).catch(e => { console.warn('Dashboard avg exclude sync error:', e); });
   }
 }
 function setNavConfigLocalOnly(cfg){ localStorage.setItem(LS_KEYS.navConfig, JSON.stringify(cfg)); }
@@ -4222,14 +4283,29 @@ function renderHome(){
 
   const recoWrap = document.getElementById('dailyRecoHome');
   const infoHome = monthDayInfo(month);
-  if(setCount === 0 || infoHome.isPast){
+  if(infoHome.isPast || infoHome.remainingDays <= 0){
     recoWrap.innerHTML = '';
   } else {
+    // Kolom Anggaran cuma dihitung kalau minimal 1 kategori budget sudah diset;
+    // kolom Total Saldo tidak tergantung budget jadi tetap tampil.
     const sisaHome = Math.max(0, totalLimitHome - totalSpentHome);
-    const dailyRecoHtml = infoHome.remainingDays > 0 ? formatRupiah(sisaHome / infoHome.remainingDays) + '/hari' : '-';
-    recoWrap.innerHTML = `<div class="daily-reco-row">
-      <div class="drc"><div class="n">${dailyRecoHtml}</div><div class="l">Rekomendasi/hari</div></div>
-      <div class="drc"><div class="n">${infoHome.remainingDays} hari</div><div class="l">Sisa hari</div></div>
+    const dailyRecoHtml = setCount > 0 ? formatRupiah(sisaHome / infoHome.remainingDays) : '-';
+    const dailyRecoSaldoHtml = formatRupiah(Math.max(0, total) / infoHome.remainingDays);
+    const targetSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>';
+    const walletSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6.5" width="18" height="13" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3 10.5h18" stroke="currentColor" stroke-width="1.8"/><circle cx="16.5" cy="14.5" r="1.3" fill="currentColor"/></svg>';
+    const daysSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v3.4M16 3v3.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    recoWrap.innerHTML = `<div class="reco-wrap">
+      <div class="reco-days-pill">${daysSvg}<b>${infoHome.remainingDays} hari</b> tersisa bulan ini</div>
+      <div class="reco-cards">
+        <div class="reco-card reco-card--budget">
+          <div class="ic">${targetSvg}</div>
+          <div class="txt"><div class="lbl">Anggaran</div><div class="val">${dailyRecoHtml}${setCount > 0 ? ' <span class="unit">/hari</span>' : ''}</div></div>
+        </div>
+        <div class="reco-card reco-card--saldo">
+          <div class="ic">${walletSvg}</div>
+          <div class="txt"><div class="lbl">Total Saldo</div><div class="val">${dailyRecoSaldoHtml} <span class="unit">/hari</span></div></div>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -4267,11 +4343,17 @@ function renderDailyAverages(){
   const range = getPeriodRanges('month');
   const allTx = getTransactions();
   const monthExpTx = allTx.filter(t => t.type === 'expense' && t.date >= range.start && t.date <= range.end);
-  const totalExpense = monthExpTx.reduce((s,t)=>s+t.amount,0);
+
+  // Kategori yang dikecualikan dari perhitungan Total Rata-rata Harian (mis. biaya besar
+  // yang cuma dibayar sekali di awal bulan seperti kuliah/kost, biar tidak menggelembungkan
+  // rata-rata harian).
+  const excludeIds = getDashboardAvgExcludeCatIds();
+  const excludeNames = excludeIds.map(id => categoryById(id)).filter(Boolean).map(c => c.name);
+  const totalExpense = monthExpTx.filter(t => !excludeNames.includes(t.category)).reduce((s,t)=>s+t.amount,0);
   const totalAvg = totalExpense / daysElapsed;
 
   const rows = [`
-    <div class="legend-card-item" style="cursor:default;background:var(--accent-soft);border-color:transparent;">
+    <div class="legend-card-item" style="cursor:default;">
       <div class="ic" style="background:var(--accent);">Σ</div>
       <span class="name">Total Rata-rata Harian</span>
       <span class="amt">${formatRupiah(totalAvg)}/hari</span>
@@ -5267,6 +5349,16 @@ let aiScanRows = [];
 let aiWalletValue = null;
 let aiScanTextValue = ''; // input teks bebas (BARU) — dipakai berdampingan dengan lampiran foto
 
+// ==== Rekam suara (VN) untuk Transaksi via AI ====
+// aiVoiceAudioPart: generative part audio yang SUDAH di-base64-kan, siap dikirim ke Gemini
+// bareng teks/foto lain yang ada. Diisi begitu rekaman selesai, dan langsung memicu analisis
+// otomatis (tidak perlu klik "Analisis dengan AI" secara manual).
+let aiMicStream = null;
+let aiMicRecorder = null;
+let aiMicChunks = [];
+let aiMicRecording = false;
+let aiVoiceAudioPart = null;
+
 // Peta slang nominal Indonesia yang nilainya SUDAH PASTI/TIDAK AMBIGU (beda dengan mis. "cepek"
 // yang bisa berarti 100 ATAU 100.000 tergantung konteks — sengaja TIDAK dimasukkan ke peta ini,
 // biar tetap diserahkan ke penalaran AI seperti biasa).
@@ -5301,6 +5393,9 @@ function openAiScanModal(opts){
   aiCaptureFiles = [];
   aiScanRows = [];
   aiScanTextValue = '';
+  aiVoiceAudioPart = null;
+  stopAiVoiceRecording();
+  setAiMicUiRecording(false);
   const textEl = document.getElementById('aiScanTextInput');
   if(textEl) textEl.value = '';
   renderAiFileChips();
@@ -5360,9 +5455,94 @@ function onAiScanTextKeydown(e){
   e.preventDefault();
   btn.click();
 }
+// Ketuk mic: mulai rekam. Ketuk lagi saat sedang rekam: berhenti lalu LANGSUNG kirim ke Gemini
+// (tidak perlu klik "Analisis dengan AI" manual) — audio diperlakukan sebagai transkrip VN,
+// mengikuti aturan pemecahan multi-transaksi yang sudah ada di prompt (lihat poin 4 promptText).
+async function toggleAiVoiceRecording(){
+  if(aiMicRecording){ stopAiVoiceRecording(); return; }
+  if(location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
+    showToast('Mic butuh HTTPS. Buka halaman ini via link https:// (bukan file:// atau http://)');
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+    showToast('Rekam suara tidak didukung browser ini');
+    return;
+  }
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }catch(err){
+    if(err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')){
+      showToast('Izin mikrofon ditolak. Buka Setelan situs di Chrome lalu izinkan Mikrofon');
+    }else if(err && err.name === 'NotFoundError'){
+      showToast('Mikrofon tidak ditemukan di perangkat ini');
+    }else if(err && err.name === 'NotReadableError'){
+      showToast('Mikrofon sedang dipakai aplikasi lain');
+    }else{
+      showToast('Gagal akses mikrofon: ' + (err && err.message ? err.message : 'tidak diketahui'));
+    }
+    return;
+  }
+  aiMicStream = stream;
+  aiMicChunks = [];
+  const candidates = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm'];
+  let mimeType = '';
+  for(const c of candidates){ if(MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)){ mimeType = c; break; } }
+  try{
+    aiMicRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+  }catch(err){
+    aiMicRecorder = new MediaRecorder(stream);
+  }
+  aiMicRecorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) aiMicChunks.push(e.data); };
+  aiMicRecorder.onstop = onAiVoiceRecordingStopped;
+  aiMicRecorder.start();
+  aiMicRecording = true;
+  setAiMicUiRecording(true);
+}
+function stopAiVoiceRecording(){
+  if(aiMicRecorder && aiMicRecorder.state !== 'inactive'){
+    try{ aiMicRecorder.stop(); }catch(e){}
+  }
+  if(aiMicStream){ aiMicStream.getTracks().forEach(t => t.stop()); aiMicStream = null; }
+  aiMicRecording = false;
+}
+function setAiMicUiRecording(isRecording){
+  const btn = document.getElementById('aiMicBtn');
+  const hint = document.getElementById('aiMicHint');
+  if(btn) btn.classList.toggle('recording', isRecording);
+  if(hint){
+    hint.style.display = isRecording ? 'block' : 'none';
+    hint.textContent = isRecording ? 'Merekam… ketuk mic lagi untuk berhenti & analisis otomatis' : '';
+  }
+}
+async function onAiVoiceRecordingStopped(){
+  setAiMicUiRecording(false);
+  const hint = document.getElementById('aiMicHint');
+  if(aiMicChunks.length === 0) return;
+  const mimeType = (aiMicRecorder && aiMicRecorder.mimeType) || 'audio/webm';
+  const blob = new Blob(aiMicChunks, { type: mimeType });
+  aiMicChunks = [];
+  if(blob.size < 1000){ // rekaman kelewat pendek/kosong, jangan dikirim
+    showToast('Rekaman terlalu pendek, coba lagi');
+    return;
+  }
+  if(hint){ hint.style.display = 'block'; hint.textContent = 'Memproses rekaman suara…'; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = String(reader.result).split(',')[1] || '';
+    aiVoiceAudioPart = { inlineData: { data: base64, mimeType: mimeType.split(';')[0] } };
+    if(hint){ hint.style.display = 'none'; }
+    startAiScanAnalysis(); // auto-analisis begitu rekaman selesai
+  };
+  reader.onerror = () => {
+    showToast('Gagal memproses rekaman suara');
+    if(hint){ hint.style.display = 'none'; }
+  };
+  reader.readAsDataURL(blob);
+}
 function startAiScanAnalysis(){
   const hasText = (aiScanTextValue || '').trim().length > 0;
-  if(aiCaptureFiles.length === 0 && !hasText) return;
+  if(aiCaptureFiles.length === 0 && !hasText && !aiVoiceAudioPart) return;
   document.getElementById('aiScanCaptureView').style.display = 'none';
   document.getElementById('aiScanErrorView').style.display = 'none';
   document.getElementById('aiScanLoadingView').style.display = 'block';
@@ -5485,6 +5665,11 @@ async function aiScanWithGemini(key){
   const freeText = (aiScanTextValue || '').toString().trim();
   if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + annotateSlangNominalForAi(freeText) }); }
   for(const f of aiCaptureFiles){ parts.push(await fileToGenerativePart(f)); }
+  if(aiVoiceAudioPart){
+    parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara (voice note) dari user berisi ucapan tentang transaksi. Dengarkan & transkripsikan isinya, lalu perlakukan hasilnya PERSIS seperti TEKS_BEBAS_DARI_USER sesuai semua aturan di atas (termasuk aturan pemecahan multi-transaksi tanpa pemisah eksplisit untuk transkrip suara yang mengalir panjang).' });
+    parts.push(aiVoiceAudioPart);
+    aiVoiceAudioPart = null;
+  }
   // Schema JSON eksplisit — memaksa Gemini balikin struktur ini persis (constrained decoding),
   // bukan cuma "diharapkan" lewat instruksi teks di prompt. Ini yang paling menentukan validitas
   // JSON-nya, terlepas dari aturan "angka=valid" (itu cuma ngatur ISI, bukan FORMAT).
@@ -8135,11 +8320,14 @@ function saveHeroWalletSetting(){
 function openDashboardAvgCategorySetting(){
   const cats = getCategories().filter(c => c.type === 'expense');
   const selectedIds = getDashboardAvgCatIds();
+  const excludedIds = getDashboardAvgExcludeCatIds();
   const listWrap = document.getElementById('dashboardAvgCatChecklist');
-  if(!listWrap) return;
+  const excludeWrap = document.getElementById('dashboardAvgExcludeChecklist');
+  if(!listWrap || !excludeWrap) return;
 
   if(cats.length === 0){
     listWrap.innerHTML = '<p style="font-size:12.5px;color:var(--ink-soft);">Belum ada kategori pengeluaran. Buat dulu lewat Kelola Kategori.</p>';
+    excludeWrap.innerHTML = '<p style="font-size:12.5px;color:var(--ink-soft);">Belum ada kategori pengeluaran. Buat dulu lewat Kelola Kategori.</p>';
   } else {
     listWrap.innerHTML = cats.map(c => {
       const isChecked = selectedIds.includes(c.id);
@@ -8150,14 +8338,39 @@ function openDashboardAvgCategorySetting(){
           <div style="flex:1;font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(c.name)}</div>
         </label>`;
     }).join('');
+    excludeWrap.innerHTML = cats.map(c => {
+      const isChecked = excludedIds.includes(c.id);
+      return `
+        <label class="hero-wallet-check-item">
+          <input type="checkbox" value="${c.id}" ${isChecked ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">
+          ${categoryIconBoxHtml(c, {size:32, radius:10, iconSize:17})}
+          <div style="flex:1;font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(c.name)}</div>
+        </label>`;
+    }).join('');
   }
 
+  setDashboardAvgSubtab('show');
   openModal('modalDashboardAvgCategories');
+}
+
+function setDashboardAvgSubtab(tab){
+  const showBtn = document.getElementById('dashboardAvgSubtabShowBtn');
+  const exclBtn = document.getElementById('dashboardAvgSubtabExcludeBtn');
+  const showPane = document.getElementById('dashboardAvgSubtabShow');
+  const exclPane = document.getElementById('dashboardAvgSubtabExclude');
+  if(!showBtn || !exclBtn || !showPane || !exclPane) return;
+  const isShow = tab === 'show';
+  showBtn.classList.toggle('active', isShow);
+  exclBtn.classList.toggle('active', !isShow);
+  showPane.style.display = isShow ? '' : 'none';
+  exclPane.style.display = isShow ? 'none' : '';
 }
 
 function saveDashboardAvgCategorySetting(){
   const checked = Array.from(document.querySelectorAll('#dashboardAvgCatChecklist input[type="checkbox"]:checked')).map(cb => cb.value);
+  const excluded = Array.from(document.querySelectorAll('#dashboardAvgExcludeChecklist input[type="checkbox"]:checked')).map(cb => cb.value);
   setDashboardAvgCatIds(checked);
+  setDashboardAvgExcludeCatIds(excluded);
   closeModal('modalDashboardAvgCategories');
   renderHome();
   showToast('Pengaturan Rata-rata Harian disimpan');
