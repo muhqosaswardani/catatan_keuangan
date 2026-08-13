@@ -2664,7 +2664,8 @@ async function syncAllWithSupabase(silent = true) {
             merged.dashboardAvgExcludeCatIdsUpdatedAt = localExclTs;
           }
 
-          const mergedInitialBalances = { ...(remoteCfg.initialBalances || {}), ...(localCfg.initialBalances || {}) };
+
+          const mergedInitialBalances = { ...(localCfg.initialBalances || {}), ...(remoteCfg.initialBalances || {}) };
           merged.initialBalances = mergedInitialBalances;
 
           setNavConfigLocalOnly(merged);
