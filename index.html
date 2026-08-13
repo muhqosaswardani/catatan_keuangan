@@ -4208,7 +4208,9 @@ function openPicker(title, options, currentVal, onSelect){
 /* =========================================================
    RENDER: BERANDA
    ========================================================= */
-Chart.defaults.animation = false;
+/* Animasi Chart.js dibiarkan aktif (bawaan) supaya donut "muter" dari tengah saat
+   pertama render / ganti subtab, sesuai desain awal. Hanya animasi hover/transisi aktif
+   yang di-nolkan biar tooltip tidak lag saat digeser cepat. */
 if (Chart.defaults.transitions && Chart.defaults.transitions.active) {
   Chart.defaults.transitions.active.animation.duration = 0;
 }
@@ -4562,7 +4564,7 @@ function renderDonut(canvasId, emptyId, legendId, byCat, total, opts){
     type: 'doughnut',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor:'#fff' }] },
     options: {
-      animation: false,
+      animation: { animateRotate: true, animateScale: false, duration: 600, easing: 'easeOutQuart' },
       plugins: { legend: { display:false }, tooltip: { enabled:false } },
       cutout: '62%',
       onClick: (evt, elements) => {
@@ -5076,7 +5078,7 @@ function renderTrendChart(){
       },
       plugins: [trendCrosshairPlugin],
       options: {
-        animation: false,
+        animation: { duration: 500, easing: 'easeOutQuart' },
         interaction: { mode:'index', intersect:false },
         plugins: { legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'line', boxWidth:18, font:{size:11, family:'Inter'} } }, tooltip:{ boxPadding:6 } },
         scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font:{size:10}, maxTicksLimit: 6 } }, x: { ticks:{ font:{size:10, autoSkip:true, maxRotation:0}, maxTicksLimit: 10 } } }
@@ -5106,7 +5108,7 @@ function renderTrendChart(){
     },
     plugins: [trendCrosshairPlugin],
     options: {
-      animation: false,
+      animation: { duration: 500, easing: 'easeOutQuart' },
       interaction: { mode:'index', intersect:false },
       plugins: { legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'line', boxWidth:18, font:{size:11, family:'Inter'} } }, tooltip:{ boxPadding:6 } },
       scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font:{size:10}, maxTicksLimit: 6 } }, x: { ticks:{ font:{size:10, autoSkip:true, maxRotation:0}, maxTicksLimit: trendMonths > 6 ? 6 : trendMonths } } }
