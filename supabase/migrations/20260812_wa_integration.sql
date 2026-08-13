@@ -1,67 +1,59 @@
--- Migration: Fase 7 WhatsApp Integration
--- Run this in Supabase SQL Editor
+-- Migration: Fase 7 WhatsApp Integration (v2)
+-- Jalankan di: https://supabase.com/dashboard/project/qdoduglbejcazjufvfkf/sql/new
 
--- 1. Tambah kolom 'source' di tabel transactions
+-- ─── 1. Kolom 'source' di transactions ──────────────────────────────────────
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'app';
 
--- 2. Tabel mapping: wa_message_id <-> transaction_id (untuk reply-to-edit/delete)
+-- ─── 2. Mapping wa_message_id ↔ transaction_id (reply-to-edit/delete) ───────
 CREATE TABLE IF NOT EXISTS public.wa_message_transactions (
   wa_message_id TEXT PRIMARY KEY,
   transaction_id TEXT NOT NULL,
-  access_code TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  access_code   TEXT NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
 );
-
 CREATE INDEX IF NOT EXISTS idx_wa_msg_tx_transaction_id ON public.wa_message_transactions(transaction_id);
-CREATE INDEX IF NOT EXISTS idx_wa_msg_tx_access_code ON public.wa_message_transactions(access_code);
+CREATE INDEX IF NOT EXISTS idx_wa_msg_tx_access_code    ON public.wa_message_transactions(access_code);
 
--- 3. Tabel penyimpanan sementara transaksi amount=0 (menunggu nominal dari user)
+-- ─── 3. Transaksi pending amount=0 (menunggu nominal dari user) ──────────────
 CREATE TABLE IF NOT EXISTS public.wa_pending_transactions (
-  id TEXT PRIMARY KEY,
-  access_code TEXT NOT NULL,
-  wa_chat_id TEXT NOT NULL,
-  wa_question_message_id TEXT,
-  pending_data JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  id                      TEXT PRIMARY KEY,
+  access_code             TEXT NOT NULL,
+  wa_chat_id              TEXT NOT NULL,
+  wa_question_message_id  TEXT,
+  pending_data            JSONB NOT NULL,
+  created_at              TIMESTAMPTZ DEFAULT NOW()
 );
-
 CREATE INDEX IF NOT EXISTS idx_wa_pending_access_code ON public.wa_pending_transactions(access_code);
-CREATE INDEX IF NOT EXISTS idx_wa_pending_chat_id ON public.wa_pending_transactions(wa_chat_id);
+CREATE INDEX IF NOT EXISTS idx_wa_pending_chat_id     ON public.wa_pending_transactions(wa_chat_id);
 
--- 4. Tabel batching multi-foto (state sementara, TTL pendek)
-CREATE TABLE IF NOT EXISTS public.wa_media_batches (
-  id TEXT PRIMARY KEY,               -- batch_id, unik per sesi batching
-  access_code TEXT NOT NULL,
-  wa_chat_id TEXT NOT NULL,
-  media_items JSONB NOT NULL DEFAULT '[]',  -- array of {media_id, mime_type, caption}
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '30 seconds'
-);
-
-CREATE INDEX IF NOT EXISTS idx_wa_batches_chat_id ON public.wa_media_batches(wa_chat_id);
-
--- 5. Queue media masuk. Ini membuat batching tetap bekerja walaupun setiap
--- webhook ditangani oleh instance Edge Function yang berbeda.
+-- ─── 4. Queue media (foto + VN) untuk batching sebelum dikirim ke Gemini ─────
+--       Menggantikan pendekatan in-memory yang tidak bisa cross-instance.
 CREATE TABLE IF NOT EXISTS public.wa_media_queue (
   wa_message_id TEXT PRIMARY KEY,
-  access_code TEXT NOT NULL,
-  wa_chat_id TEXT NOT NULL,
-  media_id TEXT NOT NULL,
-  mime_type TEXT NOT NULL,
-  media_kind TEXT NOT NULL CHECK (media_kind IN ('image', 'audio')),
-  caption TEXT,
-  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  processing_started_at TIMESTAMPTZ,
-  processed_at TIMESTAMPTZ
+  access_code   TEXT NOT NULL,
+  wa_chat_id    TEXT NOT NULL,
+  media_id      TEXT NOT NULL,
+  mime_type     TEXT NOT NULL DEFAULT 'image/jpeg',
+  media_kind    TEXT NOT NULL DEFAULT 'image',   -- 'image' | 'audio'
+  caption       TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ DEFAULT NOW() + INTERVAL '30 seconds'
 );
+CREATE INDEX IF NOT EXISTS idx_wa_media_queue_chat_id    ON public.wa_media_queue(wa_chat_id);
+CREATE INDEX IF NOT EXISTS idx_wa_media_queue_expires_at ON public.wa_media_queue(expires_at);
+CREATE INDEX IF NOT EXISTS idx_wa_media_queue_access     ON public.wa_media_queue(access_code);
 
-CREATE INDEX IF NOT EXISTS idx_wa_media_queue_ready
-  ON public.wa_media_queue(wa_chat_id, received_at)
-  WHERE processed_at IS NULL;
-
--- 6. Idempotensi webhook Meta. Satu message id hanya boleh diproses sekali.
+-- ─── 5. Idempotency: cegah proses ulang webhook yang terkirim ganda ──────────
 CREATE TABLE IF NOT EXISTS public.wa_processed_messages (
   wa_message_id TEXT PRIMARY KEY,
-  access_code TEXT NOT NULL,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  access_code   TEXT NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_wa_proc_access_code ON public.wa_processed_messages(access_code);
+
+-- Opsional: auto-cleanup wa_media_queue dan wa_processed_messages lama.
+-- Aktifkan kalau pg_cron tersedia di project ini, atau biarkan Edge Function cleanup saat diakses.
+-- SELECT cron.schedule('cleanup-wa-queue', '*/5 * * * *', $$
+--   DELETE FROM public.wa_media_queue WHERE expires_at < NOW();
+--   DELETE FROM public.wa_processed_messages WHERE created_at < NOW() - INTERVAL '7 days';
+-- $$);

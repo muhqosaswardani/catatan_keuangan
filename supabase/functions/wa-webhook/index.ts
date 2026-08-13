@@ -193,8 +193,23 @@ async function enqueueAndScheduleMedia(
 
   EdgeRuntime.waitUntil(
     (async () => {
-      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-      await processQueuedMediaBatch(db, apiKeys, msg.from);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+        await processQueuedMediaBatch(db, apiKeys, msg.from);
+      } catch (e) {
+        console.error("Error in background media batch processing:", e);
+        try {
+          await sendWhatsAppMessage(
+            PHONE_NUMBER_ID,
+            WA_ACCESS_TOKEN,
+            msg.from,
+            "Maaf, gagal memproses foto/suara Anda. Coba kirim ulang ya.",
+            msg.messageId,
+          );
+        } catch (sendErr) {
+          console.error("Failed to send background error message:", sendErr);
+        }
+      }
     })(),
   );
 }
@@ -328,7 +343,7 @@ Deno.serve(async (req: Request) => {
             PHONE_NUMBER_ID,
             WA_ACCESS_TOKEN,
             msg.from,
-            "⚠️ Maaf, ada kesalahan internal. Coba lagi ya 🙏",
+            "Maaf, ada kesalahan internal. Coba lagi ya.",
             msg.messageId,
           );
         } catch {}

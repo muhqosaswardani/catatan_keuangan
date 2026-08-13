@@ -26,6 +26,7 @@ export const TRANSACTION_SCHEMA = {
       amount: { type: "NUMBER" },
       note: { type: "STRING" },
       category: { type: "STRING" },
+      wallet: { type: "STRING" },
       isDuplicateRead: { type: "BOOLEAN" },
       groupId: { type: "STRING" },
       groupTotal: { type: "NUMBER" },
@@ -67,6 +68,7 @@ export interface ParsedTransaction {
   amount: number;
   note: string;
   category: string;
+  wallet?: string;
   isDuplicateRead?: boolean;
   groupId?: string;
   groupTotal?: number;
@@ -126,20 +128,35 @@ export function buildTransactionPrompt(
     '   - Hitung nilai "amount" bersih untuk kategori tersebut. Caranya: hitung subtotal harga barang dalam kategori tersebut, lalu kurangi diskon barang tersebut, dan TAMBAHKAN PPN/Pajak secara proporsional. Pastikan jika jumlah "amount" dari semua kategori pengeluaran ini dijumlahkan, hasilnya cocok 100% dengan Grand Total (Total Bayar) yang tertera di struk belanja.\n' +
     '   - Berikan "note" berupa deskripsi ringkas berisi nama toko diikuti rincian barang dalam kategori tersebut (misal: "Alfamart - Makan (Abon)" atau "Alfamart - Jajan (Mentos)").\n' +
     '   - Tetapkan tanggal "date" (YYYY-MM-DD) sesuai tanggal transaksi di struk belanja.\n\n' +
+    "CARA MEMBACA DOKUMEN:\n" +
+    "1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n" +
+    "   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [${expenseCats.join(", ")}].\n" +
+    "   - Aturan klasifikasi kategori penting (Ikuti panduan ini agar klasifikasi akurat):\n" +
+    "     * \"Makan\" (atau kategori makanan utama): Khusus untuk makanan berat, lauk-pauk siap saji (seperti abon, sarden, sosis lauk), mie instan, telur, atau kebutuhan pangan pokok berat.\n" +
+    "     * \"Jajan\" (atau kategori snack/camilan): Khusus untuk makanan ringan, permen (seperti Mentos), cokelat, snack, es krim, roti manis, serta minuman manis/soda (seperti Sprite, Fanta, Coca-Cola) atau kopi instan/botolan.\n" +
+    "     * \"Sembako\": Khusus untuk bahan mentah dapur dasar (minyak goreng, beras karung, gula pasir, garam, dsb).\n" +
+    "     * \"Belanja\": Khusus untuk kebutuhan rumah tangga non-konsumsi (seperti sabun mandi, detergen, pasta gigi, tisu, shampoo, sikat gigi, dsb).\n" +
+    "     * Jika ada kategori kustom baru yang baru saja ditambahkan oleh pengguna, pilihlah jika nama kategorinya lebih spesifik dan cocok dengan barang yang dibeli.\n" +
+    "   - Kelompokkan barang-barang belanjaan tersebut ke dalam kategori-kategori yang sesuai. Untuk SETIAP kategori yang ditemukan, buat SATU objek pengeluaran (\"type\": \"expense\").\n" +
+    "   - Hitung nilai \"amount\" bersih untuk kategori tersebut. Caranya: hitung subtotal harga barang dalam kategori tersebut, lalu kurangi diskon barang tersebut, dan TAMBAHKAN PPN/Pajak secara proporsional. Pastikan jika jumlah \"amount\" dari semua kategori pengeluaran ini dijumlahkan, hasilnya cocok 100% dengan Grand Total (Total Bayar) yang tertera di struk belanja.\n" +
+    "   - Berikan \"note\" berupa deskripsi ringkas berisi nama toko diikuti rincian barang dalam kategori tersebut (misal: \"Alfamart - Makan (Abon)\" atau \"Alfamart - Jajan (Mentos)\").\n" +
+    "   - Tetapkan tanggal \"date\" (YYYY-MM-DD) sesuai tanggal transaksi di struk belanja.\n\n" +
     "2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n" +
     "   - Baca dokumen baris per baris dari atas ke bawah.\n" +
     "   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n" +
-    `   - Untuk setiap transaksi mutasi, buat satu objek dengan field: \"order\" (integer), \"date\" (YYYY-MM-DD, asumsikan tahun ${new Date().getFullYear()} jika tidak tertulis), \"type\" (\"expense\" atau \"income\"), \"amount\" (integer rupiah), \"note\" (keterangan transaksi), \"category\" (pilih yang paling cocok dari daftar: expense: [${expenseCats.join(", ")}], income: [${incomeCats.join(", ")}]; atau \"Lainnya\"), \"isDuplicateRead\" (boolean).\n\n` +
+    "   - Untuk setiap transaksi mutasi, buat satu objek dengan field: \"order\" (integer), \"date\" (YYYY-MM-DD, asumsikan tahun ${new Date().getFullYear()} jika tidak tertulis), \"type\" (\"expense\" atau \"income\"), \"amount\" (integer rupiah), \"note\" (keterangan transaksi), \"category\" (pilih yang paling cocok dari daftar: expense: [${expenseCats.join(", ")}], income: [${incomeCats.join(", ")}]; atau \"Lainnya\"), \"wallet\" (isi jika nama dompet/rekening disebutkan di mutasi, jika tidak kosongkan), \"isDuplicateRead\" (boolean).\n\n" +
     "3. JIKA FOTO BUKAN STRUK/DOKUMEN FINANSIAL (foto bebas — barang, tempat, gerobak, banner, papan menu, antrian, dsb):\n" +
     "   - Kenali & interpretasikan isi foto seluas-luasnya: apa yang terlihat, termasuk tulisan pada banner/plang/papan menu kalau ada.\n" +
-    '   - Susun "note" yang jelas dari isi foto (contoh: foto gerobak bertuliskan "Bakso Pak Kumis" → note "Bakso Pak Kumis"; foto plang "Bengkel Motor Jaya" → note "Servis di Bengkel Motor Jaya").\n' +
-    `   - Tebak \"category\" paling masuk akal dari daftar kategori yang ada (expense: [${expenseCats.join(", ")}], income: [${incomeCats.join(", ")}]; atau \"Lainnya\" kalau tidak ada yang cocok).\n` +
-    '   - "amount": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set "amount" ke 0 — JANGAN MENEBAK nominal untuk jenis foto ini.\n' +
-    `   - \"date\": default hari ini (${todayStr}) kalau tidak ada info tanggal di foto/caption.\n\n` +
+    "   - Susun \"note\" yang jelas dari isi foto (contoh: foto gerobak bertuliskan \"Bakso Pak Kumis\" → note \"Bakso Pak Kumis\"; foto plang \"Bengkel Motor Jaya\" → note \"Servis di Bengkel Motor Jaya\"). Jika kamu tidak tahu nama barang/jasa yang konkret dengan yakin, isi field \"note\" dengan string kosong \"\".\n" +
+    "   - Tebak \"category\" paling masuk akal dari daftar kategori yang ada (expense: [${expenseCats.join(", ")}], income: [${incomeCats.join(", ")}]; atau \"Lainnya\" kalau tidak ada yang cocok).\n" +
+    "   - \"amount\": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set \"amount\" ke 0 — JANGAN MENEBAK nominal untuk jenis foto ini.\n" +
+    "   - \"date\": default hari ini (${todayStr}) kalau tidak ada info tanggal di foto/caption.\n\n" +
     "4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER (dan bukan sekadar caption untuk kasus 3 di atas, atau memang berdiri sendiri tanpa foto):\n" +
-    '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda. Pemisah BISA berupa koma, kata "dan", atau baris baru — TAPI JUGA bisa TANPA pemisah eksplisit sama sekali (mis. transkrip suara/VN yang ngalir panjang tanpa koma/titik yang jelas). Untuk kasus tanpa pemisah eksplisit ini, kenali batas antar transaksi dari PERGANTIAN KONTEKS: setiap kali muncul nama barang/jasa/aktivitas BARU yang beda dari sebelumnya, atau muncul angka nominal baru yang jelas menempel ke aktivitas tertentu, itu pertanda transaksi baru dimulai — meskipun tidak ada tanda baca pemisah sama sekali. Baca seluruh teks dulu secara utuh sebelum memutuskan pembagiannya, jangan asal potong per kalimat pendek.\n' +
-    '   - Kenali nama barang/jasa/aktivitas APAPUN meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu di SEMUA kategori kehidupan sehari-hari, bukan cuma makanan). Contoh lintas kategori: makanan/minuman ("naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek); transportasi/bensin ("bensin"/"bensol"→BBM, "ojol"→ojek online, "parkir"); pulsa/langganan ("token"→token listrik, "paketan"/"kuota"→paket data, "streaming"→Netflix/Spotify dsb); jasa/servis ("benerin/betulin/service"); tagihan ("PDAM"→air, "bpjs", "cicilan"/"kredit"); sosial-keagamaan ("kondangan", "amplopan", "infaq/zakat", "arisan"); kesehatan ("obat", "vitamin", "dokter"); lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu TAPI tetap ada indikasi itu adalah barang/jasa/aktivitas finansial (termasuk kalau cuma satu kata benda tanpa kata kerja/konteks tambahan, mis. hanya "token listrik" atau "kopi"), tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks — JANGAN dibuang hanya karena singkat/minim konteks. Ini TIDAK berlaku untuk teks yang sama sekali bukan transaksi (lihat aturan 0) — untuk kasus itu jangan buat objek sama sekali, bukan "tulis apa adanya".\n' +
-    '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. "2,5", "32,75", "1,5") — koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya "kemahalan"/"kemurahan" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) — RUMUS TETAP: "2,5"=2500, "1,5"=1500, "32,75"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. "2,5"≠2500000) kecuali user eksplisit menulis satuan "jt"/"juta" setelahnya (mis. "2,5jt"/"2,5 juta"=2500000 — beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: "wifi 2,5" → amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 — persis 2500 sesuai rumus koma-desimal-ribu). "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): "seceng"=1000, "goceng"=5000, "ceban"=10000, "noceng"=9000, "cepek"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, "cepek" sering juga berarti 100.000 — pilih yang paling masuk akal dari konteks), "goban"/"gocap"=50000, "toserba"/"nogo"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar — JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n' +
+    "   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda. Pemisah BISA berupa koma, kata \"dan\", atau baris baru — TAPI JUGA bisa TANPA pemisah eksplisit sama sekali (mis. transkrip suara/VN yang ngalir panjang tanpa koma/titik yang jelas). Untuk kasus tanpa pemisah eksplisit ini, kenali batas antar transaksi dari PERGANTIAN KONTEKS: setiap kali muncul nama barang/jasa/aktivitas BARU yang beda dari sebelumnya, atau muncul angka nominal baru yang jelas menempel ke aktivitas tertentu, itu pertanda transaksi baru dimulai — meskipun tidak ada tanda baca pemisah sama sekali. Baca seluruh teks dulu secara utuh sebelum memutuskan pembagiannya, jangan asal potong per kalimat pendek.\n" +
+    "   - Jika user menyebutkan nama dompet secara eksplisit di pesan (mis. 'dari dompet tabungan', 'rekening kas', 'pake tabungan'), isi field \"wallet\" dengan nama dompet yang disebut tersebut. Jika tidak disebutkan, kosongkan (isi \"\" atau null).\n" +
+    "   - JANGAN PERNAH mengisi field \"note\" dengan kata generik seperti \"Pengeluaran\", \"Pemasukan\", \"Transaksi\", atau \"Lainnya\". Jika dari input (teks/foto/VN) kamu tidak tahu nama barang/jasa yang konkret dengan yakin, isi field \"note\" dengan string kosong \"\" agar sistem bisa bertanya langsung ke user.\n" +
+    "   - Kenali nama barang/jasa/aktivitas APAPUN meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu di SEMUA kategori kehidupan sehari-hari, bukan cuma makanan). Contoh lintas kategori: makanan/minuman (\"naskun\"→Nasi kuning, \"nasgor\"→Nasi goreng, \"baso\"→Bakso, \"indomie\"→Mie instan, \"esteh\"→Es teh, \"kopsus\"→Kopi susu, \"gepuk/geprek\"→Ayam geprek); transportasi/bensin (\"bensin\"/\"bensol\"→BBM, \"ojol\"→ojek online, \"parkir\"); pulsa/langganan (\"token\"→token listrik, \"paketan\"/\"kuota\"→paket data, \"streaming\"→Netflix/Spotify dsb); jasa/servis (\"benerin/betulin/service\"); tagihan (\"PDAM\"→air, \"bpjs\", \"cicilan\"/\"kredit\"); sosial-keagamaan (\"kondangan\", \"amplopan\", \"infaq/zakat\", \"arisan\"); kesehatan (\"obat\", \"vitamin\", \"dokter\"); lalu tulis \"note\" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Jika benar-benar tidak tahu barang/jasanya dengan yakin, isi \"note\" dengan string kosong \"\".\n" +
+    "   - Pahami berbagai format penulisan nominal informal ala Indonesia: \"25rb\"/\"25 ribu\"=25000; \"4.3jt\"/\"4,3 juta\"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. \"2,5\", \"32,75\", \"1,5\") — koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya \"kemahalan\"/\"kemurahan\" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) — RUMUS TETAP: \"2,5\"=2500, \"1,5\"=1500, \"32,75\"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. \"2,5\"≠2500000) kecuali user eksplisit menulis satuan \"jt\"/\"juta\" setelahnya (mis. \"2,5jt\"/\"2,5 juta\"=2500000 — beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: \"wifi 2,5\" → amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 — persis 2500 sesuai rumus koma-desimal-ribu). \"32,75\"=32750; \"1k\"/\"2k\"/\"5k\"=1000/2000/5000; angka dieja (\"seribu\"=1000, \"dua ribu\"=2000, \"sepuluh ribu\"=10000, \"seratus ribu\"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): \"seceng\"=1000, \"goceng\"=5000, \"ceban\"=10000, \"noceng\"=9000, \"cepek\"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, \"cepek\" sering juga berarti 100.000 — pilih yang paling masuk akal dari konteks), \"goban\"/\"gocap\"=50000, \"toserba\"/\"nogo\"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. \"25\",\"10\",\"100\") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. \"25\"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. \"25000\",\"150000\") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar — JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n" +
     '   - "type": "income" kalau jelas pemasukan (mis. "gaji masuk", "dapat bonus"), selain itu "expense".\n' +
     '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) → set "amount" ke 0, JANGAN MENEBAK.\n' +
     `   - \"date\": default hari ini (${todayStr}) kalau tidak disebutkan tanggal lain di teks.\n\n` +
@@ -167,7 +184,7 @@ export function buildTransactionPrompt(
     '   - "minjemin duit ke Budi 200rb" → expense, note "Pinjamkan uang ke Budi", amount 200000, category "Lainnya".\n' +
     '   - "jadi tadi pagi aku ke pasar beli sayur 25rb terus mampir warkop ngopi 8rb abis itu ke bengkel benerin ban bocor 15rb" (contoh gaya transkrip VN panjang tanpa koma/pemisah jelas) → HARUS dipecah jadi 3 transaksi terpisah berdasarkan pergantian konteks aktivitas: (1) expense "Beli sayur di pasar" 25000, (2) expense "Ngopi di warkop" 8000, (3) expense "Tambal ban bocor" 15000 — JANGAN digabung jadi satu transaksi besar atau dianggap gagal parse hanya karena tidak ada tanda baca pemisah.\n' +
     "Pola umumnya: SELAMA ada kata benda/kata kerja/nama tempat/aktivitas apapun yang berpotensi berkaitan aktivitas ekonomi (benerin/ganti/servis/parkir/potong/tambal/beli/bayar/jual/dapat/dsb, ATAU sekadar nama barang/jasa/tempat tanpa kata kerja sama sekali) — walau ditulis santai, typo, terlalu singkat, nominalnya pakai istilah gaul, ATAU tanpa nominal sama sekali — WAJIB tetap dibuatkan objek transaksinya. JANGAN biarkan ketidakpastian soal kategori, kejelasan nominal, ATAU singkatnya kalimat membuatmu menolak keseluruhan transaksinya; pilih tebakan terbaik dan tetap keluarkan objeknya. Array kosong [] HANYA untuk 3 kategori sempit di aturan 0.\n\n" +
-    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.'
+    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, wallet, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.'
   );
 }
 
@@ -191,7 +208,6 @@ export async function callGeminiRaw(
       const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
       const generationConfig: Record<string, unknown> = {
-        responseMimeType: "application/json",
         temperature,
         maxOutputTokens: 8192,
       };
@@ -202,6 +218,7 @@ export async function callGeminiRaw(
       }
 
       if (responseSchema) {
+        generationConfig.responseMimeType = "application/json";
         generationConfig.responseSchema = responseSchema;
       }
 
@@ -330,16 +347,16 @@ export async function parseTransactions(
 
 export async function parseEditInstruction(
   apiKeys: string[],
-  userReply: string,
+  userReply: string | GeminiPart[],
   currentTransaction: Record<string, unknown>,
   expenseCats: string[],
   incomeCats: string[],
   walletNames: string[],
 ): Promise<EditInstruction> {
-  const prompt =
+  const promptText =
     `Kamu asisten keuangan. User membalas (reply) ke pesan konfirmasi transaksi berikut:\n` +
     `${JSON.stringify(currentTransaction, null, 2)}\n\n` +
-    `Teks balasan user: "${userReply}"\n\n` +
+    (typeof userReply === "string" ? `Teks balasan user: "${userReply}"\n\n` : `User mengirim rekaman suara (audio) berisi instruksi balasan.\n\n`) +
     `Tentukan apa instruksi user:\n` +
     `- "edit": update satu atau beberapa field (amount, category, note, wallet)\n` +
     `- "delete": hapus transaksi ini\n` +
@@ -350,9 +367,16 @@ export async function parseEditInstruction(
     `Keluarkan JSON sesuai schema. Untuk "edit", isi hanya field yang berubah (kosongkan field yang tidak disebutkan user).` +
     ` Untuk "unclear", isi "reason" dengan penjelasan singkat apa yang perlu diklarifikasi.`;
 
+  const parts: GeminiPart[] = [{ text: promptText }];
+  if (typeof userReply === "string") {
+    // String is already included in promptText
+  } else {
+    parts.push(...userReply);
+  }
+
   const data = await callGeminiRaw(
     apiKeys,
-    [{ text: prompt }],
+    parts,
     0.1,
     EDIT_SCHEMA,
   );

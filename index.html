@@ -2301,6 +2301,7 @@ function getAccessCode() {
 }
 
 let isSyncingData = false;
+let isSyncNeededAgain = false;
 let isResettingData = false; // blocks sync interval during full data reset
 
 function updateSyncStatusUI(status, isManual) {
@@ -2423,6 +2424,10 @@ function mergeWallets(localList, remoteList) {
 async function syncAllWithSupabase(silent = true) {
   // Hard block: never run sync while a full data reset is in progress
   if (isResettingData) return;
+  if (isSyncingData) {
+    isSyncNeededAgain = true;
+    return;
+  }
   if (!supabaseClient || !navigator.onLine) {
     updateSyncStatusUI('offline', !silent);
     if (!silent) showToast('Mode Offline (Lokal) - Data disimpan di HP');
@@ -2464,20 +2469,7 @@ async function syncAllWithSupabase(silent = true) {
     applyDeletedIdsFilter(mergedDeleted);
     const deletedSet = new Set(mergedDeleted);
 
-    // 1. Wallets
-    const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
-    if (remWallets) {
-      const filtered = remWallets.filter(r => !deletedSet.has(String(r.id)));
-      const mapped = filtered.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
-      const merged = mergeWallets(getWallets(), mapped);
-      setWalletsLocalOnly(merged);
-      const pushRecs = merged.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
-      if (pushRecs.length > 0) {
-        await supabaseClient.from('wallets').upsert(pushRecs);
-      }
-    }
-
-    // 2. Transactions
+    // 1. Transactions (Synced first!)
     const { data: remTx } = await supabaseClient.from('transactions').select('*').eq('access_code', code);
     if (remTx) {
       const filtered = remTx.filter(r => !deletedSet.has(String(r.id)));
@@ -2496,7 +2488,7 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs.length > 0) await supabaseClient.from('transactions').upsert(pushRecs);
     }
 
-    // 3. Categories
+    // 2. Categories
     const { data: remCats } = await supabaseClient.from('categories').select('*').eq('access_code', code);
     if (remCats) {
       const filtered = remCats.filter(r => !deletedSet.has(String(r.id)));
@@ -2509,7 +2501,7 @@ async function syncAllWithSupabase(silent = true) {
       }
     }
 
-    // 4. Budgets
+    // 3. Budgets
     const { data: remBudgets } = await supabaseClient.from('budgets').select('*').eq('access_code', code);
     if (remBudgets) {
       const filtered = remBudgets.filter(r => !deletedSet.has(String(r.id)));
@@ -2521,7 +2513,7 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs.length > 0) await supabaseClient.from('budgets').upsert(pushRecs);
     }
 
-    // 5. Savings Goals (Tujuan)
+    // 4. Savings Goals (Tujuan)
     const { data: remGoals } = await supabaseClient.from('savings_goals').select('*').eq('access_code', code);
     if (remGoals) {
       const filtered = remGoals.filter(r => !deletedSet.has(String(r.id)));
@@ -2538,7 +2530,7 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs.length > 0) await supabaseClient.from('savings_goals').upsert(pushRecs);
     }
 
-    // 6. Debts (debt_entries)
+    // 5. Debts (debt_entries)
     const { data: remDebts } = await supabaseClient.from('debt_entries').select('*').eq('access_code', code);
     if (remDebts) {
       const filtered = remDebts.filter(r => !deletedSet.has(String(r.id)));
@@ -2559,7 +2551,7 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs2.length > 0) await supabaseClient.from('debt_entries').upsert(pushRecs2);
     }
 
-    // 7. Recurring items (recurring_items)
+    // 6. Recurring items (recurring_items)
     const { data: remRec } = await supabaseClient.from('recurring_items').select('*').eq('access_code', code);
     if (remRec) {
       const filtered = remRec.filter(r => !deletedSet.has(String(r.id)));
@@ -2582,33 +2574,64 @@ async function syncAllWithSupabase(silent = true) {
       if (pushRecs3.length > 0) await supabaseClient.from('recurring_items').upsert(pushRecs3);
     }
 
+    // 7. Wallets (Synced after transactions!)
+    const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
+    if (remWallets) {
+      const filtered = remWallets.filter(r => !deletedSet.has(String(r.id)));
+      const mapped = filtered.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const merged = mergeWallets(getWallets(), mapped);
+      setWalletsLocalOnly(merged);
+      
+      // Recalculate balances dynamically based on the merged transactions
+      recalculateWalletBalances();
+      
+      // Push the final updated wallet records back to Supabase
+      const finalWallets = getWallets();
+      const pushRecs = finalWallets.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
+      if (pushRecs.length > 0) {
+        await supabaseClient.from('wallets').upsert(pushRecs);
+      }
+    }
+
     // 8. User Settings, Nav Config, Shortcuts, AI Insights & Deleted IDs Sync
     try {
       if (remChkSettings) {
         if (remChkSettings.nav_config && remChkSettings.nav_config.core) {
           const localCfg = getNavConfig();
           const remoteCfg = remChkSettings.nav_config;
-          // Merge: keep local heroWallets if remote doesn't have them, or use remote if present
           const merged = { ...remoteCfg };
-          if (localCfg.heroWallets && (!remoteCfg.heroWallets || !Array.isArray(remoteCfg.heroWallets))) {
-            merged.heroWallets = localCfg.heroWallets;
+          
+          const localCoreTs = Number(localCfg.coreUpdatedAt) || 0;
+          const remoteCoreTs = Number(remoteCfg.coreUpdatedAt) || 0;
+          if (localCoreTs >= remoteCoreTs) {
+            merged.core = localCfg.core;
+            merged.coreUpdatedAt = localCoreTs;
           }
-          // Keep local dashboardAvgCatIds if it was changed more recently than remote's copy,
-          // so an in-flight upload doesn't get clobbered by a stale read from the server
-          // (fixes: kategori rata-rata harian hilang lagi setelah dipilih).
+
+          const localHeroTs = Number(localCfg.heroWalletsUpdatedAt) || 0;
+          const remoteHeroTs = Number(remoteCfg.heroWalletsUpdatedAt) || 0;
+          if (localHeroTs >= remoteHeroTs) {
+            merged.heroWallets = localCfg.heroWallets;
+            merged.heroWalletsUpdatedAt = localHeroTs;
+          }
+
           const localAvgTs = Number(localCfg.dashboardAvgCatIdsUpdatedAt) || 0;
           const remoteAvgTs = Number(remoteCfg.dashboardAvgCatIdsUpdatedAt) || 0;
-          if (localAvgTs > remoteAvgTs) {
+          if (localAvgTs >= remoteAvgTs) {
             merged.dashboardAvgCatIds = localCfg.dashboardAvgCatIds;
             merged.dashboardAvgCatIdsUpdatedAt = localAvgTs;
           }
-          // Same logic for dashboardAvgExcludeCatIds (kategori pengecualian rata-rata harian)
+
           const localExclTs = Number(localCfg.dashboardAvgExcludeCatIdsUpdatedAt) || 0;
           const remoteExclTs = Number(remoteCfg.dashboardAvgExcludeCatIdsUpdatedAt) || 0;
-          if (localExclTs > remoteExclTs) {
+          if (localExclTs >= remoteExclTs) {
             merged.dashboardAvgExcludeCatIds = localCfg.dashboardAvgExcludeCatIds;
             merged.dashboardAvgExcludeCatIdsUpdatedAt = localExclTs;
           }
+
+          const mergedInitialBalances = { ...(remoteCfg.initialBalances || {}), ...(localCfg.initialBalances || {}) };
+          merged.initialBalances = mergedInitialBalances;
+
           setNavConfigLocalOnly(merged);
         }
         if (remChkSettings.sheets_web_app_url != null) {
@@ -2673,6 +2696,10 @@ async function syncAllWithSupabase(silent = true) {
     updateSyncStatusUI('offline');
   } finally {
     isSyncingData = false;
+    if (isSyncNeededAgain) {
+      isSyncNeededAgain = false;
+      setTimeout(() => syncAllWithSupabase(true), 100);
+    }
   }
 }
 
@@ -2712,7 +2739,9 @@ function closeConfirmModal(result){
   if(confirmModalResolver){
     const resolve = confirmModalResolver;
     confirmModalResolver = null;
-    resolve(result);
+    setTimeout(() => {
+      resolve(result);
+    }, 150);
   }
 }
 
@@ -2881,7 +2910,22 @@ function getNavConfig(){
   const dashboardAvgCatIdsUpdatedAt = (raw && Number(raw.dashboardAvgCatIdsUpdatedAt)) || 0;
   const dashboardAvgExcludeCatIds = (raw && Array.isArray(raw.dashboardAvgExcludeCatIds)) ? raw.dashboardAvgExcludeCatIds : [];
   const dashboardAvgExcludeCatIdsUpdatedAt = (raw && Number(raw.dashboardAvgExcludeCatIdsUpdatedAt)) || 0;
-  return { core, heroWallets, dashboardAvgCatIds, dashboardAvgCatIdsUpdatedAt, dashboardAvgExcludeCatIds, dashboardAvgExcludeCatIdsUpdatedAt };
+  
+  const coreUpdatedAt = (raw && Number(raw.coreUpdatedAt)) || 0;
+  const heroWalletsUpdatedAt = (raw && Number(raw.heroWalletsUpdatedAt)) || 0;
+  const initialBalances = (raw && raw.initialBalances) ? raw.initialBalances : {};
+  
+  return { 
+    core, 
+    heroWallets, 
+    dashboardAvgCatIds, 
+    dashboardAvgCatIdsUpdatedAt, 
+    dashboardAvgExcludeCatIds, 
+    dashboardAvgExcludeCatIdsUpdatedAt,
+    coreUpdatedAt,
+    heroWalletsUpdatedAt,
+    initialBalances
+  };
 }
 function getHeroWallets(){
   const cfg = getNavConfig();
@@ -2890,6 +2934,7 @@ function getHeroWallets(){
 function setHeroWallets(heroWallets){
   const cfg = getNavConfig();
   cfg.heroWallets = heroWallets;
+  cfg.heroWalletsUpdatedAt = Date.now();
   setNavConfig(cfg);
 }
 function getDashboardAvgCatIds(){
@@ -2930,7 +2975,12 @@ function setDashboardAvgExcludeCatIds(ids){
 }
 function setNavConfigLocalOnly(cfg){ localStorage.setItem(LS_KEYS.navConfig, JSON.stringify(cfg)); }
 function setNavConfig(cfg){
-  setNavConfigLocalOnly(cfg);
+  const existing = getNavConfig();
+  const merged = { ...existing, ...cfg };
+  if (cfg.core) {
+    merged.coreUpdatedAt = Date.now();
+  }
+  setNavConfigLocalOnly(merged);
   if(typeof renderBottomNav === 'function') renderBottomNav();
   syncAllWithSupabase(true);
 }
@@ -3326,7 +3376,9 @@ function deleteTransaction(id){
   recordDeletion(id);
   if(supabaseClient && navigator.onLine){
     const code = getAccessCode();
-    supabaseClient.from('transactions').delete().eq('access_code', code).eq('id', id).catch(err => console.warn('Supabase tx delete err:', err));
+    supabaseClient.from('transactions').delete().eq('access_code', code).eq('id', id).then(res => {
+      if(res.error) console.warn('Supabase tx delete err:', res.error);
+    });
   }
   const txs = getTransactions();
   const idx = txs.findIndex(t => t.id === id);
@@ -3395,6 +3447,51 @@ function applyBalanceDelta(walletId, delta){
   w.balance = Math.round((w.balance + delta) * 100) / 100;
   w.updatedAt = Date.now();
   setWalletsLocalOnly(wallets);
+}
+
+function recalculateWalletBalances() {
+  const wallets = getWallets();
+  const transactions = getTransactions();
+  if (wallets.length === 0) return;
+
+  const sums = {};
+  wallets.forEach(w => { sums[w.id] = 0; });
+
+  transactions.forEach(t => {
+    if (t.pending) return;
+    const amt = Number(t.amount) || 0;
+    if (t.type === 'expense') {
+      if (sums[t.walletId] !== undefined) sums[t.walletId] -= amt;
+    } else if (t.type === 'income') {
+      if (sums[t.walletId] !== undefined) sums[t.walletId] += amt;
+    } else if (t.type === 'transfer') {
+      if (sums[t.walletId] !== undefined) sums[t.walletId] -= amt;
+      if (sums[t.toWalletId] !== undefined) sums[t.toWalletId] += amt;
+    }
+  });
+
+  const cfg = getNavConfig();
+  if (!cfg.initialBalances) cfg.initialBalances = {};
+  let changed = false;
+
+  const updatedWallets = wallets.map(w => {
+    if (cfg.initialBalances[w.id] === undefined) {
+      cfg.initialBalances[w.id] = (Number(w.balance) || 0) - (sums[w.id] || 0);
+      changed = true;
+    }
+    const newBalance = (Number(cfg.initialBalances[w.id]) || 0) + (sums[w.id] || 0);
+    if (w.balance !== newBalance) {
+      w.balance = newBalance;
+      w.updatedAt = Date.now();
+      changed = true;
+    }
+    return w;
+  });
+
+  if (changed) {
+    setWalletsLocalOnly(updatedWallets);
+    setNavConfigLocalOnly(cfg);
+  }
 }
 
 /* =========================================================
@@ -3513,7 +3610,9 @@ function deleteRecurringItem(id){
   recordDeletion(id);
   if(supabaseClient && navigator.onLine){
     const code = getAccessCode();
-    supabaseClient.from('recurring_items').delete().eq('access_code', code).eq('id', id).catch(err => console.warn('Supabase recurring delete err:', err));
+    supabaseClient.from('recurring_items').delete().eq('access_code', code).eq('id', id).then(res => {
+      if(res.error) console.warn('Supabase recurring delete err:', res.error);
+    });
   }
   setRecurring(getRecurring().filter(r => r.id !== id));
 }
@@ -6958,7 +7057,6 @@ async function deleteCurrentTransaction(){
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
-  await new Promise(r => setTimeout(r, 150));
   deleteTransaction(txId);
   closeModal('modalTransaction');
   showToast('Transaksi dihapus');
@@ -8302,6 +8400,7 @@ function saveHeroWalletSetting(){
   // Save locally without triggering full sync (avoids pull-overwrite race + tab glitch)
   const cfg = getNavConfig();
   cfg.heroWallets = checked;
+  cfg.heroWalletsUpdatedAt = Date.now();
   setNavConfigLocalOnly(cfg);
   closeModal('modalHeroWallets');
   renderHome();
@@ -8386,16 +8485,22 @@ function openWalletManageModal(){
 
 function renderWalletManageList(){
   const wallets = getWallets();
+  const cfg = getNavConfig();
   const listWrap = document.getElementById('walletManageList');
   if(!listWrap) return;
 
   listWrap.innerHTML = wallets.map(w => {
     const isDefault = (w.id === 'wallet_utama' || w.id === 'wallet_tabungan');
+    const initialVal = cfg.initialBalances && cfg.initialBalances[w.id] !== undefined ? cfg.initialBalances[w.id] : 0;
     return `
-      <div class="settings-row cat-manage-row" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;">
+      <div class="settings-row cat-manage-row" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;">
         <div class="l" style="flex:1;">
           <div style="font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
-          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;">${formatRupiah(w.balance)}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:4px;">
+            <span>Saldo Awal:</span>
+            <input type="text" data-id="${w.id}" value="${Math.round(initialVal).toLocaleString('id-ID')}" style="width:110px;padding:2px 6px;font-size:11.5px;font-weight:700;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);" oninput="updateWalletInitialBalance(this)" onblur="saveWalletInitialBalance(this)">
+          </div>
+          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:2px;">Saldo Akhir: <span style="color:var(--ink);font-weight:700;">${formatRupiah(w.balance)}</span></div>
         </div>
         <div>
           ${isDefault ? '<span style="font-size:11px;color:var(--ink-soft);font-weight:600;">Bawaan</span>' : `
@@ -8404,6 +8509,27 @@ function renderWalletManageList(){
         </div>
       </div>`;
   }).join('');
+}
+
+function updateWalletInitialBalance(inputEl) {
+  const raw = inputEl.value.replace(/\D/g, '');
+  const val = Number(raw) || 0;
+  inputEl.value = val.toLocaleString('id-ID');
+}
+
+function saveWalletInitialBalance(inputEl) {
+  const walletId = inputEl.dataset.id;
+  const raw = inputEl.value.replace(/\D/g, '');
+  const val = Number(raw) || 0;
+  
+  const cfg = getNavConfig();
+  if (!cfg.initialBalances) cfg.initialBalances = {};
+  cfg.initialBalances[walletId] = val;
+  setNavConfig(cfg);
+  
+  recalculateWalletBalances();
+  renderWalletManageList();
+  renderHome();
 }
 
 function addNewWalletFromManage(){
@@ -9365,6 +9491,7 @@ document.getElementById('onbTabungan').addEventListener('input', function(){ for
    INIT
    ========================================================= */
 function refreshAllViews(){
+  recalculateWalletBalances();
   renderHome();
   renderTransactions();
   renderBudget();
