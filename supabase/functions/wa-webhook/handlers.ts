@@ -538,10 +538,10 @@ async function processParsedItems(
           wa_chat_id: OWNER_PHONE,
           pending_data: JSON.stringify(row),
         });
-        const questionText = (await generateClarificationQuestion(apiKeys, {
+        const questionText = await generateClarificationQuestion(apiKeys, {
           type: "amount",
           note: isNoteGeneric ? undefined : row.note,
-        })) + `\nBalas pesan ini dengan nominalnya. Contoh: "25rb" atau "25000"`;
+        });
 
         const questionMsg = await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
@@ -573,7 +573,7 @@ async function processParsedItems(
 
       let questionText = "";
       if (row.isFromMedia) {
-        questionText = `Saya gagal membaca media yang kamu unggah. ${formatRupiah(row.amount)} ini untuk bayar apa ya?`;
+        questionText = `Gagal membaca media yang kamu kirim, ${formatRupiah(row.amount)} ini buat bayar apa?`;
       } else {
         questionText = await generateClarificationQuestion(apiKeys, {
           type: "note",
@@ -762,7 +762,7 @@ export async function handleMediaBatch(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal membaca media yang kamu unggah. Coba kirim ulang ya, atau kamu bisa ketik manual atau kirim pesan suara (vn) saja.",
+      "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       firstMsgId,
     );
     return;
@@ -782,7 +782,7 @@ export async function handleMediaBatch(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal membaca media yang kamu unggah. Coba kirim ulang ya, atau kamu bisa ketik manual atau kirim pesan suara (vn) saja.",
+      "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       firstMsgId,
     );
     return;
@@ -793,7 +793,7 @@ export async function handleMediaBatch(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Tidak ketemu info transaksi dari media ini. Coba kirim ulang ya, atau kamu bisa ketik manual atau kirim pesan suara (vn) saja.",
+      "Tidak ketemu info transaksi dari media ini. Coba ketik manual atau kirim pesan suara.",
       firstMsgId,
     );
     return;
@@ -915,7 +915,7 @@ export async function handleAudioMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
+      "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       msg.messageId,
     );
     return;
@@ -948,7 +948,7 @@ export async function handleAudioMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
+      "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       msg.messageId,
     );
     return;
@@ -959,7 +959,7 @@ export async function handleAudioMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
+      "Tidak ketemu info transaksi dari media ini. Coba ketik manual atau kirim pesan suara.",
       msg.messageId,
     );
     return;
@@ -1010,7 +1010,7 @@ export async function handleReplyToTransaction(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
         OWNER_PHONE,
-        "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
+        "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
         msg.messageId,
       );
       return;
@@ -1072,7 +1072,7 @@ export async function handleReplyToTransaction(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      `Kurang jelas nih: ${instruction.reason ?? 'coba tulis lebih spesifik ya. Contoh: "hapus", "500rb", "kategorinya makan"'}`,
+      `Kurang jelas nih: ${instruction.reason ?? 'coba tulis lebih spesifik'}`,
       msg.messageId,
     );
     return;
@@ -1285,7 +1285,7 @@ async function completePendingNominal(
 
     let questionText = "";
     if (pendingData.isFromMedia) {
-      questionText = `Saya gagal membaca media yang kamu unggah. ${formatRupiah(amount)} ini untuk bayar apa ya?`;
+      questionText = `Gagal membaca media yang kamu kirim, ${formatRupiah(amount)} ini buat bayar apa?`;
     } else {
       questionText = await generateClarificationQuestion(apiKeys, {
         type: "note",
@@ -1344,7 +1344,7 @@ export async function handlePendingNominalReply(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
         OWNER_PHONE,
-        'Tidak ketemu angka nominalnya, coba tulis lagi ya. Contoh: "25rb" atau "25000"',
+        "Tidak ketemu angka nominalnya, coba tulis lagi.",
         msg.messageId,
       );
       return;

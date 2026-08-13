@@ -203,7 +203,7 @@ async function enqueueAndScheduleMedia(
             PHONE_NUMBER_ID,
             WA_ACCESS_TOKEN,
             msg.from,
-            "Maaf, gagal memproses foto/suara Anda. Coba kirim ulang ya.",
+            "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
             msg.messageId,
           );
         } catch (sendErr) {

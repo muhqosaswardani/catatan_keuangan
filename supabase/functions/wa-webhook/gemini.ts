@@ -419,40 +419,13 @@ export async function generateNaturalResponse(
 // ============================================================
 
 export async function generateClarificationQuestion(
-  apiKeys: string[],
+  _apiKeys: string[],
   context: { type: "note" | "amount"; note?: string; amount?: number },
 ): Promise<string> {
-  const prompt =
-    `Kamu asisten keuangan pribadi yang santai dan natural. Susun sebuah kalimat tanya pendek yang sangat ramah, santai, dan alami (tanpa emoji, gunakan bahasa Indonesia sehari-hari/gaul santai, tidak kaku, jangan gunakan kalimat template) untuk menanyakan detail transaksi.\n\n` +
-    (context.type === "amount"
-      ? `Konteks: User baru saja mengirim foto/catatan mengenai barang/jasa/kegiatan "${context.note || "suatu barang"}" tetapi harganya tidak diketahui. Tanyakan berapa harganya/habis berapa secara alami dan menyatu dengan nama barangnya.\n` +
-        `Contoh kalimat alami:\n` +
-        `- "${context.note || "Barang"} ini berapa harganya ya?"\n` +
-        `- "Tadi beli ${context.note || "barang"} habis berapa?"\n` +
-        `- "Berapa harga ${context.note || "barang"}-nya?"\n` +
-        `- "Beli ${context.note || "barang"} tadi berapaan?"\n` +
-        `Gunakan variasi kalimat yang serupa dan mengalir alami.`
-      : `Konteks: Ada transaksi sebesar ${formatRupiah(context.amount ?? 0)} dari foto/media yang diunggah, tapi barang/jasanya tidak terbaca jelas. Tanyakan uang sebesar itu dipakai untuk membayar apa secara alami.\n` +
-        `Contoh kalimat alami:\n` +
-        `- "Uang ${formatRupiah(context.amount ?? 0)} ini tadi buat bayar apa ya?"\n` +
-        `- "Tadi habis ${formatRupiah(context.amount ?? 0)} buat beli apa?"\n` +
-        `- "Untuk yang ${formatRupiah(context.amount ?? 0)} itu transaksi apa ya?"\n` +
-        `Gunakan variasi kalimat yang serupa dan mengalir alami.`) +
-    `\n\nKeluarkan HANYA kalimat tanyanya saja langsung, tanpa penjelasan, tanpa tanda kutip.`;
-
-  try {
-    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.85);
-    const text = extractGeminiText(data).trim();
-    return text.replace(/^["']|["']$/g, "");
-  } catch {
-    if (context.type === "amount") {
-      return context.note
-        ? `Tadi beli ${context.note} habis berapa ya?`
-        : `Itu tadi harganya berapa ya?`;
-    } else {
-      return `Uang ${formatRupiah(context.amount ?? 0)} ini tadi buat bayar apa ya?`;
-    }
+  if (context.type === "amount") {
+    return `${context.note} ini harganya berapa?`;
   }
+  return `Gagal membaca media yang kamu kirim, ${formatRupiah(context.amount ?? 0)} ini buat bayar apa?`;
 }
 
 // ============================================================
