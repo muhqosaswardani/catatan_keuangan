@@ -4197,6 +4197,10 @@ function openPicker(title, options, currentVal, onSelect){
 /* =========================================================
    RENDER: BERANDA
    ========================================================= */
+Chart.defaults.animation = false;
+if (Chart.defaults.transitions && Chart.defaults.transitions.active) {
+  Chart.defaults.transitions.active.animation.duration = 0;
+}
 let pieChartInst = null, pieChartIncomeInst = null, lineChartInst = null;
 
 /* Plugin custom: garis vertikal tipis mengikuti posisi hover/klik pada grafik tren,
@@ -4547,6 +4551,7 @@ function renderDonut(canvasId, emptyId, legendId, byCat, total, opts){
     type: 'doughnut',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor:'#fff' }] },
     options: {
+      animation: false,
       plugins: { legend: { display:false }, tooltip: { enabled:false } },
       cutout: '62%',
       onClick: (evt, elements) => {
@@ -4748,41 +4753,46 @@ function computeMonthBalances(monthStr){
   return computeRangeBalances(monthEndStr);
 }
 
+let renderLapRafId = null;
 function renderLaporan(){
-  if(laporanPeriodMode === 'day') renderLaporanDay();
-  else if(laporanPeriodMode === 'week') renderLaporanWeek();
-  else if(laporanPeriodMode === 'year') renderLaporanYear();
-  else renderLaporanMonth();
+  if (renderLapRafId) cancelAnimationFrame(renderLapRafId);
+  renderLapRafId = requestAnimationFrame(() => {
+    renderLapRafId = null;
+    if(laporanPeriodMode === 'day') renderLaporanDay();
+    else if(laporanPeriodMode === 'week') renderLaporanWeek();
+    else if(laporanPeriodMode === 'year') renderLaporanYear();
+    else renderLaporanMonth();
 
-  const lapHint = document.getElementById('lapSearchHint');
-  if(lapHint){
-    if(lapSearchOpen && lapSearchQuery.trim()){
-      const q = lapSearchQuery.trim();
-      const words = normalizeSearchText(q).split(/\s+/).filter(Boolean);
-      let periodTx;
-      if(laporanPeriodMode === 'day') periodTx = getTransactions().filter(t => t.date === laporanDay);
-      else if(laporanPeriodMode === 'week'){
-        const weekEndDate = new Date(laporanWeekStart + 'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate() + 6);
-        const weekEnd = toDateStr(weekEndDate);
-        periodTx = getTransactions().filter(t => t.date >= laporanWeekStart && t.date <= weekEnd);
-      } else if(laporanPeriodMode === 'year') periodTx = getTransactions().filter(t => t.date.slice(0,4) === laporanYear);
-      else periodTx = getTransactions().filter(t => t.date.slice(0,7) === laporanMonth);
-      const matchCount = words.length ? periodTx.filter(t => txMatchesSearchQuery(t, q)).length : periodTx.length;
-      lapHint.textContent = `${matchCount} transaksi cocok dengan "${q}"`;
-    } else {
-      lapHint.textContent = '';
+    const lapHint = document.getElementById('lapSearchHint');
+    if(lapHint){
+      if(lapSearchOpen && lapSearchQuery.trim()){
+        const q = lapSearchQuery.trim();
+        const words = normalizeSearchText(q).split(/\s+/).filter(Boolean);
+        let periodTx;
+        if(laporanPeriodMode === 'day') periodTx = getTransactions().filter(t => t.date === laporanDay);
+        else if(laporanPeriodMode === 'week'){
+          const weekEndDate = new Date(laporanWeekStart + 'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate() + 6);
+          const weekEnd = toDateStr(weekEndDate);
+          periodTx = getTransactions().filter(t => t.date >= laporanWeekStart && t.date <= weekEnd);
+        } else if(laporanPeriodMode === 'year') periodTx = getTransactions().filter(t => t.date.slice(0,4) === laporanYear);
+        else periodTx = getTransactions().filter(t => t.date.slice(0,7) === laporanMonth);
+        const matchCount = words.length ? periodTx.filter(t => txMatchesSearchQuery(t, q)).length : periodTx.length;
+        lapHint.textContent = `${matchCount} transaksi cocok dengan "${q}"`;
+      } else {
+        lapHint.textContent = '';
+      }
     }
-  }
 
-  const isCurrentMonthMode = (laporanPeriodMode === 'month' && laporanMonth === currentMonthStr());
-  const analysisSec = document.getElementById('analysisLapSection');
-  
-  if (isCurrentMonthMode) {
-    if (analysisSec) analysisSec.style.display = 'block';
-    checkAndRenderAnalysis();
-  } else {
-    if (analysisSec) analysisSec.style.display = 'none';
-  }
+    const isCurrentMonthMode = (laporanPeriodMode === 'month' && laporanMonth === currentMonthStr());
+    const analysisSec = document.getElementById('analysisLapSection');
+    
+    if (isCurrentMonthMode) {
+      if (analysisSec) analysisSec.style.display = 'block';
+      checkAndRenderAnalysis();
+    } else {
+      if (analysisSec) analysisSec.style.display = 'none';
+    }
+  });
 }
 
 function renderLaporanMonth(){
@@ -5055,6 +5065,7 @@ function renderTrendChart(){
       },
       plugins: [trendCrosshairPlugin],
       options: {
+        animation: false,
         interaction: { mode:'index', intersect:false },
         plugins: { legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'line', boxWidth:18, font:{size:11, family:'Inter'} } }, tooltip:{ boxPadding:6 } },
         scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font:{size:10}, maxTicksLimit: 6 } }, x: { ticks:{ font:{size:10, autoSkip:true, maxRotation:0}, maxTicksLimit: 10 } } }
@@ -5084,6 +5095,7 @@ function renderTrendChart(){
     },
     plugins: [trendCrosshairPlugin],
     options: {
+      animation: false,
       interaction: { mode:'index', intersect:false },
       plugins: { legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'line', boxWidth:18, font:{size:11, family:'Inter'} } }, tooltip:{ boxPadding:6 } },
       scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font:{size:10}, maxTicksLimit: 6 } }, x: { ticks:{ font:{size:10, autoSkip:true, maxRotation:0}, maxTicksLimit: trendMonths > 6 ? 6 : trendMonths } } }

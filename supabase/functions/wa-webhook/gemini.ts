@@ -163,7 +163,7 @@ export function buildTransactionPrompt(
     '   - Kenali nama barang/jasa/aktivitas APAPUN meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu di SEMUA kategori kehidupan sehari-hari, bukan cuma makanan). Contoh lintas kategori: makanan/minuman ("naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek); transportasi/bensin ("bensin"/"bensol"→BBM, "ojol"→ojek online, "parkir"); pulsa/langganan ("token"→token listrik, "paketan"/"kuota"→paket data, "streaming"→Netflix/Spotify dsb); jasa/servis ("benerin/betulin/service"); tagihan ("PDAM"→air, "bpjs", "cicilan"/"kredit"); sosial-keagamaan ("kondangan", "amplopan", "infaq/zakat", "arisan"); kesehatan ("obat", "vitamin", "dokter"); lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Jika benar-benar tidak tahu barang/jasanya dengan yakin, isi "note" dengan string kosong "".\n' +
     '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. "2,5", "32,75", "1,5") — koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya "kemahalan"/"kemurahan" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) — RUMUS TETAP: "2,5"=2500, "1,5"=1500, "32,75"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. "2,5"≠2500000) kecuali user eksplisit menulis satuan "jt"/"juta" setelahnya (mis. "2,5jt"/"2,5 juta"=2500000 — beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: "wifi 2,5" → amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 — persis 2500 sesuai rumus koma-desimal-ribu). "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): "seceng"=1000, "goceng"=5000, "ceban"=10000, "noceng"=9000, "cepek"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, "cepek" sering juga berarti 100.000 — pilih yang paling masuk akal dari konteks), "goban"/"gocap"=50000, "toserba"/"nogo"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar — JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n' +
     '   - "type": "income" kalau jelas pemasukan (mis. "gaji masuk", "dapat bonus"), selain itu "expense".\n' +
-    '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) → set "amount" ke 0, JANGAN MENEBAK.\n' +
+    '   - "amount": JANGAN PERNAH MENEBAK/MENGARANG NOMINAL/HARGA BARANG/JASA. Mengarang/mengestimasi harga hanya boleh dilakukan jika ada beberapa item dengan kategori berbeda dalam satu batch DAN memiliki TOTAL BELANJA (groupTotal/grand total) yang jelas disebutkan, sehingga total tersebut bisa dibagi-bagi secara proporsional. Jika tidak ada total belanja yang disebutkan, dan tidak ada harga per item yang disebutkan, kamu WAJIB mengisi field "amount" dengan 0. Jangan pernah menebak harga pasar barang/jasa tersebut (misal jika ada item "tisue" tanpa harga, "amount" harus 0, jangan dikarang harganya!).\n' +
     '   - "date": default hari ini (' + todayStr + ') kalau tidak disebutkan tanggal lain di teks.\n\n' +
     '5. ALOKASI KATEGORI & ESTIMASI HARGA DARI SATU TOTAL TANPA RINCIAN PER ITEM (berlaku untuk foto belanjaan ATAU teks bebas yang menyebut beberapa barang beda kategori tapi HANYA memberi satu total nominal, TANPA rincian harga per barang — beda dengan kasus 1 di atas yang rinciannya memang tertulis di struk):\n' +
     '   - Kenali semua barang berbeda yang disebut/terlihat, masing-masing dengan "category" paling sesuai (JANGAN taruh semua barang di satu kategori sama demi kemudahan — ini sama pentingnya dengan total yang presisi).\n' +
@@ -423,26 +423,59 @@ export async function generateClarificationQuestion(
   context: { type: "note" | "amount"; note?: string; amount?: number },
 ): Promise<string> {
   const prompt =
-    `Kamu asisten keuangan pribadi. Susun sebuah kalimat tanya pendek yang ramah dan natural (tanpa emoji, santai, bahasa Indonesia sehari-hari) ` +
+    `Kamu asisten keuangan pribadi yang santai dan natural. Susun sebuah kalimat tanya pendek yang sangat ramah, santai, dan alami (tanpa emoji, gunakan bahasa Indonesia sehari-hari/gaul santai, tidak kaku, jangan gunakan kalimat template) untuk menanyakan detail transaksi.\n\n` +
     (context.type === "amount"
-      ? context.note
-        ? `untuk menanyakan berapa nominal transaksi dari catatan "${context.note}". Contoh: "Berapa nominal untuk ${context.note}?"`
-        : `untuk menanyakan berapa nominal transaksi yang dimaksud.`
-      : `untuk menanyakan apa barang/kegiatan yang dibeli/dilakukan untuk transaksi sebesar ${formatRupiah(context.amount ?? 0)}. Contoh: "Beli apa sebesar ${formatRupiah(context.amount ?? 0)} tadi?"`) +
-    `.\nJANGAN gunakan emoji, buat variatif, langsung berikan kalimat tanyanya saja tanpa tanda kutip.`;
+      ? `Konteks: User baru saja mengirim foto/catatan mengenai barang/jasa/kegiatan "${context.note || "suatu barang"}" tetapi harganya tidak diketahui. Tanyakan berapa harganya/habis berapa secara alami dan menyatu dengan nama barangnya.\n` +
+        `Contoh kalimat alami:\n` +
+        `- "${context.note || "Barang"} ini berapa harganya ya?"\n` +
+        `- "Tadi beli ${context.note || "barang"} habis berapa?"\n` +
+        `- "Berapa harga ${context.note || "barang"}-nya?"\n` +
+        `- "Beli ${context.note || "barang"} tadi berapaan?"\n` +
+        `Gunakan variasi kalimat yang serupa dan mengalir alami.`
+      : `Konteks: Ada transaksi sebesar ${formatRupiah(context.amount ?? 0)} dari foto/media yang diunggah, tapi barang/jasanya tidak terbaca jelas. Tanyakan uang sebesar itu dipakai untuk membayar apa secara alami.\n` +
+        `Contoh kalimat alami:\n` +
+        `- "Uang ${formatRupiah(context.amount ?? 0)} ini tadi buat bayar apa ya?"\n` +
+        `- "Tadi habis ${formatRupiah(context.amount ?? 0)} buat beli apa?"\n` +
+        `- "Untuk yang ${formatRupiah(context.amount ?? 0)} itu transaksi apa ya?"\n` +
+        `Gunakan variasi kalimat yang serupa dan mengalir alami.`) +
+    `\n\nKeluarkan HANYA kalimat tanyanya saja langsung, tanpa penjelasan, tanpa tanda kutip.`;
 
   try {
-    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.7);
+    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.85);
     const text = extractGeminiText(data).trim();
     return text.replace(/^["']|["']$/g, "");
   } catch {
     if (context.type === "amount") {
       return context.note
-        ? `Berapa nominal untuk "${context.note}"?`
-        : `Berapa nominal transaksinya?`;
+        ? `Tadi beli ${context.note} habis berapa ya?`
+        : `Itu tadi harganya berapa ya?`;
     } else {
-      return `Beli apa tadi sebesar ${formatRupiah(context.amount ?? 0)}?`;
+      return `Uang ${formatRupiah(context.amount ?? 0)} ini tadi buat bayar apa ya?`;
     }
+  }
+}
+
+// ============================================================
+// Panggil Gemini untuk merapikan catatan transaksi dari jawaban user
+// ============================================================
+
+export async function cleanClarifiedNote(
+  apiKeys: string[],
+  rawReply: string,
+): Promise<string> {
+  const prompt =
+    `Kamu asisten keuangan pribadi. Rapikan dan perbaiki penulisan catatan transaksi dari jawaban user berikut agar menjadi keterangan barang/jasa/kegiatan yang singkat, bersih, dan jelas (kapitalisasi rapi, perbaiki typo, hapus kata-kata tidak penting/basa-basi seperti "buat bayar...", "itu tadi...", "untuk...", "sih", "deh").\n\n` +
+    `Jawaban user: "${rawReply}"\n\n` +
+    `Aturan:\n` +
+    `- Jangan mengarang informasi baru yang tidak ada di jawaban user.\n` +
+    `- Keluarkan HANYA hasil keterangannya saja yang sudah bersih, tanpa tanda kutip, tanpa penjelasan apapun.`;
+
+  try {
+    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.2);
+    const text = extractGeminiText(data).trim();
+    return text.replace(/^["']|["']$/g, "") || rawReply;
+  } catch {
+    return rawReply;
   }
 }
 
@@ -526,4 +559,41 @@ export function formatTanggalID(dateStr: string): string {
   const [y, m, d] = parts.map(Number);
   const bulan = BULAN_ID[m] ?? String(m);
   return `${d} ${bulan} ${y}`;
+}
+
+// ============================================================
+// Panggil Gemini untuk memverifikasi kecocokan barang di histori
+// ============================================================
+
+export async function matchHistoryAmountWithAi(
+  apiKeys: string[],
+  note: string,
+  historyItems: { amount: number; note: string }[],
+): Promise<number | null> {
+  if (!historyItems.length) return null;
+  
+  const prompt =
+    `Kamu asisten keuangan pribadi. Tugasmu adalah mencocokkan catatan transaksi baru dengan riwayat transaksi yang ada untuk mencari harga/nominal yang sesuai.\n\n` +
+    `Catatan transaksi baru: "${note}"\n\n` +
+    `Berikut adalah riwayat transaksi sebelumnya:\n` +
+    historyItems.map((item, idx) => `${idx}. Note: "${item.note}", Amount: ${item.amount}`).join("\n") + "\n\n" +
+    `Aturan pencocokan:\n` +
+    `- Cari item/jasa yang memiliki makna atau nama yang sama (misal: "tisu", "tisue", "tissue" adalah sama; "nasi goreng ayam" dan "nasgor ayam" adalah sama).\n` +
+    `- Nama toko/minimarket seperti "Alfamart", "Indomaret", "toko", "warung" di depan catatan adalah nama tempat, BUKAN nama barang. Jangan mencocokkan hanya karena nama tokonya sama (misal "Alfamart Tisu" TIDAK cocok dengan "Alfamart Makan" hanya karena sama-sama "Alfamart").\n` +
+    `- Jika ada kecocokan barang/jasa yang satu makna/identik, kembalikan INDEX-nya saja (angka dari 0 sampai ${historyItems.length - 1}).\n` +
+    `- Jika tidak ada yang cocok sama sekali, kembalikan kata "null".\n\n` +
+    `Keluarkan HANYA index kecocokan (misal: "3") atau "null", jangan tambahkan kalimat lain.`;
+
+  try {
+    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.15);
+    const text = extractGeminiText(data).trim();
+    if (text.toLowerCase() === "null") return null;
+    const idx = parseInt(text, 10);
+    if (!isNaN(idx) && idx >= 0 && idx < historyItems.length) {
+      return historyItems[idx].amount;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }

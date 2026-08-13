@@ -15,6 +15,8 @@ import {
   annotateSlangNominalForAi,
   generateClarificationQuestion,
   reclassifyCategory,
+  cleanClarifiedNote,
+  matchHistoryAmountWithAi,
 } from "./gemini.ts";
 import { sendWhatsAppMessage, downloadWhatsAppMedia } from "./whatsapp.ts";
 
@@ -161,6 +163,7 @@ function findWalletId(
 
 async function findHistoryAmount(
   db: SupabaseClient,
+  apiKeys: string[],
   note: string,
   categoryId: string,
   type: "expense" | "income",
@@ -170,9 +173,10 @@ async function findHistoryAmount(
     .select("amount, note, date, category_id")
     .eq("access_code", ACCESS_CODE)
     .eq("type", type)
+    .eq("category_id", categoryId)
     .gt("amount", 0)
     .order("date", { ascending: false })
-    .limit(200);
+    .limit(100);
 
   if (!txs?.length) return null;
 
@@ -183,68 +187,16 @@ async function findHistoryAmount(
       .replace(/\s+/g, " ")
       .trim();
 
-  const STOPWORDS = new Set([
-    "masuk",
-    "keluar",
-    "tadi",
-    "baru",
-    "buat",
-    "untuk",
-    "dari",
-    "yang",
-    "sama",
-    "lagi",
-    "saya",
-    "aku",
-    "dapat",
-    "terima",
-    "bayar",
-    "beli",
-    "dan",
-  ]);
-
-  const tokenize = (s: string) =>
-    normalize(s)
-      .split(" ")
-      .filter((w) => w && !STOPWORDS.has(w));
-
   const rowNorm = normalize(note);
-  const rowTokens = tokenize(note);
 
-  // 1. Exact match, kategori sama
-  const sameCat = txs.filter((t) => t.category_id === categoryId);
-  const exactSameCat = sameCat.find((t) => normalize(t.note) === rowNorm);
-  if (exactSameCat) return exactSameCat.amount;
+  // 1. Exact match (kategori sama)
+  const exactMatch = txs.find((t) => normalize(t.note) === rowNorm);
+  if (exactMatch) return exactMatch.amount;
 
-  // 2. Token match, kategori sama
-  if (rowTokens.length) {
-    let best: { t: (typeof txs)[0]; score: number } | null = null;
-    for (const t of sameCat) {
-      const score = tokenize(t.note).filter((tok) =>
-        rowTokens.includes(tok),
-      ).length;
-      if (score > 0 && (!best || score > best.score)) best = { t, score };
-    }
-    if (best) return best.t.amount;
-  }
-
-  // 3. Exact match, lintas kategori
-  const exactAll = txs.find((t) => normalize(t.note) === rowNorm);
-  if (exactAll) return exactAll.amount;
-
-  // 4. Token match, lintas kategori
-  if (rowTokens.length) {
-    let best: { t: (typeof txs)[0]; score: number } | null = null;
-    for (const t of txs) {
-      const score = tokenize(t.note).filter((tok) =>
-        rowTokens.includes(tok),
-      ).length;
-      if (score > 0 && (!best || score > best.score)) best = { t, score };
-    }
-    if (best) return best.t.amount;
-  }
-
-  return null;
+  // 2. Gunakan AI untuk mencocokkan riwayat dalam kategori ini secara pintar
+  const historyItems = txs.map((t) => ({ amount: Number(t.amount), note: t.note }));
+  const matchedAmount = await matchHistoryAmountWithAi(apiKeys, note, historyItems);
+  return matchedAmount;
 }
 
 // ============================================================
@@ -526,6 +478,7 @@ async function processParsedItems(
   wallets: WalletRow[],
   incomingMsgId: string,
   mentionedWalletName?: string,
+  isFromMedia = false,
 ): Promise<void> {
   const today = getTodayStr();
 
@@ -550,6 +503,7 @@ async function processParsedItems(
       date: /^\d{4}-\d{2}-\d{2}$/.test(it.date ?? "") ? it.date! : today,
       note: (it.note ?? "").slice(0, 80),
       source: "whatsapp",
+      isFromMedia,
     };
   });
 
@@ -566,6 +520,7 @@ async function processParsedItems(
       if (!isNoteGeneric) {
         histAmt = await findHistoryAmount(
           db,
+          apiKeys,
           row.note,
           row.category_id,
           row.type,
@@ -616,10 +571,15 @@ async function processParsedItems(
         pending_data: JSON.stringify(row),
       });
 
-      const questionText = (await generateClarificationQuestion(apiKeys, {
-        type: "note",
-        amount: row.amount,
-      })) + `\nBalas pesan ini dengan keterangannya. Contoh: "Token listrik" atau "Parkir"`;
+      let questionText = "";
+      if (row.isFromMedia) {
+        questionText = `Saya gagal membaca media yang kamu unggah. ${formatRupiah(row.amount)} ini untuk bayar apa ya?`;
+      } else {
+        questionText = await generateClarificationQuestion(apiKeys, {
+          type: "note",
+          amount: row.amount,
+        });
+      }
 
       const questionMsg = await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
@@ -669,7 +629,7 @@ export async function handleTextMessage(
   const today = getTodayStr();
 
   // Cek perintah khusus
-  if (/^(cek saldo|saldo|berapa saldo)/i.test(text)) {
+  if (/^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text.trim())) {
     await handleCekSaldo(db, msg.messageId);
     return;
   }
@@ -683,7 +643,7 @@ export async function handleTextMessage(
   }
 
   // PRD 5.1a: jawaban nominal boleh dikirim sebagai pesan baru, bukan hanya reply.
-  if (await handlePendingNominalMessage(db, msg)) return;
+  if (await handlePendingNominalMessage(db, apiKeys, msg)) return;
 
   const [cats, wallets] = await Promise.all([
     getCategories(db),
@@ -742,7 +702,7 @@ export async function handleTextMessage(
   }
 
   const mentionedWalletName = findMentionedWallet(text, wallets);
-  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, mentionedWalletName);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, mentionedWalletName, false);
 }
 
 // ============================================================
@@ -802,7 +762,7 @@ export async function handleMediaBatch(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal baca foto/media, coba kirim ulang ya.",
+      "Gagal membaca media yang kamu unggah. Coba kirim ulang ya, atau kamu bisa ketik manual atau kirim pesan suara (vn) saja.",
       firstMsgId,
     );
     return;
@@ -822,7 +782,7 @@ export async function handleMediaBatch(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Maaf, gagal baca foto/media, coba lagi ya.",
+      "Gagal membaca media yang kamu unggah. Coba kirim ulang ya, atau kamu bisa ketik manual atau kirim pesan suara (vn) saja.",
       firstMsgId,
     );
     return;
@@ -833,14 +793,15 @@ export async function handleMediaBatch(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Tidak ketemu info transaksi dari foto ini",
+      "Tidak ketemu info transaksi dari media ini. Coba kirim ulang ya, atau kamu bisa ketik manual atau kirim pesan suara (vn) saja.",
       firstMsgId,
     );
     return;
   }
 
+  const isFromMedia = mediaItems.some((m) => m.kind === "image");
   const mentionedWalletName = findMentionedWallet(captions, wallets);
-  await processParsedItems(db, apiKeys, items, cats, wallets, firstMsgId, mentionedWalletName);
+  await processParsedItems(db, apiKeys, items, cats, wallets, firstMsgId, mentionedWalletName, isFromMedia);
 }
 
 // Ambil dan claim media yang sudah melewati jeda hening. Claim kondisional
@@ -954,7 +915,7 @@ export async function handleAudioMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Gagal download voice note, coba kirim ulang ya.",
+      "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
       msg.messageId,
     );
     return;
@@ -987,7 +948,7 @@ export async function handleAudioMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Voice note tidak berhasil diproses. Coba ketik transaksinya ya",
+      "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
       msg.messageId,
     );
     return;
@@ -998,13 +959,13 @@ export async function handleAudioMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      "Tidak ketemu info transaksi dari voice note ini",
+      "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
       msg.messageId,
     );
     return;
   }
 
-  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, undefined, false);
 }
 
 // ============================================================
@@ -1049,7 +1010,7 @@ export async function handleReplyToTransaction(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
         OWNER_PHONE,
-        "Gagal download voice note, coba kirim ulang ya.",
+        "Gagal membaca pesan suara (vn) yang kamu kirim. Coba kirim ulang ya, atau kamu bisa ketik manual saja.",
         msg.messageId,
       );
       return;
@@ -1233,6 +1194,7 @@ function parseNominalReply(replyText: string): number | null {
 
 export async function handlePendingNominalMessage(
   db: SupabaseClient,
+  apiKeys: string[],
   msg: IncomingMessage,
 ): Promise<boolean> {
   const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
@@ -1256,14 +1218,29 @@ export async function handlePendingNominalMessage(
   if (pendingData.amount === 0) {
     const amount = parseNominalReply(msg.text ?? "");
     if (!amount) return false;
-    await completePendingNominal(db, msg, pending.id, amount);
+    await completePendingNominal(db, apiKeys, msg, pending.id, amount);
     return true;
   } else {
-    const note = (msg.text ?? "").trim().slice(0, 80);
+    const rawNote = (msg.text ?? "").trim().slice(0, 80);
     const genericNotes = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
-    if (!note || genericNotes.includes(note.toLowerCase())) return false;
+    if (!rawNote || genericNotes.includes(rawNote.toLowerCase())) return false;
     
-    pendingData.note = note;
+    const cleanedNote = await cleanClarifiedNote(apiKeys, rawNote);
+    pendingData.note = cleanedNote;
+
+    const cats = await getCategories(db);
+    const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+    const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+    const newCatName = await reclassifyCategory(
+      apiKeys,
+      cleanedNote,
+      pendingData.type,
+      expenseCats,
+      incomeCats,
+    );
+    pendingData.category = newCatName;
+    pendingData.category_id = matchCategoryId(newCatName, pendingData.type, cats);
+
     const wallets = await getWallets(db);
     const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets);
     const updatedWallets = wallets.map((w) =>
@@ -1277,6 +1254,7 @@ export async function handlePendingNominalMessage(
 
 async function completePendingNominal(
   db: SupabaseClient,
+  apiKeys: string[],
   msg: IncomingMessage,
   pendingId: string,
   amount: number,
@@ -1305,11 +1283,21 @@ async function completePendingNominal(
       })
       .eq("id", pendingId);
 
+    let questionText = "";
+    if (pendingData.isFromMedia) {
+      questionText = `Saya gagal membaca media yang kamu unggah. ${formatRupiah(amount)} ini untuk bayar apa ya?`;
+    } else {
+      questionText = await generateClarificationQuestion(apiKeys, {
+        type: "note",
+        amount,
+      });
+    }
+
     const questionMsg = await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      `Untuk apa transaksi sebesar ${formatRupiah(amount)} ini?\nBalas pesan ini dengan keterangannya. Contoh: "Token listrik" atau "Parkir"`,
+      questionText,
       msg.messageId,
     );
     if (questionMsg) {
@@ -1361,10 +1349,10 @@ export async function handlePendingNominalReply(
       );
       return;
     }
-    await completePendingNominal(db, msg, pendingId, amount);
+    await completePendingNominal(db, apiKeys, msg, pendingId, amount);
   } else {
-    const note = (msg.text ?? "").trim().slice(0, 80);
-    if (!note) {
+    const rawNote = (msg.text ?? "").trim().slice(0, 80);
+    if (!rawNote) {
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
@@ -1374,14 +1362,16 @@ export async function handlePendingNominalReply(
       );
       return;
     }
-    pendingData.note = note;
+
+    const cleanedNote = await cleanClarifiedNote(apiKeys, rawNote);
+    pendingData.note = cleanedNote;
 
     const cats = await getCategories(db);
     const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
     const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
     const newCatName = await reclassifyCategory(
       apiKeys,
-      note,
+      cleanedNote,
       pendingData.type,
       expenseCats,
       incomeCats,
