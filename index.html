@@ -1440,6 +1440,10 @@
         <label>Catatan (opsional)</label>
         <input type="text" id="txNote" placeholder="" autocomplete="off" autocorrect="off" spellcheck="false">
       </div>
+      <div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="txExcludeFromReport" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+        <label for="txExcludeFromReport" style="margin-bottom:0;cursor:pointer;font-weight:500;font-size:13px;color:var(--ink);">Jangan hitung di laporan</label>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="txDeleteBtn" style="display:none;" onclick="deleteCurrentTransaction()">Hapus</button>
         <button class="btn btn-primary" onclick="submitTransaction()">Simpan</button>
@@ -2476,13 +2480,14 @@ async function syncAllWithSupabase(silent = true) {
       const mapped = filtered.map(r => ({
         id: r.id, walletId: r.wallet_id, categoryId: r.category_id, category: r.category,
         type: r.type, amount: Number(r.amount) || 0, date: r.date, note: r.note,
-        toWalletId: r.to_wallet_id, updatedAt: new Date(r.updated_at).getTime()
+        toWalletId: r.to_wallet_id, excludeFromReport: !!r.exclude_from_report, updatedAt: new Date(r.updated_at).getTime()
       }));
       const merged = mergeEntities(getTransactions(), mapped);
       setTransactionsLocalOnly(merged);
       const pushRecs = merged.map(t => ({
         id: t.id, access_code: code, wallet_id: t.walletId, category_id: t.categoryId, category: t.category,
         type: t.type, amount: t.amount, date: t.date, note: t.note, to_wallet_id: t.toWalletId,
+        exclude_from_report: !!t.excludeFromReport,
         updated_at: new Date(t.updatedAt || Date.now()).toISOString()
       }));
       if (pushRecs.length > 0) await supabaseClient.from('transactions').upsert(pushRecs);
@@ -3654,7 +3659,7 @@ function getEffectiveBudget(categoryId, monthStr){
 function calculateBudgetStatus(categoryId, monthStr){
   monthStr = monthStr || currentMonthStr();
   const txs = getTransactions().filter(t =>
-    t.type === 'expense' && t.categoryId === categoryId && t.date.slice(0,7) === monthStr
+    t.type === 'expense' && t.categoryId === categoryId && t.date.slice(0,7) === monthStr && !t.excludeFromReport
   );
   const spent = txs.reduce((s,t) => s + t.amount, 0);
   const b = getEffectiveBudget(categoryId, monthStr);
@@ -4287,7 +4292,7 @@ function getPeriodRanges(period){
   }
 }
 function sumInRange(txs, type, startStr, endStr){
-  return txs.filter(t => t.type === type && t.date >= startStr && t.date <= endStr).reduce((s,t)=>s+t.amount,0);
+  return txs.filter(t => t.type === type && t.date >= startStr && t.date <= endStr && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
 }
 function compareBadgeHtml(current, prev){
   if(prev === 0 && current === 0) return '<span class="compare-badge flat">0%</span>';
@@ -4441,7 +4446,7 @@ function renderDailyAverages(){
 
   const range = getPeriodRanges('month');
   const allTx = getTransactions();
-  const monthExpTx = allTx.filter(t => t.type === 'expense' && t.date >= range.start && t.date <= range.end);
+  const monthExpTx = allTx.filter(t => t.type === 'expense' && t.date >= range.start && t.date <= range.end && !t.excludeFromReport);
 
   // Kategori yang dikecualikan dari perhitungan Total Rata-rata Harian (mis. biaya besar
   // yang cuma dibayar sekali di awal bulan seperti kuliah/kost, biar tidak menggelembungkan
@@ -4762,16 +4767,16 @@ function renderLaporanMonth(){
   const allTx = getTransactions();
   let monthTx = allTx.filter(t => t.date.slice(0,7) === laporanMonth);
   if(lapSearchOpen && lapSearchQuery.trim()) monthTx = applySearchFilter(monthTx, lapSearchQuery);
-  const income = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const income = monthTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const expense = monthTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
   document.getElementById('lapExpense').textContent = formatRupiah(expense);
   document.getElementById('lapNet').textContent = formatRupiah(income - expense);
 
   const prevMonth = prevMonthStr(laporanMonth);
   const prevMonthTx = allTx.filter(t => t.date.slice(0,7) === prevMonth);
-  const prevIncome = prevMonthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const prevExpense = prevMonthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const prevIncome = prevMonthTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevMonthTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs bulan lalu</span>';
   document.getElementById('lapCmpExpense').innerHTML = compareBadgeHtml(expense, prevExpense) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs bulan lalu</span>';
 
@@ -4785,9 +4790,9 @@ function renderLaporanMonth(){
   document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
   const byCatExp = {};
-  monthTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
+  monthTx.filter(t=>t.type==='expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
   const byCatInc = {};
-  monthTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
+  monthTx.filter(t=>t.type==='income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
 
   renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {month:laporanMonth, drilldown:true, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
   renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {month:laporanMonth, drilldown:true, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
@@ -4806,8 +4811,8 @@ function renderLaporanWeek(){
   const allTx = getTransactions();
   let weekTx = allTx.filter(t => t.date >= weekStart && t.date <= weekEnd);
   if(lapSearchOpen && lapSearchQuery.trim()) weekTx = applySearchFilter(weekTx, lapSearchQuery);
-  const income = weekTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = weekTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const income = weekTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const expense = weekTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
   document.getElementById('lapExpense').textContent = formatRupiah(expense);
   document.getElementById('lapNet').textContent = formatRupiah(income - expense);
@@ -4817,8 +4822,8 @@ function renderLaporanWeek(){
   const prevWeekEndDate = new Date(prevWeekStartDate); prevWeekEndDate.setDate(prevWeekEndDate.getDate() + 6);
   const prevWeekEnd = toDateStr(prevWeekEndDate);
   const prevWeekTx = allTx.filter(t => t.date >= prevWeekStart && t.date <= prevWeekEnd);
-  const prevIncome = prevWeekTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const prevExpense = prevWeekTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const prevIncome = prevWeekTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevWeekTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs minggu lalu</span>';
   document.getElementById('lapCmpExpense').innerHTML = compareBadgeHtml(expense, prevExpense) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs minggu lalu</span>';
 
@@ -4832,9 +4837,9 @@ function renderLaporanWeek(){
   document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
   const byCatExp = {};
-  weekTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
+  weekTx.filter(t=>t.type==='expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
   const byCatInc = {};
-  weekTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
+  weekTx.filter(t=>t.type==='income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
 
   renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
   renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
@@ -4850,8 +4855,8 @@ function renderLaporanDay(){
   const allTx = getTransactions();
   let dayTx = allTx.filter(t => t.date === day);
   if(lapSearchOpen && lapSearchQuery.trim()) dayTx = applySearchFilter(dayTx, lapSearchQuery);
-  const income = dayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = dayTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const income = dayTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const expense = dayTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
   document.getElementById('lapExpense').textContent = formatRupiah(expense);
   document.getElementById('lapNet').textContent = formatRupiah(income - expense);
@@ -4859,8 +4864,8 @@ function renderLaporanDay(){
   const prevDayDate = new Date(day + 'T00:00:00'); prevDayDate.setDate(prevDayDate.getDate() - 1);
   const prevDay = toDateStr(prevDayDate);
   const prevDayTx = allTx.filter(t => t.date === prevDay);
-  const prevIncome = prevDayTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const prevExpense = prevDayTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const prevIncome = prevDayTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevDayTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs kemarin</span>';
   document.getElementById('lapCmpExpense').innerHTML = compareBadgeHtml(expense, prevExpense) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs kemarin</span>';
 
@@ -4874,9 +4879,9 @@ function renderLaporanDay(){
   document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
   const byCatExp = {};
-  dayTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
+  dayTx.filter(t=>t.type==='expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
   const byCatInc = {};
-  dayTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
+  dayTx.filter(t=>t.type==='income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
 
   renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
   renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
@@ -4892,16 +4897,16 @@ function renderLaporanYear(){
   const allTx = getTransactions();
   let yearTx = allTx.filter(t => t.date.slice(0,4) === year);
   if(lapSearchOpen && lapSearchQuery.trim()) yearTx = applySearchFilter(yearTx, lapSearchQuery);
-  const income = yearTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = yearTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const income = yearTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const expense = yearTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapIncome').textContent = formatRupiah(income);
   document.getElementById('lapExpense').textContent = formatRupiah(expense);
   document.getElementById('lapNet').textContent = formatRupiah(income - expense);
 
   const prevYear = String(Number(year) - 1);
   const prevYearTx = allTx.filter(t => t.date.slice(0,4) === prevYear);
-  const prevIncome = prevYearTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const prevExpense = prevYearTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const prevIncome = prevYearTx.filter(t=>t.type==='income' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
+  const prevExpense = prevYearTx.filter(t=>t.type==='expense' && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
   document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs tahun lalu</span>';
   document.getElementById('lapCmpExpense').innerHTML = compareBadgeHtml(expense, prevExpense) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs tahun lalu</span>';
 
@@ -4916,9 +4921,9 @@ function renderLaporanYear(){
   document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
   const byCatExp = {};
-  yearTx.filter(t=>t.type==='expense').forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
+  yearTx.filter(t=>t.type==='expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
   const byCatInc = {};
-  yearTx.filter(t=>t.type==='income').forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
+  yearTx.filter(t=>t.type==='income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category]||0) + t.amount; });
 
   renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieExpenseCenter', catType:'expense'});
   renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, {drilldown:false, legendStyle:'card', centerLabelId:'lapPieIncomeCenter', catType:'income'});
@@ -4927,8 +4932,8 @@ function renderLaporanYear(){
 function renderCharts(range){
   range = range || getPeriodRanges(homePeriod);
   const allTx = getTransactions();
-  const expTxs = allTx.filter(t => t.type === 'expense' && t.date >= range.start && t.date <= range.end);
-  const incTxs = allTx.filter(t => t.type === 'income' && t.date >= range.start && t.date <= range.end);
+  const expTxs = allTx.filter(t => t.type === 'expense' && !t.excludeFromReport && t.date >= range.start && t.date <= range.end);
+  const incTxs = allTx.filter(t => t.type === 'income' && !t.excludeFromReport && t.date >= range.start && t.date <= range.end);
   const byCatExp = {};
   expTxs.forEach(t => { byCatExp[t.category] = (byCatExp[t.category]||0) + t.amount; });
   const byCatInc = {};
@@ -4990,7 +4995,7 @@ function renderTrendChart(){
       const dateStr = monthStr+'-'+pad(d);
       dayLabels.push(String(d));
       if(dateStr <= todayNow){
-        runningExp += allTx.filter(t=>t.type==='expense'&&t.date===dateStr).reduce((s,t)=>s+t.amount,0);
+        runningExp += allTx.filter(t=>t.type==='expense'&&t.date===dateStr && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
         expenseCumSeries.push(runningExp);
       } else {
         expenseCumSeries.push(null); // belum terjadi -> kosongkan, jangan diisi 0
@@ -5006,7 +5011,7 @@ function renderTrendChart(){
     for(let d=1; d<=total; d++){
       if(d <= prevTotal){
         const dateStr = prevMonthStrVal+'-'+pad(d);
-        runningPrevExp += allTx.filter(t=>t.type==='expense'&&t.date===dateStr).reduce((s,t)=>s+t.amount,0);
+        runningPrevExp += allTx.filter(t=>t.type==='expense'&&t.date===dateStr && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0);
         prevExpenseCumSeries.push(runningPrevExp);
       } else {
         prevExpenseCumSeries.push(null); // bulan lalu lebih pendek dari bulan ini
@@ -5039,8 +5044,8 @@ function renderTrendChart(){
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
     months.push(d.getFullYear()+'-'+pad(d.getMonth()+1));
   }
-  const incomeSeries = months.map(m => allTx.filter(t=>t.type==='income'&&t.date.slice(0,7)===m).reduce((s,t)=>s+t.amount,0));
-  const expenseSeries = months.map(m => allTx.filter(t=>t.type==='expense'&&t.date.slice(0,7)===m).reduce((s,t)=>s+t.amount,0));
+  const incomeSeries = months.map(m => allTx.filter(t=>t.type==='income'&&t.date.slice(0,7)===m && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0));
+  const expenseSeries = months.map(m => allTx.filter(t=>t.type==='expense'&&t.date.slice(0,7)===m && !t.excludeFromReport).reduce((s,t)=>s+t.amount,0));
   const monthLabels = months.map(m => monthLabel(m).slice(0,3) + ' ' + m.slice(2,4));
   lineChartInst = new Chart(lineCanvas, {
     type: 'line',
@@ -6914,6 +6919,7 @@ function openTransactionModal(txId, opts){
       document.getElementById('txAmount').value = tx.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
       document.getElementById('txDate').value = tx.date;
       document.getElementById('txNote').value = tx.note || '';
+      document.getElementById('txExcludeFromReport').checked = !!tx.excludeFromReport;
     }
   } else {
     setTxType('expense', false);
@@ -6921,6 +6927,7 @@ function openTransactionModal(txId, opts){
     document.getElementById('txAmount').value = '';
     document.getElementById('txDate').value = todayStr();
     document.getElementById('txNote').value = '';
+    document.getElementById('txExcludeFromReport').checked = false;
   }
   updateTxWalletLabel();
   updateTxCategoryLabel();
@@ -7027,6 +7034,7 @@ function submitTransaction(){
   const amount = parseRupiahInput(document.getElementById('txAmount').value);
   const date = document.getElementById('txDate').value || todayStr();
   const note = document.getElementById('txNote').value.trim();
+  const excludeFromReport = document.getElementById('txExcludeFromReport').checked;
   let valid = true;
   if(!walletId){ document.getElementById('txWalletField').classList.add('invalid'); valid = false; }
   if(!categoryId){ document.getElementById('txCategoryField').classList.add('invalid'); valid = false; }
@@ -7035,7 +7043,7 @@ function submitTransaction(){
 
   const cat = categoryById(categoryId);
   const txId = document.getElementById('txId').value;
-  const payload = { walletId, categoryId, category: cat ? cat.name : '', type: currentTxType, amount, date, note, toWalletId: null };
+  const payload = { walletId, categoryId, category: cat ? cat.name : '', type: currentTxType, amount, date, note, toWalletId: null, excludeFromReport };
 
   if(txId){
     editTransaction(txId, payload);
