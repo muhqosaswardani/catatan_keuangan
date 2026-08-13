@@ -8641,6 +8641,8 @@ function exportData(){
     settings: getSettings(),
     recurring: getRecurring(),
     shortcuts: getShortcutOverrides(),
+    goals: getGoals(),
+    debts: getDebts(),
     exportedAt: new Date().toISOString()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
@@ -8676,6 +8678,8 @@ function importData(e){
       if(data.settings) setSettings(data.settings);
       if(data.recurring) setRecurring(data.recurring);
       if(data.shortcuts) setShortcutOverrides(data.shortcuts);
+      if(data.goals) setGoals(data.goals);
+      if(data.debts) setDebts(data.debts);
       showToast('Data berhasil diimport');
       refreshAllViews();
       renderSettings();
