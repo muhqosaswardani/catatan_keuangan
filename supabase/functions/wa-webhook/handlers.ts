@@ -12,6 +12,9 @@ import {
   getTodayStr,
   formatRupiah,
   formatTanggalID,
+  annotateSlangNominalForAi,
+  generateClarificationQuestion,
+  reclassifyCategory,
 } from "./gemini.ts";
 import { sendWhatsAppMessage, downloadWhatsAppMedia } from "./whatsapp.ts";
 
@@ -288,14 +291,13 @@ function formatConfirmBubble(
   walletBalance: number,
   isUpdated = false,
 ): string {
-  const emoji = "✓";
   const label = isUpdated ? "Transaksi diperbarui" : "Transaksi tercatat";
   const typeLabel =
     tx.type === "income"
       ? `Pemasukan: ${formatRupiah(tx.amount)}`
       : `Pengeluaran: ${formatRupiah(tx.amount)}`;
 
-  let msg = `${emoji} ${label}\nTanggal: ${formatTanggalID(tx.date)}\n\n`;
+  let msg = `${label}\nTanggal: ${formatTanggalID(tx.date)}\n\n`;
   msg += `${typeLabel}\nKategori: ${tx.category}\n`;
   if (tx.note) msg += `Keterangan: ${tx.note}\n`;
   msg += `\nDompet: ${walletName}\nSisa dompet: ${formatRupiah(walletBalance)}`;
@@ -331,6 +333,77 @@ async function recordDeletionInDb(
   }
 }
 
+async function recalculateDbWalletBalances(
+  db: SupabaseClient,
+  accessCode: string,
+): Promise<void> {
+  const { data: wallets } = await db
+    .from("wallets")
+    .select("*")
+    .eq("access_code", accessCode);
+  const { data: transactions } = await db
+    .from("transactions")
+    .select("*")
+    .eq("access_code", accessCode);
+
+  if (!wallets || !transactions) return;
+
+  const sums: Record<string, number> = {};
+  for (const w of wallets) {
+    sums[w.id] = 0;
+  }
+
+  const todayStr = getTodayStr();
+
+  for (const t of transactions) {
+    const isFuture = t.date > todayStr;
+    if (isFuture) continue;
+
+    const amt = Number(t.amount) || 0;
+    if (t.type === "expense") {
+      if (sums[t.wallet_id] !== undefined) sums[t.wallet_id] -= amt;
+    } else if (t.type === "income") {
+      if (sums[t.wallet_id] !== undefined) sums[t.wallet_id] += amt;
+    } else if (t.type === "transfer") {
+      if (sums[t.wallet_id] !== undefined) sums[t.wallet_id] -= amt;
+      if (sums[t.to_wallet_id] !== undefined) sums[t.to_wallet_id] += amt;
+    }
+  }
+
+  const { data: settings } = await db
+    .from("user_settings")
+    .select("nav_config")
+    .eq("access_code", accessCode)
+    .maybeSingle();
+
+  const navConfig = settings?.nav_config || {};
+  const initialBalances = navConfig.initialBalances || {};
+
+  let settingsChanged = false;
+
+  for (const w of wallets) {
+    if (initialBalances[w.id] === undefined) {
+      initialBalances[w.id] = (Number(w.balance) || 0) - (sums[w.id] || 0);
+      settingsChanged = true;
+    }
+    const newBalance = (Number(initialBalances[w.id]) || 0) + (sums[w.id] || 0);
+    if (w.balance !== newBalance) {
+      await db
+        .from("wallets")
+        .update({ balance: newBalance, updated_at: new Date().toISOString() })
+        .eq("id", w.id);
+    }
+  }
+
+  if (settingsChanged) {
+    navConfig.initialBalances = initialBalances;
+    await db
+      .from("user_settings")
+      .update({ nav_config: navConfig, updated_at: new Date().toISOString() })
+      .eq("access_code", accessCode);
+  }
+}
+
 function findMentionedWallet(text: string, wallets: WalletRow[]): string | undefined {
   const lowerText = text.toLowerCase();
   for (const w of wallets) {
@@ -351,7 +424,6 @@ function findMentionedWallet(text: string, wallets: WalletRow[]): string | undef
 // ============================================================
 // HELPER: Simpan transaksi ke Supabase + update balance
 // ============================================================
-
 async function saveTx(
   db: SupabaseClient,
   tx: Omit<TransactionRow, "id"> & { id?: string },
@@ -376,19 +448,21 @@ async function saveTx(
 
   if (txErr) throw new Error(`Gagal simpan transaksi: ${txErr.message}`);
 
-  // Update balance dompet
-  const wallet = wallets.find((w) => w.id === row.wallet_id) ?? wallets[0];
-  const delta = row.type === "income" ? row.amount : -row.amount;
-  const newBalance = (wallet?.balance ?? 0) + delta;
+  // Recalculate balances murni from database transactions!
+  await recalculateDbWalletBalances(db, ACCESS_CODE);
 
-  await db
+  // Fetch the updated wallet to return it
+  const { data: updatedW } = await db
     .from("wallets")
-    .update({ balance: newBalance, updated_at: new Date().toISOString() })
-    .eq("id", wallet.id);
+    .select("*")
+    .eq("id", row.wallet_id)
+    .single();
+
+  const finalWallet = (updatedW as WalletRow) || wallets.find((w) => w.id === row.wallet_id) || wallets[0];
 
   return {
     savedTx: row,
-    updatedWallet: { ...wallet, balance: newBalance },
+    updatedWallet: finalWallet,
   };
 }
 
@@ -446,6 +520,7 @@ async function sendAndMapTx(
 
 async function processParsedItems(
   db: SupabaseClient,
+  apiKeys: string[],
   items: ParsedTransaction[],
   cats: CategoryRow[],
   wallets: WalletRow[],
@@ -508,10 +583,10 @@ async function processParsedItems(
           wa_chat_id: OWNER_PHONE,
           pending_data: JSON.stringify(row),
         });
-
-        const questionText = isNoteGeneric
-          ? `Berapa nominalnya?\nBalas pesan ini dengan nominalnya. Contoh: "25rb" atau "25000"`
-          : `Berapa nominalnya untuk "${row.note}"?\nBalas pesan ini dengan nominalnya. Contoh: "25rb" atau "25000"`;
+        const questionText = (await generateClarificationQuestion(apiKeys, {
+          type: "amount",
+          note: isNoteGeneric ? undefined : row.note,
+        })) + `\nBalas pesan ini dengan nominalnya. Contoh: "25rb" atau "25000"`;
 
         const questionMsg = await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
@@ -541,11 +616,16 @@ async function processParsedItems(
         pending_data: JSON.stringify(row),
       });
 
+      const questionText = (await generateClarificationQuestion(apiKeys, {
+        type: "note",
+        amount: row.amount,
+      })) + `\nBalas pesan ini dengan keterangannya. Contoh: "Token listrik" atau "Parkir"`;
+
       const questionMsg = await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
         OWNER_PHONE,
-        `Untuk apa transaksi sebesar ${formatRupiah(row.amount)} ini?\nBalas pesan ini dengan keterangannya. Contoh: "Token listrik" atau "Parkir"`,
+        questionText,
         incomingMsgId,
       );
 
@@ -557,7 +637,6 @@ async function processParsedItems(
       }
       continue;
     }
-
     // Simpan ke Supabase
     const { savedTx, updatedWallet } = await saveTx(
       db,
@@ -594,7 +673,11 @@ export async function handleTextMessage(
     await handleCekSaldo(db, msg.messageId);
     return;
   }
-  if (/^(hapus transaksi terakhir|undo|hapus terakhir)/i.test(text)) {
+
+  const isCancelCommand = /^(batalkan|batal|hapus transaksi terakhir|hapus terakhir|hapus|undo|ga jadi|gajadi|cancel|batalin|delete|del|back)$/i.test(text.trim()) ||
+    /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(text.trim());
+
+  if (isCancelCommand) {
     await handleHapusTerakhir(db, msg.messageId);
     return;
   }
@@ -612,7 +695,8 @@ export async function handleTextMessage(
   const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
 
   // Coba parse sebagai transaksi
-  const parts: GeminiPart[] = [{ text: `TEKS_BEBAS_DARI_USER: ${text}` }];
+  const annotatedText = annotateSlangNominalForAi(text);
+  const parts: GeminiPart[] = [{ text: `TEKS_BEBAS_DARI_USER: ${annotatedText}` }];
   let items: ParsedTransaction[];
 
   try {
@@ -658,7 +742,7 @@ export async function handleTextMessage(
   }
 
   const mentionedWalletName = findMentionedWallet(text, wallets);
-  await processParsedItems(db, items, cats, wallets, msg.messageId, mentionedWalletName);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, mentionedWalletName);
 }
 
 // ============================================================
@@ -756,7 +840,7 @@ export async function handleMediaBatch(
   }
 
   const mentionedWalletName = findMentionedWallet(captions, wallets);
-  await processParsedItems(db, items, cats, wallets, firstMsgId, mentionedWalletName);
+  await processParsedItems(db, apiKeys, items, cats, wallets, firstMsgId, mentionedWalletName);
 }
 
 // Ambil dan claim media yang sudah melewati jeda hening. Claim kondisional
@@ -920,7 +1004,7 @@ export async function handleAudioMessage(
     return;
   }
 
-  await processParsedItems(db, items, cats, wallets, msg.messageId);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId);
 }
 
 // ============================================================
@@ -992,26 +1076,34 @@ export async function handleReplyToTransaction(
     .map((c) => c.name);
   const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
 
-  // Minta Gemini tafsirkan instruksi koreksi
+  // Minta Gemini tafsirkan instruksi koreksi jika bukan hapus langsung
+  const replyText = (typeof userReply === "string" ? userReply : msg.text ?? "").trim().toLowerCase();
+  const isDirectDelete = /^(batalkan|batal|hapus|undo|ga jadi|gajadi|cancel|batalin|delete|del|back)$/i.test(replyText) ||
+    /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(replyText);
+
   let instruction;
-  try {
-    instruction = await parseEditInstruction(
-      apiKeys,
-      userReply,
-      txData,
-      expenseCats,
-      incomeCats,
-      wallets.map((wallet) => wallet.name),
-    );
-  } catch {
-    await sendWhatsAppMessage(
-      PHONE_NUMBER_ID,
-      WA_ACCESS_TOKEN,
-      OWNER_PHONE,
-      "Gagal memproses instruksi, coba lagi ya.",
-      msg.messageId,
-    );
-    return;
+  if (isDirectDelete) {
+    instruction = { action: "delete" as const };
+  } else {
+    try {
+      instruction = await parseEditInstruction(
+        apiKeys,
+        userReply,
+        txData,
+        expenseCats,
+        incomeCats,
+        wallets.map((wallet) => wallet.name),
+      );
+    } catch {
+      await sendWhatsAppMessage(
+        PHONE_NUMBER_ID,
+        WA_ACCESS_TOKEN,
+        OWNER_PHONE,
+        "Gagal memproses instruksi, coba lagi ya.",
+        msg.messageId,
+      );
+      return;
+    }
   }
 
   if (instruction.action === "unclear") {
@@ -1026,29 +1118,19 @@ export async function handleReplyToTransaction(
   }
 
   if (instruction.action === "delete") {
-    // Kembalikan balance dompet
-    const wallet = wallets.find((w) => w.id === txData.wallet_id);
-    if (wallet) {
-      const delta = txData.type === "income" ? -txData.amount : txData.amount;
-      await db
-        .from("wallets")
-        .update({
-          balance: wallet.balance + delta,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", wallet.id);
-    }
-
     // Sync deletion to user_settings.deleted_ids in database
     await recordDeletionInDb(db, transactionId);
 
     await db.from("transactions").delete().eq("id", transactionId);
 
+    // Recalculate balances murni from database transactions!
+    await recalculateDbWalletBalances(db, ACCESS_CODE);
+
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       OWNER_PHONE,
-      `✓ Transaksi dihapus:\n"${txData.note}" ${formatRupiah(txData.amount)} (${formatTanggalID(txData.date)})`,
+      `Transaksi dihapus:\n"${txData.note}" ${formatRupiah(txData.amount)} (${formatTanggalID(txData.date)})`,
       msg.messageId,
     );
     return;
@@ -1058,15 +1140,9 @@ export async function handleReplyToTransaction(
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
-  const oldWallet = wallets.find((w) => w.id === txData.wallet_id);
   const targetWalletId = instruction.wallet
     ? findWalletId(instruction.wallet, wallets)
     : txData.wallet_id;
-  const targetWallet = wallets.find((w) => w.id === targetWalletId);
-  const newAmount =
-    instruction.amount != null && instruction.amount > 0
-      ? instruction.amount
-      : Number(txData.amount);
 
   if (instruction.amount != null && instruction.amount > 0) {
     updates.amount = instruction.amount;
@@ -1098,43 +1174,10 @@ export async function handleReplyToTransaction(
     return;
   }
 
-  // Rekonsiliasi saldo harus dilakukan sekali untuk gabungan edit nominal dan
-  // perpindahan dompet: kembalikan dampak lama, lalu terapkan dampak baru.
-  const changedFinancialValue =
-    newAmount !== Number(txData.amount) || targetWalletId !== txData.wallet_id;
-  if (changedFinancialValue && oldWallet && targetWallet) {
-    const oldImpact =
-      txData.type === "income" ? Number(txData.amount) : -Number(txData.amount);
-    const newImpact = txData.type === "income" ? newAmount : -newAmount;
-    if (oldWallet.id === targetWallet.id) {
-      const balance = oldWallet.balance - oldImpact + newImpact;
-      await db
-        .from("wallets")
-        .update({ balance, updated_at: new Date().toISOString() })
-        .eq("id", oldWallet.id);
-      oldWallet.balance = balance;
-    } else {
-      const restoredOld = oldWallet.balance - oldImpact;
-      const appliedNew = targetWallet.balance + newImpact;
-      await Promise.all([
-        db
-          .from("wallets")
-          .update({
-            balance: restoredOld,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", oldWallet.id),
-        db
-          .from("wallets")
-          .update({ balance: appliedNew, updated_at: new Date().toISOString() })
-          .eq("id", targetWallet.id),
-      ]);
-      oldWallet.balance = restoredOld;
-      targetWallet.balance = appliedNew;
-    }
-  }
-
   await db.from("transactions").update(updates).eq("id", transactionId);
+
+  // Recalculate balances murni dari transaksi database!
+  await recalculateDbWalletBalances(db, ACCESS_CODE);
 
   // Refresh dan kirim konfirmasi
   const { data: updatedTx } = await db
@@ -1144,10 +1187,11 @@ export async function handleReplyToTransaction(
     .single();
 
   if (updatedTx) {
+    const updatedWallets = await getWallets(db);
     await sendAndMapTx(
       db,
       updatedTx as unknown as TransactionRow,
-      wallets,
+      updatedWallets,
       msg.messageId,
       true,
     );
@@ -1288,6 +1332,7 @@ async function completePendingNominal(
 
 export async function handlePendingNominalReply(
   db: SupabaseClient,
+  apiKeys: string[],
   msg: IncomingMessage,
   pendingId: string,
 ): Promise<void> {
@@ -1330,6 +1375,20 @@ export async function handlePendingNominalReply(
       return;
     }
     pendingData.note = note;
+
+    const cats = await getCategories(db);
+    const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+    const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+    const newCatName = await reclassifyCategory(
+      apiKeys,
+      note,
+      pendingData.type,
+      expenseCats,
+      incomeCats,
+    );
+    pendingData.category = newCatName;
+    pendingData.category_id = matchCategoryId(newCatName, pendingData.type, cats);
+
     const wallets = await getWallets(db);
     const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets);
     const updatedWallets = wallets.map((w) =>
@@ -1383,7 +1442,7 @@ async function handleCekSaldo(
   for (const w of sorted) {
     const isUtama = w.id.toLowerCase() === "wallet_utama" || w.name.toLowerCase().includes("utama");
     if (isUtama) {
-      msg += `*${w.name}*: ${formatRupiah(w.balance ?? 0)}\n`;
+      msg += `*${w.name}: ${formatRupiah(w.balance ?? 0)}*\n`;
     } else {
       msg += `${w.name}: ${formatRupiah(w.balance ?? 0)}\n`;
     }
@@ -1429,30 +1488,19 @@ async function handleHapusTerakhir(
     return;
   }
 
-  // Kembalikan balance
-  const wallets = await getWallets(db);
-  const wallet = wallets.find((w) => w.id === tx.wallet_id);
-  if (wallet) {
-    const delta = tx.type === "income" ? -tx.amount : tx.amount;
-    await db
-      .from("wallets")
-      .update({
-        balance: wallet.balance + delta,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", wallet.id);
-  }
-
   // Sync deletion to user_settings.deleted_ids in database
   await recordDeletionInDb(db, tx.id);
 
   await db.from("transactions").delete().eq("id", tx.id);
 
+  // Recalculate balances murni from database transactions!
+  await recalculateDbWalletBalances(db, ACCESS_CODE);
+
   await sendWhatsAppMessage(
     PHONE_NUMBER_ID,
     WA_ACCESS_TOKEN,
     OWNER_PHONE,
-    `✓ Transaksi terakhir dihapus:\n"${tx.note}" ${formatRupiah(tx.amount)} (${formatTanggalID(tx.date)})`,
+    `Transaksi terakhir dihapus:\n"${tx.note}" ${formatRupiah(tx.amount)} (${formatTanggalID(tx.date)})`,
     replyToMsgId,
   );
 }

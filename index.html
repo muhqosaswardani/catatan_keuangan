@@ -2425,6 +2425,27 @@ function mergeWallets(localList, remoteList) {
   return Array.from(grouped.values());
 }
 
+function getContentHash() {
+  const data = [
+    getWallets(),
+    getTransactions(),
+    getCategories(),
+    getBudgets(),
+    getSettings(),
+    getNavConfig(),
+    getInsightCache(),
+    getGoals(),
+    getDebts(),
+    getRecurring()
+  ];
+  return JSON.stringify(data, (key, value) => {
+    if (key === 'updatedAt' || key === 'updated_at' || key === 'updated_time') {
+      return undefined;
+    }
+    return value;
+  });
+}
+
 async function syncAllWithSupabase(silent = true) {
   // Hard block: never run sync while a full data reset is in progress
   if (isResettingData) return;
@@ -2441,8 +2462,7 @@ async function syncAllWithSupabase(silent = true) {
   isSyncingData = true;
   updateSyncStatusUI('syncing', !silent);
   const code = getAccessCode();
-  const beforeHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
-
+  const beforeHash = getContentHash();
   try {
     // A. Check if another device has triggered a full reset via reset_at signal in user_settings,
     // and also fetch deleted_ids to prevent deleted items from restoring.
@@ -2476,13 +2496,23 @@ async function syncAllWithSupabase(silent = true) {
     // 1. Transactions (Synced first!)
     const { data: remTx } = await supabaseClient.from('transactions').select('*').eq('access_code', code);
     if (remTx) {
+      const remoteIds = new Set(remTx.map(r => String(r.id)));
+      const localTxsFiltered = getTransactions().filter(t => {
+        const idStr = String(t.id);
+        if (deletedSet.has(idStr)) return false;
+        if (idStr.startsWith('wa_tx_') && !remoteIds.has(idStr)) {
+          return false; // Deleted on WA!
+        }
+        return true;
+      });
+
       const filtered = remTx.filter(r => !deletedSet.has(String(r.id)));
       const mapped = filtered.map(r => ({
         id: r.id, walletId: r.wallet_id, categoryId: r.category_id, category: r.category,
         type: r.type, amount: Number(r.amount) || 0, date: r.date, note: r.note,
         toWalletId: r.to_wallet_id, excludeFromReport: !!r.exclude_from_report, updatedAt: new Date(r.updated_at).getTime()
       }));
-      const merged = mergeEntities(getTransactions(), mapped);
+      const merged = mergeEntities(localTxsFiltered, mapped);
       setTransactionsLocalOnly(merged);
       const pushRecs = merged.map(t => ({
         id: t.id, access_code: code, wallet_id: t.walletId, category_id: t.categoryId, category: t.category,
@@ -2687,7 +2717,7 @@ async function syncAllWithSupabase(silent = true) {
       console.warn('User settings sync warn:', sErr);
     }
 
-    const afterHash = JSON.stringify([getWallets(), getTransactions(), getCategories(), getBudgets(), getSettings(), getNavConfig(), getInsightCache(), getGoals(), getDebts(), getRecurring()]);
+    const afterHash = getContentHash();
     updateSyncStatusUI('online');
     if (beforeHash !== afterHash) {
       if (typeof renderBottomNav === 'function') renderBottomNav();
@@ -3446,12 +3476,7 @@ function activateDuePendingTransactions(){
 }
 
 function applyBalanceDelta(walletId, delta){
-  const wallets = getWallets();
-  const w = wallets.find(w => w.id === walletId);
-  if(!w) return;
-  w.balance = Math.round((w.balance + delta) * 100) / 100;
-  w.updatedAt = Date.now();
-  setWalletsLocalOnly(wallets);
+  recalculateWalletBalances();
 }
 
 function recalculateWalletBalances() {
@@ -9478,6 +9503,7 @@ function resetShortcutOverrides(){
 /* =========================================================
    ONBOARDING
    ========================================================= */
+
 function finishOnboarding(){
   const utama = parseRupiahInput(document.getElementById('onbUtama').value);
   const tabungan = parseRupiahInput(document.getElementById('onbTabungan').value);
@@ -9487,6 +9513,7 @@ function finishOnboarding(){
   if(wu) wu.balance = utama;
   if(wt) wt.balance = tabungan;
   setWallets(wallets);
+  recalculateWalletBalances();
   localStorage.setItem(LS_KEYS.onboarded, '1');
   document.getElementById('onboarding').classList.remove('open');
   refreshAllViews();

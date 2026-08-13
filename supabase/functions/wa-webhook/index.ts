@@ -319,7 +319,7 @@ Deno.serve(async (req: Request) => {
             .single();
 
           if (pending?.id) {
-            await handlePendingNominalReply(db, msg, pending.id);
+            await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);
             continue;
           }
 
