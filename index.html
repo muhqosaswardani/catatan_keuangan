@@ -3863,7 +3863,18 @@ window.addEventListener('popstate', function(e){
    ukuran yang benar (lihat switchTabUI: renderHome/renderTransactions/dst masing-masing
    memanggil ulang renderDonut/renderTrendChart). */
 function refreshChartsOnResume(){
-  switchTabUI(currentTab);
+  /* PENTING: jangan render ulang langsung secara sinkron di sini. Saat visibilitychange
+     baru saja terpicu (app baru balik dari background / tab baru terlihat lagi), ukuran
+     container di layout kadang BELUM final — masih di ukuran sementara/lebih kecil selama
+     sepersekian detik akibat transisi UI OS/WebView. Kalau Chart.js diukur & digambar tepat
+     di momen itu, dia akan "nyangkut" di ukuran kecil itu walau sesaat kemudian container
+     sudah benar. Makanya kita tunda render ulang 2x animation frame supaya browser sempat
+     menyelesaikan layout final terlebih dulu, baru chart diukur & digambar ulang. */
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      switchTabUI(currentTab);
+    });
+  });
 }
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'visible') refreshChartsOnResume();
