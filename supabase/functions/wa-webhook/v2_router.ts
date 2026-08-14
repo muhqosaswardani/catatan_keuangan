@@ -76,6 +76,7 @@ export async function handleV2Message(
       waChatId,
       `Mode ${modeLabel} otomatis dibatalkan karena tidak ada aktivitas selama 5 menit.`
     );
+    return true;
   }
 
   // Jika ada sesi aktif

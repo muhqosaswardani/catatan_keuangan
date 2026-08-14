@@ -14,17 +14,24 @@ export interface ModeSession {
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 menit
 
 /**
- * Helper untuk mencatat log ke tabel wa_logs di database
+ * Helper untuk mencatat log ke tabel wa_logs di database (non-blocking)
  */
 export async function logToDb(db: SupabaseClient, message: string, details: any = {}) {
+  if (message === "getV2Session No Session Found") {
+    return;
+  }
+
+  const promise = db.from("wa_logs").insert({
+    message,
+    details: typeof details === "object" ? details : { raw: details },
+    created_at: new Date().toISOString()
+  });
+
   try {
-    await db.from("wa_logs").insert({
-      message,
-      details: typeof details === "object" ? details : { raw: details },
-      created_at: new Date().toISOString()
-    });
-  } catch (e) {
-    console.error("Gagal logToDb:", e);
+    // @ts-ignore
+    EdgeRuntime.waitUntil(promise);
+  } catch {
+    promise.catch((err) => console.error("Gagal logToDb async:", err));
   }
 }
 
@@ -143,7 +150,7 @@ export async function clearV2Session(
 export async function v2GetWallets(db: SupabaseClient, accessCode: string) {
   const { data } = await db
     .from("wallets")
-    .select("id, name, balance")
+    .select("id, name, balance, is_primary, sort_order")
     .eq("access_code", accessCode);
   return data ?? [];
 }

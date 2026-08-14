@@ -35,8 +35,10 @@ Setiap pesan WhatsApp yang masuk akan diarahkan melalui alur penyaringan (routin
          ▼                             │ - handleTextMessage (AI Parse)
  0. Cek Sesi Mode Terkunci             │ - VN / Photo queue
     (wa_mode_sessions)?                │
-   ├─► YA: Proses dalam mode aktif.     │
-   │       Blokir intent lain / konfirmasi keluar.
+   ├─► YA: Cek Timeout (5 menit)?      │
+   │       ├─► YA: Sesi kedaluwarsa, hapus sesi, kirim notifikasi,
+   │       │       dan INTERSEPT pesan (kembalikan true) agar tidak bocor ke V1.
+   │       └─► TIDAK: Proses dalam mode aktif. Blokir intent lain / konfirmasi keluar.
    │
    └─► TIDAK: Lanjut ke step 1
          │
@@ -85,21 +87,34 @@ Fase 1 meletakkan fondasi integrasi WhatsApp dengan fitur-fitur dasar:
 ---
 
 ## 4. Komponen Arsitektur Fase 2 (Stage 2 - Fase 8)
-Fase 2 memperluas bot menjadi asisten keuangan pintar tanpa merusak logic Fase 1:
+Fase 2 memperluas bot menjadi asisten keuangan pintar dengan kendali presisi tinggi:
 
 ### A. Mekanisme Rollback 1-Flag
 Semua file baru untuk Stage 2 diisolasi dengan prefix `v2_` (`v2_router.ts`, `v2_modes.ts`, `v2_query.ts`, `v2_intents.ts`, `v2_db.ts`). Aktivasinya dikendalikan oleh satu variabel lingkungan di Supabase: `WA_V2_ENABLED`. Jika bernilai `false`, endpoint akan langsung mem-bypass router V2.
 
 ### B. Mode Terkunci (Mode-Lock State)
-Untuk aksi finansial sensitif yang membutuhkan presisi tinggi, bot mengunci konteks obrolan menggunakan state sesi di tabel `wa_mode_sessions`:
-1.  **Mode Koreksi Saldo:** Membaca foto uang cash fisik (Gemini Vision) atau teks koreksi (contoh: "cash 50k", "gopay 200k"). Bot menyajikan perbandingan saldo sistem vs aktual serta nominal adjustment. Eksekusi dilakukan serentak saat user mengetik "ya".
-2.  **Mode Limit/Anggaran:** Menampilkan daftar limit kategori bulan berjalan (`YYYY-MM`). Mengizinkan perintah edit (mengganti limit penuh), tambah limit, atau hapus limit.
-3.  **Mode Tujuan Tabungan:** Menampilkan daftar target tabungan dan progress-nya (diambil dari saldo dompet terkait). Mengizinkan edit target, tambah tujuan, atau hapus tujuan.
-*   *Aturan Mode-Lock:* Selama mode aktif, intent di luar mode akan ditolak dan bot meminta konfirmasi keluar. Timeout 5 menit tanpa aktivitas otomatis membatalkan mode.
+Mengunci konteks obrolan menggunakan state sesi di tabel `wa_mode_sessions` untuk mencegah bocornya pesan ke parser transaksi bebas selama input data sensitif:
+1.  **Mode Koreksi Saldo:**
+    *   **Pilihan Dompet Bernomor (Langkah 1):** Dompet disajikan dalam daftar bernomor. Mendukung shortcut `"semua"` atau `"all"` untuk memilih seluruh dompet.
+    *   **Breakdown & Akun Sub-Ewallet (Langkah 2):** Mendeteksi multi-foto screenshot m-banking dan e-wallet secara bersamaan. AI secara otomatis mengurai saldo sub-akun (seperti DANA, GoPay, OVO, ShopeePay, LinkAja, dll) dan memetakan nominalnya ke dompet utama database yang sesuai (misal: e-wallet dipetakan ke `Dompet Utama`).
+    *   **Layout Rekap Terstruktur:** Balasan bot menyajikan rincian bullet-point sub-akun yang terbaca, total saldo aktual, total saldo tercatat di aplikasi, serta nominal selisih penyesuaian yang akan dibuat.
+2.  **Mode Limit/Anggaran:** Menampilkan daftar limit kategori bulan berjalan (`YYYY-MM`) terurut dengan **kategori berlimit di bagian atas**. Mengizinkan perintah edit (mengganti limit penuh), tambah limit, atau hapus limit.
+3.  **Mode Tujuan Tabungan:** Menampilkan daftar target tabungan dan progress-nya terurut dengan **tujuan memiliki target di bagian atas**. Mengizinkan edit target, tambah tujuan, atau hapus tujuan.
 
-### C. Router Intent Teks Bebas V2
+### C. Concurrency Control & Perlindungan Balasan Ganda
+*   **Optimistic Concurrency Control (OCC) Retries:** Saat menerima unggahan multi-foto sekaligus, webhook paralel akan berebut menulis ke sesi. Menggunakan validasi token timestamp `updated_at` dengan loop retries untuk memastikan semua input foto berhasil masuk ke antrean `pending_batch_inputs` tanpa saling menimpa.
+*   **OCC Claim:** Worker background yang memproses batch antrean setelah jeda hening akan mencoba melakukan klaim (mengosongkan antrean sesi dengan filter timestamp). Hanya tepat **satu worker** yang berhasil mengklaim dan mengirimkan gelembung draft rekap tunggal ke user.
+*   **Umpan Balik Status:** Jika dari foto/pesan tidak terdeteksi nominal saldo untuk dompet terpilih, bot tidak akan diam saja (silent), melainkan mengirimkan gelembung bantuan.
+
+### D. Penanganan Memori & Crash Media (Safe Base64 Encoding)
+File media (gambar screenshot HP, VN panjang) yang diunduh berukuran >65KB akan mengalami stack overflow jika dikonversi menggunakan operator spread parameter `String.fromCharCode(...bytes)` di Deno. Sistem menggantinya dengan fungsi `safeBytesToBase64` yang memproses biner secara bertahap dalam potongan 16KB (chunked encoding), menjamin bot bebas crash system-wide.
+
+### E. Perlindungan Kebocoran Sesi Timeout
+Jika sesi melewati batas waktu (5 menit tanpa aktivitas), router V2 akan secara otomatis menghapus sesi, mengirim pesan pemberitahuan timeout, dan langsung **mengintersept pesan pemicu** (mengembalikan `true`), mencegah pesan tersebut bocor ke parser V1 (misal ketikan `"batal"` yang tidak sengaja menghapus transaksi).
+
+### F. Router Intent Teks Bebas V2
 Mendeteksi 3 intent baru secara fleksibel (menggunakan Gemini) dengan urutan prioritas:
-1.  **Checklist Lunas:** Item tagihan jatuh tempo/terlambat dicocokkan secara semantik menggunakan Gemini (contoh: "beresin kuliah" cocok dengan "Bayar SPP Kuliah"). Jika match > 1 item due, bot meminta klarifikasi. Nominal dicari otomatis dari histori transaksi serupa.
+1.  **Checklist Lunas:** Item tagihan jatuh tempo/terlambat dicocokkan secara semantik menggunakan Gemini. Jika match > 1 item due, bot meminta klarifikasi. Nominal dicari otomatis dari histori transaksi serupa.
 2.  **Transfer Saldo:** Memotong saldo dompet asal dan menambahkan ke dompet tujuan.
 3.  **Utang Piutang:**
     *   Jika nominal bayar < sisa utang berjalan: otomatis dicatat sebagai **cicilan**.
@@ -107,7 +122,7 @@ Mendeteksi 3 intent baru secara fleksibel (menggunakan Gemini) dengan urutan pri
     *   Jika nominal bayar > sisa utang: utang lama lunas, dan kelebihannya otomatis dibuatkan catatan **utang baru dengan tipe berlawanan (Reverse Debt)**.
     *   Jika orang tersebut memiliki > 1 entri utang aktif terpisah, sistem memicu **wajib klarifikasi** berupa pilihan entri mana yang ingin dibayar.
 
-### D. Sistem Query Anti-Halusinasi
+### G. Sistem Query Anti-Halusinasi
 Saat user menanyakan laporan (bertanda tanya `?`), sistem membagi pemrosesan menjadi 2 tahap:
 1.  **Tahap Deterministik (TypeScript):** Backend mengkueri database dan menghitung seluruh metrik keuangan secara pasti (total pengeluaran, sisa budget tiap kategori, rata-rata harian, sisa utang-piutang, progres goal tabungan).
 2.  **Tahap Bahasa (Gemini AI):** Data hasil kalkulasi terstruktur dikirim ke Gemini bersama pertanyaan user. Gemini diinstruksikan ketat hanya merangkai data angka tersebut menjadi kalimat alami, tanpa boleh menghitung atau mengarang angka sendiri.
@@ -165,6 +180,14 @@ CREATE TABLE public.wa_mode_sessions (
     mode TEXT, -- 'koreksi', 'limit', 'tujuan'
     session_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Log Aktivitas Real-time Webhook (Penyimpanan logs audit Edge Function)
+CREATE TABLE public.wa_logs (
+    id SERIAL PRIMARY KEY,
+    message TEXT NOT NULL,
+    details JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 

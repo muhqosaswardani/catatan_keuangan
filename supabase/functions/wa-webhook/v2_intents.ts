@@ -25,6 +25,20 @@ export async function parseV2Intent(
   apiKeys: string[],
   text: string
 ): Promise<any> {
+  const cleaned = text.toLowerCase();
+  
+  // Quick local check to bypass Gemini intent parsing for obvious normal transactions
+  const intentKeywords = [
+    "transfer", "pindah", "pindahin", "tf", "mutasi",
+    "pinjam", "pinjem", "utang", "hutang", "piutang", "talang", "talangin", "kembalikan", "balikin",
+    "lunas", "lunasin", "cicilan", "tagihan", "arisan"
+  ];
+  
+  const hasKeyword = intentKeywords.some(kw => cleaned.includes(kw));
+  if (!hasKeyword) {
+    return { intent: "none" };
+  }
+
   const prompt = `
 Analisis teks pesan masuk dari user WhatsApp berikut dan tentukan intent/maksud aksinya.
 Aksi teks bebas yang didukung:
@@ -347,7 +361,9 @@ export async function executeChecklistPayment(
     return false;
   }
 
-  const walletId = checklistDetails.wallet_id || DEFAULT_WALLET_ID;
+  const { data: walletsCheck } = await db.from("wallets").select("id, is_primary").eq("access_code", ACCESS_CODE);
+  const primaryWalletCheck = walletsCheck?.find(w => w.is_primary) || walletsCheck?.[0];
+  const walletId = checklistDetails.wallet_id || primaryWalletCheck?.id || DEFAULT_WALLET_ID;
   const savedTx = await saveV2Transaction(db, {
     wallet_id: walletId,
     category_id: checklistDetails.category_id,
@@ -646,7 +662,9 @@ export async function executeDebtPayment(
 
   const isIOwe = activeDebt.type === "i_owe" || activeDebt.type === "utang";
   const txType = isIOwe ? "expense" : "income";
-  const walletId = DEFAULT_WALLET_ID;
+  const { data: walletsDebt } = await db.from("wallets").select("id, is_primary").eq("access_code", ACCESS_CODE);
+  const primaryWalletDebt = walletsDebt?.find(w => w.is_primary) || walletsDebt?.[0];
+  const walletId = primaryWalletDebt?.id || DEFAULT_WALLET_ID;
 
   let bubble = "";
   let savedTxId = "";

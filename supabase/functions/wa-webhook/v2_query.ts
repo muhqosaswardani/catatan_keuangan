@@ -200,13 +200,8 @@ export async function processV2Query(
 
   // a. Dompet & Saldo
   const sortedWallets = [...wallets].sort((a, b) => {
-    const aName = a.name.toLowerCase();
-    const bName = b.name.toLowerCase();
-    if (a.id === "wallet_utama" || aName.includes("utama")) return -1;
-    if (b.id === "wallet_utama" || bName.includes("utama")) return 1;
-    if (aName.includes("tabungan")) return -1;
-    if (bName.includes("tabungan")) return 1;
-    return 0;
+    if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
   const totalBalance = wallets.reduce((s, w) => s + (Number(w.balance) || 0), 0);
 

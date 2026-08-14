@@ -16,7 +16,7 @@ import {
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
-import { sendWhatsAppMessage, markAsRead } from "./whatsapp.ts";
+import { sendWhatsAppMessage, markAsRead, sendTypingIndicator } from "./whatsapp.ts";
 
 // ============================================================
 // ENV VARS (diset di Supabase Edge Function Secrets)
@@ -292,21 +292,70 @@ Deno.serve(async (req: Request) => {
         () => {},
       );
 
+      // Typing Indicator (Additive Feature)
+      if (msg.type === "text" || msg.type === "image" || msg.type === "audio") {
+        (async () => {
+          try {
+            let shouldShowTyping = true;
+            if (msg.type === "image" || msg.type === "audio") {
+              const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
+              const { data: existingMedia } = await db
+                .from("wa_media_queue")
+                .select("wa_message_id")
+                .eq("access_code", Deno.env.get("WA_ACCESS_CODE"))
+                .eq("wa_chat_id", msg.from)
+                .is("processed_at", null)
+                .gt("received_at", tenSecondsAgo)
+                .limit(1);
+              if (existingMedia && existingMedia.length > 0) {
+                shouldShowTyping = false;
+              }
+            }
+            if (shouldShowTyping) {
+              await sendTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId);
+            }
+          } catch (err) {
+            console.warn("Failed to process typing indicator:", err);
+          }
+        })();
+      }
+
       try {
         // // VERSI 2 - Router Intent & Mode (Isolatable & Rollbackable)
         if (Deno.env.get("WA_V2_ENABLED") === "true") {
-          // Log incoming message metadata
-          await db.from("wa_logs").insert({
-            message: "Incoming Message metadata",
-            details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
-          });
+          // Log incoming message metadata (non-blocking)
+          try {
+            // @ts-ignore
+            EdgeRuntime.waitUntil(
+              db.from("wa_logs").insert({
+                message: "Incoming Message metadata",
+                details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
+              })
+            );
+          } catch {
+            db.from("wa_logs").insert({
+              message: "Incoming Message metadata",
+              details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
+            }).catch(() => {});
+          }
 
           const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
 
-          await db.from("wa_logs").insert({
-            message: "V2 Router finished",
-            details: { messageId: msg.messageId, handled }
-          });
+          // Log V2 Router finished (non-blocking)
+          try {
+            // @ts-ignore
+            EdgeRuntime.waitUntil(
+              db.from("wa_logs").insert({
+                message: "V2 Router finished",
+                details: { messageId: msg.messageId, handled }
+              })
+            );
+          } catch {
+            db.from("wa_logs").insert({
+              message: "V2 Router finished",
+              details: { messageId: msg.messageId, handled }
+            }).catch(() => {});
+          }
 
           if (handled) {
             continue;

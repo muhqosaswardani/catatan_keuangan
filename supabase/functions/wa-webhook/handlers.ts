@@ -59,6 +59,8 @@ interface WalletRow {
   id: string;
   name: string;
   balance: number;
+  is_primary?: boolean;
+  sort_order?: number;
 }
 
 interface CategoryRow {
@@ -129,11 +131,25 @@ function matchCategoryId(
 // HELPER: Match dompet by name (untuk mention eksplisit)
 // ============================================================
 
+function getDefaultWalletId(wallets: WalletRow[]): string {
+  const envDefault = Deno.env.get("WA_DEFAULT_WALLET_ID");
+  if (envDefault && wallets.some(w => w.id === envDefault)) {
+    return envDefault;
+  }
+  const primary = wallets.find(w => w.is_primary);
+  if (primary) return primary.id;
+  const utama = wallets.find(w => w.id === "wallet_utama");
+  if (utama) return utama.id;
+  if (wallets.length > 0) return wallets[0].id;
+  return "wallet_utama";
+}
+
 function matchWalletId(
   mentionedName: string | undefined,
   wallets: WalletRow[],
 ): string {
-  if (!mentionedName) return DEFAULT_WALLET_ID;
+  const defId = getDefaultWalletId(wallets);
+  if (!mentionedName) return defId;
   // Cek apakah ada dompet yang namanya mengandung kata dari mention
   const lower = mentionedName.toLowerCase();
   const found = wallets.find(
@@ -141,7 +157,7 @@ function matchWalletId(
       w.name.toLowerCase().includes(lower) ||
       lower.includes(w.name.toLowerCase()),
   );
-  return found?.id ?? DEFAULT_WALLET_ID;
+  return found?.id ?? defId;
 }
 
 function findWalletId(
@@ -1545,29 +1561,15 @@ async function handleCekSaldo(
     return;
   }
 
-  // Sort: Dompet Utama first, Dompet Tabungan second, then others
+  // Sort: Primary wallet first, then by sort_order ASC
   const sorted = wallets.slice().sort((a, b) => {
-    const aId = a.id.toLowerCase();
-    const bId = b.id.toLowerCase();
-    const aName = a.name.toLowerCase();
-    const bName = b.name.toLowerCase();
-
-    const isAUtama = aId === "wallet_utama" || aName.includes("utama");
-    const isBUtama = bId === "wallet_utama" || bName.includes("utama");
-    const isATabungan = aId === "wallet_tabungan" || aName.includes("tabungan");
-    const isBTabungan = bId === "wallet_tabungan" || bName.includes("tabungan");
-
-    if (isAUtama && !isBUtama) return -1;
-    if (!isAUtama && isBUtama) return 1;
-    if (isATabungan && !isBTabungan) return -1;
-    if (!isATabungan && isBTabungan) return 1;
-    return 0;
+    if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
 
   let msg = "";
   for (const w of sorted) {
-    const isUtama = w.id.toLowerCase() === "wallet_utama" || w.name.toLowerCase().includes("utama");
-    if (isUtama) {
+    if (w.is_primary) {
       msg += `*${w.name}: ${formatRupiah(w.balance ?? 0)}*\n`;
     } else {
       msg += `${w.name}: ${formatRupiah(w.balance ?? 0)}\n`;

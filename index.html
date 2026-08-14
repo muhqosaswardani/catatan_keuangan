@@ -781,20 +781,14 @@
 <div class="app" id="app">
 
   <!-- ============ ONBOARDING ============ -->
-  <div class="onb-overlay" id="onboarding">
+  <div class="onb-overlay" id="onboarding" style="overflow-y:auto; padding:40px 20px;">
     <div class="logo-mark">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
     </div>
     <h1>Selamat datang</h1>
-    <p>Sebelum mulai, catat dulu saldo awal di masing-masing dompet kamu. Ini jadi titik awal semua catatan keuangan.</p>
-    <div class="field">
-      <label>Saldo awal — Dompet Utama</label>
-      <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="onbUtama" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-    </div>
-    <div class="field">
-      <label>Saldo awal — Dompet Tabungan</label>
-      <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="onbTabungan" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-    </div>
+    <p style="margin-bottom:20px;">Sebelum mulai, catat dulu saldo awal di masing-masing dompet kamu. Ini jadi titik awal semua catatan keuangan.</p>
+    <div id="onboardingWalletsList" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
+    <button type="button" class="btn btn-ghost btn-block" onclick="addOnboardingWalletField()" style="margin-bottom:20px; border:1px dashed var(--line); text-align:center;">+ Tambah Dompet</button>
     <button class="btn btn-primary btn-block" onclick="finishOnboarding()">Mulai Catat</button>
   </div>
 
@@ -820,6 +814,9 @@
       </div>
       <div class="amount num" id="heroTotal">—</div>
       <div class="sub-wallets" id="heroSubWalletsWrap"></div>
+      <div id="heroExpandBtnWrap" style="text-align:center;margin-top:12px;display:none;">
+        <button type="button" id="heroExpandBtn" onclick="toggleHeroWalletsExpand()" style="background:none;border:none;color:rgba(255,255,255,0.85);font-size:12px;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:100px;background:rgba(255,255,255,0.08);display:none;margin:0 auto;"></button>
+      </div>
     </div>
 
     <div class="section">
@@ -1008,11 +1005,8 @@
     <div class="section" style="margin-top:16px;">
       <div class="card">
         <div class="field">
-          <label>Pilih Dompet</label>
-          <button type="button" class="picker-btn" id="ccWalletBtn" onclick="openCcWalletPicker()">
-            <span id="ccWalletLabel">Pilih dompet</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
+          <label>Pilih Cakupan Dompet (Reconciliation Scope)</label>
+          <div id="ccWalletsScopeChecklist" style="display:flex; flex-direction:column; gap:8px; margin-top:8px; margin-bottom:12px;"></div>
         </div>
         <div class="stat" style="margin-bottom:14px;">
           <div class="t">Saldo Tercatat di App</div>
@@ -1322,10 +1316,6 @@
           <div class="field" style="margin-bottom:10px;">
             <label>Nama Dompet</label>
             <input type="text" id="newWalletName" placeholder="Contoh: Dompet Kas, Mandiri, dll" autocomplete="off" autocorrect="off" spellcheck="false">
-          </div>
-          <div class="field" style="margin-bottom:12px;">
-            <label>Saldo Awal</label>
-            <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="newWalletBalance" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
           </div>
           <button type="button" class="btn btn-primary btn-block" onclick="addNewWalletFromManage()">+ Tambah Dompet</button>
         </div>
@@ -2386,24 +2376,33 @@ function mergeWallets(localList, remoteList) {
   const all = [];
   const remoteIds = new Set((remoteList || []).map(r => r.id));
   (localList || []).forEach(item => {
-    if (item && item.name) {
-      const isDefault = (item.id === 'wallet_utama' || item.id === 'wallet_tabungan');
+    if (item && item.id) {
+      const isDefault = item.isPrimary;
       const isUsed = (typeof isWalletStillUsed === 'function' && isWalletStillUsed(item.id));
       const isActiveSelection = (typeof goalWalletValue !== 'undefined' && goalWalletValue === item.id);
-      // Only keep local-only wallets if they are default, actively used, or currently selected in a form.
-      // Don't preserve wallets that exist only locally and aren't in server — they were deleted on another device.
       if (isDefault || isUsed || isActiveSelection || remoteIds.has(item.id)) {
-        all.push({ id: item.id || uid(), name: item.name, balance: Number(item.balance) || 0, updatedAt: item.updatedAt || 0 });
+        all.push({
+          id: item.id,
+          name: item.name,
+          balance: Number(item.balance) || 0,
+          isPrimary: !!item.isPrimary,
+          order: Number(item.order) || 0,
+          createdAt: item.createdAt || Date.now(),
+          updatedAt: item.updatedAt || 0
+        });
       }
     }
   });
   (remoteList || []).forEach(remote => {
-    if (remote && remote.name) {
+    if (remote && remote.id) {
       const rTime = (remote.updatedAt != null) ? remote.updatedAt : (remote.updated_at ? new Date(remote.updated_at).getTime() : 0);
       all.push({
         id: remote.id,
         name: remote.name,
         balance: Number(remote.balance) || 0,
+        isPrimary: !!remote.isPrimary,
+        order: Number(remote.order) || 0,
+        createdAt: remote.createdAt || Date.now(),
         updatedAt: rTime
       });
     }
@@ -2411,7 +2410,7 @@ function mergeWallets(localList, remoteList) {
 
   const grouped = new Map();
   all.forEach(item => {
-    const key = item.name.trim().toLowerCase();
+    const key = item.id;
     const existing = grouped.get(key);
     if (!existing) {
       grouped.set(key, item);
@@ -2613,7 +2612,15 @@ async function syncAllWithSupabase(silent = true) {
     const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
     if (remWallets) {
       const filtered = remWallets.filter(r => !deletedSet.has(String(r.id)));
-      const mapped = filtered.map(r => ({ id: r.id, name: r.name, balance: Number(r.balance) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const mapped = filtered.map(r => ({
+        id: r.id,
+        name: r.name,
+        balance: Number(r.balance) || 0,
+        isPrimary: !!r.is_primary,
+        order: Number(r.sort_order) || 0,
+        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+        updatedAt: new Date(r.updated_at).getTime()
+      }));
       const merged = mergeWallets(getWallets(), mapped);
       setWalletsLocalOnly(merged);
       
@@ -2622,7 +2629,16 @@ async function syncAllWithSupabase(silent = true) {
       
       // Push the final updated wallet records back to Supabase
       const finalWallets = getWallets();
-      const pushRecs = finalWallets.map(w => ({ id: w.id, access_code: code, name: w.name, balance: w.balance, updated_at: new Date(w.updatedAt || Date.now()).toISOString() }));
+      const pushRecs = finalWallets.map(w => ({
+        id: w.id,
+        access_code: code,
+        name: w.name,
+        balance: w.balance,
+        is_primary: !!w.isPrimary,
+        sort_order: Number(w.order) || 0,
+        created_at: new Date(w.createdAt || Date.now()).toISOString(),
+        updated_at: new Date(w.updatedAt || Date.now()).toISOString()
+      }));
       if (pushRecs.length > 0) {
         await supabaseClient.from('wallets').upsert(pushRecs);
       }
@@ -2702,7 +2718,15 @@ async function syncAllWithSupabase(silent = true) {
         if (remChkSettings.onboarded) {
           localStorage.setItem(LS_KEYS.onboarded, '1');
         }
+        if (remChkSettings.cek_wallet_scope != null) {
+          localStorage.setItem('cek_wallet_scope', JSON.stringify(remChkSettings.cek_wallet_scope));
+        }
       }
+      let cekWalletScopeLocal = [];
+      try {
+        cekWalletScopeLocal = JSON.parse(localStorage.getItem('cek_wallet_scope') || '[]');
+      } catch(e) {}
+
       await supabaseClient.from('user_settings').upsert({
         access_code: code,
         sheets_web_app_url: (getSettings().sheetsWebAppUrl || ''),
@@ -2711,6 +2735,7 @@ async function syncAllWithSupabase(silent = true) {
         insight_cache: getInsightCache(),
         analysis_cache: getAnalysisCache(),
         onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
+        cek_wallet_scope: cekWalletScopeLocal,
         deleted_ids: mergedDeleted,
         updated_at: new Date().toISOString()
       });
@@ -2941,7 +2966,12 @@ function getNavConfig(){
   core = core.filter(t => t !== 'beranda');
   core.unshift('beranda');
   if(core.length > 5) core = core.slice(0, 5);
-  const heroWallets = (raw && Array.isArray(raw.heroWallets)) ? raw.heroWallets : ['wallet_utama'];
+  
+  const wallets = getWallets();
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  const defaultWalletId = primaryWallet ? primaryWallet.id : 'wallet_utama';
+  const heroWallets = (raw && Array.isArray(raw.heroWallets)) ? raw.heroWallets : [defaultWalletId];
+  
   const dashboardAvgCatIds = (raw && Array.isArray(raw.dashboardAvgCatIds)) ? raw.dashboardAvgCatIds : [];
   const dashboardAvgCatIdsUpdatedAt = (raw && Number(raw.dashboardAvgCatIdsUpdatedAt)) || 0;
   const dashboardAvgExcludeCatIds = (raw && Array.isArray(raw.dashboardAvgExcludeCatIds)) ? raw.dashboardAvgExcludeCatIds : [];
@@ -2965,7 +2995,12 @@ function getNavConfig(){
 }
 function getHeroWallets(){
   const cfg = getNavConfig();
-  return (cfg && Array.isArray(cfg.heroWallets) && cfg.heroWallets.length > 0) ? cfg.heroWallets : ['wallet_utama'];
+  if (cfg && Array.isArray(cfg.heroWallets) && cfg.heroWallets.length > 0) {
+    return cfg.heroWallets;
+  }
+  const wallets = getWallets();
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  return primaryWallet ? [primaryWallet.id] : ['wallet_utama'];
 }
 function setHeroWallets(heroWallets){
   const cfg = getNavConfig();
@@ -3057,10 +3092,40 @@ function seedIfEmpty(){
   }
   if(getWallets().length === 0){
     setWalletsLocalOnly([
-      {id:'wallet_utama', name:'Dompet Utama', balance:0, updatedAt: 1},
-      {id:'wallet_tabungan', name:'Dompet Tabungan', balance:0, updatedAt: 1}
+      {id:'wallet_utama', name:'Dompet Utama', balance:0, isPrimary:true, order:0, createdAt: Date.now(), updatedAt: 1}
     ]);
   }
+}
+
+function migrateWalletsSchema() {
+  if (localStorage.getItem('wallets_redesign_migrated')) return;
+  
+  const wallets = getWallets();
+  if (wallets.length > 0) {
+    let hasPrimary = wallets.some(w => w.isPrimary);
+    
+    const updated = wallets.map((w, idx) => {
+      const isUtama = w.id === 'wallet_utama';
+      const isTabungan = w.id === 'wallet_tabungan';
+      
+      return {
+        ...w,
+        isPrimary: isUtama ? true : (hasPrimary ? !!w.isPrimary : false),
+        order: isUtama ? 0 : (isTabungan ? 1 : idx + 2),
+        createdAt: w.createdAt || (Date.now() + idx),
+        updatedAt: Date.now()
+      };
+    });
+    
+    if (!updated.some(w => w.isPrimary)) {
+      if (updated[0]) updated[0].isPrimary = true;
+    }
+    
+    setWalletsLocalOnly(updated);
+    syncAllWithSupabase(true);
+  }
+  
+  localStorage.setItem('wallets_redesign_migrated', '1');
 }
 
 /* =========================================================
@@ -4346,6 +4411,12 @@ function compareBadgeHtml(current, prev){
   return `<span class="compare-badge ${cls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
 }
 
+let isHeroWalletsExpanded = false;
+function toggleHeroWalletsExpand() {
+  isHeroWalletsExpanded = !isHeroWalletsExpanded;
+  renderHome();
+}
+
 function renderHome(){
   document.getElementById('greetingDate').textContent = dateOnlyLabel(todayStr());
   const wallets = getWallets();
@@ -4360,8 +4431,10 @@ function renderHome(){
   // Subtitle label untuk Total Saldo
   const subLabelEl = document.getElementById('heroTotalLabelSub');
   if(subLabelEl){
-    if(selectedWalletIds.length === 1 && selectedWalletIds[0] === 'wallet_utama'){
-      subLabelEl.textContent = '(Dompet Utama)';
+    const primaryW = wallets.find(w => w.isPrimary) || wallets[0];
+    const primaryId = primaryW ? primaryW.id : 'wallet_utama';
+    if(selectedWalletIds.length === 1 && selectedWalletIds[0] === primaryId){
+      subLabelEl.textContent = `(${primaryW ? primaryW.name : 'Dompet Utama'})`;
     } else if(selectedWalletIds.length >= wallets.length){
       subLabelEl.textContent = '(Semua Dompet)';
     } else {
@@ -4369,10 +4442,38 @@ function renderHome(){
     }
   }
 
-  // Render SEMUA dompet ke dalam hero sub-wallets (termasuk dompet tujuan dengan progress bar)
+  // Render dompet ke dalam hero sub-wallets (collapsed: 2 dompet teratas dari urutan, expanded: semua tercentang)
+  const sortedWallets = [...wallets].sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+    if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+    return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+  });
+
+  const checkedWallets = sortedWallets.filter(w => selectedWalletIds.includes(w.id));
+  let walletsToRender = [];
+  const expandBtn = document.getElementById('heroExpandBtn');
+  const expandBtnWrap = document.getElementById('heroExpandBtnWrap');
+  
+  if (checkedWallets.length <= 2) {
+    walletsToRender = checkedWallets;
+    if (expandBtn) expandBtn.style.display = 'none';
+    if (expandBtnWrap) expandBtnWrap.style.display = 'none';
+  } else {
+    if (expandBtnWrap) expandBtnWrap.style.display = 'block';
+    if (expandBtn) {
+      expandBtn.style.display = 'inline-block';
+      expandBtn.textContent = isHeroWalletsExpanded ? 'Sembunyikan' : 'Lihat semua dompet';
+    }
+    if (isHeroWalletsExpanded) {
+      walletsToRender = checkedWallets;
+    } else {
+      walletsToRender = sortedWallets.slice(0, 2);
+    }
+  }
+
   const wrap = document.getElementById('heroSubWalletsWrap');
   if(wrap){
-    wrap.innerHTML = wallets.map(w => {
+    wrap.innerHTML = walletsToRender.map(w => {
       const g = goals.find(goal => goal.walletId === w.id);
       if(g && g.targetAmount > 0){
         const pct = Math.min(100, Math.round((w.balance / g.targetAmount) * 100));
@@ -5445,15 +5546,15 @@ function txItemHtml(t){
     // Look up by ID first (reliable), then fall back to name+type search
     const cat = (t.categoryId ? categoryById(t.categoryId) : null) || categoryByNameAndType(t.category, 'income');
     iconHtml = cat ? categoryIconBoxHtml(cat, {size:38}) : `<div class="tx-icon income">${incomeSvg()}</div>`;
-    sign = '+'; amtClass = 'income'; metaExtra = w ? w.name : '';
+    sign = '+'; amtClass = 'income'; metaExtra = w ? w.name : 'Dompet Terhapus';
   } else if(t.type === 'expense'){
     // Look up by ID first (reliable), then fall back to name+type search
     const cat = (t.categoryId ? categoryById(t.categoryId) : null) || categoryByNameAndType(t.category, 'expense');
     iconHtml = cat ? categoryIconBoxHtml(cat, {size:38}) : `<div class="tx-icon expense">${expenseSvg()}</div>`;
-    sign = '-'; amtClass = 'expense'; metaExtra = w ? w.name : '';
+    sign = '-'; amtClass = 'expense'; metaExtra = w ? w.name : 'Dompet Terhapus';
   } else {
     iconHtml = `<div class="tx-icon transfer">${transferSvg()}</div>`;
-    sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w?w.name:'') + ' → ' + (tw?tw.name:'');
+    sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w?w.name:'Dompet Terhapus') + ' → ' + (tw?tw.name:'Dompet Terhapus');
   }
   const note = t.note ? ' · ' + t.note : '';
   const pendingBadge = t.pending ? ' <span class="tx-pending-badge">Terjadwal</span>' : '';
@@ -5995,7 +6096,18 @@ function matchCategoryByName(name, type){
 // Daftar model dicoba BERURUTAN dari atas: kalau model pertama kena limit/kuota habis/
 // overload/tidak ditemukan, otomatis lanjut coba model berikutnya di baris bawahnya —
 // tanpa perlu ganti manual. Urutan boleh diubah/ditambah/dikurangi sesuai kebutuhan.
-const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+const GEMINI_MODELS = [
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.0-flash',
+  'gemini-3-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash'
+];
 // Menyiapkan satu file (foto ATAU dokumen PDF) jadi "part" yang bisa dikirim ke Gemini.
 // - PDF/dokumen non-gambar: dikirim apa adanya sebagai base64, Gemini bisa baca PDF langsung
 //   (termasuk PDF multi-halaman seperti e-statement/mutasi rekening).
@@ -6069,13 +6181,18 @@ async function callGeminiRaw(key, parts, temperature, responseSchema){
   const RETRYABLE_STATUS = [403, 404, 429, 503];
   let lastErr = null;
   const numKeys = keysToTry.length;
+  const numModels = GEMINI_MODELS.length;
+
+  const startKeyIdx = Math.floor(Math.random() * numKeys);
+  const startModelIdx = Math.floor(Math.random() * numModels);
 
   for(let kCount = 0; kCount < numKeys; kCount++){
-    const kIdx = (currentApiKeyIndex + kCount) % numKeys;
+    const kIdx = (startKeyIdx + kCount) % numKeys;
     const apiKey = keysToTry[kIdx];
 
-    for(let i = 0; i < GEMINI_MODELS.length; i++){
-      const model = GEMINI_MODELS[i];
+    for(let mCount = 0; mCount < numModels; mCount++){
+      const mIdx = (startModelIdx + mCount) % numModels;
+      const model = GEMINI_MODELS[mIdx];
       const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
       // Model "2.5"/"3.5" flash punya mode "thinking" yang nyala default — buat tugas ekstraksi
       // JSON deterministik kayak gini, thinking cuma nambah risiko token output kepotong
@@ -6085,7 +6202,7 @@ async function callGeminiRaw(key, parts, temperature, responseSchema){
       const generationConfig = {
         responseMimeType: 'application/json',
         temperature: (typeof temperature === 'number' ? temperature : 0.7),
-        maxOutputTokens: 8192
+        maxOutputTokens: 2048
       };
       if(!/2\.0/.test(model)){
         generationConfig.thinkingConfig = { thinkingBudget: 0 };
@@ -6097,6 +6214,8 @@ async function callGeminiRaw(key, parts, temperature, responseSchema){
         generationConfig.responseSchema = responseSchema;
       }
       let res;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 seconds timeout
       try{
         res = await fetch(url, {
           method: 'POST',
@@ -6104,11 +6223,14 @@ async function callGeminiRaw(key, parts, temperature, responseSchema){
           body: JSON.stringify({
             contents: [{ role: 'user', parts }],
             generationConfig
-          })
+          }),
+          signal: controller.signal
         });
       } catch(networkErr){
-        lastErr = new Error('Gagal menghubungi Gemini API: ' + (networkErr && networkErr.message ? networkErr.message : 'koneksi terputus') + '. Pastikan HP terhubung internet.');
+        lastErr = new Error('Gagal menghubungi Gemini API: ' + (networkErr && networkErr.message ? networkErr.message : 'koneksi terputus atau timeout') + '. Pastikan HP terhubung internet.');
         continue;
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       if(res.ok){
@@ -6958,7 +7080,8 @@ function openTransactionModal(txId, opts){
   document.getElementById('txModalTitle').textContent = txId ? 'Edit Transaksi' : 'Tambah Transaksi';
 
   const wallets = getWallets();
-  txWalletValue = wallets[0] ? wallets[0].id : null;
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  txWalletValue = primaryWallet ? primaryWallet.id : null;
 
   if(txId){
     const tx = getTransactions().find(t => t.id === txId);
@@ -6991,8 +7114,8 @@ function openTransactionModal(txId, opts){
 function updateTxWalletLabel(){
   const w = walletById(txWalletValue);
   const el = document.getElementById('txWalletLabel');
-  el.textContent = w ? w.name : 'Pilih dompet';
-  el.classList.toggle('ph', !w);
+  el.textContent = w ? w.name : (txWalletValue ? 'Dompet Terhapus' : 'Pilih dompet');
+  el.classList.toggle('ph', !w && !txWalletValue);
 }
 function updateTxCategoryLabel(){
   const c = categoryById(txCategoryValue);
@@ -7143,8 +7266,10 @@ function openTrToPicker(){
 
 function openTransferModal(opts){
   const wallets = getWallets();
-  trFromValue = wallets[0] ? wallets[0].id : null;
-  trToValue = wallets[1] ? wallets[1].id : (wallets[0] ? wallets[0].id : null);
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  const secondaryWallet = wallets.find(w => !w.isPrimary) || wallets[1] || wallets[0];
+  trFromValue = primaryWallet ? primaryWallet.id : null;
+  trToValue = (secondaryWallet && secondaryWallet.id !== trFromValue) ? secondaryWallet.id : (primaryWallet ? primaryWallet.id : null);
   updateTrLabels();
   document.getElementById('trAmount').value = '';
   document.getElementById('trDate').value = todayStr();
@@ -7985,37 +8110,84 @@ function saveBudgetLimit(){
    RENDER: CROSS-CHECK
    ========================================================= */
 let ccFiles = [];
-let ccWalletValue = null;
+
+function getCcWalletsScope() {
+  const wallets = getWallets();
+  const allIds = wallets.map(w => w.id);
+  try {
+    const raw = localStorage.getItem('cek_wallet_scope');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const valid = parsed.filter(id => allIds.includes(id));
+      if (valid.length > 0) return valid;
+    }
+  } catch(e) {}
+  return allIds;
+}
+
+function setCcWalletsScope(ids) {
+  localStorage.setItem('cek_wallet_scope', JSON.stringify(ids || []));
+  syncAllWithSupabase(true);
+}
 
 function renderCrosscheck(){
-  const wallets = getWallets();
-  if(!wallets.some(w => w.id === ccWalletValue)) ccWalletValue = wallets[0] ? wallets[0].id : null;
   ccFiles = [];
   document.getElementById('ccFileList').innerHTML = '';
-  onCcWalletChange();
+  renderCcWalletsScopeChecklist();
 }
 
-function openCcWalletPicker(){
-  const options = getWallets().map(w => ({value:w.id, label:w.name}));
-  openPicker('Pilih Dompet', options, ccWalletValue, v => { ccWalletValue = v; onCcWalletChange(); });
+function renderCcWalletsScopeChecklist(){
+  const wallets = getWallets();
+  const scopeIds = getCcWalletsScope();
+  const wrap = document.getElementById('ccWalletsScopeChecklist');
+  if(!wrap) return;
+
+  const sorted = [...wallets].sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+    if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+    return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+  });
+
+  wrap.innerHTML = sorted.map(w => {
+    const isChecked = scopeIds.includes(w.id);
+    return `
+      <label class="hero-wallet-check-item" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;margin-bottom:0;">
+        <input type="checkbox" value="${w.id}" ${isChecked ? 'checked' : ''} onchange="onCcWalletScopeChange()" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;margin:0;">
+        <div style="flex:1;">
+          <div style="font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;">${formatRupiah(w.balance)}</div>
+        </div>
+      </label>`;
+  }).join('');
+  
+  updateCcRecordedTotal();
 }
 
-function onCcWalletChange(){
-  const w = walletById(ccWalletValue);
-  document.getElementById('ccWalletLabel').textContent = w ? w.name : 'Pilih dompet';
-  document.getElementById('ccRecorded').textContent = formatRupiah(w ? w.balance : 0);
+function onCcWalletScopeChange(){
+  const checked = Array.from(document.querySelectorAll('#ccWalletsScopeChecklist input[type="checkbox"]:checked')).map(cb => cb.value);
+  setCcWalletsScope(checked);
+  updateCcRecordedTotal();
+}
+
+function updateCcRecordedTotal(){
+  const scopeIds = getCcWalletsScope();
+  const wallets = getWallets();
+  const total = wallets.filter(w => scopeIds.includes(w.id)).reduce((s, w) => s + w.balance, 0);
+  document.getElementById('ccRecorded').textContent = formatRupiah(total);
 }
 
 function onCcFilesSelected(e){
   const files = Array.from(e.target.files || []);
   ccFiles = ccFiles.concat(files);
-  e.target.value = ''; // biar bisa ambil foto kamera berkali-kali / pilih file yang sama lagi
+  e.target.value = ''; 
   renderCcFileList();
 }
+
 function renderCcFileList(){
   document.getElementById('ccFileList').innerHTML = ccFiles.map((f,i) => fileThumbHtml(f, i, 'removeCcFile')).join('');
   document.getElementById('ccAnalyzeNowBtn').disabled = ccFiles.length === 0;
 }
+
 function removeCcFile(i){
   ccFiles.splice(i,1);
   renderCcFileList();
@@ -8023,20 +8195,17 @@ function removeCcFile(i){
 
 /* =========================================================
    ANALISIS SALDO DENGAN AI — fitur 5
-   WAJIB ada Gemini API Key di Settings. Screenshot/foto dikirim & dibaca
-   sungguhan lewat Gemini Vision (ccAnalyzeWithGemini). Tidak ada data
-   dummy/simulasi — kalau key belum diisi atau request gagal, ditampilkan
-   error yang jelas. Semua input aktual lewat modal ini,
-   bukan lewat field manual di halaman depan tab Cek.
    ========================================================= */
-let ccaItems = { cash: 0, items: [] };
+let ccaItems = { items: [] };
 
 function analyzeScreenshotWithAIHandler(){
-  if(!ccWalletValue){ showToast('Pilih dompet terlebih dahulu'); return; }
+  const scope = getCcWalletsScope();
+  if(scope.length === 0){ showToast('Pilih minimal 1 dompet cakupan terlebih dahulu'); return; }
   if(!getGeminiApiKey()){ showToast('Gemini API Key tidak ditemukan'); return; }
   renderCcFileList();
   openModal('modalCcPhotoChoice');
 }
+
 function confirmCcAnalyzeNow(){
   document.getElementById('ccaLoadingView').style.display = 'block';
   document.getElementById('ccaErrorView').style.display = 'none';
@@ -8044,12 +8213,17 @@ function confirmCcAnalyzeNow(){
   swapModal('modalCcPhotoChoice', 'modalCcAnalysis');
   runCcAnalysis();
 }
+
 function runCcAnalysis(){
-  const w = walletById(ccWalletValue);
-  document.getElementById('ccaRecorded').textContent = formatRupiah(w ? w.balance : 0);
+  const scopeIds = getCcWalletsScope();
+  const wallets = getWallets();
+  const recordedTotal = wallets.filter(w => scopeIds.includes(w.id)).reduce((s, w) => s + w.balance, 0);
+  document.getElementById('ccaRecorded').textContent = formatRupiah(recordedTotal);
+  
   const key = getGeminiApiKey();
   const finish = (result) => {
     ccaItems = result;
+    computeAiDupFlags();
     renderCcaItems();
     document.getElementById('ccaLoadingView').style.display = 'none';
     document.getElementById('ccaResultView').style.display = 'block';
@@ -8065,7 +8239,7 @@ function runCcAnalysis(){
   }
   ccAnalyzeWithGemini(key)
     .then(result => {
-      if(result.cash === 0 && result.items.length === 0){
+      if(result.items.length === 0){
         showCcaError('AI tidak menemukan saldo apa pun di foto ini. Coba foto yang lebih jelas/terang, atau pastikan angka saldonya kelihatan penuh.');
         return;
       }
@@ -8076,75 +8250,270 @@ function runCcAnalysis(){
       showCcaError((err && err.message) || 'AI gagal membaca foto.');
     });
 }
+
 function retryCcAnalysis(){
   document.getElementById('ccaErrorView').style.display = 'none';
   runCcAnalysis();
 }
-// Sambungan Gemini Vision — dipakai untuk membaca screenshot saldo/foto uang tunai.
-// Kalau Gemini API Key belum diisi, fitur ini tidak bisa dipakai sama sekali (lihat runCcAnalysis).
+
 async function ccAnalyzeWithGemini(key){
+  const scopeIds = getCcWalletsScope();
+  const wallets = getWallets().filter(w => scopeIds.includes(w.id));
+  const walletsText = wallets.map(w => `- ID: "${w.id}", Nama Dompet: "${w.name}"`).join('\n');
+  
   const promptText =
-    'Kamu asisten keuangan pribadi. Lihat setiap lampiran yang diberikan — bisa berupa screenshot saldo aplikasi dompet digital/bank ' +
-    '(mis. GoPay, OVO, DANA, ShopeePay, BCA Mobile, BRImo, Livin Mandiri, dll), foto uang tunai fisik, atau file PDF e-statement/rekening (baca halaman yang menunjukkan saldo terkini). ' +
-    'Kembalikan HANYA satu objek JSON: {"cash": <total uang tunai fisik dari foto uang cash, integer rupiah, isi 0 kalau tidak ada foto uang tunai>, ' +
-    '"items": [{"name": <nama aplikasi/bank>, "amount": <saldo yang terbaca, integer rupiah>}, ...]} — satu item untuk tiap screenshot saldo digital yang terbaca. ' +
-    'Jangan sertakan teks lain selain JSON tersebut, tanpa markdown code fence.';
+    'Kamu asisten keuangan pribadi yang ahli dalam melakukan rekonsiliasi saldo.\n' +
+    'Tugasmu adalah melihat setiap lampiran yang diberikan (screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement) ' +
+    'dan mencocokkan setiap saldo yang terbaca ke daftar dompet user berikut yang aktif dalam cakupan sesi ini:\n' +
+    walletsText + '\n\n' +
+    'Aturan Pencocokan Dompet (Reconciliation Scope):\n' +
+    '1. Lakukan pencocokan berdasarkan konteks/nama institusi, bukan sekadar exact string match. Misal: jika terbaca saldo "GoPay", "Dana", "OVO" sedangkan nama dompet user "E-Wallet", cocokkan ke ID dompet "E-Wallet" tersebut. Jika terbaca "BCA Mobile" atau "BCA" sedangkan nama dompet user "Bank Central Asia" atau "BCA Utama", cocokkan ke situ.\n' +
+    '2. Uang Tunai/Cash: jika terdeteksi foto uang fisik atau tertulis saldo "Tunai/Cash" tapi tidak ada dompet yang cocok secara konteks, cocokkan ke dompet primary (ID target: "wallet_utama" atau dompet pertama). Set target_wallet_id ke ID dompet primary tersebut, dan beri tanda visual di alasan.\n' +
+    '3. Jika ada item yang terbaca tapi TIDAK cocok dengan dompet manapun, set target_wallet_id ke null. Jangan menebak sembarangan.\n' +
+    '4. Ambiguitas Dompet Mirip: jika ada 2 atau lebih dompet user yang sama-sama masuk akal menjadi tujuan match (misal terbaca "GoPay" sedangkan user punya dompet "GoPay Utama" dan "GoPay Bisnis"), JANGAN menebak salah satu. Set target_wallet_id ke null (akan ditandai sebagai butuh klarifikasi).\n\n' +
+    'Kembalikan HANYA objek JSON dengan struktur berikut:\n' +
+    '{\n' +
+    '  "items": [\n' +
+    '    {\n' +
+    '      "name": "nama saldo yang terbaca di screenshot/struk (mis. GoPay, Cash, BCA)",\n' +
+    '      "amount": <saldo integer rupiah>,\n' +
+    '      "target_wallet_id": "ID dompet user yang cocok (mis. \'wallet_utama\' dll), atau null jika tidak cocok / ambigu",\n' +
+    '      "match_reason": "alasan singkat pencocokan (mis. \'GoPay dicocokkan ke E-wallet karena termasuk e-wallet\', atau \'ambigu antara GoPay Utama dan GoPay Bisnis\')"\n' +
+    '    }, ...\n' +
+    '  ]\n' +
+    '}\n' +
+    'Jangan sertakan penjelasan lain selain objek JSON ini, tanpa markdown code fence.';
+
   const parts = [{ text: promptText }];
   for(const f of ccFiles){ parts.push(await fileToGenerativePart(f)); }
   const data = await callGeminiRaw(key, parts);
   const text = extractGeminiText(data);
   const parsed = parseAiJson(text, 'object');
-  const cash = Math.max(0, Math.round(Number(parsed && parsed.cash) || 0));
-  const items = Array.isArray(parsed && parsed.items) ? parsed.items.map(it => ({
-    id: uid(),
-    name: ((it && it.name) || 'Dompet').toString().slice(0, 30),
-    amount: Math.max(0, Math.round(Number(it && it.amount) || 0))
-  })) : [];
-  return { cash, items };
+  
+  const walletsAll = getWallets();
+  const primaryWallet = walletsAll.find(w => w.isPrimary) || walletsAll[0];
+  const primaryId = primaryWallet ? primaryWallet.id : 'wallet_utama';
+
+  const items = Array.isArray(parsed && parsed.items) ? parsed.items.map(it => {
+    const rawTarget = (it && it.target_wallet_id) ? String(it.target_wallet_id) : null;
+    const hasMatch = (rawTarget !== null && walletsAll.some(w => w.id === rawTarget));
+    return {
+      id: uid(),
+      name: ((it && it.name) || 'Dompet').toString().slice(0, 30),
+      amount: Math.max(0, Math.round(Number(it && it.amount) || 0)),
+      targetWalletId: hasMatch ? rawTarget : primaryId,
+      needsReview: !hasMatch,
+      matchReason: ((it && it.match_reason) || '').toString()
+    };
+  }) : [];
+  
+  return { items };
 }
+
+function computeAiDupFlags() {
+  const groups = {}; 
+  ccaItems.items.forEach(it => {
+    if (!it.targetWalletId) return;
+    if (!groups[it.targetWalletId]) groups[it.targetWalletId] = [];
+    groups[it.targetWalletId].push(it);
+  });
+  
+  ccaItems.items.forEach(it => {
+    it.isDuplicate = false;
+    it.isOverride = false;
+    it.overrideWarning = '';
+  });
+  
+  Object.keys(groups).forEach(walletId => {
+    const group = groups[walletId];
+    if (group.length <= 1) return;
+    
+    const seenAmounts = {};
+    group.forEach((it, index) => {
+      if (seenAmounts[it.amount] !== undefined) {
+        it.isDuplicate = true; 
+      } else {
+        seenAmounts[it.amount] = index;
+      }
+    });
+    
+    const activeItems = group.filter(it => !it.isDuplicate);
+    if (activeItems.length > 1) {
+      activeItems.forEach((it, index) => {
+        if (index < activeItems.length - 1) {
+          it.isOverride = true; 
+        } else {
+          it.overrideWarning = `Meng-override item lain untuk dompet ini dengan nilai berbeda!`;
+        }
+      });
+    }
+  });
+}
+
 function renderCcaItems(){
   const wrap = document.getElementById('ccaItemsWrap');
-  let html = `<div class="cc-item-row">
-    <div class="l"><div class="name">Uang Cash</div></div>
-    <div class="amt"><input type="text" id="ccaCashAmt" inputmode="decimal" placeholder="0" value="${ccaItems.cash ? ccaItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateCcaTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-  </div>`;
-  html += ccaItems.items.map(it => `
-    <div class="cc-item-row" data-id="${it.id}">
-      <div class="l"><input type="text" class="cca-name-input" id="ccaName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama" oninput="renameCcaItem('${it.id}', this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-      <div class="amt"><input type="text" id="ccaAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateCcaTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-      <button type="button" class="cc-item-del" onclick="deleteCcaItem('${it.id}')" aria-label="Hapus">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
-    </div>`).join('');
-  wrap.innerHTML = html;
+  if (!wrap) return;
+  
+  const wallets = getWallets();
+  
+  wrap.innerHTML = ccaItems.items.map(it => {
+    let statusLabel = '';
+    let rowStyle = '';
+    let isIgnored = false;
+    
+    if (it.isDuplicate) {
+      statusLabel = '<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">Duplikat (Diabaikan)</span>';
+      rowStyle = 'opacity: 0.6;';
+      isIgnored = true;
+    } else if (it.isOverride) {
+      statusLabel = '<span class="badge" style="background:#fee2e2;color:#ef4444;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">Ditimpa (Diabaikan)</span>';
+      rowStyle = 'opacity: 0.6;';
+      isIgnored = true;
+    } else if (it.needsReview) {
+      statusLabel = '<span class="badge" style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">Butuh Review (Terpilih Primary)</span>';
+    }
+    
+    const warningText = it.overrideWarning ? `<div style="color:#ef4444;font-size:11px;font-weight:600;margin-top:2px;">⚠️ ${it.overrideWarning}</div>` : '';
+    const reasonText = it.matchReason ? `<div style="color:var(--ink-soft);font-size:11px;margin-top:2px;">Konteks: ${escAttr(it.matchReason)}</div>` : '';
+
+    const dropdownOptions = wallets.map(w => `
+      <option value="${w.id}" ${w.id === it.targetWalletId ? 'selected' : ''}>${escAttr(w.name)}</option>
+    `).join('');
+    
+    return `
+      <div class="cc-item-row" data-id="${it.id}" style="${rowStyle}padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div style="font-weight:700;font-size:13.5px;color:var(--ink);">${escAttr(it.name)}</div>
+            ${statusLabel}
+            ${reasonText}
+            ${warningText}
+          </div>
+          <button type="button" class="cc-item-del" onclick="deleteCcaItem('${it.id}')" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px;">
+          <div class="field" style="margin:0;">
+            <label style="font-size:11px;">Dompet Tujuan</label>
+            <select onchange="onCcaItemWalletChange('${it.id}', this)" style="width:100%;padding:6px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);">
+              ${dropdownOptions}
+              <option value="__NEW__">+ Tambah Dompet Baru</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label style="font-size:11px;">Saldo Terbaca</label>
+            <div class="amount-input" style="padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);display:flex;align-items:center;">
+              <span style="font-size:12px;color:var(--ink-soft);margin-right:2px;">Rp</span>
+              <input type="text" id="ccaAmt_${it.id}" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" oninput="formatThousandInput(this);onCcaItemAmountChange('${it.id}', this.value)" style="border:none;background:none;outline:none;font-size:12px;width:100%;font-weight:700;color:var(--ink);padding:0;" placeholder="0" ${isIgnored ? 'disabled' : ''}>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
   updateCcaTotal();
 }
-function renameCcaItem(id, name){
-  const it = ccaItems.items.find(x => x.id === id);
-  if(it) it.name = name;
+
+async function onCcaItemWalletChange(itemId, selectEl) {
+  const val = selectEl.value;
+  if (val === '__NEW__') {
+    const newName = prompt('Masukkan Nama Dompet Baru:');
+    if (!newName || !newName.trim()) {
+      renderCcaItems();
+      return;
+    }
+    const name = newName.trim();
+    const wallets = getWallets();
+    if(wallets.some(w => w.name.trim().toLowerCase() === name.toLowerCase())){
+      showToast('Nama dompet sudah ada');
+      renderCcaItems();
+      return;
+    }
+    
+    const maxOrder = wallets.reduce((max, w) => Math.max(max, w.order ?? 0), 0);
+    const newId = 'w_' + uid();
+    const newWallet = {
+      id: newId,
+      name,
+      balance: 0,
+      isPrimary: false,
+      order: maxOrder + 1,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    wallets.push(newWallet);
+    setWallets(wallets);
+    
+    const it = ccaItems.items.find(x => x.id === itemId);
+    if (it) {
+      it.targetWalletId = newId;
+      it.needsReview = false;
+    }
+    showToast(`Dompet "${name}" berhasil ditambahkan`);
+  } else {
+    const it = ccaItems.items.find(x => x.id === itemId);
+    if (it) {
+      it.targetWalletId = val;
+      it.needsReview = false;
+    }
+  }
+  
+  computeAiDupFlags();
+  renderCcaItems();
 }
+
+function onCcaItemAmountChange(itemId, valStr) {
+  const amt = parseRupiahInput(valStr);
+  const it = ccaItems.items.find(x => x.id === itemId);
+  if (it) {
+    it.amount = amt;
+  }
+  updateCcaTotal();
+}
+
 function addCcaManualItem(){
-  ccaItems.items.push({ id: uid(), name: '', amount: 0 });
+  const wallets = getWallets();
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  const primaryId = primaryWallet ? primaryWallet.id : 'wallet_utama';
+  
+  ccaItems.items.push({
+    id: uid(),
+    name: 'Dompet Baru',
+    amount: 0,
+    targetWalletId: primaryId,
+    needsReview: true,
+    matchReason: 'Item ditambahkan manual oleh user'
+  });
+  computeAiDupFlags();
   renderCcaItems();
   document.getElementById('ccaItemsWrap').scrollIntoView({behavior:'smooth', block:'end'});
 }
+
 function deleteCcaItem(id){
   ccaItems.items = ccaItems.items.filter(it => it.id !== id);
+  computeAiDupFlags();
   renderCcaItems();
 }
+
 function updateCcaTotal(){
-  const cashEl = document.getElementById('ccaCashAmt');
-  let total = cashEl ? parseRupiahInput(cashEl.value) : 0;
+  let total = 0;
   ccaItems.items.forEach(it => {
+    if (it.isDuplicate || it.isOverride) return;
     const el = document.getElementById('ccaAmt_'+it.id);
-    if(el) total += parseRupiahInput(el.value);
+    const amt = el ? parseRupiahInput(el.value) : it.amount;
+    total += amt;
   });
+  
   const totalEl = document.getElementById('ccaTotal');
   if(totalEl) totalEl.textContent = formatRupiah(total);
-
-  const w = walletById(ccWalletValue);
-  const recorded = w ? w.balance : 0;
+  
+  const scopeIds = getCcWalletsScope();
+  const wallets = getWallets();
+  const recorded = wallets.filter(w => scopeIds.includes(w.id)).reduce((s, w) => s + w.balance, 0);
   const diff = total - recorded;
+  
   const diffEl = document.getElementById('ccaDiff');
   if(diffEl){
     diffEl.textContent = (diff >= 0 ? '+' : '') + formatRupiah(diff);
@@ -8152,24 +8521,67 @@ function updateCcaTotal(){
   }
   return total;
 }
-function applyPenyesuaian(){
-  const total = updateCcaTotal();
-  const w = walletById(ccWalletValue);
-  if(!w){ showToast('Pilih dompet terlebih dahulu'); return; }
-  const diff = total - w.balance;
-  closeModal('modalCcAnalysis');
-  if(diff === 0){ showToast('Saldo sudah sesuai, tidak perlu penyesuaian'); return; }
 
-  const type = diff > 0 ? 'income' : 'expense';
-  let cats = getCategories();
-  let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
-  if(!cat){
-    cat = {id: uid(), name: 'Penyesuaian Saldo', type};
-    cats.push(cat);
+function applyPenyesuaian(){
+  const wallets = getWallets();
+  const activeItems = ccaItems.items.filter(it => !it.isDuplicate && !it.isOverride);
+  
+  const walletAmounts = {};
+  activeItems.forEach(it => {
+    if (!it.targetWalletId) return;
+    if (walletAmounts[it.targetWalletId] === undefined) walletAmounts[it.targetWalletId] = 0;
+    walletAmounts[it.targetWalletId] += it.amount;
+  });
+  
+  const txs = getTransactions();
+  const cats = getCategories();
+  let savedCount = 0;
+  
+  Object.keys(walletAmounts).forEach(walletId => {
+    const targetBalance = walletAmounts[walletId];
+    const wallet = wallets.find(w => w.id === walletId);
+    if (!wallet) return;
+    
+    const diff = targetBalance - wallet.balance;
+    if (diff === 0) return;
+    
+    const type = diff > 0 ? 'income' : 'expense';
+    let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
+    if(!cat){
+      cat = {id: 'cat_penyesuaian_saldo_' + type, name: 'Penyesuaian Saldo', type, icon: 'more', color: '#6b7280', _seeded: true};
+      cats.push(cat);
+    }
+    
+    wallet.balance = targetBalance;
+    wallet.updatedAt = Date.now();
+    
+    txs.push({
+      id: 'tx_' + uid(),
+      walletId: walletId,
+      categoryId: cat.id,
+      category: cat.name,
+      type,
+      amount: Math.abs(diff),
+      date: todayStr(),
+      note: `Penyesuaian dari Cek Saldo AI (${wallet.name})`,
+      excludeFromReport: true,
+      updatedAt: Date.now()
+    });
+    
+    savedCount++;
+  });
+  
+  if (savedCount > 0) {
     setCategories(cats);
+    setWallets(wallets);
+    setTransactions(txs);
+    recalculateWalletBalances();
+    showToast(`${savedCount} dompet berhasil disesuaikan`);
+  } else {
+    showToast('Semua saldo sudah sesuai, tidak ada penyesuaian dibuat');
   }
-  addTransaction({ walletId: ccWalletValue, categoryId: cat.id, category: cat.name, type, amount: Math.abs(diff), date: todayStr(), note: 'Penyesuaian dari Cek Saldo AI', toWalletId: null });
-  showToast('Penyesuaian saldo disimpan');
+  
+  closeModal('modalCcAnalysis');
   refreshAllViews();
   renderCrosscheck();
 }
@@ -8180,43 +8592,67 @@ function applyPenyesuaian(){
 let manualAdjItems = { cash: 0, items: [] };
 
 function openManualAdjustModal(){
-  if(!ccWalletValue){ showToast('Pilih dompet terlebih dahulu'); return; }
-  manualAdjItems = { cash: 0, items: [] };
-  const w = walletById(ccWalletValue);
-  document.getElementById('manualAdjRecorded').textContent = formatRupiah(w ? w.balance : 0);
+  const scopeIds = getCcWalletsScope();
+  if (scopeIds.length === 0) { showToast('Pilih minimal 1 dompet cakupan terlebih dahulu'); return; }
+  
+  const wallets = getWallets();
+  const scopedWallets = wallets.filter(w => scopeIds.includes(w.id));
+  
+  const recordedTotal = scopedWallets.reduce((s, w) => s + w.balance, 0);
+  document.getElementById('manualAdjRecorded').textContent = formatRupiah(recordedTotal);
+  
+  manualAdjItems = {
+    cash: 0,
+    items: scopedWallets.map(w => ({
+      id: w.id,
+      name: w.name,
+      amount: w.balance
+    }))
+  };
+  
   renderManualAdjItems();
   openModal('modalManualAdjust');
 }
+
 function renderManualAdjItems(){
   const wrap = document.getElementById('manualAdjItemsWrap');
-  let html = `<div class="cc-item-row">
-    <div class="l"><div class="name">Uang Cash</div></div>
-    <div class="amt"><input type="text" id="manualAdjCashAmt" inputmode="decimal" placeholder="0" value="${manualAdjItems.cash ? manualAdjItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateManualAdjTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+  if (!wrap) return;
+  
+  let html = `<div class="cc-item-row" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+    <div class="l" style="font-weight:700;font-size:13px;color:var(--ink);">Uang Cash (Tunai)</div>
+    <div class="amt"><input type="text" id="manualAdjCashAmt" inputmode="decimal" placeholder="0" value="${manualAdjItems.cash ? manualAdjItems.cash.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" oninput="formatThousandInput(this);updateManualAdjTotal();" style="width:120px;padding:6px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-weight:700;text-align:right;" autocomplete="off" autocorrect="off" spellcheck="false"></div>
   </div>`;
+  
   html += manualAdjItems.items.map(it => `
-    <div class="cc-item-row" data-id="${it.id}">
-      <div class="l"><input type="text" class="cca-name-input" id="manualAdjName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama Dompet" oninput="renameManualAdjItem('${it.id}', this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-      <div class="amt"><input type="text" id="manualAdjAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateManualAdjTotal();" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-      <button type="button" class="cc-item-del" onclick="deleteManualAdjItem('${it.id}')" aria-label="Hapus">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
+    <div class="cc-item-row" data-id="${it.id}" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div class="l" style="flex:1;">
+        <input type="text" class="cca-name-input" id="manualAdjName_${it.id}" value="${escAttr(it.name)}" placeholder="Nama Dompet" oninput="renameManualAdjItem('${it.id}', this.value)" style="font-size:13px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;width:100%;" readonly>
+      </div>
+      <div class="amt" style="display:flex;align-items:center;gap:6px;">
+        <input type="text" id="manualAdjAmt_${it.id}" inputmode="decimal" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.') : ''}" placeholder="0" oninput="formatThousandInput(this);updateManualAdjTotal();" style="width:120px;padding:6px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-weight:700;text-align:right;" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
     </div>`).join('');
+    
   wrap.innerHTML = html;
   updateManualAdjTotal();
 }
+
 function renameManualAdjItem(id, name){
   const it = manualAdjItems.items.find(x => x.id === id);
   if(it) it.name = name;
 }
+
 function addManualAdjItem(){
   manualAdjItems.items.push({ id: uid(), name: '', amount: 0 });
   renderManualAdjItems();
   document.getElementById('manualAdjItemsWrap').scrollIntoView({behavior:'smooth', block:'end'});
 }
+
 function deleteManualAdjItem(id){
   manualAdjItems.items = manualAdjItems.items.filter(it => it.id !== id);
   renderManualAdjItems();
 }
+
 function updateManualAdjTotal(){
   const cashEl = document.getElementById('manualAdjCashAmt');
   let total = cashEl ? parseRupiahInput(cashEl.value) : 0;
@@ -8227,8 +8663,9 @@ function updateManualAdjTotal(){
   const totalEl = document.getElementById('manualAdjTotal');
   if(totalEl) totalEl.textContent = formatRupiah(total);
 
-  const w = walletById(ccWalletValue);
-  const recorded = w ? w.balance : 0;
+  const scopeIds = getCcWalletsScope();
+  const wallets = getWallets();
+  const recorded = wallets.filter(w => scopeIds.includes(w.id)).reduce((s, w) => s + w.balance, 0);
   const diff = total - recorded;
   const diffEl = document.getElementById('manualAdjDiff');
   if(diffEl){
@@ -8237,24 +8674,70 @@ function updateManualAdjTotal(){
   }
   return total;
 }
-function applyManualAdjustment(){
-  const total = updateManualAdjTotal();
-  const w = walletById(ccWalletValue);
-  if(!w){ showToast('Pilih dompet terlebih dahulu'); return; }
-  const diff = total - w.balance;
-  closeModal('modalManualAdjust');
-  if(diff === 0){ showToast('Saldo sudah sesuai, tidak perlu penyesuaian'); return; }
 
-  const type = diff > 0 ? 'income' : 'expense';
-  let cats = getCategories();
-  let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
-  if(!cat){
-    cat = {id: uid(), name: 'Penyesuaian Saldo', type};
-    cats.push(cat);
+function applyManualAdjustment(){
+  const wallets = getWallets();
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  const primaryId = primaryWallet ? primaryWallet.id : null;
+  
+  const cashEl = document.getElementById('manualAdjCashAmt');
+  const cashVal = cashEl ? parseRupiahInput(cashEl.value) : 0;
+  
+  const txs = getTransactions();
+  const cats = getCategories();
+  let savedCount = 0;
+  
+  manualAdjItems.items.forEach(it => {
+    const wallet = wallets.find(w => w.id === it.id);
+    if (!wallet) return;
+    
+    const el = document.getElementById('manualAdjAmt_' + it.id);
+    let targetVal = el ? parseRupiahInput(el.value) : it.amount;
+    
+    if (wallet.id === primaryId) {
+      targetVal += cashVal;
+    }
+    
+    const diff = targetVal - wallet.balance;
+    if (diff === 0) return;
+    
+    const type = diff > 0 ? 'income' : 'expense';
+    let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
+    if(!cat){
+      cat = {id: 'cat_penyesuaian_saldo_' + type, name: 'Penyesuaian Saldo', type, icon: 'more', color: '#6b7280', _seeded: true};
+      cats.push(cat);
+    }
+    
+    wallet.balance = targetVal;
+    wallet.updatedAt = Date.now();
+    
+    txs.push({
+      id: 'tx_' + uid(),
+      walletId: wallet.id,
+      categoryId: cat.id,
+      category: cat.name,
+      type,
+      amount: Math.abs(diff),
+      date: todayStr(),
+      note: `Penyesuaian Saldo Manual (${wallet.name})`,
+      excludeFromReport: true,
+      updatedAt: Date.now()
+    });
+    
+    savedCount++;
+  });
+  
+  if (savedCount > 0) {
     setCategories(cats);
+    setWallets(wallets);
+    setTransactions(txs);
+    recalculateWalletBalances();
+    showToast(`${savedCount} dompet berhasil disesuaikan`);
+  } else {
+    showToast('Semua saldo sudah sesuai, tidak ada penyesuaian dibuat');
   }
-  addTransaction({ walletId: ccWalletValue, categoryId: cat.id, category: cat.name, type, amount: Math.abs(diff), date: todayStr(), note: 'Penyesuaian Saldo Manual', toWalletId: null });
-  showToast('Penyesuaian saldo disimpan');
+  
+  closeModal('modalManualAdjust');
   refreshAllViews();
   renderCrosscheck();
 }
@@ -8544,96 +9027,227 @@ function openWalletManageModal(){
 
 function renderWalletManageList(){
   const wallets = getWallets();
-  const cfg = getNavConfig();
   const listWrap = document.getElementById('walletManageList');
   if(!listWrap) return;
 
-  listWrap.innerHTML = wallets.map(w => {
-    const isDefault = (w.id === 'wallet_utama' || w.id === 'wallet_tabungan');
-    const initialVal = cfg.initialBalances && cfg.initialBalances[w.id] !== undefined ? cfg.initialBalances[w.id] : 0;
+  // Sort wallets: primary DESC, order ASC, createdAt ASC
+  const sorted = [...wallets].sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+    if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+    return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+  });
+
+  listWrap.innerHTML = sorted.map((w, idx) => {
+    const isPrimary = w.isPrimary;
+    const dragHandleHtml = isPrimary ? '<div style="width:24px;"></div>' : `
+      <div class="wallet-drag-handle" style="cursor:grab;padding:6px;color:var(--ink-soft);display:flex;align-items:center;touch-action:none;" onpointerdown="startWalletDrag(event, '${w.id}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+      </div>`;
+      
+    const badgeOrButtonHtml = isPrimary ? `
+      <span style="font-size:11px;background:var(--accent-tint);color:var(--accent);font-weight:700;padding:4px 8px;border-radius:6px;">Primary</span>
+    ` : `
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setWalletPrimaryDirect('${w.id}')" style="font-size:11px;padding:4px 8px;">Set Primary</button>
+        <button type="button" class="btn btn-ghost btn-sm btn-text-danger" onclick="deleteWalletManual('${w.id}')" style="font-size:11px;padding:4px 8px;color:var(--accent);">Hapus</button>
+      </div>
+    `;
+
     return `
-      <div class="settings-row cat-manage-row" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;">
+      <div class="settings-row cat-manage-row wallet-manage-row" data-id="${w.id}" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;gap:8px;">
+        ${dragHandleHtml}
         <div class="l" style="flex:1;">
-          <div style="font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
-          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;display:flex;align-items:center;gap:6px;margin-top:4px;">
-            <span>Saldo Awal:</span>
-            <input type="text" data-id="${w.id}" value="${Math.round(initialVal).toLocaleString('id-ID')}" style="width:110px;padding:2px 6px;font-size:11.5px;font-weight:700;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);" oninput="updateWalletInitialBalance(this)" onblur="saveWalletInitialBalance(this)">
+          <input type="text" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" style="font-size:13.5px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;width:100%;" placeholder="Nama Dompet">
+          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:4px;">
+            Saldo: <span class="editable-balance-trigger" onclick="startEditWalletBalance('${w.id}', this)" style="color:var(--ink);font-weight:700;border-bottom:1px dashed var(--accent);cursor:pointer;">${formatRupiah(w.balance)}</span>
           </div>
-          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:2px;">Saldo Akhir: <span style="color:var(--ink);font-weight:700;">${formatRupiah(w.balance)}</span></div>
         </div>
         <div>
-          ${isDefault ? '<span style="font-size:11px;color:var(--ink-soft);font-weight:600;">Bawaan</span>' : `
-            <button type="button" class="btn btn-danger btn-sm" onclick="deleteWalletManual('${w.id}')">Hapus</button>
-          `}
+          ${badgeOrButtonHtml}
         </div>
       </div>`;
   }).join('');
 }
 
-function updateWalletInitialBalance(inputEl) {
-  const raw = inputEl.value.replace(/\D/g, '');
-  const val = Number(raw) || 0;
-  inputEl.value = val.toLocaleString('id-ID');
+function renameWalletDirect(id, inputEl) {
+  const newName = inputEl.value.trim();
+  if (!newName) {
+    showToast('Nama dompet tidak boleh kosong');
+    renderWalletManageList();
+    return;
+  }
+  const wallets = getWallets();
+  const w = wallets.find(x => x.id === id);
+  if (!w) return;
+  if (w.name !== newName) {
+    if (wallets.some(x => x.id !== id && x.name.toLowerCase() === newName.toLowerCase())) {
+      showToast('Nama dompet sudah digunakan');
+      renderWalletManageList();
+      return;
+    }
+    w.name = newName;
+    w.updatedAt = Date.now();
+    setWallets(wallets);
+    refreshAllViews();
+    showToast('Nama dompet berhasil diubah');
+  }
 }
 
-function saveWalletInitialBalance(inputEl) {
-  const walletId = inputEl.dataset.id;
-  const raw = inputEl.value.replace(/\D/g, '');
-  const val = Number(raw) || 0;
+async function startEditWalletBalance(id, spanEl) {
+  const wallets = getWallets();
+  const w = wallets.find(x => x.id === id);
+  if (!w) return;
   
-  const cfg = getNavConfig();
-  if (!cfg.initialBalances) cfg.initialBalances = {};
-  cfg.initialBalances[walletId] = val;
-  setNavConfig(cfg);
+  const currentValStr = Math.round(w.balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const inputStr = prompt(`Masukkan Saldo Baru untuk "${w.name}":`, currentValStr);
+  if (inputStr === null) return;
   
-  recalculateWalletBalances();
+  const newBalance = parseRupiahInput(inputStr);
+  const diff = newBalance - w.balance;
+  if (diff === 0) return;
+  
+  const confirmed = await showConfirmModal({
+    title: 'Penyesuaian Saldo',
+    text: `Ubah saldo "${w.name}" dari ${formatRupiah(w.balance)} menjadi ${formatRupiah(newBalance)}? Ini akan otomatis mencatat 1 transaksi Penyesuaian Saldo senilai ${formatRupiah(Math.abs(diff))}.`,
+    actionText: 'Ya, Sesuaikan'
+  });
+  if (!confirmed) return;
+  
+  w.balance = newBalance;
+  w.updatedAt = Date.now();
+  
+  const txs = getTransactions();
+  const cats = getCategories();
+  const type = diff > 0 ? 'income' : 'expense';
+  let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
+  if (!cat) {
+    cat = {id: 'cat_penyesuaian_saldo_' + type, name: 'Penyesuaian Saldo', type, icon: 'more', color: '#6b7280', _seeded: true};
+    cats.push(cat);
+    setCategories(cats);
+  }
+  
+  txs.push({
+    id: 'tx_' + uid(),
+    walletId: w.id,
+    categoryId: cat.id,
+    category: cat.name,
+    type,
+    amount: Math.abs(diff),
+    date: todayStr(),
+    note: 'Penyesuaian Saldo Manual (Kelola Dompet)',
+    excludeFromReport: true,
+    updatedAt: Date.now()
+  });
+  
+  setWallets(wallets);
+  setTransactions(txs);
+  refreshAllViews();
   renderWalletManageList();
-  renderHome();
+  showToast('Saldo berhasil disesuaikan');
 }
 
-function addNewWalletFromManage(){
+function setWalletPrimaryDirect(id) {
+  const wallets = getWallets();
+  const w = wallets.find(x => x.id === id);
+  if (!w) return;
+  
+  wallets.forEach(x => {
+    x.isPrimary = (x.id === id);
+    x.updatedAt = Date.now();
+  });
+  
+  const nonPrimary = wallets.filter(x => x.id !== id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  w.order = 0;
+  nonPrimary.forEach((x, idx) => {
+    x.order = idx + 1;
+  });
+  
+  setWallets(wallets);
+  refreshAllViews();
+  renderWalletManageList();
+  showToast(`"${w.name}" sekarang menjadi dompet Utama`);
+}
+
+function addNewWalletFromManage() {
   const nameInput = document.getElementById('newWalletName');
-  const balInput = document.getElementById('newWalletBalance');
   const name = nameInput ? nameInput.value.trim() : '';
-  if(!name){
+  if (!name) {
     showToast('Nama dompet tidak boleh kosong');
     return;
   }
-  const balance = balInput ? parseRupiahInput(balInput.value) : 0;
   const wallets = getWallets();
-  if(wallets.some(w => w.name.trim().toLowerCase() === name.toLowerCase())){
+  if (wallets.some(w => w.name.trim().toLowerCase() === name.toLowerCase())) {
     showToast('Nama dompet sudah ada');
     return;
   }
+  
+  const maxOrder = wallets.reduce((max, w) => Math.max(max, w.order ?? 0), 0);
   const newWallet = {
     id: 'w_' + uid(),
     name,
-    balance,
+    balance: 0,
+    isPrimary: false,
+    order: maxOrder + 1,
+    createdAt: Date.now(),
     updatedAt: Date.now()
   };
   wallets.push(newWallet);
   setWallets(wallets);
-  if(nameInput) nameInput.value = '';
-  if(balInput) balInput.value = '';
+  if (nameInput) nameInput.value = '';
+  
   renderWalletManageList();
   renderHome();
   showToast('Dompet baru berhasil ditambahkan');
 }
 
 async function deleteWalletManual(walletId){
-  if(walletId === 'wallet_utama' || walletId === 'wallet_tabungan') return;
-  const wallet = walletById(walletId);
-  if(!wallet) return;
+  const wallets = getWallets();
+  const w = wallets.find(x => x.id === walletId);
+  if (!w) return;
+  if (w.isPrimary) {
+    showToast('Dompet Utama tidak bisa dihapus');
+    return;
+  }
 
   const confirmed = await showConfirmModal({
     title: 'Hapus Dompet',
-    text: `Hapus dompet "${wallet.name}"? Saldo ${formatRupiah(wallet.balance)} dan dompet ini akan dihapus.`,
+    text: `Hapus dompet "${w.name}"? Saldo ${formatRupiah(w.balance)} akan dihapus. Transaksi historis tetap dipertahankan dengan label "Dompet Terhapus", sedangkan Target Tabungan, Tagihan Rutin, dan Catatan Utang yang tertaut ke dompet ini akan ikut terhapus otomatis.`,
     actionText: 'Ya, Hapus'
   });
   if(!confirmed) return;
   await new Promise(r => setTimeout(r, 150));
 
-  // 1. Delete from Supabase FIRST and AWAIT it to prevent race conditions!
+  // Cascade delete in local storage
+  const goals = getGoals();
+  const nextGoals = goals.filter(g => {
+    if (g.walletId === walletId) {
+      recordDeletion(g.id);
+      return false;
+    }
+    return true;
+  });
+  setGoals(nextGoals);
+
+  const debts = getDebts();
+  const nextDebts = debts.filter(d => {
+    if (d.walletId === walletId) {
+      recordDeletion(d.id);
+      return false;
+    }
+    return true;
+  });
+  setDebts(nextDebts);
+
+  const recurring = getRecurring();
+  const nextRecurring = recurring.filter(r => {
+    if (r.walletId === walletId) {
+      recordDeletion(r.id);
+      return false;
+    }
+    return true;
+  });
+  setRecurring(nextRecurring);
+
   if(supabaseClient && navigator.onLine){
     try {
       const code = getAccessCode();
@@ -8643,18 +9257,106 @@ async function deleteWalletManual(walletId){
     }
   }
 
-  // 2. Then update local storage and trigger sync (which will pull updated database state)
   recordDeletion(walletId);
-  const nextWallets = getWallets().filter(w => w.id !== walletId);
+  const nextWallets = wallets.filter(x => x.id !== walletId);
   setWallets(nextWallets);
 
-  // Remove from heroWallets setting if present
   const heroW = getHeroWallets().filter(id => id !== walletId);
-  setHeroWallets(heroW.length > 0 ? heroW : ['wallet_utama']);
+  const primaryW = nextWallets.find(x => x.isPrimary) || nextWallets[0];
+  setHeroWallets(heroW.length > 0 ? heroW : [primaryW.id]);
 
+  refreshAllViews();
   renderWalletManageList();
-  renderHome();
   showToast('Dompet berhasil dihapus');
+}
+
+let walletDragActive = false;
+let walletDragItem = null;
+let walletDragOrderList = [];
+
+function startWalletDrag(e, walletId) {
+  if (walletDragActive) return;
+  
+  const wallets = getWallets();
+  const sorted = [...wallets].sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+    if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+    return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+  });
+  
+  const w = sorted.find(x => x.id === walletId);
+  if (!w || w.isPrimary) return;
+  
+  walletDragActive = true;
+  walletDragItem = walletId;
+  
+  const row = e.target.closest('.wallet-manage-row');
+  if (row) row.classList.add('dragging');
+  if (navigator.vibrate) navigator.vibrate(20);
+  
+  walletDragOrderList = sorted.map(x => x.id);
+  const wrap = document.getElementById('walletManageList');
+  
+  const onPointerMove = (moveEvent) => {
+    if (!walletDragActive) return;
+    if (moveEvent.cancelable) moveEvent.preventDefault();
+    
+    const targetEl = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY)?.closest('.wallet-manage-row');
+    if (targetEl && targetEl !== row && targetEl.dataset.id && wrap.contains(targetEl)) {
+      const targetId = targetEl.dataset.id;
+      
+      const targetWallet = sorted.find(x => x.id === targetId);
+      if (targetWallet && targetWallet.isPrimary) return;
+      
+      const fromIdx = walletDragOrderList.indexOf(walletDragItem);
+      const toIdx = walletDragOrderList.indexOf(targetId);
+      
+      if (fromIdx !== -1 && toIdx !== -1 && fromIdx !== toIdx) {
+        walletDragOrderList.splice(fromIdx, 1);
+        walletDragOrderList.splice(toIdx, 0, walletDragItem);
+        
+        if (fromIdx < toIdx) {
+          wrap.insertBefore(row, targetEl.nextSibling);
+        } else {
+          wrap.insertBefore(row, targetEl);
+        }
+        if (navigator.vibrate) navigator.vibrate(10);
+      }
+    }
+  };
+  
+  const onPointerEnd = () => {
+    if (!walletDragActive) return;
+    walletDragActive = false;
+    if (row) row.classList.remove('dragging');
+    
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerEnd);
+    window.removeEventListener('pointercancel', onPointerEnd);
+    
+    saveWalletDragNewOrder(walletDragOrderList);
+  };
+  
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerEnd);
+  window.addEventListener('pointercancel', onPointerEnd);
+}
+
+function saveWalletDragNewOrder(orderedIds) {
+  const wallets = getWallets();
+  
+  wallets.forEach(w => {
+    const idx = orderedIds.indexOf(w.id);
+    if (idx !== -1) {
+      w.order = idx;
+    }
+    w.updatedAt = Date.now();
+  });
+  
+  setWallets(wallets);
+  refreshAllViews();
+  renderWalletManageList();
+  showToast('Urutan dompet berhasil disimpan');
 }
 
 function exportData(){
@@ -9533,24 +10235,92 @@ function resetShortcutOverrides(){
 /* =========================================================
    ONBOARDING
    ========================================================= */
-
+let onboardingWalletCount = 0;
+function addOnboardingWalletField(name = '', balance = '') {
+  onboardingWalletCount++;
+  const container = document.getElementById('onboardingWalletsList');
+  if (!container) return;
+  const index = onboardingWalletCount;
+  const isFirst = (index === 1);
+  const div = document.createElement('div');
+  div.className = 'onb-wallet-field-row';
+  div.id = 'onb-wallet-row-' + index;
+  div.style.border = '1px solid var(--line)';
+  div.style.borderRadius = '8px';
+  div.style.padding = '12px';
+  div.style.position = 'relative';
+  div.style.background = 'var(--surface)';
+  
+  const walletName = name || (isFirst ? 'Dompet Utama' : 'Dompet ' + index);
+  
+  div.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-weight:600; font-size:13px; color:var(--ink);">${isFirst ? 'Dompet Utama (Primary)' : 'Dompet Baru'}</span>
+      ${isFirst ? '' : `<button type="button" class="btn-text-danger" onclick="removeOnboardingWalletField(${index})" style="font-size:12px; padding:0; background:none; border:none; color:var(--accent); cursor:pointer;">Hapus</button>`}
+    </div>
+    <div class="field" style="margin-bottom:8px;">
+      <label style="font-size:11px;">Nama Dompet</label>
+      <input type="text" class="onb-wallet-name" value="${walletName}" placeholder="Nama Dompet" style="width:100%; border:1px solid var(--line); border-radius:6px; padding:6px 10px; box-sizing:border-box; background:var(--bg); color:var(--ink); font-size:12px;">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label style="font-size:11px;">Saldo Awal</label>
+      <div class="amount-input" style="display:flex; align-items:center; border:1px solid var(--line); border-radius:6px; padding:4px 8px; background:var(--bg);">
+        <span class="prefix" style="color:var(--ink-soft); margin-right:4px; font-size:12px;">Rp</span>
+        <input type="text" class="onb-wallet-balance" value="${balance}" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" style="width:100%; border:none; background:none; outline:none; padding:0; font-size:12px; font-weight:700; color:var(--ink);" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+}
+function removeOnboardingWalletField(index) {
+  const row = document.getElementById('onb-wallet-row-' + index);
+  if (row) {
+    row.remove();
+  }
+}
 function finishOnboarding(){
-  const utama = parseRupiahInput(document.getElementById('onbUtama').value);
-  const tabungan = parseRupiahInput(document.getElementById('onbTabungan').value);
-  const wallets = getWallets();
-  const wu = wallets.find(w => w.id === 'wallet_utama');
-  const wt = wallets.find(w => w.id === 'wallet_tabungan');
-  if(wu) wu.balance = utama;
-  if(wt) wt.balance = tabungan;
+  const rows = document.querySelectorAll('.onb-wallet-field-row');
+  const wallets = [];
+  rows.forEach((row, i) => {
+    const nameInput = row.querySelector('.onb-wallet-name');
+    const balanceInput = row.querySelector('.onb-wallet-balance');
+    const name = ((nameInput && nameInput.value) || '').trim() || (i === 0 ? 'Dompet Utama' : 'Dompet ' + (i + 1));
+    const balance = balanceInput ? parseRupiahInput(balanceInput.value) : 0;
+    const id = i === 0 ? 'wallet_utama' : 'w_' + uid();
+    wallets.push({
+      id: id,
+      name: name,
+      balance: balance,
+      isPrimary: i === 0,
+      order: i,
+      createdAt: Date.now() + i,
+      updatedAt: Date.now()
+    });
+  });
+  if (wallets.length === 0) {
+    wallets.push({
+      id: 'wallet_utama',
+      name: 'Dompet Utama',
+      balance: 0,
+      isPrimary: true,
+      order: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
   setWallets(wallets);
   recalculateWalletBalances();
+  
+  // Set default heroWallets setting
+  const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+  if (primaryWallet) {
+    setHeroWallets([primaryWallet.id]);
+  }
+  
   localStorage.setItem(LS_KEYS.onboarded, '1');
   document.getElementById('onboarding').classList.remove('open');
   refreshAllViews();
 }
-
-document.getElementById('onbUtama').addEventListener('input', function(){ formatThousandInput(this); });
-document.getElementById('onbTabungan').addEventListener('input', function(){ formatThousandInput(this); });
 
 /* =========================================================
    INIT
@@ -9586,6 +10356,9 @@ async function init(){
   // 2. DAHULUKAN narik data terbaru dari Supabase di background
   await syncAllWithSupabase(true);
 
+  // Run wallets redesign schema migration one-time
+  migrateWalletsSchema();
+
   // 3. Jika setelah sync Supabase data lokal MASIH kosong (link/access_code baru), baru buatkan data bawaan
   if(getCategories().length === 0 || getWallets().length === 0){
     seedIfEmpty();
@@ -9601,6 +10374,12 @@ async function init(){
   // 5. Tampilkan onboarding HANYA jika pengguna memang belum pernah onboarded di Supabase
   if(!localStorage.getItem(LS_KEYS.onboarded)){
     document.getElementById('onboarding').classList.add('open');
+    const container = document.getElementById('onboardingWalletsList');
+    if (container) {
+      container.innerHTML = '';
+      onboardingWalletCount = 0;
+      addOnboardingWalletField('Dompet Utama', '');
+    }
   }
 
   window.addEventListener('online', () => syncAllWithSupabase(true));

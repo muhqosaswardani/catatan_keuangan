@@ -7,8 +7,15 @@
 // ============================================================
 
 const GEMINI_MODELS = [
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
   "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-3.0-flash",
+  "gemini-3-flash",
   "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-2.0-flash",
 ];
 const GEMINI_API_BASE =
@@ -205,16 +212,28 @@ export async function callGeminiRaw(
 ): Promise<unknown> {
   const RETRYABLE_STATUS = [403, 404, 429, 503];
   let lastErr: Error | null = null;
+  const numKeys = apiKeys.length;
+  const numModels = GEMINI_MODELS.length;
 
-  for (let kIdx = 0; kIdx < apiKeys.length; kIdx++) {
+  if (numKeys === 0) {
+    throw new Error("Tidak ada Gemini API Key yang dikonfigurasi.");
+  }
+
+  const startKeyIdx = Math.floor(Math.random() * numKeys);
+  const startModelIdx = Math.floor(Math.random() * numModels);
+
+  for (let k = 0; k < numKeys; k++) {
+    const kIdx = (startKeyIdx + k) % numKeys;
     const apiKey = apiKeys[kIdx];
 
-    for (const model of GEMINI_MODELS) {
+    for (let m = 0; m < numModels; m++) {
+      const mIdx = (startModelIdx + m) % numModels;
+      const model = GEMINI_MODELS[mIdx];
       const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
       const generationConfig: Record<string, unknown> = {
         temperature,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 2048,
       };
 
       // Matikan thinking untuk model yang mendukungnya (bukan 2.0)
@@ -228,6 +247,8 @@ export async function callGeminiRaw(
       }
 
       let res: Response;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 seconds timeout
       try {
         res = await fetch(url, {
           method: "POST",
@@ -236,12 +257,15 @@ export async function callGeminiRaw(
             contents: [{ role: "user", parts }],
             generationConfig,
           }),
+          signal: controller.signal,
         });
       } catch (networkErr) {
         lastErr = new Error(
-          `Gagal menghubungi Gemini API: ${(networkErr as Error)?.message ?? "koneksi terputus"}`,
+          `Gagal menghubungi Gemini API: ${(networkErr as Error)?.message ?? "koneksi terputus atau timeout"}`,
         );
         continue;
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       if (res.ok) {

@@ -89,6 +89,37 @@ export function markAsRead(
   }).then(() => undefined);
 }
 
+export function sendTypingIndicator(
+  phoneNumberId: string,
+  accessToken: string,
+  messageId: string,
+): Promise<void> {
+  return fetch(`${WA_API_BASE}/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: messageId,
+      typing_indicator: {
+        type: "text",
+      },
+    }),
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.warn(`Typing indicator failed: ${res.status} - ${errText.slice(0, 150)}`);
+      }
+    })
+    .catch((err) => {
+      console.warn("Typing indicator request failed:", err);
+    });
+}
+
 export function safeBytesToBase64(bytes: Uint8Array): string {
   let binString = "";
   const chunkSize = 16384; // 16KB chunks

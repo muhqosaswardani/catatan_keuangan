@@ -1,5 +1,5 @@
 // supabase/functions/wa-webhook/v2_modes.ts
-// VERSI 2 - Logika Mode Terkunci: Koreksi, Limit, Tujuan (Revisi Bug & Layout)
+// VERSI 2 - Logika Mode Terkunci: Koreksi, Limit, Tujuan (Revisi Concurrency & Batching)
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callGeminiRaw, extractGeminiText, getTodayStr, formatRupiah, formatTanggalID } from "./gemini.ts";
@@ -11,8 +11,11 @@ import {
   v2GetSavingsGoals,
   saveV2Session,
   clearV2Session,
-  logToDb
+  logToDb,
+  getV2Session
 } from "./v2_db.ts";
+
+declare const EdgeRuntime: any;
 
 const PHONE_NUMBER_ID = Deno.env.get("WA_PHONE_NUMBER_ID")!;
 const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN")!;
@@ -74,26 +77,35 @@ async function parseKoreksiAction(
   mediaParts: any[],
   selectedWallets: any[],
   draftItems: any[]
-): Promise<any> {
+): Promise<any[]> {
   const prompt = `
 Kamu asisten Mode Koreksi Saldo. User sedang mengoreksi saldo dompet terpilih berikut:
-${selectedWallets.map((w, idx) => `${idx + 1}. ${w.name} (ID: ${w.id})`).join("\n")}
+${selectedWallets.map((w, idx) => `${idx + 1}. ${w.name} (ID: ${w.id})${w.is_primary ? " (Primary)" : ""}`).join("\n")}
 
 Draft koreksi saat ini:
-${draftItems.map((it, idx) => `${idx + 1}. Wallet: ${it.wallet_name}, Actual: ${it.amount}`).join("\n")}
+${draftItems.map((it, idx) => {
+  const breakdownStr = it.breakdown ? it.breakdown.map(b => `${b.name}: ${b.amount}`).join(", ") : "";
+  return `${idx + 1}. Wallet: ${it.wallet_name}, Actual: ${it.amount} (${breakdownStr})`;
+}).join("\n")}
 
-Berdasarkan kalimat user (atau foto cash/uang jika dilampirkan), tentukan nominal saldo aktual.
-Aksi yang mungkin:
-1. "edit" - Mengubah nominal dompet yang sedang dikoreksi (misal: "gopay 15rb", "1 15rb", atau "15rb" jika hanya ada 1 dompet terpilih).
-2. "delete" - Menghapus item dompet dari draft (misal: "hapus gopay", "hapus 1").
-3. "none" - Tidak dikenali.
+Tugasmu:
+1. Baca semua gambar screenshot/foto saldo rekening bank, e-wallet (DANA, OVO, GoPay, ShopeePay, LinkAja, dll), atau kalimat user.
+2. Ekstrak nama akun/sumber saldo (misal: "DANA", "OVO", "GoPay", "ShopeePay", "Livin' by Mandiri", "BCA", "Uang Cash") dan nominal saldonya yang terbaca dari gambar/teks.
+3. Cocokkan nama akun tersebut ke salah satu dompet terpilih di atas. Secara umum:
+   - Akun e-wallet (GoPay, OVO, DANA, ShopeePay) dan rekening bank operasional harian (seperti Livin' by Mandiri, BCA) atau Uang Cash dicocokkan ke dompet terpilih yang ditandai (Primary) di atas.
+   - Bila user merujuk nomor indeks dompet (misal: "1 50rb"), cocokkan ke dompet terpilih ke-1.
+   - Bila ragu atau tidak cocok spesifik ke dompet lain, cocokkan ke dompet terpilih yang ditandai (Primary).
+4. Keluarkan daftar item yang terdeteksi.
 
 Keluarkan JSON dengan schema:
 {
-  "action": "edit" | "delete" | "none",
-  "wallet_id": "string (ID dompet dari daftar terpilih yang dirujuk, kosongkan jika tidak ada)",
-  "amount": number | null,
-  "index": number | null // 1-indexed nomor urut dompet terpilih yang dirujuk
+  "detected_items": [
+    {
+      "account_name": "string (nama akun yang terbaca, misal: 'DANA', 'GoPay', 'Input Manual')",
+      "amount": number,
+      "target_wallet_id": "string (ID dompet terpilih tempat akun ini dicocokkan)"
+    }
+  ]
 }
 `;
 
@@ -109,20 +121,29 @@ Keluarkan JSON dengan schema:
     const responseSchema = {
       type: "OBJECT",
       properties: {
-        action: { type: "STRING", enum: ["edit", "delete", "none"] },
-        wallet_id: { type: "STRING" },
-        amount: { type: "NUMBER" },
-        index: { type: "NUMBER" }
+        detected_items: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              account_name: { type: "STRING" },
+              amount: { type: "NUMBER" },
+              target_wallet_id: { type: "STRING" }
+            },
+            required: ["account_name", "amount", "target_wallet_id"]
+          }
+        }
       },
-      required: ["action"]
+      required: ["detected_items"]
     };
 
     const data = await callGeminiRaw(apiKeys, parts, 0.1, responseSchema);
     const resultText = extractGeminiText(data);
-    return JSON.parse(resultText);
+    const parsed = JSON.parse(resultText);
+    return parsed.detected_items || [];
   } catch (err) {
     console.error("Error in parseKoreksiAction:", err);
-    return { action: "none" };
+    return [];
   }
 }
 
@@ -235,13 +256,14 @@ Pilih dompet yang mau dikoreksi (boleh lebih dari satu):
 
 ${wallets.map((w, idx) => `${idx + 1}. ${w.name} — ${formatRupiah(w.balance)}`).join("\n")}
 
-Ketik nomornya, mis. "1" untuk satu dompet, atau "1 2" untuk beberapa dompet sekaligus.
+Ketik nomornya, mis. "1" untuk satu dompet, "1 2" untuk beberapa dompet sekaligus, atau ketik "semua" untuk semua dompet.
 Ketik 'batal' untuk keluar dari mode.`;
 
   await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
     step: 1,
     selected_wallets: [],
-    items: []
+    items: [],
+    pending_batch_inputs: []
   });
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, text, messageId);
 }
@@ -271,21 +293,26 @@ export async function handleModeKoreksiMessage(
     const tokens = cleaned.split(/[\s,;]+/).map(t => t.trim()).filter(Boolean);
     const selectedIds: string[] = [];
 
-    for (const token of tokens) {
-      const num = parseInt(token, 10);
-      if (!isNaN(num) && num > 0 && num <= wallets.length) {
-        const w = wallets[num - 1];
-        if (!selectedIds.includes(w.id)) {
-          selectedIds.push(w.id);
-        }
-      } else {
-        const matches = wallets.filter(w => w.name.toLowerCase().includes(token));
-        if (matches.length > 0) {
-          matches.forEach(w => {
-            if (!selectedIds.includes(w.id)) {
-              selectedIds.push(w.id);
-            }
-          });
+    const isAll = cleaned === "semua" || cleaned === "all";
+    if (isAll) {
+      selectedIds.push(...wallets.map(w => w.id));
+    } else {
+      for (const token of tokens) {
+        const num = parseInt(token, 10);
+        if (!isNaN(num) && num > 0 && num <= wallets.length) {
+          const w = wallets[num - 1];
+          if (!selectedIds.includes(w.id)) {
+            selectedIds.push(w.id);
+          }
+        } else {
+          const matches = wallets.filter(w => w.name.toLowerCase().includes(token));
+          if (matches.length > 0) {
+            matches.forEach(w => {
+              if (!selectedIds.includes(w.id)) {
+                selectedIds.push(w.id);
+              }
+            });
+          }
         }
       }
     }
@@ -305,13 +332,15 @@ export async function handleModeKoreksiMessage(
     const items = selectedWallets.map(w => ({
       wallet_id: w.id,
       wallet_name: w.name,
-      amount: Number(w.balance) || 0
+      amount: Number(w.balance) || 0,
+      breakdown: []
     }));
 
     await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
       step: 2,
       selected_wallets: selectedIds,
-      items
+      items,
+      pending_batch_inputs: []
     });
 
     let reply = `Dompet terpilih untuk dikoreksi:\n`;
@@ -325,7 +354,7 @@ export async function handleModeKoreksiMessage(
     return;
   }
 
-  // Alur Langkah 2: Memproses Foto / Input Nominal
+  // Alur Langkah 2: Memproses Foto / Input Nominal (Dengan Batching)
   const draftItems = session.session_data.items || [];
 
   if (cleaned === "ya" || cleaned === "oke") {
@@ -421,96 +450,281 @@ export async function handleModeKoreksiMessage(
     return;
   }
 
-  // Download media/foto
+  // Pendeteksian Input Batching dengan Optimistic Concurrency Control (Mencegah Kehilangan Data)
+  let retries = 5;
+  let saved = false;
+
+  while (retries > 0 && !saved) {
+    const { session: currentSession } = await getV2Session(db, waChatId);
+    if (!currentSession) break;
+
+    const pendingInputs = currentSession.session_data.pending_batch_inputs || [];
+    if (msg.type === "image" && msg.mediaId) {
+      pendingInputs.push({ type: "image", mediaId: msg.mediaId, caption: msg.caption });
+    } else if (msg.type === "text") {
+      pendingInputs.push({ type: "text", text });
+    }
+
+    const updatedData = {
+      ...currentSession.session_data,
+      pending_batch_inputs: pendingInputs,
+      last_input_at: Date.now()
+    };
+
+    const { data: writeRes, error } = await db
+      .from("wa_mode_sessions")
+      .update({
+        session_data: updatedData,
+        updated_at: new Date().toISOString()
+      })
+      .eq("wa_chat_id", waChatId)
+      .eq("updated_at", currentSession.updated_at)
+      .select();
+
+    if (!error && writeRes && writeRes.length > 0) {
+      saved = true;
+    } else {
+      retries--;
+      await new Promise(resolve => setTimeout(resolve, 80)); // jeda delay retry
+    }
+  }
+
+  // Jadwalkan pemrosesan batch di background
+  EdgeRuntime.waitUntil(
+    (async () => {
+      const delay = 4000; // jeda batch 4 detik
+      await new Promise(resolve => setTimeout(resolve, delay));
+      await processModeKoreksiBatch(db, apiKeys, waChatId, msg.messageId);
+    })()
+  );
+}
+
+/**
+ * Pemrosesan Debounced Batch untuk input mode koreksi dengan perlindungan bubble ganda
+ */
+export async function processModeKoreksiBatch(
+  db: SupabaseClient,
+  apiKeys: string[],
+  waChatId: string,
+  triggerMsgId: string
+): Promise<void> {
+  const { session, wasTimedOut } = await getV2Session(db, waChatId);
+  if (!session || wasTimedOut) return;
+
+  const data = session.session_data;
+  if (!data.pending_batch_inputs || data.pending_batch_inputs.length === 0) return;
+
+  const now = Date.now();
+  const lastInputAt = data.last_input_at || 0;
+  if (now - lastInputAt < 3800) {
+    // Sesi baru terdeteksi, trigger batch dibatalkan untuk diganti batch berikutnya
+    return;
+  }
+
+  // Optimistic Concurrency Control (OCC) Claiming: Hanya satu request yang boleh mengklaim list batch
+  const { data: claimResult, error: claimError } = await db
+    .from("wa_mode_sessions")
+    .update({
+      session_data: {
+        ...data,
+        pending_batch_inputs: [] // Kosongkan antrean
+      },
+      updated_at: new Date().toISOString()
+    })
+    .eq("wa_chat_id", waChatId)
+    .eq("updated_at", session.updated_at) // Pastikan row tidak diubah oleh thread lain
+    .select();
+
+  if (claimError || !claimResult || claimResult.length === 0) {
+    // Gagal melakukan claim (sudah diklaim oleh request thread/gelembung lain) → Exit!
+    return;
+  }
+
+  const inputs = [...data.pending_batch_inputs];
   const mediaParts: any[] = [];
-  if (msg.type === "image" && msg.mediaId) {
-    const { data, mimeType } = await downloadWhatsAppMedia(msg.mediaId, WA_ACCESS_TOKEN);
-    if (data) {
-      const b64 = safeBytesToBase64(data);
-      mediaParts.push({
-        inlineData: {
-          mimeType: mimeType || "image/jpeg",
-          data: b64
+  let combinedText = "";
+
+  for (const input of inputs) {
+    if (input.type === "image") {
+      try {
+        const { data: bytes, mimeType } = await downloadWhatsAppMedia(input.mediaId, WA_ACCESS_TOKEN);
+        if (bytes) {
+          const b64 = safeBytesToBase64(bytes);
+          mediaParts.push({
+            inlineData: { mimeType: mimeType || "image/jpeg", data: b64 }
+          });
         }
+      } catch (e) {
+        console.error("Gagal download media in batch:", e);
+      }
+      if (input.caption) {
+        combinedText += "\n" + input.caption;
+      }
+    } else if (input.type === "text") {
+      combinedText += "\n" + input.text;
+    }
+  }
+
+  combinedText = combinedText.trim();
+
+  const wallets = await v2GetWallets(db, ACCESS_CODE);
+  const draftItems = data.items || [];
+  const selectedWallets = wallets.filter(w => data.selected_wallets.includes(w.id));
+
+  await logToDb(db, "processModeKoreksiBatch: Calling Gemini", {
+    combinedText,
+    mediaPartsCount: mediaParts.length,
+    selectedWallets: selectedWallets.map(w => w.name),
+    draftItems
+  });
+
+  // Jalankan Gemini untuk mendeteksi semua updates di dalam batch
+  const detectedItems = await parseKoreksiAction(apiKeys, combinedText, mediaParts, selectedWallets, draftItems);
+
+  await logToDb(db, "processModeKoreksiBatch: Gemini Response", { detectedItems });
+
+  if (detectedItems.length === 0) {
+    // Berikan bubble informasi agar user tahu bahwa pembacaan tidak terdeteksi (tidak silent)
+    const walletNames = selectedWallets.map(w => w.name).join(", ");
+    await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      waChatId,
+      `Tidak terdeteksi nominal saldo untuk dompet terpilih (${walletNames}) dari foto/kalimat yang dikirim.\n\n` +
+      `Silakan ketik nominal manual (contoh: '1 50rb') atau pastikan foto memuat saldo dompet tersebut.`,
+      triggerMsgId
+    );
+    return;
+  }
+
+  // Kelompokkan hasil deteksi sub-akun berdasarkan wallet_id tujuan
+  const grouped: Record<string, { wallet_id: string, wallet_name: string, breakdown: any[] }> = {};
+
+  for (const item of detectedItems) {
+    const wallet = selectedWallets.find(w => w.id === item.target_wallet_id);
+    if (!wallet) continue;
+
+    if (!grouped[wallet.id]) {
+      grouped[wallet.id] = {
+        wallet_id: wallet.id,
+        wallet_name: wallet.name,
+        breakdown: []
+      };
+    }
+
+    const existing = grouped[wallet.id].breakdown.find(b => b.name.toLowerCase() === item.account_name.toLowerCase());
+    if (existing) {
+      existing.amount = item.amount;
+    } else {
+      grouped[wallet.id].breakdown.push({
+        name: item.account_name,
+        amount: item.amount
       });
     }
   }
 
-  const selectedWallets = wallets.filter(w => session.session_data.selected_wallets.includes(w.id));
-  const parsedAction = await parseKoreksiAction(apiKeys, text, mediaParts, selectedWallets, draftItems);
+  let updatedDraft = [...draftItems];
 
-  if (parsedAction.action === "none" && mediaParts.length === 0) {
-    await sendWhatsAppMessage(
-      PHONE_NUMBER_ID,
-      WA_ACCESS_TOKEN,
-      waChatId,
-      `Perintah tidak dipahami. Silakan sebut nama/nomor dompet terpilih dan nominalnya (contoh: 'dompet utama 50rb', '1 50rb', atau kirim foto uang fisik).`,
-      msg.messageId
-    );
-    return;
-  }
+  for (const walletId in grouped) {
+    const group = grouped[walletId];
+    const existingIdx = updatedDraft.findIndex(d => d.wallet_id === walletId);
 
-  let targetWallet = null;
-  if (parsedAction.index !== null) {
-    const idx = parsedAction.index - 1;
-    if (idx >= 0 && idx < selectedWallets.length) {
-      targetWallet = selectedWallets[idx];
+    if (existingIdx >= 0) {
+      const currentBreakdown = updatedDraft[existingIdx].breakdown || [];
+      for (const newB of group.breakdown) {
+        const bIdx = currentBreakdown.findIndex(b => b.name.toLowerCase() === newB.name.toLowerCase());
+        if (bIdx >= 0) {
+          currentBreakdown[bIdx].amount = newB.amount;
+        } else {
+          currentBreakdown.push(newB);
+        }
+      }
+      updatedDraft[existingIdx].breakdown = currentBreakdown;
+      updatedDraft[existingIdx].amount = currentBreakdown.reduce((sum, b) => sum + b.amount, 0);
+    } else {
+      updatedDraft.push({
+        wallet_id: walletId,
+        wallet_name: group.wallet_name,
+        breakdown: group.breakdown,
+        amount: group.breakdown.reduce((sum, b) => sum + b.amount, 0)
+      });
     }
-  } else if (parsedAction.wallet_id) {
-    targetWallet = selectedWallets.find(w => w.id === parsedAction.wallet_id);
-  } else if (parsedAction.wallet_name) {
-    const matches = findWalletByName(parsedAction.wallet_name, selectedWallets);
-    if (matches.length === 1) {
-      targetWallet = matches[0];
+  }
+
+  // Tulis ulang draft hasil update ke database dengan lock OCC
+  let updatedSessionData = null;
+  let saveRetries = 5;
+  let savedDraft = false;
+
+  while (saveRetries > 0 && !savedDraft) {
+    const { session: currentSession } = await getV2Session(db, waChatId);
+    if (!currentSession) break;
+
+    updatedSessionData = {
+      ...currentSession.session_data,
+      items: updatedDraft
+    };
+
+    const { data: writeRes, error } = await db
+      .from("wa_mode_sessions")
+      .update({
+        session_data: updatedSessionData,
+        updated_at: new Date().toISOString()
+      })
+      .eq("wa_chat_id", waChatId)
+      .eq("updated_at", currentSession.updated_at)
+      .select();
+
+    if (!error && writeRes && writeRes.length > 0) {
+      savedDraft = true;
+    } else {
+      saveRetries--;
+      await new Promise(resolve => setTimeout(resolve, 80));
     }
-  } else if (selectedWallets.length === 1) {
-    targetWallet = selectedWallets[0];
   }
 
-  if (!targetWallet) {
-    await sendWhatsAppMessage(
-      PHONE_NUMBER_ID,
-      WA_ACCESS_TOKEN,
-      waChatId,
-      `Dompet tidak ditemukan atau tidak cocok dengan daftar dompet terpilih. Silakan gunakan nomor urut (contoh: '1 50rb').`,
-      msg.messageId
-    );
-    return;
-  }
-
-  const amount = parsedAction.amount ?? 0;
-  const existingIdx = draftItems.findIndex(d => d.wallet_id === targetWallet.id);
-  if (existingIdx >= 0) {
-    draftItems[existingIdx].amount = amount;
-  } else {
-    draftItems.push({
-      wallet_id: targetWallet.id,
-      wallet_name: targetWallet.name,
-      amount
-    });
-  }
-
-  await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
-    step: 2,
-    selected_wallets: session.session_data.selected_wallets,
-    items: draftItems
-  });
-
+  // Cetak draft dengan rekap totals terstruktur
   let report = `📋 *Draft Koreksi Saldo*\n\n`;
-  draftItems.forEach((item, idx) => {
-    const orig = wallets.find(w => w.id === item.wallet_id);
-    const systemBalance = orig ? Number(orig.balance) : 0;
-    const diff = item.amount - systemBalance;
-    const diffStr = diff === 0 ? "Rp0" : (diff < 0 ? `-${formatRupiah(Math.abs(diff))}` : `+${formatRupiah(diff)}`);
+  if (updatedDraft.length === 0) {
+    report += `(kosong)\n`;
+  } else {
+    updatedDraft.forEach((item, idx) => {
+      const orig = wallets.find(w => w.id === item.wallet_id);
+      const systemBalance = orig ? Number(orig.balance) : 0;
+      const diff = item.amount - systemBalance;
+      const diffStr = diff === 0 ? "Rp0" : (diff < 0 ? `-${formatRupiah(Math.abs(diff))}` : `+${formatRupiah(diff)}`);
+      
+      report += `${idx + 1}. *${item.wallet_name}*\n`;
+      if (item.breakdown && item.breakdown.length > 0) {
+        item.breakdown.forEach(b => {
+          report += `   • ${b.name}: ${formatRupiah(b.amount)}\n`;
+        });
+      }
+      report += `   Saldo sistem : ${formatRupiah(systemBalance)}\n` +
+                `   Saldo aktual : ${formatRupiah(item.amount)}\n` +
+                `   Selisih      : ${diffStr}\n\n`;
+    });
+
+    let totalSystem = 0;
+    let totalActual = 0;
     
-    report += `${idx + 1}. ${item.wallet_name}\n` +
-              `   Saldo sistem : ${formatRupiah(systemBalance)}\n` +
-              `   Saldo aktual : ${formatRupiah(item.amount)}\n` +
-              `   Selisih      : ${diffStr}\n\n`;
-  });
+    updatedDraft.forEach((item) => {
+      const orig = wallets.find(w => w.id === item.wallet_id);
+      totalSystem += orig ? Number(orig.balance) : 0;
+      totalActual += item.amount;
+    });
+    
+    const totalDiff = totalActual - totalSystem;
+    const totalDiffStr = totalDiff === 0 ? "Rp0" : (totalDiff < 0 ? `-${formatRupiah(Math.abs(totalDiff))}` : `+${formatRupiah(totalDiff)}`);
+    
+    report += `-------------------------\n` +
+              `*Total Saldo Aktual:* ${formatRupiah(totalActual)}\n` +
+              `*Saldo Tercatat di App:* ${formatRupiah(totalSystem)}\n` +
+              `*Selisih (Penyesuaian):* ${totalDiffStr}\n\n`;
+  }
 
   report += `Ketik nomor/nama + nilai baru untuk mengubah (misal: '1 60rb'), atau ketik *"ya"* untuk memproses, *"batal"* untuk keluar.`;
-  await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, report, msg.messageId);
+  await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, report, triggerMsgId);
 }
 
 // ============================================================
@@ -842,7 +1056,7 @@ export async function handleModeTujuanMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       waChatId,
-      `Tujuan tabungan baru "${parsedAction.goal_name}" berhasil dibuat dengan target ${formatRupiah(parsedAction.amount)}.`,
+      `Tujuan tabungan new "${parsedAction.goal_name}" berhasil dibuat dengan target ${formatRupiah(parsedAction.amount)}.`,
       msg.messageId
     );
   } else if (parsedAction.action === "edit") {
