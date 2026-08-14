@@ -8289,9 +8289,9 @@ function renderCcWalletsScopeChecklist(){
   wrap.innerHTML = sorted.map(w => {
     const isChecked = scopeIds.includes(w.id);
     return `
-      <label class="hero-wallet-check-item" style="cursor:pointer;margin-bottom:0;">
-        <input type="checkbox" value="${w.id}" ${isChecked ? 'checked' : ''} onchange="onCcWalletScopeChange()" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;margin:0;">
-        <div style="flex:1;">
+      <label class="hero-wallet-check-item" style="display:flex;flex-direction:row;align-items:center;gap:12px;cursor:pointer;margin-bottom:0;">
+        <input type="checkbox" value="${w.id}" ${isChecked ? 'checked' : ''} onchange="onCcWalletScopeChange()" style="flex-shrink:0;width:18px;height:18px;accent-color:var(--accent);cursor:pointer;margin:0;">
+        <div style="flex:1;min-width:0;">
           <div style="font-size:15px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
           <div style="font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-top:1px;">${formatRupiah(w.balance)}</div>
         </div>
