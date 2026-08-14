@@ -4583,17 +4583,14 @@ function renderHome(){
     return (a.createdAt ?? 0) - (b.createdAt ?? 0);
   });
 
-  const checkedWallets = sortedWallets.filter(w => selectedWalletIds.includes(w.id));
   let walletsToRender = [];
   const expandBtn = document.getElementById('heroExpandBtn');
   const expandBtnWrap = document.getElementById('heroExpandBtnWrap');
-  
-  if (checkedWallets.length <= 2) {
-    if (sortedWallets.length >= 2) {
-      walletsToRender = sortedWallets.slice(0, 2);
-    } else {
-      walletsToRender = sortedWallets;
-    }
+
+  // Tombol "Lihat semua dompet" tampil kalau total dompet lebih dari 2 —
+  // terlepas dari berapa yang dicentang di Pengaturan Total Saldo.
+  if (sortedWallets.length <= 2) {
+    walletsToRender = sortedWallets;
     if (expandBtn) expandBtn.style.display = 'none';
     if (expandBtnWrap) expandBtnWrap.style.display = 'none';
   } else {
@@ -4603,7 +4600,7 @@ function renderHome(){
       expandBtn.textContent = isHeroWalletsExpanded ? 'Sembunyikan' : 'Lihat semua dompet';
     }
     if (isHeroWalletsExpanded) {
-      walletsToRender = checkedWallets;
+      walletsToRender = sortedWallets;
     } else {
       walletsToRender = sortedWallets.slice(0, 2);
     }
@@ -8412,22 +8409,24 @@ async function ccAnalyzeWithGemini(key){
   const text = extractGeminiText(data);
   const parsed = parseAiJson(text, 'object');
 
-  const walletsAll = getWallets();
-  const primaryWallet = walletsAll.find(w => w.isPrimary) || walletsAll[0];
-  const primaryId = primaryWallet ? primaryWallet.id : 'wallet_utama';
+  // Fallback & validasi target HARUS dari dompet yang dicentang di scope saja —
+  // supaya dompet yang tidak dicentang tidak pernah muncul di hasil analisis,
+  // meskipun AI salah tebak/hallucinate ID dompet lain yang sebenarnya valid tapi di luar scope.
+  const primaryInScope = wallets.find(w => w.isPrimary);
+  const primaryId = primaryInScope ? primaryInScope.id : (wallets[0] ? wallets[0].id : null);
 
   const items = Array.isArray(parsed && parsed.items) ? parsed.items.map(it => {
     const rawTarget = (it && it.target_wallet_id) ? String(it.target_wallet_id) : null;
-    const hasMatch = (rawTarget !== null && walletsAll.some(w => w.id === rawTarget));
+    const hasMatch = (rawTarget !== null && wallets.some(w => w.id === rawTarget));
     return {
       id: uid(),
       name: ((it && it.name) || 'Dompet').toString().slice(0, 30),
       amount: Math.max(0, Math.round(Number(it && it.amount) || 0)),
-      // Kalau AI ga nemu dompet yang cocok, otomatis fallback ke primary — tanpa ditandai apapun,
-      // user yang review/edit manual dropdown-nya kalau perlu.
+      // Kalau AI ga nemu dompet yang cocok (atau nebak dompet di luar scope), otomatis fallback
+      // ke dompet utama DALAM SCOPE — tanpa ditandai apapun, user yang review/edit manual dropdown-nya kalau perlu.
       targetWalletId: hasMatch ? rawTarget : primaryId
     };
-  }) : [];
+  }).filter(it => it.targetWalletId) : [];
 
   return { items };
 }
