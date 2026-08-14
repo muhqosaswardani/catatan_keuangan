@@ -15,6 +15,7 @@ import {
   PHONE_NUMBER_ID,
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
+import { handleV2Message } from "./v2_router.ts";
 import { sendWhatsAppMessage, markAsRead } from "./whatsapp.ts";
 
 // ============================================================
@@ -292,6 +293,14 @@ Deno.serve(async (req: Request) => {
       );
 
       try {
+        // // VERSI 2 - Router Intent & Mode (Isolatable & Rollbackable)
+        if (Deno.env.get("WA_V2_ENABLED") === "true") {
+          const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
+          if (handled) {
+            continue;
+          }
+        }
+
         // ── Cek apakah ini reply ke pesan bot ──────────────
         if (msg.contextId) {
           // Cek apakah reply ke bubble transaksi

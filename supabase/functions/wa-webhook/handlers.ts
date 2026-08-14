@@ -978,6 +978,50 @@ export async function handleReplyToTransaction(
   msg: IncomingMessage,
   transactionId: string,
 ): Promise<void> {
+  // ── VERSI 2: Intercept entri utang baru (tanpa transaksi) ──
+  if (transactionId.startsWith("wa_debt_")) {
+    const replyText = (msg.text ?? "").trim().toLowerCase();
+    const isDirectDelete = /^(batalkan|batal|hapus|undo|ga jadi|gajadi|cancel|batalin|delete|del|back)$/i.test(replyText) ||
+      /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(replyText);
+
+    if (isDirectDelete) {
+      const { data: debtData } = await db
+        .from("debt_entries")
+        .select("*")
+        .eq("id", transactionId)
+        .maybeSingle();
+
+      if (debtData) {
+        await db.from("debt_entries").delete().eq("id", transactionId);
+        await sendWhatsAppMessage(
+          PHONE_NUMBER_ID,
+          WA_ACCESS_TOKEN,
+          OWNER_PHONE,
+          `Catatan utang ${debtData.person_name} sebesar ${formatRupiah(debtData.amount)} berhasil dihapus.`,
+          msg.messageId
+        );
+      } else {
+        await sendWhatsAppMessage(
+          PHONE_NUMBER_ID,
+          WA_ACCESS_TOKEN,
+          OWNER_PHONE,
+          `Catatan utang tidak ditemukan atau sudah dihapus.`,
+          msg.messageId
+        );
+      }
+      return;
+    } else {
+      await sendWhatsAppMessage(
+        PHONE_NUMBER_ID,
+        WA_ACCESS_TOKEN,
+        OWNER_PHONE,
+        `Catatan utang baru hanya bisa dihapus/dibatalkan. Ketik 'hapus' untuk membatalkan.`,
+        msg.messageId
+      );
+      return;
+    }
+  }
+
   // Ambil data transaksi dari Supabase
   const { data: txData, error } = await db
     .from("transactions")
@@ -1081,6 +1125,98 @@ export async function handleReplyToTransaction(
   if (instruction.action === "delete") {
     // Sync deletion to user_settings.deleted_ids in database
     await recordDeletionInDb(db, transactionId);
+
+    // ── VERSI 2: Revert checklist / debt payments ──
+    if (txData.source === "whatsapp") {
+      // 1. Revert Checklist
+      const { data: recurringItems } = await db
+        .from("recurring_items")
+        .select("*")
+        .eq("access_code", ACCESS_CODE);
+
+      if (recurringItems) {
+        const matchedRec = recurringItems.find(
+          (r) => r.name === txData.note && r.category_id === txData.category_id
+        );
+        if (matchedRec) {
+          await db
+            .from("recurring_items")
+            .update({
+              last_confirmed_date: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", matchedRec.id);
+        }
+      }
+
+      // 2. Revert Debt
+      if (txData.category === "Utang Piutang") {
+        const note = txData.note ?? "";
+        // note format: "Cicilan utang Budi: ..." atau "Pelunasan utang Budi: ..."
+        // Kita match nama orang setelah kata 'utang' atau 'piutang'
+        const personMatch = note.match(/(?:utang|piutang)\s+([A-Za-z0-9_]+)/i);
+        if (personMatch) {
+          const personName = personMatch[1];
+          const { data: debtEntries } = await db
+            .from("debt_entries")
+            .select("*")
+            .eq("access_code", ACCESS_CODE)
+            .eq("person_name", personName);
+
+          if (debtEntries && debtEntries.length > 0) {
+            // Cek jika ini pelunasan (mencari debt entry dengan status 'lunas' dan payoff_date set)
+            const payoffEntry = debtEntries.find(
+              (d) => d.status === "lunas" && d.payoff_date === txData.date
+            );
+
+            if (payoffEntry) {
+              // Kembalikan ke active
+              await db
+                .from("debt_entries")
+                .update({
+                  status: "active",
+                  payoff_wallet_id: null,
+                  payoff_date: null,
+                  updated_at: new Date().toISOString()
+                })
+                .eq("id", payoffEntry.id);
+
+              // Cari & hapus reverse debt (overpayment) jika ada
+              const reverseType = payoffEntry.type === "i_owe" ? "owed_to_me" : "i_owe";
+              const { data: reverseEntry } = await db
+                .from("debt_entries")
+                .select("id")
+                .eq("access_code", ACCESS_CODE)
+                .eq("person_name", personName)
+                .eq("type", reverseType)
+                .eq("status", "active")
+                .eq("date", txData.date)
+                .like("note", "Kelebihan pembayaran%")
+                .maybeSingle();
+
+              if (reverseEntry) {
+                await db.from("debt_entries").delete().eq("id", reverseEntry.id);
+              }
+            } else {
+              // Ini cicilan. Kembalikan nominalnya ke entri active pertama
+              const activeEntry = debtEntries.find(
+                (d) => d.status === "active" || d.status === "belum"
+              );
+              if (activeEntry) {
+                const newAmt = (Number(activeEntry.amount) || 0) + (Number(txData.amount) || 0);
+                await db
+                  .from("debt_entries")
+                  .update({
+                    amount: newAmt,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq("id", activeEntry.id);
+              }
+            }
+          }
+        }
+      }
+    }
 
     await db.from("transactions").delete().eq("id", transactionId);
 
