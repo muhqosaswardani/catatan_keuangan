@@ -3870,6 +3870,7 @@ function switchTab(tab, opts){
     if(navStack.length > 1 && !isHandlingPopState){
       history.go(-(navStack.length - 1));
     } else {
+      navReplaceTop({type:'tab', tab});
       switchTabUI(tab);
     }
     return;
@@ -4455,7 +4456,11 @@ function renderHome(){
   const expandBtnWrap = document.getElementById('heroExpandBtnWrap');
   
   if (checkedWallets.length <= 2) {
-    walletsToRender = checkedWallets;
+    if (sortedWallets.length >= 2) {
+      walletsToRender = sortedWallets.slice(0, 2);
+    } else {
+      walletsToRender = sortedWallets;
+    }
     if (expandBtn) expandBtn.style.display = 'none';
     if (expandBtnWrap) expandBtnWrap.style.display = 'none';
   } else {
@@ -9039,30 +9044,31 @@ function renderWalletManageList(){
 
   listWrap.innerHTML = sorted.map((w, idx) => {
     const isPrimary = w.isPrimary;
-    const dragHandleHtml = isPrimary ? '<div style="width:24px;"></div>' : `
-      <div class="wallet-drag-handle" style="cursor:grab;padding:6px;color:var(--ink-soft);display:flex;align-items:center;touch-action:none;" onpointerdown="startWalletDrag(event, '${w.id}')">
+    const dragHandleHtml = isPrimary ? '<div style="width:30px;flex-shrink:0;"></div>' : `
+      <div class="wallet-drag-handle" style="cursor:grab;padding:6px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;touch-action:none;width:30px;box-sizing:border-box;flex-shrink:0;" onpointerdown="startWalletDrag(event, '${w.id}')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
       </div>`;
       
     const badgeOrButtonHtml = isPrimary ? `
-      <span style="font-size:11px;background:var(--accent-tint);color:var(--accent);font-weight:700;padding:4px 8px;border-radius:6px;">Primary</span>
+      <span style="font-size:11.5px;background:var(--accent-tint);color:var(--accent);font-weight:700;padding:5px 10px;border-radius:6px;display:inline-block;text-align:center;">Primary</span>
     ` : `
-      <div style="display:flex;gap:6px;align-items:center;">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="setWalletPrimaryDirect('${w.id}')" style="font-size:11px;padding:4px 8px;">Set Primary</button>
-        <button type="button" class="btn btn-ghost btn-sm btn-text-danger" onclick="deleteWalletManual('${w.id}')" style="font-size:11px;padding:4px 8px;color:var(--accent);">Hapus</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button type="button" class="btn btn-ghost" onclick="setWalletPrimaryDirect('${w.id}')" style="font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;border-radius:6px;font-weight:600;">Set Primary</button>
+        <button type="button" class="btn btn-ghost btn-text-danger" onclick="deleteWalletManual('${w.id}')" style="font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;color:var(--accent);border-radius:6px;font-weight:600;">Hapus</button>
       </div>
     `;
 
     return `
-      <div class="settings-row cat-manage-row wallet-manage-row" data-id="${w.id}" style="padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;gap:8px;">
+      <div class="settings-row cat-manage-row wallet-manage-row" data-id="${w.id}" style="padding:12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;gap:12px;box-sizing:border-box;width:100%;">
         ${dragHandleHtml}
-        <div class="l" style="flex:1;">
-          <input type="text" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" style="font-size:13.5px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;width:100%;" placeholder="Nama Dompet">
-          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:4px;">
-            Saldo: <span class="editable-balance-trigger" onclick="startEditWalletBalance('${w.id}', this)" style="color:var(--ink);font-weight:700;border-bottom:1px dashed var(--accent);cursor:pointer;">${formatRupiah(w.balance)}</span>
+        <div class="l" style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+          <input type="text" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" style="font-size:14.5px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;width:100%;box-sizing:border-box;height:24px;line-height:24px;" placeholder="Nama Dompet">
+          <div style="font-size:12px;color:var(--ink-soft);font-weight:600;margin-top:4px;line-height:1.5;display:flex;align-items:center;gap:4px;">
+            <span>Saldo:</span>
+            <span class="editable-balance-trigger" onclick="startEditWalletBalance('${w.id}', this)" style="color:var(--ink);font-weight:700;border-bottom:1.5px dashed var(--accent);cursor:pointer;padding:0 2px;">${formatRupiah(w.balance)}</span>
           </div>
         </div>
-        <div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
           ${badgeOrButtonHtml}
         </div>
       </div>`;
