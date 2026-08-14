@@ -8393,14 +8393,17 @@ function retryCcAnalysis(){
 async function ccAnalyzeWithGemini(key){
   const scopeIds = getCcWalletsScope();
   const wallets = getWallets().filter(w => scopeIds.includes(w.id));
-  const walletsText = wallets.map(w => `- ID: "${w.id}", Nama Dompet: "${w.name}"`).join('\n');
+  // Beri AI nomor urut (bukan ID) supaya AI cuma bisa "memilih" dari daftar yang
+  // benar-benar dicentang — nggak ada celah buat nebak/hallucinate ID dompet lain
+  // yang valid di app tapi di luar scope.
+  const walletsText = wallets.map((w, idx) => `${idx + 1}. "${w.name}"`).join('\n');
 
   const promptText =
     'Baca setiap lampiran (screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement) dan catat tiap saldo yang terlihat.\n' +
-    'Cocokkan tiap saldo ke salah satu dompet user berikut berdasarkan konteks nama (bukan exact match), misal "GoPay"/"DANA"/"OVO" cocok ke dompet bernama "E-Wallet":\n' +
+    'Cocokkan tiap saldo ke salah satu dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar) berdasarkan konteks nama (bukan exact match), misal "GoPay"/"DANA"/"OVO" cocok ke dompet bernama "E-Wallet":\n' +
     walletsText + '\n\n' +
-    'Kalau tidak ada dompet yang cocok secara konteks (termasuk uang tunai tanpa dompet cash), set target_wallet_id ke null.\n' +
-    'Kembalikan HANYA objek JSON: {"items":[{"name":"nama singkat sumber saldo (mis. GoPay, Cash, BCA)","amount":<saldo integer rupiah>,"target_wallet_id":"ID dompet yang cocok, atau null"}, ...]}. ' +
+    'Kalau tidak ada dompet di daftar itu yang cocok secara konteks (termasuk uang tunai tanpa dompet cash), set wallet_number ke null.\n' +
+    'Kembalikan HANYA objek JSON: {"items":[{"name":"nama singkat sumber saldo (mis. GoPay, Cash, BCA)","amount":<saldo integer rupiah>,"wallet_number":<nomor dari daftar di atas yang cocok, atau null>}, ...]}. ' +
     'Tanpa teks lain, tanpa markdown code fence.';
 
   const parts = [{ text: promptText }];
@@ -8409,22 +8412,21 @@ async function ccAnalyzeWithGemini(key){
   const text = extractGeminiText(data);
   const parsed = parseAiJson(text, 'object');
 
-  // Fallback & validasi target HARUS dari dompet yang dicentang di scope saja —
-  // supaya dompet yang tidak dicentang tidak pernah muncul di hasil analisis,
-  // meskipun AI salah tebak/hallucinate ID dompet lain yang sebenarnya valid tapi di luar scope.
+  // Fallback & validasi WAJIB dari dompet yang dicentang di scope saja —
+  // nomor urut dipetakan balik ke wallet scope; nomor di luar rentang = tidak valid.
   const primaryInScope = wallets.find(w => w.isPrimary);
   const primaryId = primaryInScope ? primaryInScope.id : (wallets[0] ? wallets[0].id : null);
 
   const items = Array.isArray(parsed && parsed.items) ? parsed.items.map(it => {
-    const rawTarget = (it && it.target_wallet_id) ? String(it.target_wallet_id) : null;
-    const hasMatch = (rawTarget !== null && wallets.some(w => w.id === rawTarget));
+    const num = Number(it && it.wallet_number);
+    const hasMatch = Number.isInteger(num) && num >= 1 && num <= wallets.length;
     return {
       id: uid(),
       name: ((it && it.name) || 'Dompet').toString().slice(0, 30),
       amount: Math.max(0, Math.round(Number(it && it.amount) || 0)),
-      // Kalau AI ga nemu dompet yang cocok (atau nebak dompet di luar scope), otomatis fallback
+      // Kalau AI ga nemu dompet yang cocok (atau kasih nomor di luar daftar), otomatis fallback
       // ke dompet utama DALAM SCOPE — tanpa ditandai apapun, user yang review/edit manual dropdown-nya kalau perlu.
-      targetWalletId: hasMatch ? rawTarget : primaryId
+      targetWalletId: hasMatch ? wallets[num - 1].id : primaryId
     };
   }).filter(it => it.targetWalletId) : [];
 
