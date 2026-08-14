@@ -18,7 +18,7 @@ import {
   cleanClarifiedNote,
   matchHistoryAmountWithAi,
 } from "./gemini.ts";
-import { sendWhatsAppMessage, downloadWhatsAppMedia } from "./whatsapp.ts";
+import { sendWhatsAppMessage, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
 
 // ============================================================
 // KONFIGURASI TETAP
@@ -741,7 +741,7 @@ export async function handleMediaBatch(
         item.mediaId,
         WA_ACCESS_TOKEN,
       );
-      const base64 = btoa(String.fromCharCode(...data));
+      const base64 = safeBytesToBase64(data);
       if (item.kind === "audio") {
         parts.push({
           text: "Lampiran berikut adalah voice note. Pahami audionya langsung dan ekstrak transaksi dalam panggilan ini; jangan membuat tahap transkripsi terpisah.",
@@ -921,7 +921,7 @@ export async function handleAudioMessage(
     return;
   }
 
-  const base64Audio = btoa(String.fromCharCode(...audioData));
+  const base64Audio = safeBytesToBase64(audioData);
 
   const parts: GeminiPart[] = [
     {
@@ -1059,7 +1059,7 @@ export async function handleReplyToTransaction(
       );
       return;
     }
-    const base64Audio = btoa(String.fromCharCode(...audioData));
+    const base64Audio = safeBytesToBase64(audioData);
     userReply = [
       {
         text: "Pahami audio berikut berisi instruksi user untuk mengedit atau menghapus transaksi.",

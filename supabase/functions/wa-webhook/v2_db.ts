@@ -1,5 +1,5 @@
 // supabase/functions/wa-webhook/v2_db.ts
-// VERSI 2 - Helper database dan state sesi mode terkunci
+// VERSI 2 - Helper database dan state sesi mode terkunci (Revisi Logging)
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,6 +12,21 @@ export interface ModeSession {
 }
 
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 menit
+
+/**
+ * Helper untuk mencatat log ke tabel wa_logs di database
+ */
+export async function logToDb(db: SupabaseClient, message: string, details: any = {}) {
+  try {
+    await db.from("wa_logs").insert({
+      message,
+      details: typeof details === "object" ? details : { raw: details },
+      created_at: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error("Gagal logToDb:", e);
+  }
+}
 
 /**
  * Mendapatkan sesi mode aktif untuk user.
@@ -28,7 +43,13 @@ export async function getV2Session(
       .eq("wa_chat_id", waChatId)
       .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      await logToDb(db, "getV2Session Error", { waChatId, error });
+      return { session: null, wasTimedOut: false };
+    }
+
+    if (!data) {
+      await logToDb(db, "getV2Session No Session Found", { waChatId });
       return { session: null, wasTimedOut: false };
     }
 
@@ -36,14 +57,18 @@ export async function getV2Session(
     const updatedAt = new Date(session.updated_at).getTime();
     const now = Date.now();
 
+    await logToDb(db, "getV2Session Session Active", { waChatId, session, timeDiff: now - updatedAt });
+
     if (now - updatedAt > TIMEOUT_MS) {
       // Sesi kedaluwarsa -> hapus
       await clearV2Session(db, waChatId);
+      await logToDb(db, "getV2Session Session Timed Out", { waChatId, session });
       return { session: null, wasTimedOut: true };
     }
 
     return { session, wasTimedOut: false };
   } catch (e) {
+    await logToDb(db, "getV2Session Exception", { waChatId, exception: String(e) });
     console.error("Error in getV2Session:", e);
     return { session: null, wasTimedOut: false };
   }
@@ -69,11 +94,15 @@ export async function saveV2Session(
     });
 
     if (error) {
+      await logToDb(db, "saveV2Session Error", { waChatId, mode, error });
       console.error("Error in saveV2Session:", error);
       return false;
     }
+    
+    await logToDb(db, "saveV2Session Success", { waChatId, mode, sessionData });
     return true;
   } catch (e) {
+    await logToDb(db, "saveV2Session Exception", { waChatId, mode, exception: String(e) });
     console.error("Error in saveV2Session:", e);
     return false;
   }
@@ -93,11 +122,15 @@ export async function clearV2Session(
       .eq("wa_chat_id", waChatId);
 
     if (error) {
+      await logToDb(db, "clearV2Session Error", { waChatId, error });
       console.error("Error in clearV2Session:", error);
       return false;
     }
+    
+    await logToDb(db, "clearV2Session Success", { waChatId });
     return true;
   } catch (e) {
+    await logToDb(db, "clearV2Session Exception", { waChatId, exception: String(e) });
     console.error("Error in clearV2Session:", e);
     return false;
   }
@@ -128,7 +161,6 @@ export async function v2GetBudgets(
   accessCode: string,
   monthStr: string,
 ) {
-  // monthStr format: YYYY-MM
   const { data } = await db
     .from("budgets")
     .select("id, category_id, limit_amount, month")

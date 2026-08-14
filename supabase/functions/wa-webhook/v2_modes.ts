@@ -3,14 +3,15 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callGeminiRaw, extractGeminiText, getTodayStr, formatRupiah, formatTanggalID } from "./gemini.ts";
-import { sendWhatsAppMessage, downloadWhatsAppMedia } from "./whatsapp.ts";
+import { sendWhatsAppMessage, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
 import {
   v2GetWallets,
   v2GetCategories,
   v2GetBudgets,
   v2GetSavingsGoals,
   saveV2Session,
-  clearV2Session
+  clearV2Session,
+  logToDb
 } from "./v2_db.ts";
 
 const PHONE_NUMBER_ID = Deno.env.get("WA_PHONE_NUMBER_ID")!;
@@ -36,6 +37,33 @@ function findGoalByName(name: string, goals: any[]): any[] {
   return goals.filter(g => g.name.toLowerCase().includes(lower));
 }
 
+// Helper sorting kategori & goal
+function sortExpenseCategories(expenseCats: any[], budgets: any[]): any[] {
+  return [...expenseCats].sort((catA, catB) => {
+    const bA = budgets.find(b => b.category_id === catA.id);
+    const bB = budgets.find(b => b.category_id === catB.id);
+    const hasLimitA = bA ? 1 : 0;
+    const hasLimitB = bB ? 1 : 0;
+    if (hasLimitA !== hasLimitB) {
+      return hasLimitB - hasLimitA; // Kategori berlimit di atas
+    }
+    return catA.name.localeCompare(catB.name); // Alfabetis jika sama
+  });
+}
+
+function sortGoals(goals: any[]): any[] {
+  return [...goals].sort((goalA, goalB) => {
+    const targetA = Number(goalA.target_amount) || 0;
+    const targetB = Number(goalB.target_amount) || 0;
+    const hasTargetA = targetA > 0 ? 1 : 0;
+    const hasTargetB = targetB > 0 ? 1 : 0;
+    if (hasTargetA !== hasTargetB) {
+      return hasTargetB - hasTargetA; // Ber-target di atas
+    }
+    return goalA.name.localeCompare(goalB.name);
+  });
+}
+
 // ============================================================
 // GEMINI ACTION PARSERS
 // ============================================================
@@ -44,27 +72,28 @@ async function parseKoreksiAction(
   apiKeys: string[],
   text: string,
   mediaParts: any[],
-  wallets: any[],
+  selectedWallets: any[],
   draftItems: any[]
 ): Promise<any> {
   const prompt = `
-Kamu asisten Mode Koreksi Saldo. Berdasarkan kalimat user (atau foto cash/uang jika dilampirkan), tentukan tindakannya terhadap draft koreksi saat ini.
-Daftar dompet tersedia: [${wallets.map(w => w.name).join(", ")}]
-Draft saat ini:
+Kamu asisten Mode Koreksi Saldo. User sedang mengoreksi saldo dompet terpilih berikut:
+${selectedWallets.map((w, idx) => `${idx + 1}. ${w.name} (ID: ${w.id})`).join("\n")}
+
+Draft koreksi saat ini:
 ${draftItems.map((it, idx) => `${idx + 1}. Wallet: ${it.wallet_name}, Actual: ${it.amount}`).join("\n")}
 
+Berdasarkan kalimat user (atau foto cash/uang jika dilampirkan), tentukan nominal saldo aktual.
 Aksi yang mungkin:
-1. "add" - Menambah item dompet baru ke draft (misal: "tambah shopeepay 50rb").
-2. "edit" - Mengubah nominal dompet yang sudah ada di draft (misal: "gopay 15rb", "1 15rb").
-3. "delete" - Menghapus item dompet dari draft (bukan dari database!) (misal: "hapus gopay", "hapus 1").
-4. "none" - Tidak dikenali.
+1. "edit" - Mengubah nominal dompet yang sedang dikoreksi (misal: "gopay 15rb", "1 15rb", atau "15rb" jika hanya ada 1 dompet terpilih).
+2. "delete" - Menghapus item dompet dari draft (misal: "hapus gopay", "hapus 1").
+3. "none" - Tidak dikenali.
 
 Keluarkan JSON dengan schema:
 {
-  "action": "add" | "edit" | "delete" | "none",
-  "wallet_name": "string (nama dompet yang disebut, kosongkan jika tidak ada)",
+  "action": "edit" | "delete" | "none",
+  "wallet_id": "string (ID dompet dari daftar terpilih yang dirujuk, kosongkan jika tidak ada)",
   "amount": number | null,
-  "index": number | null // 1-indexed nomor urut jika user merujuk ke nomor urut draft
+  "index": number | null // 1-indexed nomor urut dompet terpilih yang dirujuk
 }
 `;
 
@@ -80,8 +109,8 @@ Keluarkan JSON dengan schema:
     const responseSchema = {
       type: "OBJECT",
       properties: {
-        action: { type: "STRING", enum: ["add", "edit", "delete", "none"] },
-        wallet_name: { type: "STRING" },
+        action: { type: "STRING", enum: ["edit", "delete", "none"] },
+        wallet_id: { type: "STRING" },
         amount: { type: "NUMBER" },
         index: { type: "NUMBER" }
       },
@@ -153,7 +182,7 @@ async function parseTujuanAction(
   const prompt = `
 Kamu asisten Mode Tujuan Tabungan. Berdasarkan kalimat user, tentukan tindakan perubahan tujuan tabungan.
 Daftar tujuan tabungan saat ini:
-${goals.map((g, idx) => `${idx + 1}. Tujuan: ${g.goal_name}, Target: ${g.target_amount}`).join("\n")}
+${goals.map((g, idx) => `${idx + 1}. Tujuan: ${g.name}, Target: ${g.target_amount}`).join("\n")}
 
 Aksi yang mungkin:
 1. "add" - Menambah tujuan tabungan baru (misal: "tambah Mobil target 150jt").
@@ -202,14 +231,18 @@ export async function handleModeKoreksiEnter(
 ): Promise<void> {
   const wallets = await v2GetWallets(db, ACCESS_CODE);
   let text = `*Mode Koreksi Saldo* (Cek) ✓
-Kirim foto uang fisik atau ketik koreksi saldo dompetmu (contoh: 'gopay 50rb', 'cash 20rb').
+Pilih dompet yang mau dikoreksi (boleh lebih dari satu):
 
-Daftar Dompet Saat Ini:
-${wallets.map(w => `- ${w.name}: ${formatRupiah(w.balance)}`).join("\n")}
+${wallets.map((w, idx) => `${idx + 1}. ${w.name} — ${formatRupiah(w.balance)}`).join("\n")}
 
+Ketik nomornya, mis. "1" untuk satu dompet, atau "1 2" untuk beberapa dompet sekaligus.
 Ketik 'batal' untuk keluar dari mode.`;
 
-  await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", { items: [] });
+  await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
+    step: 1,
+    selected_wallets: [],
+    items: []
+  });
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, text, messageId);
 }
 
@@ -223,14 +256,77 @@ export async function handleModeKoreksiMessage(
   const text = msg.text ?? "";
   const cleaned = text.trim().toLowerCase();
 
+  await logToDb(db, "handleModeKoreksiMessage Triggered", { cleaned, sessionData: session.session_data });
+
   if (cleaned === "batal") {
     await clearV2Session(db, waChatId);
     await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Mode koreksi dibatalkan. Tidak ada perubahan saldo.`, msg.messageId);
     return;
   }
 
-  const draftItems = session.session_data.items || [];
   const wallets = await v2GetWallets(db, ACCESS_CODE);
+
+  // Alur Langkah 1: Pemilihan Dompet
+  if (session.session_data.step === 1 || !session.session_data.step) {
+    const tokens = cleaned.split(/[\s,;]+/).map(t => t.trim()).filter(Boolean);
+    const selectedIds: string[] = [];
+
+    for (const token of tokens) {
+      const num = parseInt(token, 10);
+      if (!isNaN(num) && num > 0 && num <= wallets.length) {
+        const w = wallets[num - 1];
+        if (!selectedIds.includes(w.id)) {
+          selectedIds.push(w.id);
+        }
+      } else {
+        const matches = wallets.filter(w => w.name.toLowerCase().includes(token));
+        if (matches.length > 0) {
+          matches.forEach(w => {
+            if (!selectedIds.includes(w.id)) {
+              selectedIds.push(w.id);
+            }
+          });
+        }
+      }
+    }
+
+    if (selectedIds.length === 0) {
+      await sendWhatsAppMessage(
+        PHONE_NUMBER_ID,
+        WA_ACCESS_TOKEN,
+        waChatId,
+        `Pilihan dompet tidak valid. Silakan balas dengan mengetik nomor dompet (misal: '1' atau '1 2'), atau ketik nama dompetnya.`,
+        msg.messageId
+      );
+      return;
+    }
+
+    const selectedWallets = wallets.filter(w => selectedIds.includes(w.id));
+    const items = selectedWallets.map(w => ({
+      wallet_id: w.id,
+      wallet_name: w.name,
+      amount: Number(w.balance) || 0
+    }));
+
+    await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
+      step: 2,
+      selected_wallets: selectedIds,
+      items
+    });
+
+    let reply = `Dompet terpilih untuk dikoreksi:\n`;
+    selectedWallets.forEach((w, idx) => {
+      reply += `${idx + 1}. ${w.name} (Saldo saat ini: ${formatRupiah(w.balance)})\n`;
+    });
+    reply += `\nSilakan kirim foto uang fisik (struk) atau ketik nilai nominal aktual untuk dompet-dompet di atas (contoh: 'dompet utama 50rb', '1 50rb', atau jika hanya 1 dompet langsung ketik angkanya '50000').\n\n` +
+             `Ketik *"ya"* jika semua nominal sudah sesuai untuk memproses, atau *"batal"* untuk keluar.`;
+
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
+    return;
+  }
+
+  // Alur Langkah 2: Memproses Foto / Input Nominal
+  const draftItems = session.session_data.items || [];
 
   if (cleaned === "ya" || cleaned === "oke") {
     if (draftItems.length === 0) {
@@ -239,7 +335,6 @@ export async function handleModeKoreksiMessage(
     }
 
     // Eksekusi koreksi saldo (Penyesuaian Saldo)
-    // Cari kategori Penyesuaian Saldo
     const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
     let catExpense = categories?.find(c => c.name === "Penyesuaian Saldo" && c.type === "expense");
     let catIncome = categories?.find(c => c.name === "Penyesuaian Saldo" && c.type === "income");
@@ -305,130 +400,116 @@ export async function handleModeKoreksiMessage(
           if (sums[t.to_wallet_id] !== undefined) sums[t.to_wallet_id] += amt;
         }
       }
+
       const { data: settings } = await db.from("user_settings").select("nav_config").eq("access_code", ACCESS_CODE).maybeSingle();
-      const initialBalances = settings?.nav_config?.initialBalances || {};
+      const navConfig = settings?.nav_config || {};
+      const initialBalances = navConfig.initialBalances || {};
+
       for (const w of rawWallets) {
+        if (initialBalances[w.id] === undefined) {
+          initialBalances[w.id] = (Number(w.balance) || 0) - (sums[w.id] || 0);
+        }
         const newBalance = (Number(initialBalances[w.id]) || 0) + (sums[w.id] || 0);
-        await db.from("wallets").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("id", w.id);
+        if (w.balance !== newBalance) {
+          await db.from("wallets").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("id", w.id);
+        }
       }
     }
 
-    const { data: finalWallets } = await db.from("wallets").select("*").eq("access_code", ACCESS_CODE);
-    let confirmText = `Koreksi saldo berhasil disimpan! ✓\n\n`;
-    draftItems.forEach((item: any) => {
-      const w = finalWallets?.find(x => x.id === item.wallet_id);
-      confirmText += `${item.wallet_name}: ${formatRupiah(w?.balance ?? 0)}\n`;
-    });
-
     await clearV2Session(db, waChatId);
-    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, confirmText, msg.messageId);
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Koreksi saldo berhasil disimpan! ✓`, msg.messageId);
     return;
   }
 
-  // Parse media (foto cash)
+  // Download media/foto
   const mediaParts: any[] = [];
   if (msg.type === "image" && msg.mediaId) {
-    try {
-      const { data, mimeType } = await downloadWhatsAppMedia(msg.mediaId, WA_ACCESS_TOKEN);
-      const base64 = btoa(String.fromCharCode(...data));
-      mediaParts.push({ inlineData: { data: base64, mimeType } });
-    } catch (e) {
-      console.error("Gagal download foto koreksi:", e);
+    const { data, mimeType } = await downloadWhatsAppMedia(msg.mediaId, WA_ACCESS_TOKEN);
+    if (data) {
+      const b64 = safeBytesToBase64(data);
+      mediaParts.push({
+        inlineData: {
+          mimeType: mimeType || "image/jpeg",
+          data: b64
+        }
+      });
     }
   }
 
-  // Panggil AI untuk parsing tindakan koreksi
-  const parsedAction = await parseKoreksiAction(apiKeys, text, mediaParts, wallets, draftItems);
+  const selectedWallets = wallets.filter(w => session.session_data.selected_wallets.includes(w.id));
+  const parsedAction = await parseKoreksiAction(apiKeys, text, mediaParts, selectedWallets, draftItems);
 
   if (parsedAction.action === "none" && mediaParts.length === 0) {
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       waChatId,
-      `Perintah tidak dipahami. Silakan sebut nama dompet dan nominal (misal: 'cash 50rb', 'hapus 1', atau kirim foto uang cash).`,
+      `Perintah tidak dipahami. Silakan sebut nama/nomor dompet terpilih dan nominalnya (contoh: 'dompet utama 50rb', '1 50rb', atau kirim foto uang fisik).`,
       msg.messageId
     );
     return;
   }
 
-  let updatedDraft = [...draftItems];
-
-  if (parsedAction.action === "delete") {
-    let deletedIdx = -1;
-    if (parsedAction.index !== null) {
-      deletedIdx = parsedAction.index - 1;
-    } else if (parsedAction.wallet_name) {
-      deletedIdx = updatedDraft.findIndex(d => d.wallet_name.toLowerCase().includes(parsedAction.wallet_name.toLowerCase()));
+  let targetWallet = null;
+  if (parsedAction.index !== null) {
+    const idx = parsedAction.index - 1;
+    if (idx >= 0 && idx < selectedWallets.length) {
+      targetWallet = selectedWallets[idx];
     }
-
-    if (deletedIdx >= 0 && deletedIdx < updatedDraft.length) {
-      const removed = updatedDraft.splice(deletedIdx, 1)[0];
-      await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Dihapus dari draft: ${removed.wallet_name}`, msg.messageId);
-    } else {
-      await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Item draft tidak ditemukan.`, msg.messageId);
-      return;
+  } else if (parsedAction.wallet_id) {
+    targetWallet = selectedWallets.find(w => w.id === parsedAction.wallet_id);
+  } else if (parsedAction.wallet_name) {
+    const matches = findWalletByName(parsedAction.wallet_name, selectedWallets);
+    if (matches.length === 1) {
+      targetWallet = matches[0];
     }
-  } else if (parsedAction.action === "add" || parsedAction.action === "edit") {
-    if (!parsedAction.wallet_name) {
-      await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Mohon sebutkan nama dompet yang jelas.`, msg.messageId);
-      return;
-    }
-
-    const matches = findWalletByName(parsedAction.wallet_name, wallets);
-    if (matches.length === 0) {
-      await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Dompet "${parsedAction.wallet_name}" tidak ditemukan.`, msg.messageId);
-      return;
-    }
-    if (matches.length > 1) {
-      await sendWhatsAppMessage(
-        PHONE_NUMBER_ID,
-        WA_ACCESS_TOKEN,
-        waChatId,
-        `Nama dompet ambigu. Pilihan:\n` + matches.map((w, idx) => `${idx + 1}. ${w.name}`).join("\n") + `\n\nMohon ketik ulang dengan nama dompet yang spesifik.`,
-        msg.messageId
-      );
-      return;
-    }
-
-    const targetWallet = matches[0];
-    const amount = parsedAction.amount ?? 0;
-
-    const existingIdx = updatedDraft.findIndex(d => d.wallet_id === targetWallet.id);
-    if (existingIdx >= 0) {
-      updatedDraft[existingIdx].amount = amount;
-    } else {
-      updatedDraft.push({
-        wallet_id: targetWallet.id,
-        wallet_name: targetWallet.name,
-        amount
-      });
-    }
+  } else if (selectedWallets.length === 1) {
+    targetWallet = selectedWallets[0];
   }
 
-  // Simpan sesi terupdate
-  await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", { items: updatedDraft });
+  if (!targetWallet) {
+    await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      waChatId,
+      `Dompet tidak ditemukan atau tidak cocok dengan daftar dompet terpilih. Silakan gunakan nomor urut (contoh: '1 50rb').`,
+      msg.messageId
+    );
+    return;
+  }
 
-  // Cetak draft terupdate
-  let report = `📋 *Draft Koreksi Saldo*\n\n`;
-  if (updatedDraft.length === 0) {
-    report += `(kosong)\n`;
+  const amount = parsedAction.amount ?? 0;
+  const existingIdx = draftItems.findIndex(d => d.wallet_id === targetWallet.id);
+  if (existingIdx >= 0) {
+    draftItems[existingIdx].amount = amount;
   } else {
-    updatedDraft.forEach((item, idx) => {
-      const orig = wallets.find(w => w.id === item.wallet_id);
-      const systemBalance = orig ? Number(orig.balance) : 0;
-      const diff = item.amount - systemBalance;
-      const diffStr = diff === 0 ? "Rp0" : (diff < 0 ? `-${formatRupiah(Math.abs(diff))}` : `+${formatRupiah(diff)}`);
-      
-      report += `${idx + 1}. ${item.wallet_name}\n` +
-                `   Saldo sistem : ${formatRupiah(systemBalance)}\n` +
-                `   Saldo aktual : ${formatRupiah(item.amount)}\n` +
-                `   Selisih      : ${diffStr}\n\n`;
+    draftItems.push({
+      wallet_id: targetWallet.id,
+      wallet_name: targetWallet.name,
+      amount
     });
   }
 
-  report += `Ketik nama/nomor + nilai baru untuk edit, "tambah [dompet] [nilai]" untuk tambah dompet lain, "hapus [nomor/nama]" untuk hapus salah satu.\n\n` +
-            `Ketik *"ya"* untuk proses semua koreksi di atas, atau *"batal"* untuk keluar tanpa perubahan.`;
-            
+  await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
+    step: 2,
+    selected_wallets: session.session_data.selected_wallets,
+    items: draftItems
+  });
+
+  let report = `📋 *Draft Koreksi Saldo*\n\n`;
+  draftItems.forEach((item, idx) => {
+    const orig = wallets.find(w => w.id === item.wallet_id);
+    const systemBalance = orig ? Number(orig.balance) : 0;
+    const diff = item.amount - systemBalance;
+    const diffStr = diff === 0 ? "Rp0" : (diff < 0 ? `-${formatRupiah(Math.abs(diff))}` : `+${formatRupiah(diff)}`);
+    
+    report += `${idx + 1}. ${item.wallet_name}\n` +
+              `   Saldo sistem : ${formatRupiah(systemBalance)}\n` +
+              `   Saldo aktual : ${formatRupiah(item.amount)}\n` +
+              `   Selisih      : ${diffStr}\n\n`;
+  });
+
+  report += `Ketik nomor/nama + nilai baru untuk mengubah (misal: '1 60rb'), atau ketik *"ya"* untuk memproses, *"batal"* untuk keluar.`;
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, report, msg.messageId);
 }
 
@@ -441,7 +522,6 @@ async function renderLimitList(db: SupabaseClient, categories: any[]): Promise<s
   const currentMonth = todayStr.slice(0, 7);
   const budgets = await v2GetBudgets(db, ACCESS_CODE, currentMonth);
 
-  // Dapatkan total pengeluaran per kategori di bulan berjalan
   const { data: transactions } = await db
     .from("transactions")
     .select("category, amount")
@@ -459,8 +539,9 @@ async function renderLimitList(db: SupabaseClient, categories: any[]): Promise<s
   let text = `Daftar Limit Anggaran (${monthLabel}):\n\n`;
 
   const expenseCats = categories.filter(c => c.type === "expense");
+  const sortedCats = sortExpenseCategories(expenseCats, budgets);
 
-  expenseCats.forEach((c, idx) => {
+  sortedCats.forEach((c, idx) => {
     const b = budgets.find(b => b.category_id === c.id);
     const limit = b ? Number(b.limit_amount) : null;
     const spent = spentMap[c.name] || 0;
@@ -519,7 +600,9 @@ export async function handleModeLimitMessage(
   const budgets = await v2GetBudgets(db, ACCESS_CODE, currentMonth);
 
   const expenseCats = categories.filter(c => c.type === "expense");
-  const budgetList = expenseCats.map(c => {
+  const sortedCats = sortExpenseCategories(expenseCats, budgets);
+
+  const budgetList = sortedCats.map(c => {
     const b = budgets.find(b => b.category_id === c.id);
     return {
       category_id: c.id,
@@ -550,7 +633,7 @@ export async function handleModeLimitMessage(
       targetCat = budgetList[idx];
     }
   } else if (parsedAction.category_name) {
-    const matches = findCategoryByName(parsedAction.category_name, expenseCats);
+    const matches = findCategoryByName(parsedAction.category_name, sortedCats);
     if (matches.length === 1) {
       targetCat = budgetList.find(b => b.category_id === matches[0].id);
     } else if (matches.length > 1) {
@@ -579,14 +662,15 @@ export async function handleModeLimitMessage(
     } else {
       await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Kategori "${targetCat.category_name}" memang belum memiliki limit.`, msg.messageId);
     }
-  } else if (parsedAction.action === "add" || parsedAction.action === "edit") {
+  } else {
+    // Add / Edit
     if (amount <= 0) {
       await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Nominal limit tidak valid.`, msg.messageId);
       return;
     }
 
     if (targetCat.budget_id) {
-      // Edit
+      // Update
       await db
         .from("budgets")
         .update({
@@ -627,13 +711,14 @@ export async function handleModeLimitMessage(
 
 async function renderGoalsList(db: SupabaseClient): Promise<string> {
   const goals = await v2GetSavingsGoals(db, ACCESS_CODE);
+  const sortedGoals = sortGoals(goals);
   const wallets = await v2GetWallets(db, ACCESS_CODE);
 
   let text = `Daftar Tujuan Tabungan:\n\n`;
-  if (goals.length === 0) {
+  if (sortedGoals.length === 0) {
     text += `(kosong)\n`;
   } else {
-    goals.forEach((g, idx) => {
+    sortedGoals.forEach((g, idx) => {
       const target = Number(g.target_amount) || 0;
       const linked = wallets.find(w => w.id === g.wallet_id);
       const progress = linked ? Number(linked.balance) : 0;
@@ -684,7 +769,8 @@ export async function handleModeTujuanMessage(
   }
 
   const goals = await v2GetSavingsGoals(db, ACCESS_CODE);
-  const parsedAction = await parseTujuanAction(apiKeys, text, goals);
+  const sortedGoals = sortGoals(goals);
+  const parsedAction = await parseTujuanAction(apiKeys, text, sortedGoals);
 
   if (parsedAction.action === "none") {
     await sendWhatsAppMessage(
@@ -701,11 +787,11 @@ export async function handleModeTujuanMessage(
 
   if (parsedAction.index !== null) {
     const idx = parsedAction.index - 1;
-    if (idx >= 0 && idx < goals.length) {
-      targetGoal = goals[idx];
+    if (idx >= 0 && idx < sortedGoals.length) {
+      targetGoal = sortedGoals[idx];
     }
   } else if (parsedAction.goal_name) {
-    const matches = findGoalByName(parsedAction.goal_name, goals);
+    const matches = findGoalByName(parsedAction.goal_name, sortedGoals);
     if (matches.length === 1) {
       targetGoal = matches[0];
     } else if (matches.length > 1) {
@@ -733,7 +819,6 @@ export async function handleModeTujuanMessage(
       return;
     }
 
-    // Buat wallet baru khusus goal ini agar progress bisa dihitung dari wallet balance
     const walletId = `wa_w_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     await db.from("wallets").insert({
       id: walletId,

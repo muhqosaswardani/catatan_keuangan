@@ -88,3 +88,13 @@ export function markAsRead(
     }),
   }).then(() => undefined);
 }
+
+export function safeBytesToBase64(bytes: Uint8Array): string {
+  let binString = "";
+  const chunkSize = 16384; // 16KB chunks
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binString += String.fromCharCode.apply(null, chunk as any);
+  }
+  return btoa(binString);
+}

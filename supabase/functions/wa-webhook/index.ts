@@ -295,7 +295,19 @@ Deno.serve(async (req: Request) => {
       try {
         // // VERSI 2 - Router Intent & Mode (Isolatable & Rollbackable)
         if (Deno.env.get("WA_V2_ENABLED") === "true") {
+          // Log incoming message metadata
+          await db.from("wa_logs").insert({
+            message: "Incoming Message metadata",
+            details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
+          });
+
           const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
+
+          await db.from("wa_logs").insert({
+            message: "V2 Router finished",
+            details: { messageId: msg.messageId, handled }
+          });
+
           if (handled) {
             continue;
           }
