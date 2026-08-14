@@ -524,6 +524,30 @@
   .cca-compare-row b.neg{color:var(--expense);}
   .cca-name-input{width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12.5px;font-weight:700;font-family:inherit;background:var(--surface);color:var(--ink);}
 
+  /* Crosscheck AI — grouped by wallet (fitur 5, redesign) */
+  .cca-group{margin-bottom:18px;}
+  .cca-group:last-child{margin-bottom:4px;}
+  .cca-group-title{font-size:13.5px;font-weight:700;color:var(--ink);margin:0 0 8px;display:flex;align-items:center;gap:6px;}
+  .cca-group-title .sub{font-weight:500;color:var(--ink-soft);font-size:11.5px;}
+  .cca-group-empty{font-size:12px;color:var(--ink-soft);font-style:italic;padding:2px 2px 10px;}
+  .cca-item-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);margin-bottom:8px;}
+  .cca-item-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .cca-item-name{flex:1;min-width:0;border:none;background:none;outline:none;font-weight:700;font-size:14px;color:var(--ink);padding:0;}
+  .cca-item-del{background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;flex-shrink:0;display:flex;}
+  .cca-item-fields{display:flex;flex-direction:column;gap:10px;}
+  .cca-item-fields .field{margin:0;}
+  .cca-item-fields label{font-size:11.5px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:5px;}
+  .cca-item-fields select{width:100%;padding:9px 10px;font-size:13.5px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font-family:inherit;}
+  .cca-item-fields .amount-input{padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);display:flex;align-items:center;}
+  .cca-item-fields .amount-input span{font-size:13px;color:var(--ink-soft);margin-right:4px;flex-shrink:0;}
+  .cca-item-fields .amount-input input{border:none;background:none;outline:none;font-size:13.5px;width:100%;font-weight:700;color:var(--ink);padding:0;}
+  .cca-group-summary{background:var(--surface-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
+  .cca-group-summary-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-soft);font-weight:600;}
+  .cca-group-summary-row b{color:var(--ink);font-weight:700;font-size:13px;}
+  .cca-group-summary-row.diff{border-top:1px dashed var(--line);margin-top:2px;padding-top:6px;}
+  .cca-group-summary-row.diff b.pos{color:var(--income);}
+  .cca-group-summary-row.diff b.neg{color:var(--expense);}
+
   /* Settings */
   .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);}
   .settings-row-card{display:block;width:100%;padding:15px 18px;border:1.5px solid var(--line);background:var(--surface);border-radius:14px;text-align:left;cursor:pointer;transition:background .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:10px;font-family:inherit;}
@@ -8265,11 +8289,11 @@ function renderCcWalletsScopeChecklist(){
   wrap.innerHTML = sorted.map(w => {
     const isChecked = scopeIds.includes(w.id);
     return `
-      <label class="hero-wallet-check-item" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;margin-bottom:0;">
+      <label class="hero-wallet-check-item" style="cursor:pointer;margin-bottom:0;">
         <input type="checkbox" value="${w.id}" ${isChecked ? 'checked' : ''} onchange="onCcWalletScopeChange()" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;margin:0;">
         <div style="flex:1;">
-          <div style="font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
-          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;">${formatRupiah(w.balance)}</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-top:1px;">${formatRupiah(w.balance)}</div>
         </div>
       </label>`;
   }).join('');
@@ -8412,42 +8436,82 @@ function renderCcaItems(){
   const wrap = document.getElementById('ccaItemsWrap');
   if (!wrap) return;
 
-  const wallets = getWallets();
+  const allWallets = getWallets();
+  const scopeIds = getCcWalletsScope();
 
-  wrap.innerHTML = ccaItems.items.map(it => {
-    const dropdownOptions = wallets.map(w => `
-      <option value="${w.id}" ${w.id === it.targetWalletId ? 'selected' : ''}>${escAttr(w.name)}</option>
-    `).join('');
+  const scopeWallets = allWallets
+    .filter(w => scopeIds.includes(w.id))
+    .sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+      return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+    });
+
+  // Dompet di luar scope tapi kepakai (mis. dompet baru dibuat lewat dropdown item)
+  const extraWalletIds = Array.from(new Set(
+    ccaItems.items.map(it => it.targetWalletId).filter(id => id && !scopeIds.includes(id))
+  ));
+  const extraWallets = extraWalletIds.map(id => allWallets.find(w => w.id === id)).filter(Boolean);
+
+  const groups = [...scopeWallets, ...extraWallets];
+
+  wrap.innerHTML = groups.map(w => {
+    const groupItems = ccaItems.items.filter(it => it.targetWalletId === w.id);
+    const itemsHtml = groupItems.length
+      ? groupItems.map(it => renderCcaItemCard(it, allWallets)).join('')
+      : `<div class="cca-group-empty">Tidak ada saldo terbaca untuk dompet ini — dianggap tetap.</div>`;
+
+    const sistem = w.balance;
+    const aktual = groupItems.length ? groupItems.reduce((s, it) => s + (Number(it.amount) || 0), 0) : sistem;
+    const diff = aktual - sistem;
+    const diffClass = diff === 0 ? '' : (diff > 0 ? 'pos' : 'neg');
+    const diffText = diff === 0 ? formatRupiah(0) : (diff > 0 ? '+' : '') + formatRupiah(diff);
 
     return `
-      <div class="cc-item-row" data-id="${it.id}" style="padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-          <input type="text" value="${escAttr(it.name)}" oninput="onCcaItemNameChange('${it.id}', this.value)" style="flex:1;border:none;background:none;outline:none;font-weight:700;font-size:13.5px;color:var(--ink);padding:0;margin-right:8px;">
-          <button type="button" class="cc-item-del" onclick="deleteCcaItem('${it.id}')" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
-          </button>
+      <div class="cca-group" data-wallet="${w.id}">
+        <div class="cca-group-title">${escAttr(w.name)}${w.isPrimary ? ' <span class="sub">(Utama)</span>' : ''}</div>
+        ${itemsHtml}
+        <div class="cca-group-summary">
+          <div class="cca-group-summary-row"><span>Saldo Sistem</span><b id="ccaSistem_${w.id}">${formatRupiah(sistem)}</b></div>
+          <div class="cca-group-summary-row"><span>Saldo Aktual</span><b id="ccaAktual_${w.id}">${formatRupiah(aktual)}</b></div>
+          <div class="cca-group-summary-row diff"><span>Selisih</span><b id="ccaDiffW_${w.id}" class="${diffClass}">${diffText}</b></div>
         </div>
-        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px;">
-          <div class="field" style="margin:0;">
-            <label style="font-size:11px;">Dompet Tujuan</label>
-            <select onchange="onCcaItemWalletChange('${it.id}', this)" style="width:100%;padding:6px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);">
-              ${dropdownOptions}
-              <option value="__NEW__">+ Tambah Dompet Baru</option>
-            </select>
-          </div>
-          <div class="field" style="margin:0;">
-            <label style="font-size:11px;">Saldo Terbaca</label>
-            <div class="amount-input" style="padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);display:flex;align-items:center;">
-              <span style="font-size:12px;color:var(--ink-soft);margin-right:2px;">Rp</span>
-              <input type="text" id="ccaAmt_${it.id}" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" oninput="formatThousandInput(this);onCcaItemAmountChange('${it.id}', this.value)" style="border:none;background:none;outline:none;font-size:12px;width:100%;font-weight:700;color:var(--ink);padding:0;" placeholder="0">
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+      </div>`;
   }).join('');
 
   updateCcaTotal();
+}
+
+function renderCcaItemCard(it, wallets){
+  const dropdownOptions = wallets.map(w => `
+    <option value="${w.id}" ${w.id === it.targetWalletId ? 'selected' : ''}>${escAttr(w.name)}</option>
+  `).join('');
+
+  return `
+    <div class="cca-item-card" data-id="${it.id}">
+      <div class="cca-item-top">
+        <input type="text" class="cca-item-name" value="${escAttr(it.name)}" oninput="onCcaItemNameChange('${it.id}', this.value)" placeholder="Nama sumber saldo">
+        <button type="button" class="cca-item-del" onclick="deleteCcaItem('${it.id}')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="cca-item-fields">
+        <div class="field">
+          <label>Dompet Tujuan</label>
+          <select onchange="onCcaItemWalletChange('${it.id}', this)">
+            ${dropdownOptions}
+            <option value="__NEW__">+ Tambah Dompet Baru</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Saldo Terbaca</label>
+          <div class="amount-input">
+            <span>Rp</span>
+            <input type="text" id="ccaAmt_${it.id}" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" oninput="formatThousandInput(this);onCcaItemAmountChange('${it.id}', this.value)" placeholder="0">
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function onCcaItemNameChange(itemId, name){
@@ -8531,27 +8595,51 @@ function deleteCcaItem(id){
 }
 
 function updateCcaTotal(){
-  let total = 0;
+  // Sinkron nilai amount dari input yang sedang diketik ke data model
   ccaItems.items.forEach(it => {
     const el = document.getElementById('ccaAmt_'+it.id);
-    const amt = el ? parseRupiahInput(el.value) : it.amount;
-    total += amt;
+    if (el) it.amount = parseRupiahInput(el.value);
   });
-  
-  const totalEl = document.getElementById('ccaTotal');
-  if(totalEl) totalEl.textContent = formatRupiah(total);
-  
+
   const scopeIds = getCcWalletsScope();
   const wallets = getWallets();
-  const recorded = wallets.filter(w => scopeIds.includes(w.id)).reduce((s, w) => s + w.balance, 0);
-  const diff = total - recorded;
-  
+  const scopeWallets = wallets.filter(w => scopeIds.includes(w.id));
+
+  let totalAktual = 0;
+  scopeWallets.forEach(w => {
+    const groupItems = ccaItems.items.filter(it => it.targetWalletId === w.id);
+    const sistem = w.balance;
+    const aktual = groupItems.length ? groupItems.reduce((s, it) => s + (Number(it.amount) || 0), 0) : sistem;
+    totalAktual += aktual;
+
+    const diff = aktual - sistem;
+    const diffClass = diff === 0 ? '' : (diff > 0 ? 'pos' : 'neg');
+    const diffText = diff === 0 ? formatRupiah(0) : (diff > 0 ? '+' : '') + formatRupiah(diff);
+
+    const aktualEl = document.getElementById('ccaAktual_'+w.id);
+    if (aktualEl) aktualEl.textContent = formatRupiah(aktual);
+    const diffEl2 = document.getElementById('ccaDiffW_'+w.id);
+    if (diffEl2) { diffEl2.textContent = diffText; diffEl2.className = diffClass; }
+  });
+
+  // Dompet di luar scope yang kepakai (edge case dompet baru ditambah lewat dropdown item)
+  const extraTotal = ccaItems.items
+    .filter(it => it.targetWalletId && !scopeIds.includes(it.targetWalletId))
+    .reduce((s, it) => s + (Number(it.amount) || 0), 0);
+  totalAktual += extraTotal;
+
+  const totalEl = document.getElementById('ccaTotal');
+  if(totalEl) totalEl.textContent = formatRupiah(totalAktual);
+
+  const recorded = scopeWallets.reduce((s, w) => s + w.balance, 0);
+  const diff = totalAktual - recorded;
+
   const diffEl = document.getElementById('ccaDiff');
   if(diffEl){
     diffEl.textContent = (diff >= 0 ? '+' : '') + formatRupiah(diff);
     diffEl.className = diff >= 0 ? 'pos' : 'neg';
   }
-  return total;
+  return totalAktual;
 }
 
 function applyPenyesuaian(){
