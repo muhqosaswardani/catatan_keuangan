@@ -1,5 +1,5 @@
 // supabase/functions/wa-webhook/v2_router.ts
-// VERSI 2 - Router Utama untuk fitur Stage 2 (Intent & Mode)
+// VERSI 2 - Router Utama untuk fitur Stage 2 (Intent & Mode - Revisi Sesi & Balasan)
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWhatsAppMessage } from "./whatsapp.ts";
@@ -23,13 +23,12 @@ import {
 
 const PHONE_NUMBER_ID = Deno.env.get("WA_PHONE_NUMBER_ID")!;
 const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN")!;
-const OWNER_PHONE = Deno.env.get("WA_OWNER_PHONE") ?? "6281226964679";
 const ACCESS_CODE = Deno.env.get("WA_ACCESS_CODE") ?? "";
 
 /**
  * Pusat Bantuan (help/bantuan/menu) - Exits immediately
  */
-async function handleHelpCommand(messageId: string): Promise<void> {
+async function handleHelpCommand(waChatId: string, messageId: string): Promise<void> {
   const helpText = `Pusat Bantuan Catatan Keuangan Bot ✓
 
 *Menu Mode Terkunci (Ketik kata eksak untuk masuk):*
@@ -49,7 +48,7 @@ async function handleHelpCommand(messageId: string): Promise<void> {
 - Laporan/Query: Tambahkan tanda tanya '?' di akhir kalimat untuk bertanya apa saja (contoh: 'anggaran makan sisa berapa?', 'pengeluaran terbesar bulan ini?').
 - Cek Saldo: Ketik 'cek saldo' untuk ringkasan dompet.`;
 
-  await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, helpText, messageId);
+  await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, helpText, messageId);
 }
 
 /**
@@ -64,16 +63,17 @@ export async function handleV2Message(
 ): Promise<boolean> {
   const text = (msg.text ?? msg.caption ?? "").trim();
   const cleaned = text.toLowerCase();
+  const waChatId = msg.from;
 
   // 0. Cek: apakah user sedang berada di dalam MODE TERKUNCI aktif?
-  const { session, wasTimedOut } = await getV2Session(db, msg.from);
+  const { session, wasTimedOut } = await getV2Session(db, waChatId);
 
   if (wasTimedOut && session) {
     const modeLabel = session.mode?.toUpperCase() ?? "MODE";
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       `Mode ${modeLabel} otomatis dibatalkan karena tidak ada aktivitas selama 5 menit.`
     );
   }
@@ -86,11 +86,11 @@ export async function handleV2Message(
     if (session.session_data?.pending_exit_intent) {
       if (cleaned === "ya" || cleaned === "oke") {
         const pendingMsg = session.session_data.pending_exit_intent;
-        await clearV2Session(db, msg.from);
+        await clearV2Session(db, waChatId);
         await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
-          OWNER_PHONE,
+          waChatId,
           `Keluar dari Mode ${currentMode?.toUpperCase()}. Memproses permintaan baru...`
         );
         // Re-run message processing recursively
@@ -99,11 +99,11 @@ export async function handleV2Message(
         // Hapus pending exit intent dan tetap di mode
         const cleanSessionData = { ...session.session_data };
         delete cleanSessionData.pending_exit_intent;
-        await saveV2Session(db, msg.from, ACCESS_CODE, currentMode, cleanSessionData);
+        await saveV2Session(db, waChatId, ACCESS_CODE, currentMode, cleanSessionData);
         await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
-          OWNER_PHONE,
+          waChatId,
           `Tetap berada di dalam Mode ${currentMode?.toUpperCase()}.`
         );
         return true;
@@ -111,7 +111,7 @@ export async function handleV2Message(
         await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
-          OWNER_PHONE,
+          waChatId,
           `Mohon balas dengan 'ya' untuk keluar dan memproses permintaan baru, atau 'batal' untuk tetap di mode ${currentMode?.toUpperCase()}.`,
           msg.messageId
         );
@@ -149,11 +149,11 @@ export async function handleV2Message(
           caption: msg.caption
         }
       };
-      await saveV2Session(db, msg.from, ACCESS_CODE, currentMode, updatedData);
+      await saveV2Session(db, waChatId, ACCESS_CODE, currentMode, updatedData);
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         `Kamu masih dalam Mode ${currentMode?.toUpperCase()}. Mau keluar dari mode ini dan memproses permintaan baru?\n(Balas 'ya' untuk keluar, atau 'batal' untuk tetap)`,
         msg.messageId
       );
@@ -173,19 +173,19 @@ export async function handleV2Message(
 
   // 1. Cek: apakah pesan ini trigger MASUK mode (exact match, case-insensitive)?
   if (cleaned === "koreksi") {
-    await handleModeKoreksiEnter(db, msg.messageId);
+    await handleModeKoreksiEnter(db, waChatId, msg.messageId);
     return true;
   }
   if (cleaned === "limit" || cleaned === "anggaran") {
-    await handleModeLimitEnter(db, msg.messageId);
+    await handleModeLimitEnter(db, waChatId, msg.messageId);
     return true;
   }
   if (cleaned === "tujuan" || cleaned === "goals") {
-    await handleModeTujuanEnter(db, msg.messageId);
+    await handleModeTujuanEnter(db, waChatId, msg.messageId);
     return true;
   }
   if (cleaned === "help" || cleaned === "bantuan" || cleaned === "menu") {
-    await handleHelpCommand(msg.messageId);
+    await handleHelpCommand(waChatId, msg.messageId);
     return true;
   }
 
@@ -230,7 +230,7 @@ export async function handleV2Message(
   const isQuery = text.includes("?") || /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text);
   if (isQuery) {
     const reply = await processV2Query(db, apiKeys, ACCESS_CODE, text);
-    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, reply, msg.messageId);
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
     return true;
   }
 

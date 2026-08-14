@@ -1,5 +1,5 @@
 // supabase/functions/wa-webhook/v2_intents.ts
-// VERSI 2 - Logika Intent Teks Bebas: Checklist, Transfer, Utang-Piutang
+// VERSI 2 - Logika Intent Teks Bebas: Checklist, Transfer, Utang-Piutang (Revisi Sesi & Balasan)
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callGeminiRaw, extractGeminiText, getTodayStr, formatRupiah, formatTanggalID } from "./gemini.ts";
@@ -8,14 +8,12 @@ import {
   v2GetWallets,
   v2GetCategories,
   v2GetRecurringItems,
-  v2GetDebtEntries,
-  v2GetUserSettings
+  v2GetDebtEntries
 } from "./v2_db.ts";
 import { getRecurringStatus } from "./v2_query.ts";
 
 const PHONE_NUMBER_ID = Deno.env.get("WA_PHONE_NUMBER_ID")!;
 const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN")!;
-const OWNER_PHONE = Deno.env.get("WA_OWNER_PHONE") ?? "6281226964679";
 const ACCESS_CODE = Deno.env.get("WA_ACCESS_CODE") ?? "";
 const DEFAULT_WALLET_ID = Deno.env.get("WA_DEFAULT_WALLET_ID") ?? "wallet_utama";
 
@@ -115,7 +113,7 @@ Cocokkan kalimat user berikut terhadap daftar item tagihan/checklist jatuh tempo
 User ingin membayar/menyelesaikan salah satu tagihan. Pilihlah item tagihan yang secara semantik/makna cocok dengan kalimat user (abaikan kata kerja seperti "bayar", "lunas", "beres").
 
 Daftar tagihan jatuh tempo:
-${items.map((it, idx) => `${idx}. ID: "${it.id}", Nama: "${it.name}", Nominal: ${it.amount}`).join("\n")}
+${items.map((it, idx) => `${idx + 1}. ID: "${it.id}", Nama: "${it.name}", Nominal: ${it.amount}`).join("\n")}
 
 Kalimat user: "${userText}"
 
@@ -156,9 +154,6 @@ Keluarkan JSON dengan schema:
 // LOGIKA EKSKUSI INTENT
 // ============================================================
 
-/**
- * Membantu menyimpan transaksi transfer/checklist/utang ke tabel transactions
- */
 async function saveV2Transaction(
   db: SupabaseClient,
   tx: {
@@ -190,15 +185,12 @@ async function saveV2Transaction(
 
   if (error) throw new Error(`Gagal menyimpan transaksi V2: ${error.message}`);
   
-  // Update balance murni
   await recalculateBalances(db);
 
   return { id, ...tx };
 }
 
 async function recalculateBalances(db: SupabaseClient) {
-  // Panggil helper internal yang ada di handlers.ts
-  // Karena kita di file terpisah, kita bisa menulis ulang logic recalculate DB yang aman
   const { data: wallets } = await db.from("wallets").select("*").eq("access_code", ACCESS_CODE);
   const { data: transactions } = await db.from("transactions").select("*").eq("access_code", ACCESS_CODE);
   if (!wallets || !transactions) return;
@@ -250,6 +242,7 @@ async function recalculateBalances(db: SupabaseClient) {
 export async function handleV2ChecklistIntent(
   db: SupabaseClient,
   apiKeys: string[],
+  waChatId: string,
   messageId: string,
   userText: string,
   checklistData: any
@@ -257,7 +250,6 @@ export async function handleV2ChecklistIntent(
   const todayStr = getTodayStr();
   const recurringItems = await v2GetRecurringItems(db, ACCESS_CODE);
 
-  // Filter due/overdue items
   const dueItems = recurringItems
     .map(item => {
       const { status, nextDue } = getRecurringStatus(item, todayStr, 25);
@@ -275,17 +267,15 @@ export async function handleV2ChecklistIntent(
     }));
 
   if (!dueItems.length) {
-    return false; // Fallback ke transaksi biasa
+    return false;
   }
 
-  // Panggil AI untuk mencocokkan semantik
   const matches = await matchChecklistSemanticWithAi(apiKeys, userText, dueItems);
 
   if (matches.length === 0) {
-    return false; // Fallback ke transaksi biasa
+    return false;
   }
 
-  // Jika match > 1 -> Tanya Klarifikasi
   if (matches.length > 1) {
     const candidates = dueItems.filter(d => matches.includes(d.id));
     let optionsText = `Ada lebih dari satu tagihan jatuh tempo yang cocok. Balas pesan ini dengan mengetik nomor pilihan:\n\n`;
@@ -296,7 +286,7 @@ export async function handleV2ChecklistIntent(
     const questionMsgId = await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       optionsText,
       messageId
     );
@@ -305,7 +295,7 @@ export async function handleV2ChecklistIntent(
       await db.from("wa_pending_transactions").insert({
         id: `pend_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
         access_code: ACCESS_CODE,
-        wa_chat_id: OWNER_PHONE,
+        wa_chat_id: waChatId,
         wa_question_message_id: questionMsgId,
         pending_data: {
           type: "clarify_checklist",
@@ -313,23 +303,22 @@ export async function handleV2ChecklistIntent(
         }
       });
     }
-    return true; // Berhasil dihandle (pending clarification)
+    return true;
   }
 
-  // Tepat 1 match
   const selected = dueItems.find(d => d.id === matches[0])!;
-  return await executeChecklistPayment(db, apiKeys, messageId, selected);
+  return await executeChecklistPayment(db, apiKeys, waChatId, messageId, selected);
 }
 
 export async function executeChecklistPayment(
   db: SupabaseClient,
   apiKeys: string[],
+  waChatId: string,
   replyToMsgId: string,
   checklistDetails: any
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
-  // Ambil nama kategori
   const { data: catData } = await db
     .from("categories")
     .select("name")
@@ -337,10 +326,8 @@ export async function executeChecklistPayment(
     .maybeSingle();
   const categoryName = catData?.name ?? "Lainnya";
 
-  // Tentukan nominal dari histori serupa
   let amount = checklistDetails.amount;
   
-  // Mencari dari history amount (dari handlers.ts helper logic)
   const { data: txs } = await db
     .from("transactions")
     .select("amount")
@@ -357,11 +344,9 @@ export async function executeChecklistPayment(
   }
 
   if (!(amount > 0)) {
-    // Nominal tidak valid/tidak konsisten -> JANGAN dipaksa, biarkan fallback ke V1
     return false;
   }
 
-  // Simpan transaksi
   const walletId = checklistDetails.wallet_id || DEFAULT_WALLET_ID;
   const savedTx = await saveV2Transaction(db, {
     wallet_id: walletId,
@@ -373,7 +358,6 @@ export async function executeChecklistPayment(
     note: checklistDetails.name
   });
 
-  // Update last_confirmed_date
   await db
     .from("recurring_items")
     .update({
@@ -382,12 +366,10 @@ export async function executeChecklistPayment(
     })
     .eq("id", checklistDetails.id);
 
-  // Ambil saldo dompet terupdate
   const { data: walletData } = await db.from("wallets").select("name, balance").eq("id", walletId).single();
   const walletName = walletData?.name ?? "Dompet";
   const walletBalance = Number(walletData?.balance) || 0;
 
-  // Kirim bubble konfirmasi
   const typeLabel = checklistDetails.type === "income" ? "Pemasukan" : "Pengeluaran";
   const bubble = `Tagihan dibayar ✓
 Tanggal: ${formatTanggalID(todayStr)}
@@ -399,7 +381,7 @@ Keterangan: ${checklistDetails.name}
 Dompet: ${walletName}
 Sisa dompet: ${formatRupiah(walletBalance)}`;
 
-  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, bubble, replyToMsgId);
+  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, bubble, replyToMsgId);
   if (sentMsgId) {
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
@@ -417,28 +399,25 @@ Sisa dompet: ${formatRupiah(walletBalance)}`;
 export async function handleV2TransferIntent(
   db: SupabaseClient,
   apiKeys: string[],
+  waChatId: string,
   messageId: string,
   transferData: any
 ): Promise<boolean> {
   const amount = Number(transferData.amount) || 0;
   if (amount <= 0) {
-    return false; // Nominal tidak valid -> fallback ke V1
+    return false;
   }
 
   const wallets = await v2GetWallets(db, ACCESS_CODE);
 
-  // Cari dompet asal
   const sourceMatches = wallets.filter(w =>
     w.name.toLowerCase().includes(transferData.source_wallet.toLowerCase())
   );
-  // Cari dompet tujuan
   const destMatches = wallets.filter(w =>
     w.name.toLowerCase().includes(transferData.dest_wallet.toLowerCase())
   );
 
-  // Verifikasi kegagalan pencarian / ambiguitas
   if (sourceMatches.length === 0 || destMatches.length === 0 || sourceMatches.length > 1 || destMatches.length > 1) {
-    // Tanya klarifikasi
     let questionText = "";
     if (sourceMatches.length === 0) {
       questionText = `Dompet asal "${transferData.source_wallet}" tidak ditemukan.`;
@@ -450,23 +429,24 @@ export async function handleV2TransferIntent(
       questionText = `Dompet tujuan "${transferData.dest_wallet}" ambigu. Pilihan:\n` + destMatches.map((w, i) => `${i+1}. ${w.name}`).join("\n");
     }
 
-    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, `${questionText}\n\nMohon tulis kembali perintah transfer dengan nama dompet yang jelas.`, messageId);
-    return true; // Selesai diproses (walau gagal, tapi sudah dibalas peringatan)
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `${questionText}\n\nMohon tulis kembali perintah transfer dengan nama dompet yang jelas.`, messageId);
+    return true;
   }
 
   const sourceWallet = sourceMatches[0];
   const destWallet = destMatches[0];
 
   if (sourceWallet.id === destWallet.id) {
-    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, `Gagal: Dompet asal dan tujuan tidak boleh sama.`, messageId);
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Gagal: Dompet asal dan tujuan tidak boleh sama.`, messageId);
     return true;
   }
 
-  return await executeTransfer(db, messageId, sourceWallet, destWallet, amount);
+  return await executeTransfer(db, waChatId, messageId, sourceWallet, destWallet, amount);
 }
 
 async function executeTransfer(
   db: SupabaseClient,
+  waChatId: string,
   replyToMsgId: string,
   sourceWallet: any,
   destWallet: any,
@@ -474,7 +454,6 @@ async function executeTransfer(
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
-  // Dapatkan kategori Penyesuaian/Transfer jika ada, atau buat baru
   const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
   let cat = categories?.find(c => c.name === "Transfer");
   if (!cat) {
@@ -490,7 +469,6 @@ async function executeTransfer(
     cat = { id: catId, name: "Transfer" };
   }
 
-  // Simpan transaksi transfer
   const savedTx = await saveV2Transaction(db, {
     wallet_id: sourceWallet.id,
     category_id: cat.id,
@@ -502,7 +480,6 @@ async function executeTransfer(
     to_wallet_id: destWallet.id
   });
 
-  // Query saldo terupdate
   const { data: updatedWallets } = await db
     .from("wallets")
     .select("id, name, balance")
@@ -518,7 +495,7 @@ Nominal: ${formatRupiah(amount)}
 Dari dompet: ${sourceWallet.name} (Sisa: ${formatRupiah(updatedSource?.balance ?? 0)})
 Ke dompet: ${destWallet.name} (Sisa: ${formatRupiah(updatedDest?.balance ?? 0)})`;
 
-  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, bubble, replyToMsgId);
+  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, bubble, replyToMsgId);
   if (sentMsgId) {
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
@@ -536,12 +513,13 @@ Ke dompet: ${destWallet.name} (Sisa: ${formatRupiah(updatedDest?.balance ?? 0)})
 export async function handleV2DebtIntent(
   db: SupabaseClient,
   apiKeys: string[],
+  waChatId: string,
   messageId: string,
   debtData: any
 ): Promise<boolean> {
   const amount = Number(debtData.amount) || 0;
   if (amount <= 0 || !debtData.person_name) {
-    return false; // Fallback ke V1 jika tidak valid
+    return false;
   }
 
   const todayStr = getTodayStr();
@@ -553,20 +531,18 @@ export async function handleV2DebtIntent(
 
   const activeDebts = allDebts.filter(d => d.status === "active" || d.status === "belum");
 
-  // Jika ini adalah aksi PEMBAYARAN (is_payment = true)
   if (debtData.is_payment) {
     if (activeDebts.length === 0) {
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         `Tidak ada catatan utang/piutang aktif atas nama ${debtData.person_name}.`,
         messageId
       );
       return true;
     }
 
-    // Jika > 1 entri aktif -> Wajib Klarifikasi (Opsi B)
     if (activeDebts.length > 1) {
       let optionsText = `Pilih utang/piutang ${debtData.person_name} mana yang mau dibayar (balas pesan ini dengan angka pilihan):\n\n`;
       activeDebts.forEach((d, idx) => {
@@ -577,7 +553,7 @@ export async function handleV2DebtIntent(
       const questionMsgId = await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         optionsText,
         messageId
       );
@@ -586,7 +562,7 @@ export async function handleV2DebtIntent(
         await db.from("wa_pending_transactions").insert({
           id: `pend_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
           access_code: ACCESS_CODE,
-          wa_chat_id: OWNER_PHONE,
+          wa_chat_id: waChatId,
           wa_question_message_id: questionMsgId,
           pending_data: {
             type: "clarify_debt_payment",
@@ -598,12 +574,10 @@ export async function handleV2DebtIntent(
       return true;
     }
 
-    // Tepat 1 entri aktif
     const activeDebt = activeDebts[0];
-    return await executeDebtPayment(db, messageId, activeDebt, amount);
+    return await executeDebtPayment(db, waChatId, messageId, activeDebt, amount);
   }
 
-  // Jika ini catatan UTANG BARU (is_payment = false)
   const debtId = `wa_debt_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const type = debtData.type || "i_owe";
   const note = debtData.note || "Catatan WA";
@@ -634,9 +608,8 @@ Jenis: ${typeLabel}
 Nominal: ${formatRupiah(amount)}
 Keterangan: ${note}`;
 
-  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, bubble, messageId);
+  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, bubble, messageId);
   if (sentMsgId) {
-    // Map bubble ke debt ID langsung untuk reply-to-delete
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
       transaction_id: debtId,
@@ -649,13 +622,13 @@ Keterangan: ${note}`;
 
 export async function executeDebtPayment(
   db: SupabaseClient,
+  waChatId: string,
   replyToMsgId: string,
   activeDebt: any,
   paymentAmount: number
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
-  // Dapatkan atau buat kategori Utang Piutang
   const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
   let cat = categories?.find(c => c.name === "Utang Piutang");
   if (!cat) {
@@ -671,8 +644,6 @@ export async function executeDebtPayment(
     cat = { id: catId, name: "Utang Piutang" };
   }
 
-  // Tipe transaksi: jika saya berutang (i_owe), bayar utang berarti uang keluar (expense).
-  // Jika dia berutang ke saya (owed_to_me), bayar utang berarti uang masuk (income).
   const isIOwe = activeDebt.type === "i_owe" || activeDebt.type === "utang";
   const txType = isIOwe ? "expense" : "income";
   const walletId = DEFAULT_WALLET_ID;
@@ -681,10 +652,8 @@ export async function executeDebtPayment(
   let savedTxId = "";
 
   if (paymentAmount < activeDebt.amount) {
-    // Skenario 1: Cicilan / pelunasan sebagian
     const remaining = activeDebt.amount - paymentAmount;
     
-    // Simpan transaksi
     const tx = await saveV2Transaction(db, {
       wallet_id: walletId,
       category_id: cat.id,
@@ -696,7 +665,6 @@ export async function executeDebtPayment(
     });
     savedTxId = tx.id;
 
-    // Update nominal utang
     await db
       .from("debt_entries")
       .update({
@@ -715,10 +683,8 @@ Sisa sisa utang: ${formatRupiah(remaining)}
 Keterangan: ${activeDebt.note || "-"}`;
 
   } else {
-    // Skenario 2 & 3: Lunas penuh ATAU overpayment (Opsi B)
     const excess = paymentAmount - activeDebt.amount;
     
-    // Simpan transaksi dengan nominal penuh yang dibayarkan
     const tx = await saveV2Transaction(db, {
       wallet_id: walletId,
       category_id: cat.id,
@@ -730,7 +696,6 @@ Keterangan: ${activeDebt.note || "-"}`;
     });
     savedTxId = tx.id;
 
-    // Mark as lunas
     await db
       .from("debt_entries")
       .update({
@@ -748,7 +713,6 @@ Pembayaran: ${formatRupiah(paymentAmount)}
 Keterangan: ${activeDebt.note || "-"}\n`;
 
     if (excess > 0) {
-      // Buat entri utang baru dengan tipe berlawanan (Reverse Debt)
       const reverseType = isIOwe ? "owed_to_me" : "i_owe";
       const newDebtId = `wa_debt_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
       await db.from("debt_entries").insert({
@@ -768,8 +732,7 @@ Keterangan: ${activeDebt.note || "-"}\n`;
     }
   }
 
-  // Kirim WhatsApp
-  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, OWNER_PHONE, bubble, replyToMsgId);
+  const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, bubble, replyToMsgId);
   if (sentMsgId && savedTxId) {
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
@@ -791,6 +754,7 @@ export async function handleV2ClarificationReply(
   msg: any,
   pendingData: any
 ): Promise<boolean> {
+  const waChatId = msg.from;
   const replyText = (msg.text ?? "").trim();
   const choiceIdx = parseInt(replyText, 10) - 1;
 
@@ -798,21 +762,19 @@ export async function handleV2ClarificationReply(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       `Pilihan tidak valid. Silakan balas dengan angka pilihan yang sesuai (1, 2, dst).`,
       msg.messageId
     );
-    return true; // Tetap ditangani (menolak input salah)
+    return true;
   }
 
   const selected = pendingData.candidates[choiceIdx];
 
   if (pendingData.type === "clarify_checklist") {
-    // Selesaikan checklist
-    await executeChecklistPayment(db, apiKeys, msg.messageId, selected);
+    await executeChecklistPayment(db, apiKeys, waChatId, msg.messageId, selected);
   } else if (pendingData.type === "clarify_debt_payment") {
-    // Selesaikan debt payment
-    await executeDebtPayment(db, msg.messageId, selected, pendingData.amount);
+    await executeDebtPayment(db, waChatId, msg.messageId, selected, pendingData.amount);
   }
 
   return true;
