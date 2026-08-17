@@ -8585,41 +8585,24 @@ async function ccAnalyzeWithGemini(key){
 }
 
 function computeAiDupFlags() {
-  const groups = {}; 
-  ccaItems.items.forEach(it => {
-    if (!it.targetWalletId) return;
-    if (!groups[it.targetWalletId]) groups[it.targetWalletId] = [];
-    groups[it.targetWalletId].push(it);
-  });
-  
+  // Reset all flags
   ccaItems.items.forEach(it => {
     it.isDuplicate = false;
     it.isOverride = false;
     it.overrideWarning = '';
   });
-  
-  Object.keys(groups).forEach(walletId => {
-    const group = groups[walletId];
-    if (group.length <= 1) return;
-    
-    const seenAmounts = {};
-    group.forEach((it, index) => {
-      if (seenAmounts[it.amount] !== undefined) {
-        it.isDuplicate = true; 
-      } else {
-        seenAmounts[it.amount] = index;
-      }
-    });
-    
-    const activeItems = group.filter(it => !it.isDuplicate);
-    if (activeItems.length > 1) {
-      activeItems.forEach((it, index) => {
-        if (index < activeItems.length - 1) {
-          it.isOverride = true; 
-        } else {
-          it.overrideWarning = `Meng-override item lain untuk dompet ini dengan nilai berbeda!`;
-        }
-      });
+
+  // Only mark as duplicate if same wallet + same name (case-insensitive).
+  // Multiple different sub-accounts (e.g. DANA, OVO, GoPay) under one wallet
+  // are valid breakdown items, NOT overrides.
+  const seen = {};
+  ccaItems.items.forEach(it => {
+    if (!it.targetWalletId) return;
+    const key = it.targetWalletId + '::' + (it.name || '').toLowerCase().trim();
+    if (seen[key]) {
+      it.isDuplicate = true;
+    } else {
+      seen[key] = true;
     }
   });
 }
