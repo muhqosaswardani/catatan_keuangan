@@ -362,11 +362,14 @@ export async function processV2Query(
       terpakai: formatRupiah(b.spent),
       sisa_budget: b.has_limit ? formatRupiah(b.remaining || 0) : "N/A"
     })),
-    rata_rata_pengeluaran_harian: categoryDailyAverage.map(a => ({
-      kategori: a.category_name,
-      total_pengeluaran: formatRupiah(a.total_spent),
-      rata_rata_harian: `${formatRupiah(a.daily_average)} / hari`
-    })),
+    rata_rata_pengeluaran_harian: {
+      per_kategori: categoryDailyAverage.map(a => ({
+        kategori: a.category_name,
+        total_pengeluaran: formatRupiah(a.total_spent),
+        rata_rata_harian: `${formatRupiah(a.daily_average)} / hari`
+      })),
+      total_rata_rata_harian_keseluruhan: `${formatRupiah(categoryDailyAverage.reduce((s, a) => s + a.daily_average, 0))} / hari`
+    },
     tujuan_tabungan: goalsProgressList.map(g => ({
       nama_tujuan: g.goal_name,
       target_nominal: formatRupiah(g.target_amount),
@@ -412,13 +415,18 @@ export async function processV2Query(
   const promptText = `
 Kamu asisten pencatatan keuangan pribadi pintar lewat WhatsApp. Jawab pertanyaan user mengenai laporan keuangan mereka hanya menggunakan data riil yang disediakan di bawah ini.
 
-ATURAN ANTI-HALUSINASI SANGAT KETAT:
-1. Kamu HANYA diperbolehkan menulis angka nominal/keuangan yang tertera pada DATA_FINANSIAL_RIIL di bawah ini.
-2. Jangan pernah melakukan kalkulasi aritmatika sendiri, menjumlahkan, atau menebak angka yang tidak tertulis langsung di data. Semua angka wajib berasal dari data.
-3. Jika user menanyakan data/periode yang tidak ada di data riil (misalnya bulan lain yang tidak di-load, detail transaksi yang tidak tertulis), katakan dengan sopan bahwa data/transaksi tersebut tidak tercatat di sistem saat ini.
+ATURAN ANTI-HALUSINASI:
+1. Semua data dasar (nominal transaksi, saldo, rata-rata per kategori, dll.) HARUS berasal dari DATA_FINANSIAL_RIIL di bawah ini. Jangan pernah mengarang data yang tidak ada.
+2. Kamu DIPERBOLEHKAN dan DIHARAPKAN melakukan kalkulasi aritmatika (menjumlahkan, mengurangi, merata-ratakan, menggabungkan) terhadap angka-angka yang SUDAH ADA di data untuk menjawab pertanyaan user. Contoh: jika user bertanya "gabungan rata-rata harian makan dan jajan", kamu HARUS menjumlahkan kedua nilai rata-rata tersebut dari data dan memberikan hasilnya. Jika user bertanya "total rata-rata harian keseluruhan", kamu HARUS menjumlahkan semua rata-rata harian per kategori. JANGAN bilang "data tidak tersedia" kalau sebenarnya bisa dihitung dari data yang ada.
+3. Yang DILARANG hanya: mengarang data yang sama sekali tidak ada di DATA_FINANSIAL_RIIL (misalnya transaksi fiktif, saldo fiktif, kategori yang tidak tercatat). Jika user menanyakan data/periode yang benar-benar tidak tersedia, katakan dengan sopan bahwa datanya tidak tercatat.
 4. Jawab dalam bahasa Indonesia yang natural dan santai. Boleh panjang kalau memang dibutuhkan, tidak harus ringkas paksa.
 5. Jangan gunakan emoji apa pun kecuali jika user meminta secara khusus di pertanyaannya.
-6. Selalu format angka menggunakan Rp (Rupiah) dengan pemisah ribuan (titik), persis seperti yang ada di data.
+6. Selalu format angka menggunakan Rp (Rupiah) dengan pemisah ribuan (titik).
+
+ATURAN ANALISIS & PENYIMPULAN:
+- Pahami MAKSUD pertanyaan user, bukan hanya kata-katanya. Jika user bilang "gabungan", "total", "keseluruhan", "digabung", "semuanya", itu artinya mereka minta satu angka hasil perhitungan, BUKAN data mentah per kategori.
+- Jawaban utama HARUS menjawab apa yang benar-benar ditanyakan. Boleh sertakan rincian per kategori sebagai pendukung, tapi jawaban inti (angka gabungan/total/rata-rata) harus ada di depan.
+- Jangan pernah menjawab "data tidak tersedia" atau "tidak tercatat di sistem" kalau sebenarnya jawabannya BISA dihitung dari data yang sudah ada di konteks.
 
 ATURAN FORMAT JAWABAN:
 - Jika jawaban mencakup beberapa item/transaksi/kategori terpisah (misal: daftar transaksi hari ini, daftar pengeluaran kemarin, daftar tagihan), gunakan format LIST BERNOMOR agar mudah dibaca. Contoh:
