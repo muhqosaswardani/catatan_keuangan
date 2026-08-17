@@ -5685,7 +5685,7 @@ function txItemHtml(t){
     iconHtml = `<div class="tx-icon transfer">${transferSvg()}</div>`;
     sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w?w.name:'Dompet Terhapus') + ' ΓåÆ ' + (tw?tw.name:'Dompet Terhapus');
   }
-  const note = t.note ? ' ┬╖ ' + t.note : '';
+  const note = t.note ? ' · ' + t.note : '';
   const pendingBadge = t.pending ? ' <span class="tx-pending-badge">Terjadwal</span>' : '';
   return `<div class="tx-item" onclick="openTransactionModal('${t.id}')">
     ${iconHtml}
@@ -6580,7 +6580,7 @@ function buildInsightSummaryText(){
       const sign = t.type === 'income' ? '+' : '-';
       const w = walletById(t.walletId);
       const wName = w ? w.name : '';
-      const noteStr = t.note ? ' ┬╖ ' + t.note : '';
+      const noteStr = t.note ? ' · ' + t.note : '';
       lines.push('- ' + t.date + ' | ' + sign + formatRupiah(t.amount) + ' | ' + (t.category || t.type) + ' | ' + wName + noteStr);
     });
     if(monthTx.length > 30) lines.push('(... dan ' + (monthTx.length - 30) + ' transaksi lainnya)');
@@ -6698,7 +6698,7 @@ function renderInsightUI(){
     if(cache.text){
       contentEl.style.display = 'block';
       textEl.textContent = cache.text;
-      timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (insightLoading ? ' ┬╖ memperbarui...' : '');
+      timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (insightLoading ? ' · memperbarui...' : '');
       if(insightLastError && !insightLoading){
         inlineErrEl.style.display = 'block';
         inlineErrEl.innerHTML = 'Gagal memperbarui insight otomatis. <a href="javascript:void(0)" onclick="manualRefreshInsight()">Coba lagi</a>';
@@ -6800,7 +6800,7 @@ function buildAnalysisFullData(){
     sorted.forEach(t => {
       const sign = t.type === 'income' ? '+' : '-';
       const w = walletById(t.walletId);
-      const noteStr = t.note ? ' ┬╖ ' + t.note : '';
+      const noteStr = t.note ? ' · ' + t.note : '';
       lines.push('- ' + t.date + ' | ' + sign + formatRupiah(t.amount) + ' | ' + (t.category || t.type) + ' | ' + (w ? w.name : '') + noteStr);
     });
   }
@@ -7006,7 +7006,7 @@ function renderAnalysisUI(){
   if(cache.text){
     contentEl.style.display = 'block';
     textEl.innerHTML = formatAnalysisHtml(cache.text);
-    timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (analysisLoading ? ' ┬╖ memperbarui...' : '');
+    timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (analysisLoading ? ' · memperbarui...' : '');
     if(analysisLastError && !analysisLoading){
       inlineErrEl.style.display = 'block';
       inlineErrEl.innerHTML = 'Gagal memperbarui analisa. <a href="javascript:void(0)" onclick="manualRefreshAnalysis()">Coba lagi</a>';
@@ -7470,7 +7470,7 @@ function renderGoals(){
         <div class="progress-track"><div class="progress-fill ${achieved ? 'pace-green' : ''}" style="width:${pctBar}%"></div></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-top:2px;flex-wrap:wrap;gap:4px;">
-        <span>${pct}% tercapai ┬╖ ${wallet ? escAttr(wallet.name) : 'dompet dihapus'}</span>
+        <span>${pct}% tercapai · ${wallet ? escAttr(wallet.name) : 'dompet dihapus'}</span>
         ${etaHtml ? `<span>${etaHtml}</span>` : ''}
       </div>
     </div>`;
@@ -7716,7 +7716,7 @@ function renderDebtPersonList(){
       <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(name)}</div>
-        <div class="tx-meta">${subLabel} ┬╖ ${entries.length} catatan</div>
+        <div class="tx-meta">${subLabel} · ${entries.length} catatan</div>
       </div>
       <div class="tx-amt ${amtClass}">${amtHtml}</div>
     </div>`;
@@ -7740,11 +7740,11 @@ function renderDebtAllList(){
     const sign = d.type === 'piutang' ? '+' : '-';
     const amtClass = d.type === 'piutang' ? 'income' : 'expense';
     const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
-    const dueHtml = d.dueDate ? ' ┬╖ jatuh tempo ' + d.dueDate : '';
+    const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
     return `<div class="tx-item debt-all-row" data-id="${d.id}" style="flex-wrap:wrap;">
       <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">┬╖ ${typeLabel}</span></div>
+        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
         <div class="tx-meta">${d.date}${dueHtml}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -7853,8 +7853,8 @@ function renderDebtHistory(){
     return `<div class="tx-item debt-history-row" data-id="${d.id}" style="flex-wrap:wrap;cursor:pointer;">
       <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">┬╖ ${typeLabel}</span></div>
-        <div class="tx-meta">${d.date}${d.note ? ' ┬╖ ' + escAttr(d.note) : ''}</div>
+        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
+        <div class="tx-meta">${d.date}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
         <div class="tx-meta" style="color:var(--income);font-weight:600;">${payoffInfo}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -7895,12 +7895,12 @@ function renderDebtPersonDetailList(){
     const isLunas = d.status === 'lunas';
     const sign = d.type === 'piutang' ? '+' : '-';
     const amtClass = d.type === 'piutang' ? 'income' : 'expense';
-    const dueHtml = d.dueDate ? ' ┬╖ jatuh tempo ' + d.dueDate : '';
-    const statusHtml = isLunas ? ' ┬╖ <span class="rec-status rec-status-nonaktif">Lunas</span>' : '';
+    const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
+    const statusHtml = isLunas ? ' · <span class="rec-status rec-status-nonaktif">Lunas</span>' : '';
     return `<div class="tx-item" style="${isLunas ? 'opacity:.55;' : ''}cursor:default;flex-wrap:wrap;">
       <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${d.type === 'piutang' ? 'Piutang' : 'Utang'}${d.note ? ' ┬╖ ' + escAttr(d.note) : ''}</div>
+        <div class="tx-cat">${d.type === 'piutang' ? 'Piutang' : 'Utang'}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
         <div class="tx-meta">${d.date}${dueHtml}${statusHtml}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -10172,7 +10172,7 @@ function renderRecurringManageList(){
       <div class="tx-icon ${item.type}">${cat ? iconSvgMarkup(cat.icon, 20) : ''}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(item.name)}</div>
-        <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} ┬╖ tgl ${item.dayOfMonth} tiap bulan ┬╖ <span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
+        <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} · tgl ${item.dayOfMonth} tiap bulan · <span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
       </div>
       <div class="tx-amt ${item.type}">${formatRupiah(item.amount)}</div>
       <div style="width:100%;display:flex;gap:8px;margin-top:8px;">
