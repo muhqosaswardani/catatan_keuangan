@@ -2359,15 +2359,16 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
+  const version = ' (v2.2.0)';
   if (status === 'syncing' && isManual) {
-    label.textContent = '⟳ Sinkronisasi...';
+    label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2,'0');
     const mm = String(now.getMinutes()).padStart(2,'0');
-    label.textContent = '☁ Sinkron ' + hh + ':' + mm;
+    label.textContent = '☁ Sinkron ' + hh + ':' + mm + version;
   } else if (status === 'offline') {
-    label.textContent = '⚠️ Offline';
+    label.textContent = '⚠️ Offline' + version;
   }
 }
 
@@ -8538,30 +8539,41 @@ async function ccAnalyzeWithGemini(key){
   
   const promptText =
     'Kamu asisten keuangan pribadi yang ahli dalam melakukan rekonsiliasi saldo.\n' +
-    'Tugasmu adalah melihat setiap lampiran yang diberikan (screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement) ' +
-    'dan mencocokkan setiap saldo yang terbaca ke daftar dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar):\n' +
+    'Tugasmu adalah melihat setiap lampiran screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement yang diberikan ' +
+    'dan mengekstrak SETIAP nama akun/sumber saldo (misal: "DANA", "OVO", "GoPay", "ShopeePay", "Livin\' by Mandiri", "BCA", "Tabungan NOW IDR", "Uang Cash") beserta nominal saldonya dari seluruh gambar.\n\n' +
+    'Pastikan tidak ada akun/sumber saldo yang terlewat. Jika ada beberapa e-wallet dalam satu screenshot (seperti DANA, ShopeePay, OVO, GoPay), ekstrak semuanya secara terpisah.\n\n' +
+    'Cocokkan setiap saldo yang terbaca ke daftar dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar):\n' +
     walletsText + '\n\n' +
     'Aturan Pencocokan Dompet (Reconciliation Scope):\n' +
-    '1. Lakukan pencocokan berdasarkan konteks/nama institusi, bukan sekadar exact string match. Misal: jika terbaca saldo "GoPay", "Dana", "OVO" sedangkan nama dompet user "E-Wallet", cocokkan ke dompet bernama "E-Wallet" tersebut. Jika terbaca "BCA Mobile" atau "BCA" sedangkan nama dompet user "Bank Central Asia" atau "BCA Utama", cocokkan ke situ.\n' +
-    '2. Uang Tunai/Cash: jika terdeteksi foto uang fisik atau tertulis saldo "Tunai/Cash" tapi tidak ada dompet yang cocok secara konteks, cocokkan ke dompet primary (nomor 1 atau dompet utama). Set wallet_number ke nomor dari daftar di atas yang cocok.\n' +
-    '3. Jika ada item yang terbaca tapi TIDAK cocok dengan dompet manapun di daftar, set wallet_number ke null. Jangan menebak sembarangan.\n' +
-    '4. Ambiguitas Dompet Mirip: jika ada 2 atau lebih dompet user yang sama-sama masuk akal menjadi tujuan match (misal terbaca "GoPay" sedangkan user punya dompet "GoPay Utama" dan "GoPay Bisnis"), JANGAN menebak salah satu. Set wallet_number ke null (akan ditandai sebagai butuh klarifikasi).\n\n' +
-    'Kembalikan HANYA objek JSON dengan struktur berikut:\n' +
-    '{\n' +
-    '  "items": [\n' +
-    '    {\n' +
-    '      "name": "nama saldo yang terbaca di screenshot/struk (mis. GoPay, Cash, BCA)",\n' +
-    '      "amount": <saldo integer rupiah>,\n' +
-    '      "wallet_number": <nomor dari daftar dompet di atas yang cocok, atau null jika tidak cocok / ambigu>,\n' +
-    '      "match_reason": "alasan singkat pencocokan (mis. \'GoPay dicocokkan ke E-wallet karena termasuk e-wallet\', atau \'ambigu antara GoPay Utama dan GoPay Bisnis\')"\n' +
-    '    }, ...\n' +
-    '  ]\n' +
-    '}\n' +
-    'Jangan sertakan penjelasan lain selain objek JSON ini, tanpa markdown code fence.';
+    '1. Lakukan pencocokan berdasarkan konteks/nama institusi. Misal: jika terbaca saldo "GoPay", "Dana", "OVO" sedangkan nama dompet user "E-Wallet", cocokkan ke dompet bernama "E-Wallet". Jika terbaca "BCA Mobile" sedangkan nama dompet user "BCA Utama", cocokkan ke situ.\n' +
+    '2. Uang Tunai/Cash: jika terdeteksi foto uang fisik atau tertulis saldo "Tunai/Cash", cocokkan ke dompet primary (nomor 1 atau dompet utama).\n' +
+    '3. Jika ada item yang terbaca tapi TIDAK cocok dengan dompet manapun di daftar, set wallet_number ke null.\n' +
+    '4. Ambiguitas Dompet Mirip: jika ada 2 atau lebih dompet user yang sama-sama masuk akal (misal terbaca "GoPay" sedangkan user punya "GoPay Utama" dan "GoPay Bisnis"), set wallet_number ke null.\n\n' +
+    'PENTING: Jangan gunakan nama dompet tujuan user (dari daftar di atas) sebagai nilai "name". Kolom "name" harus diisi dengan nama akun/sumber asli yang terbaca di screenshot/struk (misal: "Tabungan NOW IDR", "DANA", "GoPay", "OVO", dll.).';
+
+  const ccaSchema = {
+    type: 'OBJECT',
+    properties: {
+      items: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            name: { type: 'STRING', description: 'Nama akun/sumber asli yang terbaca di screenshot/struk, misal: DANA, GoPay, Livin\' by Mandiri, BCA, Tabungan NOW IDR, dll.' },
+            amount: { type: 'INTEGER', description: 'Nilai nominal saldo berupa angka bulat.' },
+            wallet_number: { type: 'INTEGER', description: 'Nomor indeks dompet terpilih dari daftar yang cocok, atau null jika tidak cocok.' },
+            match_reason: { type: 'STRING', description: 'Alasan singkat pencocokan.' }
+          },
+          required: ['name', 'amount', 'wallet_number', 'match_reason']
+        }
+      }
+    },
+    required: ['items']
+  };
 
   const parts = [{ text: promptText }];
   for(const f of ccFiles){ parts.push(await fileToGenerativePart(f)); }
-  const data = await callGeminiRaw(key, parts);
+  const data = await callGeminiRaw(key, parts, 0.1, ccaSchema);
   const text = extractGeminiText(data);
   const parsed = parseAiJson(text, 'object');
   
