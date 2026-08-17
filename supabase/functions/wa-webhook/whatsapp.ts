@@ -120,6 +120,32 @@ export function sendTypingIndicator(
     });
 }
 
+export async function withTypingIndicator<T>(
+  phoneNumberId: string,
+  accessToken: string,
+  messageId: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  let active = true;
+  // Send immediate typing indicator
+  sendTypingIndicator(phoneNumberId, accessToken, messageId).catch(() => {});
+
+  const intervalId = setInterval(() => {
+    if (!active) {
+      clearInterval(intervalId);
+      return;
+    }
+    sendTypingIndicator(phoneNumberId, accessToken, messageId).catch(() => {});
+  }, 12000);
+
+  try {
+    return await fn();
+  } finally {
+    active = false;
+    clearInterval(intervalId);
+  }
+}
+
 export function safeBytesToBase64(bytes: Uint8Array): string {
   let binString = "";
   const chunkSize = 16384; // 16KB chunks

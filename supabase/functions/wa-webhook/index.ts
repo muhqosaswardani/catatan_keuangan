@@ -16,7 +16,7 @@ import {
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
-import { sendWhatsAppMessage, markAsRead, sendTypingIndicator } from "./whatsapp.ts";
+import { sendWhatsAppMessage, markAsRead, withTypingIndicator } from "./whatsapp.ts";
 
 // ============================================================
 // ENV VARS (diset di Supabase Edge Function Secrets)
@@ -193,7 +193,7 @@ async function enqueueAndScheduleMedia(
     throw new Error(`Gagal memasukkan media ke batch: ${error.message}`);
 
   EdgeRuntime.waitUntil(
-    (async () => {
+    withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
         await processQueuedMediaBatch(db, apiKeys, msg.from);
@@ -211,7 +211,7 @@ async function enqueueAndScheduleMedia(
           console.error("Failed to send background error message:", sendErr);
         }
       }
-    })(),
+    }),
   );
 }
 
@@ -292,146 +292,134 @@ Deno.serve(async (req: Request) => {
         () => {},
       );
 
-      // Typing Indicator (Additive Feature)
-      if (msg.type === "text" || msg.type === "image" || msg.type === "audio") {
-        (async () => {
+      const isMedia = msg.type === "image" || msg.type === "audio";
+
+      if (isMedia) {
+        try {
+          await enqueueAndScheduleMedia(db, GEMINI_API_KEYS, msg);
+        } catch (e) {
+          console.error("Error scheduling media:", e);
           try {
-            let shouldShowTyping = true;
-            if (msg.type === "image" || msg.type === "audio") {
-              const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
-              const { data: existingMedia } = await db
-                .from("wa_media_queue")
-                .select("wa_message_id")
-                .eq("access_code", Deno.env.get("WA_ACCESS_CODE"))
-                .eq("wa_chat_id", msg.from)
-                .is("processed_at", null)
-                .gt("received_at", tenSecondsAgo)
-                .limit(1);
-              if (existingMedia && existingMedia.length > 0) {
-                shouldShowTyping = false;
+            await sendWhatsAppMessage(
+              PHONE_NUMBER_ID,
+              WA_ACCESS_TOKEN,
+              msg.from,
+              "Maaf, gagal memproses media Anda.",
+              msg.messageId,
+            );
+          } catch {}
+        }
+      } else {
+        await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
+          try {
+            // // VERSI 2 - Router Intent & Mode (Isolatable & Rollbackable)
+            if (Deno.env.get("WA_V2_ENABLED") === "true") {
+              // Log incoming message metadata (non-blocking)
+              try {
+                // @ts-ignore
+                EdgeRuntime.waitUntil(
+                  db.from("wa_logs").insert({
+                    message: "Incoming Message metadata",
+                    details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
+                  })
+                );
+              } catch {
+                db.from("wa_logs").insert({
+                  message: "Incoming Message metadata",
+                  details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
+                }).catch(() => {});
+              }
+
+              const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
+
+              // Log V2 Router finished (non-blocking)
+              try {
+                // @ts-ignore
+                EdgeRuntime.waitUntil(
+                  db.from("wa_logs").insert({
+                    message: "V2 Router finished",
+                    details: { messageId: msg.messageId, handled }
+                  })
+                );
+              } catch {
+                db.from("wa_logs").insert({
+                  message: "V2 Router finished",
+                  details: { messageId: msg.messageId, handled }
+                }).catch(() => {});
+              }
+
+              if (handled) {
+                return;
               }
             }
-            if (shouldShowTyping) {
-              await sendTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId);
+
+            // ── Cek apakah ini reply ke pesan bot ──────────────
+            if (msg.contextId) {
+              // Cek apakah reply ke bubble transaksi
+              const { data: mapping } = await db
+                .from("wa_message_transactions")
+                .select("transaction_id")
+                .eq("wa_message_id", msg.contextId)
+                .single();
+
+              if (mapping?.transaction_id) {
+                await handleReplyToTransaction(
+                  db,
+                  GEMINI_API_KEYS,
+                  msg,
+                  mapping.transaction_id,
+                );
+                return;
+              }
+
+              // Cek apakah reply ke pertanyaan nominal pending
+              const { data: pending } = await db
+                .from("wa_pending_transactions")
+                .select("id")
+                .eq("wa_question_message_id", msg.contextId)
+                .single();
+
+              if (pending?.id) {
+                await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);
+                return;
+              }
+
+              // Reply ke pesan lain yang tidak dikenali → proses normal
             }
-          } catch (err) {
-            console.warn("Failed to process typing indicator:", err);
-          }
-        })();
-      }
 
-      try {
-        // // VERSI 2 - Router Intent & Mode (Isolatable & Rollbackable)
-        if (Deno.env.get("WA_V2_ENABLED") === "true") {
-          // Log incoming message metadata (non-blocking)
-          try {
-            // @ts-ignore
-            EdgeRuntime.waitUntil(
+            // ── Route berdasarkan tipe pesan ────────────────────
+            if (msg.type === "text") {
+              await handleTextMessage(db, GEMINI_API_KEYS, msg);
+            }
+          } catch (e) {
+            console.error("Error processing message:", e);
+            // Log error details to wa_logs for debugging
+            try {
+              // @ts-ignore
+              EdgeRuntime.waitUntil(
+                db.from("wa_logs").insert({
+                  message: "CRITICAL_ERROR processing message",
+                  details: { messageId: msg.messageId, type: msg.type, error: String(e), stack: (e as Error)?.stack?.slice(0, 500) }
+                })
+              );
+            } catch {
               db.from("wa_logs").insert({
-                message: "Incoming Message metadata",
-                details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
-              })
-            );
-          } catch {
-            db.from("wa_logs").insert({
-              message: "Incoming Message metadata",
-              details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
-            }).catch(() => {});
+                message: "CRITICAL_ERROR processing message",
+                details: { messageId: msg.messageId, type: msg.type, error: String(e) }
+              }).catch(() => {});
+            }
+            // Kirim pesan error ke user
+            try {
+              await sendWhatsAppMessage(
+                PHONE_NUMBER_ID,
+                WA_ACCESS_TOKEN,
+                msg.from,
+                "Maaf, ada kesalahan internal. Coba lagi ya.",
+                msg.messageId,
+              );
+            } catch {}
           }
-
-          const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
-
-          // Log V2 Router finished (non-blocking)
-          try {
-            // @ts-ignore
-            EdgeRuntime.waitUntil(
-              db.from("wa_logs").insert({
-                message: "V2 Router finished",
-                details: { messageId: msg.messageId, handled }
-              })
-            );
-          } catch {
-            db.from("wa_logs").insert({
-              message: "V2 Router finished",
-              details: { messageId: msg.messageId, handled }
-            }).catch(() => {});
-          }
-
-          if (handled) {
-            continue;
-          }
-        }
-
-        // ── Cek apakah ini reply ke pesan bot ──────────────
-        if (msg.contextId) {
-          // Cek apakah reply ke bubble transaksi
-          const { data: mapping } = await db
-            .from("wa_message_transactions")
-            .select("transaction_id")
-            .eq("wa_message_id", msg.contextId)
-            .single();
-
-          if (mapping?.transaction_id) {
-            await handleReplyToTransaction(
-              db,
-              GEMINI_API_KEYS,
-              msg,
-              mapping.transaction_id,
-            );
-            continue;
-          }
-
-          // Cek apakah reply ke pertanyaan nominal pending
-          const { data: pending } = await db
-            .from("wa_pending_transactions")
-            .select("id")
-            .eq("wa_question_message_id", msg.contextId)
-            .single();
-
-          if (pending?.id) {
-            await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);
-            continue;
-          }
-
-          // Reply ke pesan lain yang tidak dikenali → proses normal
-        }
-
-        // ── Route berdasarkan tipe pesan ────────────────────
-        if (msg.type === "text") {
-          await handleTextMessage(db, GEMINI_API_KEYS, msg);
-        } else if (msg.type === "image" || msg.type === "audio") {
-          // Foto dan VN memakai queue batch yang sama supaya pesan beruntun
-          // dikirim ke Gemini dalam satu panggilan.
-          await enqueueAndScheduleMedia(db, GEMINI_API_KEYS, msg);
-        }
-        // "other" types: abaikan
-      } catch (e) {
-        console.error("Error processing message:", e);
-        // Log error details to wa_logs for debugging
-        try {
-          // @ts-ignore
-          EdgeRuntime.waitUntil(
-            db.from("wa_logs").insert({
-              message: "CRITICAL_ERROR processing message",
-              details: { messageId: msg.messageId, type: msg.type, error: String(e), stack: (e as Error)?.stack?.slice(0, 500) }
-            })
-          );
-        } catch {
-          db.from("wa_logs").insert({
-            message: "CRITICAL_ERROR processing message",
-            details: { messageId: msg.messageId, type: msg.type, error: String(e) }
-          }).catch(() => {});
-        }
-        // Kirim pesan error ke user
-        try {
-          await sendWhatsAppMessage(
-            PHONE_NUMBER_ID,
-            WA_ACCESS_TOKEN,
-            msg.from,
-            "Maaf, ada kesalahan internal. Coba lagi ya.",
-            msg.messageId,
-          );
-        } catch {}
+        });
       }
     }
 
