@@ -561,6 +561,21 @@
   .cat-manage-row.dragging{z-index:200;background:var(--surface);box-shadow:0 12px 30px -4px rgba(15,25,24,0.28),0 4px 12px -2px rgba(15,25,24,0.15);border-radius:14px;transform:scale(1.03);opacity:0.96;cursor:grabbing;}
   .cat-drag-handle{display:inline-flex;align-items:center;justify-content:center;padding:4px 2px;color:var(--ink-soft);cursor:grab;touch-action:none;margin-right:2px;opacity:0.65;}
   .cat-drag-handle:active{cursor:grabbing;opacity:1;}
+
+  /* Kelola Dompet — wallet manage rows */
+  .wallet-manage-row{padding:13px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 1px 3px rgba(21,37,36,.05);}
+  .wallet-manage-row .wmr-top{display:flex;align-items:center;gap:10px;}
+  .wallet-manage-row .wmr-drag{width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);cursor:grab;touch-action:none;opacity:.65;}
+  .wallet-manage-row .wmr-drag:active{cursor:grabbing;opacity:1;}
+  .wallet-manage-row .wmr-name{flex:1;min-width:0;font-size:14.5px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;height:22px;line-height:22px;font-family:inherit;}
+  .wallet-manage-row .wmr-name::placeholder{color:var(--ink-soft);font-weight:600;}
+  .wallet-manage-row .wmr-badge{font-size:11.5px;background:var(--accent-tint);color:var(--accent);font-weight:700;padding:5px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0;}
+  .wallet-manage-row .wmr-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+  .wallet-manage-row .wmr-actions .btn{font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;border-radius:8px;font-weight:600;}
+  .wallet-manage-row .wmr-balance-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--surface-2);cursor:pointer;transition:background .15s;}
+  .wallet-manage-row .wmr-balance-box:active{background:var(--line);}
+  .wallet-manage-row .wmr-balance-label{font-size:12.5px;font-weight:600;color:var(--ink-soft);}
+  .wallet-manage-row .wmr-balance-value{font-size:14.5px;font-weight:700;color:var(--ink);}
   .settings-row:last-child{border-bottom:none;}
   .settings-row .l{font-size:14px;font-weight:600;}
   .settings-row .l small{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
@@ -2370,7 +2385,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.3.3)';
+  const version = ' (v2.3.4)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -9516,32 +9531,30 @@ function renderWalletManageList(){
 
   listWrap.innerHTML = sorted.map((w, idx) => {
     const isPrimary = w.isPrimary;
-    const dragHandleHtml = isPrimary ? '<div style="width:30px;flex-shrink:0;"></div>' : `
-      <div class="wallet-drag-handle" style="cursor:grab;padding:6px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;touch-action:none;width:30px;box-sizing:border-box;flex-shrink:0;" onpointerdown="startWalletDrag(event, '${w.id}')">
+    const dragHandleHtml = isPrimary ? '<div class="wmr-drag" style="visibility:hidden;"></div>' : `
+      <div class="wmr-drag" onpointerdown="startWalletDrag(event, '${w.id}')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
       </div>`;
-      
+
     const badgeOrButtonHtml = isPrimary ? `
-      <span style="font-size:11.5px;background:var(--accent-tint);color:var(--accent);font-weight:700;padding:5px 10px;border-radius:6px;display:inline-block;text-align:center;">Primary</span>
+      <span class="wmr-badge">Primary</span>
     ` : `
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-        <button type="button" class="btn btn-ghost" onclick="setWalletPrimaryDirect('${w.id}')" style="font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;border-radius:6px;font-weight:600;">Set Primary</button>
-        <button type="button" class="btn btn-ghost btn-text-danger" onclick="deleteWalletManual('${w.id}')" style="font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;color:var(--accent);border-radius:6px;font-weight:600;">Hapus</button>
+      <div class="wmr-actions">
+        <button type="button" class="btn btn-ghost" onclick="setWalletPrimaryDirect('${w.id}')">Set Primary</button>
+        <button type="button" class="btn btn-ghost btn-text-danger" onclick="deleteWalletManual('${w.id}')" style="color:var(--accent);">Hapus</button>
       </div>
     `;
 
     return `
-      <div class="settings-row cat-manage-row wallet-manage-row" data-id="${w.id}" style="padding:12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;gap:12px;box-sizing:border-box;width:100%;">
-        ${dragHandleHtml}
-        <div class="l" style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
-          <input type="text" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" style="font-size:14.5px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;width:100%;box-sizing:border-box;height:24px;line-height:24px;" placeholder="Nama Dompet">
-          <div style="font-size:12px;color:var(--ink-soft);font-weight:600;margin-top:4px;line-height:1.5;display:flex;align-items:center;gap:4px;">
-            <span>Saldo:</span>
-            <span class="editable-balance-trigger" onclick="startEditWalletBalance('${w.id}', this)" style="color:var(--ink);font-weight:700;border-bottom:1.5px dashed var(--accent);cursor:pointer;padding:0 2px;">${formatRupiah(w.balance)}</span>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+      <div class="cat-manage-row wallet-manage-row" data-id="${w.id}">
+        <div class="wmr-top">
+          ${dragHandleHtml}
+          <input type="text" class="wmr-name" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" placeholder="Nama Dompet">
           ${badgeOrButtonHtml}
+        </div>
+        <div class="wmr-balance-box" onclick="startEditWalletBalance('${w.id}', this.querySelector('.wmr-balance-value'))">
+          <span class="wmr-balance-label">Saldo</span>
+          <span class="wmr-balance-value">${formatRupiah(w.balance)}</span>
         </div>
       </div>`;
   }).join('');
