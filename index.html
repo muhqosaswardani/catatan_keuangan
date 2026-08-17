@@ -2673,7 +2673,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.5.1)';
+  const version = ' (v2.5.2)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -4325,11 +4325,22 @@ function switchTabUI(tab){
     const { core } = getNavConfig();
     bottomNavMore.classList.toggle('active', !core.includes(tab));
   }
-  // Hide FAB "+" on chat tab
+  // Hide FAB "+" on chat tab & lock body scroll
   const fabEl = document.querySelector('.fab');
   const fabHint = document.getElementById('fabDragHint');
   if(fabEl) fabEl.style.display = tab === 'chat' ? 'none' : '';
   if(fabHint) fabHint.style.display = tab === 'chat' ? 'none' : '';
+  if(tab === 'chat'){
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+  } else {
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+  }
 
   currentTab = tab;
   localStorage.setItem('last_active_tab', tab);
