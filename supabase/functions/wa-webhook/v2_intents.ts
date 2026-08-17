@@ -556,12 +556,10 @@ export async function handleV2DebtIntent(
   }
 
   const todayStr = getTodayStr();
-  const { data: allDebts, error: fetchErr } = await db
-    .from("debt_entries")
-    .select("*")
-    .eq("access_code", ACCESS_CODE);
-
-  if (fetchErr) {
+  let allDebts = [];
+  try {
+    allDebts = await v2GetDebtEntries(db, ACCESS_CODE);
+  } catch (fetchErr) {
     console.error("Error fetching debts:", fetchErr);
     return false;
   }
