@@ -2385,7 +2385,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.3.4)';
+  const version = ' (v2.3.5)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -2458,24 +2458,21 @@ function mergeCategories(localList, remoteList) {
 }
 
 function mergeWallets(localList, remoteList) {
+  // Keep ALL local wallets — deletion is handled by deleted_ids only.
+  // Previously this filtered out new wallets that weren't yet on the server,
+  // causing freshly-added wallets to vanish on the very first sync.
   const all = [];
-  const remoteIds = new Set((remoteList || []).map(r => r.id));
   (localList || []).forEach(item => {
     if (item && item.id) {
-      const isDefault = item.isPrimary;
-      const isUsed = (typeof isWalletStillUsed === 'function' && isWalletStillUsed(item.id));
-      const isActiveSelection = (typeof goalWalletValue !== 'undefined' && goalWalletValue === item.id);
-      if (isDefault || isUsed || isActiveSelection || remoteIds.has(item.id)) {
-        all.push({
-          id: item.id,
-          name: item.name,
-          balance: Number(item.balance) || 0,
-          isPrimary: !!item.isPrimary,
-          order: Number(item.order) || 0,
-          createdAt: item.createdAt || Date.now(),
-          updatedAt: item.updatedAt || 0
-        });
-      }
+      all.push({
+        id: item.id,
+        name: item.name,
+        balance: Number(item.balance) || 0,
+        isPrimary: !!item.isPrimary,
+        order: Number(item.order) || 0,
+        createdAt: item.createdAt || Date.now(),
+        updatedAt: item.updatedAt || 0
+      });
     }
   });
   (remoteList || []).forEach(remote => {
