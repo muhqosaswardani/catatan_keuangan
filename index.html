@@ -2671,7 +2671,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.3.7)';
+  const version = ' (v2.4.0)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
