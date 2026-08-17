@@ -395,14 +395,12 @@ Deno.serve(async (req: Request) => {
             console.error("Error processing message:", e);
             // Log error details to wa_logs for debugging
             try {
-              // @ts-ignore
-              EdgeRuntime.waitUntil(
-                db.from("wa_logs").insert({
-                  message: "CRITICAL_ERROR processing message",
-                  details: { messageId: msg.messageId, type: msg.type, error: String(e), stack: (e as Error)?.stack?.slice(0, 500) }
-                })
-              );
+              await db.from("wa_logs").insert({
+                message: "CRITICAL_ERROR processing message",
+                details: { messageId: msg.messageId, type: msg.type, error: String(e), stack: (e as Error)?.stack?.slice(0, 500) }
+              });
             } catch {
+              // fallback: fire-and-forget
               db.from("wa_logs").insert({
                 message: "CRITICAL_ERROR processing message",
                 details: { messageId: msg.messageId, type: msg.type, error: String(e) }

@@ -49,9 +49,17 @@ Keluarkan JSON dengan schema berikut:
   },
   "debt": {
     "person_name": "string (nama orang, misal 'Budi' atau 'Sari')",
-    "type": "i_owe" | "owed_to_me" | null, // i_owe jika saya meminjam/berhutang ke dia. owed_to_me jika dia meminjam/berhutang ke saya.
+    "type": "i_owe" | "owed_to_me" | null,
+    // PENTING - Panduan menentukan type:
+    // i_owe = SAYA yang berhutang/meminjam DARI orang lain. Uang MASUK ke saya.
+    //   Contoh: "pinjem uang ke ayah", "hutang ke Budi 100rb", "pinjam dari Sari", "minjem duit ayah"
+    //   Kata kunci: pinjem, pinjam, hutang/utang ke [orang], minjem
+    // owed_to_me = ORANG LAIN yang berhutang/meminjam DARI saya. Uang KELUAR dari saya.
+    //   Contoh: "Budi hutang ke aku 50rb", "pinjemin Sari 100rb", "kasih pinjaman ke Andi"
+    //   Kata kunci: [orang] hutang ke aku/saya, pinjemin/pinjamkan, kasih pinjaman
+    // PERINGATAN: "pinjem uang ke ayah" = saya yang meminjam = i_owe (BUKAN owed_to_me!)
     "amount": number | null,
-    "is_payment": boolean, // true jika user berniat membayar/melunasi/mencicil utang yang ada (misal ada kata 'bayar', 'lunasi', 'kembalikan'). false jika mencatat utang/piutang baru.
+    "is_payment": boolean, // true jika user berniat membayar/melunasi/mencicil utang yang ada (misal ada kata 'bayar', 'lunasi', 'kembalikan', 'lunas'). false jika mencatat utang/piutang baru.
     "note": "string (keterangan tambahan jika ada)"
   }
 }
