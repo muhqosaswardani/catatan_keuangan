@@ -179,7 +179,7 @@ async function saveV2Transaction(
   }
 ): Promise<any> {
   const id = tx.id || `wa_tx_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-  const { error } = await db.from("transactions").insert({
+  const { error } = await db.from("transactions").upsert({
     id,
     access_code: ACCESS_CODE,
     wallet_id: tx.wallet_id,
