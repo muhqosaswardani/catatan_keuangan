@@ -2844,8 +2844,9 @@ async function syncAllWithSupabase(silent = true) {
             const primary = getWallets().find(w => w.isPrimary) || getWallets()[0];
             const wId = primary ? primary.id : '';
             if (wId) {
-              const txType = d.type === 'utang' ? 'income' : 'expense';
-              const typeLabel = d.type === 'utang' ? 'Utang Baru ke' : 'Piutang Baru ke';
+              const isUtang = d.type === 'utang' || d.type === 'i_owe';
+              const txType = isUtang ? 'income' : 'expense';
+              const typeLabel = isUtang ? 'Utang Baru ke' : 'Piutang Baru ke';
               const txNote = `${typeLabel} ${d.personName}: ${d.note || ''}`.trim();
               newTxs.push({
                 id: txId,
@@ -7868,12 +7869,13 @@ function renderDebtAllList(){
     return;
   }
   wrap.innerHTML = debts.map(d => {
-    const sign = d.type === 'piutang' ? '+' : '-';
-    const amtClass = d.type === 'piutang' ? 'income' : 'expense';
-    const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
+    const isPiutang = d.type === 'piutang' || d.type === 'owed_to_me';
+    const sign = isPiutang ? '+' : '-';
+    const amtClass = isPiutang ? 'income' : 'expense';
+    const typeLabel = isPiutang ? 'Piutang' : 'Utang';
     const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
     return `<div class="tx-item debt-all-row" data-id="${d.id}" style="flex-wrap:wrap;">
-      <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
+      <div class="tx-icon ${isPiutang ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
         <div class="tx-meta">${d.date}${dueHtml}</div>
@@ -7977,9 +7979,10 @@ function renderDebtHistory(){
   }
   
   wrap.innerHTML = lunas.map(d => {
-    const sign = d.type === 'piutang' ? '+' : '-';
-    const amtClass = d.type === 'piutang' ? 'income' : 'expense';
-    const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
+    const isPiutang = d.type === 'piutang' || d.type === 'owed_to_me';
+    const sign = isPiutang ? '+' : '-';
+    const amtClass = isPiutang ? 'income' : 'expense';
+    const typeLabel = isPiutang ? 'Piutang' : 'Utang';
     const payoffInfo = d.payoffDate ? 'Lunas ' + d.payoffDate : 'Lunas';
     return `<div class="tx-item debt-history-row" data-id="${d.id}" style="flex-wrap:wrap;cursor:pointer;">
       <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
@@ -8013,7 +8016,7 @@ function renderDebtPersonDetailList(){
   const debts = getDebts().filter(d => d.personName === debtDetailPersonName)
     .sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
   let net = 0;
-  debts.filter(d => d.status !== 'lunas').forEach(d => { net += (d.type === 'piutang' ? d.amount : -d.amount); });
+  debts.filter(d => d.status !== 'lunas').forEach(d => { net += ((d.type === 'piutang' || d.type === 'owed_to_me') ? d.amount : -d.amount); });
   const netEl = document.getElementById('debtDetailNet');
   if(net > 0) netEl.innerHTML = `<span style="color:var(--income);">Berhutang ke Anda ${formatRupiah(net)}</span>`;
   else if(net < 0) netEl.innerHTML = `<span style="color:var(--expense);">Anda berhutang ${formatRupiah(Math.abs(net))}</span>`;
@@ -8024,14 +8027,15 @@ function renderDebtPersonDetailList(){
   }
   wrap.innerHTML = debts.map(d => {
     const isLunas = d.status === 'lunas';
-    const sign = d.type === 'piutang' ? '+' : '-';
-    const amtClass = d.type === 'piutang' ? 'income' : 'expense';
+    const isPiutang = d.type === 'piutang' || d.type === 'owed_to_me';
+    const sign = isPiutang ? '+' : '-';
+    const amtClass = isPiutang ? 'income' : 'expense';
     const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
     const statusHtml = isLunas ? ' · <span class="rec-status rec-status-nonaktif">Lunas</span>' : '';
     return `<div class="tx-item" style="${isLunas ? 'opacity:.55;' : ''}cursor:default;flex-wrap:wrap;">
-      <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
+      <div class="tx-icon ${isPiutang ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${d.type === 'piutang' ? 'Piutang' : 'Utang'}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
+        <div class="tx-cat">${isPiutang ? 'Piutang' : 'Utang'}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
         <div class="tx-meta">${d.date}${dueHtml}${statusHtml}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -8080,7 +8084,7 @@ function openDebtForm(id, prefillName){
   const d = id ? getDebts().find(x => x.id === id) : null;
   document.getElementById('debtId').value = id || '';
   document.getElementById('debtFormTitle').textContent = d ? 'Edit Catatan' : 'Catat Utang/Piutang';
-  setDebtFormType(d ? d.type : 'piutang');
+  setDebtFormType(d ? (d.type === 'i_owe' || d.type === 'utang' ? 'utang' : 'piutang') : 'piutang');
   document.getElementById('debtPersonName').value = d ? d.personName : (prefillName || '');
   setAmountValue('debtAmount', d ? d.amount : '');
   document.getElementById('debtDate').value = d ? d.date : todayStr();

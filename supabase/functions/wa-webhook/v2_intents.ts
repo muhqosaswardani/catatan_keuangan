@@ -159,6 +159,7 @@ Keluarkan JSON dengan schema:
 async function saveV2Transaction(
   db: SupabaseClient,
   tx: {
+    id?: string;
     wallet_id: string;
     category_id: string;
     category: string;
@@ -169,7 +170,7 @@ async function saveV2Transaction(
     to_wallet_id?: string | null;
   }
 ): Promise<any> {
-  const id = `wa_tx_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  const id = tx.id || `wa_tx_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const { error } = await db.from("transactions").insert({
     id,
     access_code: ACCESS_CODE,
@@ -542,8 +543,7 @@ export async function handleV2DebtIntent(
   userText: string,
   debtData: any
 ): Promise<boolean> {
-  const amount = Number(debtData.amount) || 0;
-  if (amount <= 0 || !debtData.person_name) {
+  if (!debtData.person_name) {
     return false;
   }
 
@@ -562,6 +562,8 @@ export async function handleV2DebtIntent(
   const matchedDebts = (allDebts ?? []).filter(d => (d.person_name || "").toLowerCase().trim() === personLower);
   const activeDebts = matchedDebts.filter(d => d.status === "active" || d.status === "belum");
 
+  let amount = Number(debtData.amount) || 0;
+
   if (debtData.is_payment) {
     if (activeDebts.length === 0) {
       await sendWhatsAppMessage(
@@ -572,6 +574,42 @@ export async function handleV2DebtIntent(
         messageId
       );
       return true;
+    }
+
+    if (amount <= 0) {
+      if (activeDebts.length === 1) {
+        amount = activeDebts[0].amount;
+      } else {
+        let optionsText = `Pilih utang/piutang ${debtData.person_name} mana yang mau dilunasi (balas pesan ini dengan angka pilihan):\n\n`;
+        activeDebts.forEach((d, idx) => {
+          const typeLabel = d.type === "i_owe" || d.type === "utang" ? "Kamu berutang" : "Dia berutang";
+          optionsText += `${idx + 1}. ${typeLabel}: ${formatRupiah(d.amount)} (${d.note || "Tanpa keterangan"})\n`;
+        });
+
+        const questionMsgId = await sendWhatsAppMessage(
+          PHONE_NUMBER_ID,
+          WA_ACCESS_TOKEN,
+          waChatId,
+          optionsText,
+          messageId
+        );
+
+        if (questionMsgId) {
+          await db.from("wa_pending_transactions").insert({
+            id: `pend_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
+            access_code: ACCESS_CODE,
+            wa_chat_id: waChatId,
+            wa_question_message_id: questionMsgId,
+            pending_data: {
+              type: "clarify_debt_payment",
+              candidates: activeDebts,
+              amount: 0,
+              user_text: userText
+            }
+          });
+        }
+        return true;
+      }
     }
 
     if (activeDebts.length > 1) {
@@ -608,6 +646,11 @@ export async function handleV2DebtIntent(
 
     const activeDebt = activeDebts[0];
     return await executeDebtPayment(db, waChatId, messageId, activeDebt, amount, userText);
+  }
+
+  // Untuk membuat utang baru, nominal wajib ada
+  if (amount <= 0) {
+    return false;
   }
 
   const debtId = `wa_debt_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -662,6 +705,7 @@ export async function handleV2DebtIntent(
     : `Piutang Baru ke ${debtData.person_name}: ${note}`;
 
   const savedTx = await saveV2Transaction(db, {
+    id: `tx_debt_${debtId}`,
     wallet_id: walletId,
     category_id: cat.id,
     category: "Utang Piutang",
@@ -726,18 +770,20 @@ export async function executeDebtPayment(
   const walletId = walletsDebt?.find(w => w.name === mentionedWalletName)?.id || primaryWalletDebt?.id || DEFAULT_WALLET_ID;
   const targetWalletName = walletsDebt?.find(w => w.id === walletId)?.name || "Dompet Utama";
 
+  const payoffAmount = paymentAmount <= 0 ? activeDebt.amount : paymentAmount;
+
   let bubble = "";
   let savedTxId = "";
 
-  if (paymentAmount < activeDebt.amount) {
-    const remaining = activeDebt.amount - paymentAmount;
+  if (payoffAmount < activeDebt.amount) {
+    const remaining = activeDebt.amount - payoffAmount;
     
     const tx = await saveV2Transaction(db, {
       wallet_id: walletId,
       category_id: cat.id,
       category: "Utang Piutang",
       type: txType,
-      amount: paymentAmount,
+      amount: payoffAmount,
       date: todayStr,
       note: `Cicilan utang ke ${activeDebt.person_name}: ${activeDebt.note || ""}`.trim()
     });
@@ -754,7 +800,7 @@ export async function executeDebtPayment(
     bubble = `Cicilan utang dicatat ✓
 Tanggal: ${formatTanggalID(todayStr)}
 
-Pembayaran: ${formatRupiah(paymentAmount)} (Saldo ${txType === "expense" ? "Berkurang" : "Bertambah"})
+Pembayaran: ${formatRupiah(payoffAmount)} (Saldo ${txType === "expense" ? "Berkurang" : "Bertambah"})
 Dompet: ${targetWalletName}
 Untuk: ${isIOwe ? "Utang ke" : "Piutang dari"} ${activeDebt.person_name}
 Sisa utang: ${formatRupiah(remaining)}
@@ -762,7 +808,7 @@ Sisa utang: ${formatRupiah(remaining)}
 Keterangan: ${activeDebt.note || "-"}`;
 
   } else {
-    const excess = paymentAmount - activeDebt.amount;
+    const excess = payoffAmount - activeDebt.amount;
     
     const tx = await saveV2Transaction(db, {
       wallet_id: walletId,
