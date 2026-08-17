@@ -524,30 +524,6 @@
   .cca-compare-row b.neg{color:var(--expense);}
   .cca-name-input{width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12.5px;font-weight:700;font-family:inherit;background:var(--surface);color:var(--ink);}
 
-  /* Crosscheck AI — grouped by wallet (fitur 5, redesign) */
-  .cca-group{margin-bottom:18px;}
-  .cca-group:last-child{margin-bottom:4px;}
-  .cca-group-title{font-size:13.5px;font-weight:700;color:var(--ink);margin:0 0 8px;display:flex;align-items:center;gap:6px;}
-  .cca-group-title .sub{font-weight:500;color:var(--ink-soft);font-size:11.5px;}
-  .cca-group-empty{font-size:12px;color:var(--ink-soft);font-style:italic;padding:2px 2px 10px;}
-  .cca-item-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);margin-bottom:8px;}
-  .cca-item-top{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-  .cca-item-name{flex:1;min-width:0;border:none;background:none;outline:none;font-weight:700;font-size:14px;color:var(--ink);padding:0;}
-  .cca-item-del{background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;flex-shrink:0;display:flex;}
-  .cca-item-fields{display:flex;flex-direction:column;gap:10px;}
-  .cca-item-fields .field{margin:0;}
-  .cca-item-fields label{font-size:11.5px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:5px;}
-  .cca-item-fields select{width:100%;padding:9px 10px;font-size:13.5px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);font-family:inherit;}
-  .cca-item-fields .amount-input{padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);display:flex;align-items:center;}
-  .cca-item-fields .amount-input span{font-size:13px;color:var(--ink-soft);margin-right:4px;flex-shrink:0;}
-  .cca-item-fields .amount-input input{border:none;background:none;outline:none;font-size:13.5px;width:100%;font-weight:700;color:var(--ink);padding:0;}
-  .cca-group-summary{background:var(--surface-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
-  .cca-group-summary-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-soft);font-weight:600;}
-  .cca-group-summary-row b{color:var(--ink);font-weight:700;font-size:13px;}
-  .cca-group-summary-row.diff{border-top:1px dashed var(--line);margin-top:2px;padding-top:6px;}
-  .cca-group-summary-row.diff b.pos{color:var(--income);}
-  .cca-group-summary-row.diff b.neg{color:var(--expense);}
-
   /* Settings */
   .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);}
   .settings-row-card{display:block;width:100%;padding:15px 18px;border:1.5px solid var(--line);background:var(--surface);border-radius:14px;text-align:left;cursor:pointer;transition:background .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:10px;font-family:inherit;}
@@ -561,28 +537,6 @@
   .cat-manage-row.dragging{z-index:200;background:var(--surface);box-shadow:0 12px 30px -4px rgba(15,25,24,0.28),0 4px 12px -2px rgba(15,25,24,0.15);border-radius:14px;transform:scale(1.03);opacity:0.96;cursor:grabbing;}
   .cat-drag-handle{display:inline-flex;align-items:center;justify-content:center;padding:4px 2px;color:var(--ink-soft);cursor:grab;touch-action:none;margin-right:2px;opacity:0.65;}
   .cat-drag-handle:active{cursor:grabbing;opacity:1;}
-
-  /* Kelola Dompet - redesign */
-  .wallet-manage-card{border-radius:16px;background:var(--surface);border:1.5px solid var(--line);box-shadow:0 1px 3px rgba(21,37,36,.05);padding:14px;display:flex;flex-direction:column;gap:10px;}
-  .wallet-manage-card.is-primary{border-color:var(--accent);background:linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 42%);box-shadow:0 2px 8px -2px rgba(15,118,110,.18);}
-  .wallet-manage-top{display:flex;align-items:flex-start;gap:10px;}
-  .wallet-manage-drag{flex-shrink:0;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);cursor:grab;touch-action:none;margin-top:2px;opacity:.6;}
-  .wallet-manage-drag:active{cursor:grabbing;opacity:1;}
-  .wallet-manage-drag-spacer{flex-shrink:0;width:26px;}
-  .wallet-manage-info{flex:1;min-width:0;}
-  .wallet-manage-name{width:100%;border:none;background:none;outline:none;padding:0;font-size:14.5px;font-weight:600;color:var(--ink);font-family:inherit;box-sizing:border-box;border-radius:6px;transition:background .12s ease;}
-  .wallet-manage-name:hover{background:var(--surface-2);}
-  .wallet-manage-name:focus{background:var(--surface-2);box-shadow:0 0 0 2px var(--accent);}
-  .wallet-manage-balance-row{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .wallet-manage-balance-label{font-size:12px;color:var(--ink-soft);font-weight:500;flex-shrink:0;}
-  .wallet-manage-balance-value{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer;background:var(--surface);border:1.5px solid var(--line);border-radius:11px;padding:9px 11px;line-height:1.3;transition:border-color .12s ease;}
-  .wallet-manage-balance-value:hover{border-color:var(--accent);}
-  .wallet-manage-balance-value:active{opacity:.7;}
-  .wallet-manage-balance-value svg{flex-shrink:0;color:var(--ink-soft);opacity:.7;}
-  .wallet-manage-badge{flex-shrink:0;font-size:11px;background:var(--accent-soft);color:var(--accent-dark);font-weight:600;padding:6px 12px;border-radius:100px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
-  .wallet-manage-actions{display:flex;gap:8px;padding-top:10px;margin-top:2px;border-top:1px solid var(--line);}
-  .wallet-manage-actions .btn{flex:1;font-size:12.5px;padding:9px 10px;min-height:unset;border-radius:10px;font-weight:600;margin:0;}
-  .wallet-manage-btn-danger{background:var(--expense-soft);color:var(--expense);}
   .settings-row:last-child{border-bottom:none;}
   .settings-row .l{font-size:14px;font-weight:600;}
   .settings-row .l small{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
@@ -649,7 +603,7 @@
 
   /* =========================================================
      WEB / DESKTOP LAYOUT (>=900px)
-     Konten & fungsi identik — hanya reflow tampilan.
+     Konten & fungsi identik ΓÇö hanya reflow tampilan.
      ========================================================= */
   .side-nav{display:none;}
   @media (min-width:900px){
@@ -707,7 +661,7 @@
     .topbar{padding:0 0 6px;}
     .topbar h1{font-size:26px;}
 
-    /* Dashboard grid — Beranda (hanya saat aktif) */
+    /* Dashboard grid ΓÇö Beranda (hanya saat aktif) */
     #page-beranda.active{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,0.95fr);gap:20px 24px;align-items:start;}
     #page-beranda.active > .topbar{grid-column:1 / -1;}
     #page-beranda.active .beranda-col{display:flex;flex-direction:column;gap:16px;min-width:0;}
@@ -715,7 +669,7 @@
     #page-beranda.active .beranda-col-left .section,
     #page-beranda.active .beranda-col-right .section{margin:0;}
 
-    /* Dashboard grid — Laporan (hanya saat aktif) */
+    /* Dashboard grid ΓÇö Laporan (hanya saat aktif) */
     #page-laporan.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px 24px;align-items:start;}
     #page-laporan.active > .topbar{grid-column:1 / -1;}
     #page-laporan.active .lap-col{display:flex;flex-direction:column;min-width:0;}
@@ -732,7 +686,7 @@
     .card{padding:18px;}
     .donut-card{padding:16px;}
 
-    /* Modal → dialog center, bukan bottom-sheet */
+    /* Modal ΓåÆ dialog center, bukan bottom-sheet */
     .modal-overlay{align-items:center;padding:24px;}
     .modal{max-width:460px;border-radius:20px;max-height:82vh;animation:modalpop .16s ease;}
     @keyframes modalpop{from{transform:translateY(8px) scale(.98);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
@@ -843,7 +797,7 @@
     <div class="topbar">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
-          <div class="eyebrow" id="greetingDate">—</div>
+          <div class="eyebrow" id="greetingDate">ΓÇö</div>
           <h1>Beranda</h1>
         </div>
         <div class="last-sync-label" id="lastSyncLabel"></div>
@@ -858,7 +812,7 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="2"/></svg>
         </button>
       </div>
-      <div class="amount num" id="heroTotal">—</div>
+      <div class="amount num" id="heroTotal">ΓÇö</div>
       <div class="sub-wallets" id="heroSubWalletsWrap"></div>
       <div id="heroExpandBtnWrap" style="text-align:center;margin-top:12px;display:none;">
         <button type="button" id="heroExpandBtn" onclick="toggleHeroWalletsExpand()" style="background:none;border:none;color:rgba(255,255,255,0.85);font-size:12px;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:100px;background:rgba(255,255,255,0.08);display:none;margin:0 auto;"></button>
@@ -873,11 +827,11 @@
         <button type="button" data-period="month" class="active" onclick="setHomePeriod('month')">Bulan</button>
       </div>
       <div class="grid-2">
-        <div class="stat income"><div class="t">Pemasukan</div><div class="v num" id="statIncome">—</div><div id="cmpIncome"></div></div>
-        <div class="stat expense"><div class="t">Pengeluaran</div><div class="v num" id="statExpense">—</div><div id="cmpExpense"></div></div>
+        <div class="stat income"><div class="t">Pemasukan</div><div class="v num" id="statIncome">ΓÇö</div><div id="cmpIncome"></div></div>
+        <div class="stat expense"><div class="t">Pengeluaran</div><div class="v num" id="statExpense">ΓÇö</div><div id="cmpExpense"></div></div>
       </div>
       <div class="stat net" style="margin-top:10px;">
-        <div class="t">Selisih (Net)</div><div class="v num" id="statNet">—</div>
+        <div class="t">Selisih (Net)</div><div class="v num" id="statNet">ΓÇö</div>
         <div class="compare-bar-wrap">
           <div class="compare-bar-track"><div class="seg-expense" id="cmpBarExpense" style="width:50%"></div><div class="seg-income" id="cmpBarIncome" style="width:50%"></div></div>
           <div class="compare-bar-legend">
@@ -885,8 +839,8 @@
             <span><span class="dot" style="background:var(--income);"></span>Pemasukan</span>
           </div>
         </div>
-        <div class="saldo-row"><span>Saldo Awal Periode</span><b id="saldoAwal">—</b></div>
-        <div class="saldo-row" style="border-top:none;padding-top:0;"><span>Saldo Akhir (Sekarang)</span><b id="saldoAkhir">—</b></div>
+        <div class="saldo-row"><span>Saldo Awal Periode</span><b id="saldoAwal">ΓÇö</b></div>
+        <div class="saldo-row" style="border-top:none;padding-top:0;"><span>Saldo Akhir (Sekarang)</span><b id="saldoAkhir">ΓÇö</b></div>
       </div>
       <div id="dailyRecoHome"></div>
       <div id="budgetAlertHome"></div>
@@ -894,7 +848,7 @@
     </div>
 
     <div class="section">
-      <div class="section-head"><h2>Rata-rata Harian</h2><a href="javascript:void(0)" onclick="openDashboardAvgCategorySetting()">Atur Kategori →</a></div>
+      <div class="section-head"><h2>Rata-rata Harian</h2><a href="javascript:void(0)" onclick="openDashboardAvgCategorySetting()">Atur Kategori ΓåÆ</a></div>
       <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:-6px 0 4px;" id="dailyAvgDaysLabel"></div>
       <div class="legend-card-list" id="dailyAvgList"></div>
     </div>
@@ -929,7 +883,7 @@
 
     <div class="beranda-col beranda-col-right">
     <div class="section">
-      <div class="section-head"><h2>Distribusi per Kategori</h2><a href="javascript:void(0)" onclick="goToLaporan()">Lihat Detail →</a></div>
+      <div class="section-head"><h2>Distribusi per Kategori</h2><a href="javascript:void(0)" onclick="goToLaporan()">Lihat Detail ΓåÆ</a></div>
       <div class="donut-pair">
         <div class="donut-card">
           <h4>Pemasukan</h4>
@@ -991,7 +945,7 @@
         <button type="button" class="month-nav-arrow" onclick="txShiftPeriod(-1)" aria-label="Periode sebelumnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="month-nav-label" id="filterMonthLabel">—</div>
+        <div class="month-nav-label" id="filterMonthLabel">ΓÇö</div>
         <button type="button" class="month-nav-arrow" id="txNextMonthBtn" onclick="txShiftPeriod(1)" aria-label="Periode berikutnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -1025,7 +979,7 @@
         <button type="button" class="month-nav-arrow" onclick="budgetShiftMonth(-1)" aria-label="Bulan sebelumnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="month-nav-label" id="budgetMonthLabel">—</div>
+        <div class="month-nav-label" id="budgetMonthLabel">ΓÇö</div>
         <button type="button" class="month-nav-arrow" id="budgetNextBtn" onclick="budgetShiftMonth(1)" aria-label="Bulan berikutnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -1142,26 +1096,26 @@
 
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:0;">
         <button type="button" class="settings-row-card" onclick="exportData()">
-          <div class="sr-title">Export Data <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Export Data <span class="sr-arrow">ΓÇ║</span></div>
         </button>
         <button type="button" class="settings-row-card" onclick="document.getElementById('importFileInput').click()">
-          <div class="sr-title">Import Data <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Import Data <span class="sr-arrow">ΓÇ║</span></div>
         </button>
         <input type="file" id="importFileInput" accept="application/json" style="display:none" onchange="importData(event)">
         <button type="button" class="settings-row-card" onclick="setCatManageType('expense');openModal('modalCategories')">
-          <div class="sr-title">Kelola Kategori <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Kelola Kategori <span class="sr-arrow">ΓÇ║</span></div>
         </button>
         <button type="button" class="settings-row-card" onclick="openWalletManageModal()">
-          <div class="sr-title">Kelola Dompet <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Kelola Dompet <span class="sr-arrow">ΓÇ║</span></div>
         </button>
         <button type="button" class="settings-row-card" onclick="openNavConfigManage()">
-          <div class="sr-title">Susun Bottom Nav <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Susun Bottom Nav <span class="sr-arrow">ΓÇ║</span></div>
         </button>
         <button type="button" class="settings-row-card" onclick="copySyncUrlToClipboard()">
-          <div class="sr-title">Salin Link <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Salin Link <span class="sr-arrow">ΓÇ║</span></div>
         </button>
         <button type="button" class="settings-row-card danger" onclick="openResetConfirm()">
-          <div class="sr-title">Reset Semua Data <span class="sr-arrow">›</span></div>
+          <div class="sr-title">Reset Semua Data <span class="sr-arrow">ΓÇ║</span></div>
         </button>
       </div>
     </div>
@@ -1201,7 +1155,7 @@
         <button type="button" class="month-nav-arrow" onclick="laporanShiftPeriod(-1)" aria-label="Periode sebelumnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <div class="month-nav-label" id="laporanMonthLabel">—</div>
+        <div class="month-nav-label" id="laporanMonthLabel">ΓÇö</div>
         <button type="button" class="month-nav-arrow" id="laporanNextBtn" onclick="laporanShiftPeriod(1)" aria-label="Periode berikutnya">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -1357,17 +1311,17 @@
         <button class="modal-close" onclick="closeModal('modalWallets')">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="card" style="margin-bottom:18px;">
-          <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink);">Tambah Dompet Baru</div>
+        <div class="card" style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--ink);">Tambah Dompet Baru</div>
           <div class="field" style="margin-bottom:10px;">
             <label>Nama Dompet</label>
-            <input type="text" id="newWalletName" placeholder="Contoh: Dompet Kas, Mandiri, dll" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addNewWalletFromManage();}">
+            <input type="text" id="newWalletName" placeholder="Contoh: Dompet Kas, Mandiri, dll" autocomplete="off" autocorrect="off" spellcheck="false">
           </div>
           <button type="button" class="btn btn-primary btn-block" onclick="addNewWalletFromManage()">+ Tambah Dompet</button>
         </div>
 
-        <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink);">Daftar Dompet Saat Ini</div>
-        <div id="walletManageList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink);">Daftar Dompet Saat Ini</div>
+        <div id="walletManageList" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </div>
   </div>
@@ -1387,21 +1341,20 @@
     </div>
   </div>
 
-  <!-- ============ MODAL: CUSTOM INPUT DIALOG (pengganti prompt()) ============ -->
-  <div class="modal-overlay" id="modalInputDialog" style="z-index:9999;">
-    <div class="modal" style="max-width:380px;padding:22px 20px 20px;">
-      <h3 id="inputModalTitle" style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:4px;">Masukkan Nilai</h3>
-      <p id="inputModalText" style="font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:14px;display:none;"></p>
-      <div class="field" style="margin-bottom:18px;">
-        <label id="inputModalLabel" style="display:none;"></label>
-        <div id="inputModalPrefixWrap" style="display:flex;align-items:center;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg);">
-          <span id="inputModalPrefix" style="padding:0 0 0 14px;font-size:14.5px;color:var(--ink-soft);font-weight:700;display:none;">Rp</span>
-          <input type="text" id="inputModalField" inputmode="text" autocomplete="off" autocorrect="off" spellcheck="false" style="flex:1;border:none;outline:none;background:none;padding:12px 14px;font-size:15px;font-weight:700;color:var(--ink);font-family:inherit;">
+  <!-- ============ MODAL: CUSTOM PROMPT DIALOG ============ -->
+  <div class="modal-overlay" id="modalPromptDialog" style="z-index:9999;">
+    <div class="modal" style="max-width:380px;padding:24px 20px;box-sizing:border-box;">
+      <h3 id="promptModalTitle" style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:12px;">Edit Saldo</h3>
+      <div class="field" style="margin-bottom:20px;">
+        <label id="promptModalLabel" style="font-size:12px;margin-bottom:6px;display:block;">Masukkan Saldo Baru:</label>
+        <div class="amount-input" style="display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--bg);box-sizing:border-box;width:100%;">
+          <span style="color:var(--ink-soft);margin-right:6px;font-weight:600;font-size:14px;">Rp</span>
+          <input type="text" id="promptModalInput" placeholder="0" inputmode="decimal" oninput="formatThousandInput(this)" onkeydown="if(event.key==='Enter') submitPromptModal()" style="width:100%;border:none;background:none;outline:none;padding:0;font-size:14px;font-weight:700;color:var(--ink);" autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button type="button" class="btn btn-ghost" style="padding:10px;" onclick="closeInputModal(null)">Batal</button>
-        <button type="button" class="btn btn-primary" id="inputModalOkBtn" style="padding:10px;" onclick="submitInputModal()">OK</button>
+        <button type="button" class="btn btn-ghost" style="padding:12px;font-weight:600;margin:0;" onclick="closePromptModal(null)">Batal</button>
+        <button type="button" class="btn btn-primary" style="padding:12px;font-weight:600;margin:0;" onclick="submitPromptModal()">Simpan</button>
       </div>
     </div>
   </div>
@@ -1600,6 +1553,14 @@
         <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="debtAmount" inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
         <div class="err">Jumlah harus lebih dari 0</div>
       </div>
+      <div class="field" id="debtWalletField">
+        <label>Dompet</label>
+        <button type="button" class="picker-btn" id="debtWalletBtn" onclick="openDebtWalletPicker()">
+          <span id="debtWalletLabel" class="ph">Pilih dompet</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="err">Pilih dompet</div>
+      </div>
       <div class="field">
         <label>Tanggal</label>
         <input type="date" id="debtDate" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -1651,7 +1612,7 @@
       <div class="modal-head"><h3 id="debtDetailName">Nama</h3><button class="modal-close" onclick="closeModal('modalDebtPersonDetail')">&times;</button></div>
       <div class="modal-body">      <div class="stat" style="margin-bottom:14px;">
         <div class="t">Saldo Bersih</div>
-        <div class="v num" id="debtDetailNet">—</div>
+        <div class="v num" id="debtDetailNet">ΓÇö</div>
       </div>
       <div id="debtDetailListWrap"></div>
       <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="openDebtFormForDetailPerson()">+ Tambah Catatan Baru</button>
@@ -1730,7 +1691,7 @@
   <!-- ============ MODAL: EDIT ANGGARAN (kelola limit per kategori) ============ -->
   <div class="modal-overlay" id="modalBudgetManage">
     <div class="modal">
-      <div class="modal-head"><h3>Edit Anggaran — <span id="budgetManageMonthLabel">—</span></h3><button class="modal-close" onclick="closeModal('modalBudgetManage')">&times;</button></div>
+      <div class="modal-head"><h3>Edit Anggaran ΓÇö <span id="budgetManageMonthLabel">ΓÇö</span></h3><button class="modal-close" onclick="closeModal('modalBudgetManage')">&times;</button></div>
       <div class="modal-body">      <div id="budgetManageListWrap"></div>
       <div class="inline-add" style="justify-content:center;">
         <button type="button" class="btn btn-secondary btn-block" onclick="swapModal('modalBudgetManage','modalCategories');setCatManageType('expense');">+ Tambah Kategori Baru</button>
@@ -1893,7 +1854,7 @@
   <div class="modal-overlay" id="modalShortcutManage">
     <div class="modal">
       <div class="modal-head"><h3>Kelola Shortcut</h3><button class="modal-close" onclick="closeModal('modalShortcutManage')">&times;</button></div>
-      <div class="modal-body">      <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 10px;">Pilih sendiri kategori mana yang mau dijadikan shortcut. Tidak ada batas jumlah — aktifkan sebanyak yang kamu mau.</p>
+      <div class="modal-body">      <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 10px;">Pilih sendiri kategori mana yang mau dijadikan shortcut. Tidak ada batas jumlah ΓÇö aktifkan sebanyak yang kamu mau.</p>
       <div id="shortcutManageList"></div>
       <button type="button" class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="resetShortcutOverrides()">Kosongkan Semua</button>
       </div>
@@ -1935,15 +1896,15 @@
       <div class="modal-head"><h3>Masukkan Jumlah</h3><button class="modal-close" onclick="closeModal('modalKeypad')">&times;</button></div>
       <div class="modal-body">      <div class="keypad-grid">
         <button type="button" class="keypad-key keypad-op" onclick="keypadPress('C')">C</button>
-        <button type="button" class="keypad-key keypad-op" onclick="keypadPress('/')">÷</button>
-        <button type="button" class="keypad-key keypad-op" onclick="keypadPress('*')">×</button>
+        <button type="button" class="keypad-key keypad-op" onclick="keypadPress('/')">├╖</button>
+        <button type="button" class="keypad-key keypad-op" onclick="keypadPress('*')">├ù</button>
         <button type="button" class="keypad-key keypad-back" onclick="keypadPress('back')" aria-label="Hapus">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 4H8l-6 8 6 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 9l5 6M19 9l-5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
         <button type="button" class="keypad-key" onclick="keypadPress('7')">7</button>
         <button type="button" class="keypad-key" onclick="keypadPress('8')">8</button>
         <button type="button" class="keypad-key" onclick="keypadPress('9')">9</button>
-        <button type="button" class="keypad-key keypad-op" onclick="keypadPress('-')">−</button>
+        <button type="button" class="keypad-key keypad-op" onclick="keypadPress('-')">ΓêÆ</button>
         <button type="button" class="keypad-key" onclick="keypadPress('4')">4</button>
         <button type="button" class="keypad-key" onclick="keypadPress('5')">5</button>
         <button type="button" class="keypad-key" onclick="keypadPress('6')">6</button>
@@ -1962,7 +1923,7 @@
     </div>
   </div>
 
-  <!-- ============ MODAL: TAMBAH VIA AI (SCAN FOTO) — fitur 4 ============ -->
+  <!-- ============ MODAL: TAMBAH VIA AI (SCAN FOTO) ΓÇö fitur 4 ============ -->
   <div class="modal-overlay" id="modalAiScan">
     <div class="modal">
       <div class="modal-head"><h3>Transaksi via AI</h3><button class="modal-close" onclick="stopAiVoiceRecording();setAiMicUiRecording(false);closeModal('modalAiScan')">&times;</button></div>
@@ -2055,7 +2016,7 @@
     </div>
   </div>
 
-  <!-- ============ MODAL: HASIL ANALISIS SALDO AI — fitur 5 ============ -->
+  <!-- ============ MODAL: HASIL ANALISIS SALDO AI ΓÇö fitur 5 ============ -->
   <div class="modal-overlay" id="modalCcAnalysis">
     <div class="modal">
       <div class="modal-head"><h3>Hasil Analisis AI</h3><button class="modal-close" onclick="closeModal('modalCcAnalysis')">&times;</button></div>
@@ -2069,7 +2030,7 @@
         <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="closeModal('modalCcAnalysis')">Batal</button>
       </div>
       <div id="ccaResultView" style="display:none;">
-        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Nominal hasil bacaan AI cuma prefill — edit manual dulu sebelum konfirmasi kalau perlu.</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Nominal hasil bacaan AI cuma prefill ΓÇö edit manual dulu sebelum konfirmasi kalau perlu.</p>
         <div id="ccaItemsWrap"></div>
         <button class="btn btn-ghost btn-block" style="margin:2px 0 4px;" onclick="addCcaManualItem()">+ Tambah Manual</button>
         <div class="cc-total-row"><span>Total Saldo Aktual</span><span id="ccaTotal">Rp 0</span></div>
@@ -2124,7 +2085,7 @@ document.addEventListener('focusin', function(e){
   }
 });
 /* =========================================================
-   DATA LAYER — localStorage
+   DATA LAYER ΓÇö localStorage
    ========================================================= */
 const LS_KEYS = {
   wallets: 'fk_wallets',
@@ -2202,7 +2163,7 @@ function applyDeletedIdsFilter(deletedList) {
 }
 
 /* =========================================================
-   CATEGORY ICON LIBRARY — svg kustom + warna per kategori
+   CATEGORY ICON LIBRARY ΓÇö svg kustom + warna per kategori
    ========================================================= */
 const CATEGORY_ICONS = {
   food:        { label:'Makan',        path:'<path d="M8 2v7a2 2 0 0 0 4 0V2M8 2v20M8 5v4M16 2v8a3 3 0 0 1-3 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' },
@@ -2300,7 +2261,7 @@ function iconSvgMarkup(key, size){
   size = size || 18;
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">${iconInnerSvg(key)}</svg>`;
 }
-// Kotak ikon berwarna berisi svg kustom kategori — dipakai di transaksi, laporan, kelola kategori, picker
+// Kotak ikon berwarna berisi svg kustom kategori ΓÇö dipakai di transaksi, laporan, kelola kategori, picker
 function categoryIconBoxHtml(cat, opts){
   opts = opts || {};
   const size = opts.size || 38;
@@ -2362,19 +2323,27 @@ function getAccessCode() {
 let isSyncingData = false;
 let isSyncNeededAgain = false;
 let isResettingData = false; // blocks sync interval during full data reset
+let hasSyncedAtLeastOnce = false;
+
+function parseSafeDate(dateStr) {
+  if (!dateStr) return 0;
+  const tStr = String(dateStr).trim().replace(' ', 'T');
+  const d = new Date(tStr);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
 
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
   if (status === 'syncing' && isManual) {
-    label.textContent = '⟳ Sinkronisasi...';
+    label.textContent = 'Γƒ│ Sinkronisasi...';
   } else if (status === 'online') {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2,'0');
     const mm = String(now.getMinutes()).padStart(2,'0');
-    label.textContent = '☁ Sinkron ' + hh + ':' + mm;
+    label.textContent = 'Γÿü Sinkron ' + hh + ':' + mm;
   } else if (status === 'offline') {
-    label.textContent = '⚠ Offline';
+    label.textContent = 'ΓÜá Offline';
   }
 }
 
@@ -2442,19 +2411,20 @@ function mergeWallets(localList, remoteList) {
   const remoteIds = new Set((remoteList || []).map(r => r.id));
   (localList || []).forEach(item => {
     if (item && item.id) {
-      // Penghapusan dompet sudah ditangani lewat mekanisme deletedIds (lihat applyDeletedIdsFilter),
-      // jadi di sini kita selalu pertahankan item lokal apa pun — termasuk dompet baru yang
-      // baru dibuat dan belum sempat ter-push ke server. Jangan buang item lokal hanya karena
-      // belum ada di remoteIds, itu menyebabkan dompet baru hilang sebelum sempat tersinkron.
-      all.push({
-        id: item.id,
-        name: item.name,
-        balance: Number(item.balance) || 0,
-        isPrimary: !!item.isPrimary,
-        order: Number(item.order) || 0,
-        createdAt: item.createdAt || Date.now(),
-        updatedAt: item.updatedAt || 0
-      });
+      const isDefault = item.isPrimary;
+      const isUsed = (typeof isWalletStillUsed === 'function' && isWalletStillUsed(item.id));
+      const isActiveSelection = (typeof goalWalletValue !== 'undefined' && goalWalletValue === item.id);
+      if (isDefault || isUsed || isActiveSelection || remoteIds.has(item.id)) {
+        all.push({
+          id: item.id,
+          name: item.name,
+          balance: Number(item.balance) || 0,
+          isPrimary: !!item.isPrimary,
+          order: Number(item.order) || 0,
+          createdAt: item.createdAt || Date.now(),
+          updatedAt: item.updatedAt || 0
+        });
+      }
     }
   });
   (remoteList || []).forEach(remote => {
@@ -2573,7 +2543,7 @@ async function syncAllWithSupabase(silent = true) {
       const mapped = filtered.map(r => ({
         id: r.id, walletId: r.wallet_id, categoryId: r.category_id, category: r.category,
         type: r.type, amount: Number(r.amount) || 0, date: r.date, note: r.note,
-        toWalletId: r.to_wallet_id, excludeFromReport: !!r.exclude_from_report, updatedAt: new Date(r.updated_at).getTime()
+        toWalletId: r.to_wallet_id, excludeFromReport: !!r.exclude_from_report, updatedAt: parseSafeDate(r.updated_at)
       }));
       const merged = mergeEntities(localTxsFiltered, mapped);
       setTransactionsLocalOnly(merged);
@@ -2590,7 +2560,7 @@ async function syncAllWithSupabase(silent = true) {
     const { data: remCats } = await supabaseClient.from('categories').select('*').eq('access_code', code);
     if (remCats) {
       const filtered = remCats.filter(r => !deletedSet.has(String(r.id)));
-      const mapped = filtered.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: new Date(r.updated_at).getTime() }));
+      const mapped = filtered.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: parseSafeDate(r.updated_at) }));
       const merged = mergeCategories(getCategories(), mapped);
       setCategoriesLocalOnly(merged);
       const pushRecs = merged.map(c => ({ id: c.id, access_code: code, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
@@ -2603,7 +2573,7 @@ async function syncAllWithSupabase(silent = true) {
     const { data: remBudgets } = await supabaseClient.from('budgets').select('*').eq('access_code', code);
     if (remBudgets) {
       const filtered = remBudgets.filter(r => !deletedSet.has(String(r.id)));
-      const mapped = filtered.map(r => ({ id: r.id, categoryId: r.category_id, month: r.month, limit: Number(r.limit_amount) || 0, updatedAt: new Date(r.updated_at).getTime() }));
+      const mapped = filtered.map(r => ({ id: r.id, categoryId: r.category_id, month: r.month, limit: Number(r.limit_amount) || 0, updatedAt: parseSafeDate(r.updated_at) }));
       const local = getBudgets().map(b => ({ ...b, id: b.id || (b.categoryId + '_' + b.month) }));
       const merged = mergeEntities(local, mapped);
       setBudgetsLocalOnly(merged);
@@ -2617,7 +2587,7 @@ async function syncAllWithSupabase(silent = true) {
       const filtered = remGoals.filter(r => !deletedSet.has(String(r.id)));
       const mapped = filtered.map(r => ({
         id: r.id, name: r.name, targetAmount: Number(r.target_amount) || 0,
-        walletId: r.wallet_id, targetDate: r.target_date, updatedAt: new Date(r.updated_at).getTime()
+        walletId: r.wallet_id, targetDate: r.target_date, updatedAt: parseSafeDate(r.updated_at)
       }));
       const merged = mergeEntities(getGoals(), mapped);
       setGoalsLocalOnly(merged);
@@ -2636,7 +2606,7 @@ async function syncAllWithSupabase(silent = true) {
         id: r.id, personName: r.person_name, type: r.type, amount: Number(r.amount) || 0,
         date: r.date, note: r.note, dueDate: r.due_date, status: r.status,
         payoffWalletId: r.payoff_wallet_id, payoffDate: r.payoff_date,
-        updatedAt: new Date(r.updated_at).getTime()
+        updatedAt: parseSafeDate(r.updated_at)
       }));
       const merged = mergeEntities(getDebts(), mapped);
       setDebtsLocalOnly(merged);
@@ -2658,7 +2628,7 @@ async function syncAllWithSupabase(silent = true) {
         walletId: r.wallet_id, categoryId: r.category_id,
         dayOfMonth: r.day_of_month, active: r.active !== false,
         lastConfirmedDate: r.last_confirmed_date || null,
-        updatedAt: new Date(r.updated_at).getTime()
+        updatedAt: parseSafeDate(r.updated_at)
       }));
       const merged = mergeEntities(getRecurring(), mapped);
       setRecurringLocalOnly(merged);
@@ -2682,8 +2652,8 @@ async function syncAllWithSupabase(silent = true) {
         balance: Number(r.balance) || 0,
         isPrimary: !!r.is_primary,
         order: Number(r.sort_order) || 0,
-        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-        updatedAt: new Date(r.updated_at).getTime()
+        createdAt: r.created_at ? parseSafeDate(r.created_at) : Date.now(),
+        updatedAt: parseSafeDate(r.updated_at)
       }));
       const merged = mergeWallets(getWallets(), mapped);
       setWalletsLocalOnly(merged);
@@ -2807,6 +2777,66 @@ async function syncAllWithSupabase(silent = true) {
       console.warn('User settings sync warn:', sErr);
     }
 
+    // Scan and auto-generate missing transactions for active debts
+    try {
+      const currentDebts = getDebts();
+      const currentTxs = getTransactions();
+      let txsUpdated = false;
+      const newTxs = [...currentTxs];
+
+      // Find or create "Utang Piutang" category
+      let cat = getCategories().find(c => c.name === 'Utang Piutang');
+      if(!cat){
+        const catId = 'cat_' + uid();
+        const newCat = {
+          id: catId,
+          name: 'Utang Piutang',
+          type: 'expense',
+          icon: 'users',
+          color: '#3b82f6',
+          updatedAt: Date.now()
+        };
+        setCategories([...getCategories(), newCat]);
+        cat = newCat;
+      }
+
+      for (const d of currentDebts) {
+        if (d.status === 'belum' || d.status === 'active') {
+          const txId = 'tx_debt_' + d.id;
+          const exists = currentTxs.some(t => t.id === txId);
+          if (!exists) {
+            const primary = getWallets().find(w => w.isPrimary) || getWallets()[0];
+            const wId = primary ? primary.id : '';
+            if (wId) {
+              const txType = d.type === 'utang' ? 'income' : 'expense';
+              const typeLabel = d.type === 'utang' ? 'Utang Baru ke' : 'Piutang Baru ke';
+              const txNote = `${typeLabel} ${d.personName}: ${d.note || ''}`.trim();
+              newTxs.push({
+                id: txId,
+                walletId: wId,
+                categoryId: cat.id,
+                category: 'Utang Piutang',
+                type: txType,
+                amount: d.amount,
+                date: d.date || todayStr(),
+                note: txNote,
+                updatedAt: Date.now()
+              });
+              txsUpdated = true;
+            }
+          }
+        }
+      }
+
+      if (txsUpdated) {
+        setTransactions(newTxs);
+        recalculateWalletBalances();
+        setTimeout(() => triggerSync(), 2000);
+      }
+    } catch(migErr) {
+      console.warn('Debt transaction migration err:', migErr);
+    }
+
     const afterHash = getContentHash();
     updateSyncStatusUI('online');
     if (beforeHash !== afterHash) {
@@ -2821,6 +2851,7 @@ async function syncAllWithSupabase(silent = true) {
     updateSyncStatusUI('offline');
   } finally {
     isSyncingData = false;
+    hasSyncedAtLeastOnce = true;
     if (isSyncNeededAgain) {
       isSyncNeededAgain = false;
       setTimeout(() => syncAllWithSupabase(true), 100);
@@ -2870,73 +2901,37 @@ function closeConfirmModal(result){
   }
 }
 
-let inputModalResolver = null;
-
-/* Pengganti window.prompt() dengan modal bergaya web app.
-   opts: {title, text, label, value, placeholder, prefix ('Rp' dsb), isRupiah:true untuk auto format ribuan} */
-function showInputModal(opts){
-  opts = opts || {};
-  const titleEl = document.getElementById('inputModalTitle');
-  const textEl = document.getElementById('inputModalText');
-  const labelEl = document.getElementById('inputModalLabel');
-  const prefixEl = document.getElementById('inputModalPrefix');
-  const fieldEl = document.getElementById('inputModalField');
-
-  titleEl.textContent = opts.title || 'Masukkan Nilai';
-
-  if(opts.text){
-    textEl.textContent = opts.text;
-    textEl.style.display = '';
-  } else {
-    textEl.style.display = 'none';
-  }
-
-  if(opts.label){
-    labelEl.textContent = opts.label;
-    labelEl.style.display = '';
-  } else {
-    labelEl.style.display = 'none';
-  }
-
-  if(opts.prefix){
-    prefixEl.textContent = opts.prefix;
-    prefixEl.style.display = '';
-  } else {
-    prefixEl.style.display = 'none';
-  }
-
-  fieldEl.value = opts.value != null ? String(opts.value) : '';
-  fieldEl.placeholder = opts.placeholder || '';
-  fieldEl.inputMode = opts.isRupiah ? 'numeric' : 'text';
-  fieldEl.oninput = opts.isRupiah ? function(){ formatThousandInput(this); } : null;
-  fieldEl.onkeydown = function(e){ if(e.key === 'Enter'){ e.preventDefault(); submitInputModal(); } };
-
-  const okBtn = document.getElementById('inputModalOkBtn');
-  okBtn.textContent = opts.okText || 'OK';
-
-  openModal('modalInputDialog');
-  setTimeout(() => { fieldEl.focus(); fieldEl.select(); }, 200);
+let promptModalResolver = null;
+function showPromptModal({ title, label, defaultValue }) {
+  document.getElementById('promptModalTitle').textContent = title || 'Input';
+  document.getElementById('promptModalLabel').textContent = label || 'Masukkan nilai:';
+  const inputEl = document.getElementById('promptModalInput');
+  inputEl.value = defaultValue || '';
+  
+  openModal('modalPromptDialog');
+  
+  setTimeout(() => {
+    inputEl.focus();
+    inputEl.select();
+  }, 100);
 
   return new Promise((resolve) => {
-    inputModalResolver = resolve;
+    promptModalResolver = resolve;
   });
 }
-
-function submitInputModal(){
-  const fieldEl = document.getElementById('inputModalField');
-  const val = fieldEl.value;
-  closeInputModal(val);
-}
-
-function closeInputModal(result){
-  closeModal('modalInputDialog');
-  if(inputModalResolver){
-    const resolve = inputModalResolver;
-    inputModalResolver = null;
+function closePromptModal(val) {
+  closeModal('modalPromptDialog');
+  if (promptModalResolver) {
+    const resolve = promptModalResolver;
+    promptModalResolver = null;
     setTimeout(() => {
-      resolve(result);
+      resolve(val);
     }, 150);
   }
+}
+function submitPromptModal() {
+  const val = document.getElementById('promptModalInput').value.trim();
+  closePromptModal(val);
 }
 
 function copySyncUrlToClipboard() {
@@ -3072,7 +3067,7 @@ function setDebts(d){
 }
 
 /* =========================================================
-   BOTTOM NAV MOBILE — konfigurasi slot inti + "Lainnya"
+   BOTTOM NAV MOBILE ΓÇö konfigurasi slot inti + "Lainnya"
    Side-nav desktop TIDAK memakai konfigurasi ini, tetap tampilkan semua
    halaman seperti biasa (lihat markup <nav class="side-nav">).
    ========================================================= */
@@ -3284,7 +3279,7 @@ function formatThousandInput(el){
   el.setSelectionRange(pos, pos);
 }
 /* =========================================================
-   CUSTOM AMOUNT KEYPAD — pengganti keyboard bawaan, ada tombol "000"
+   CUSTOM AMOUNT KEYPAD ΓÇö pengganti keyboard bawaan, ada tombol "000"
    ========================================================= */
 let keypadTargetId = null;
 let keypadPadEl = null;
@@ -3336,7 +3331,7 @@ function keypadFormatNumSegment(seg){
 }
 function keypadFormatExpr(expr){
   if(!expr) return '';
-  const dispOps = {'+':' + ','-':' − ','*':' × ','/':' ÷ '};
+  const dispOps = {'+':' + ','-':' ΓêÆ ','*':' ├ù ','/':' ├╖ '};
   let result = '', current = '';
   for(const ch of expr){
     if('+-*/'.includes(ch)){
@@ -3415,7 +3410,7 @@ function setAmountValue(inputId, amount){
 }
 
 /* =========================================================
-   AUTO-TRIGGER KEYPAD — tampilkan keyboard kustom di mobile/narrow viewport
+   AUTO-TRIGGER KEYPAD ΓÇö tampilkan keyboard kustom di mobile/narrow viewport
    ========================================================= */
 function isTouchDevice(){
   return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -3430,7 +3425,7 @@ function setupAmountKeypadAutoTrigger(){
     input.dataset.keypadBound = '1';
 
     input.addEventListener('focus', function(e){
-      if(!shouldShowKeypad()) return; // wide desktop — use physical keyboard only
+      if(!shouldShowKeypad()) return; // wide desktop ΓÇö use physical keyboard only
 
       const inputId = this.id;
       if(!inputId) return;
@@ -3477,7 +3472,7 @@ if(_origCloseModal){
   };
 }
 /* =========================================================
-   QUICK CHIPS — kategori & nominal yang paling sering dipakai
+   QUICK CHIPS ΓÇö kategori & nominal yang paling sering dipakai
    ========================================================= */
 function topFrequent(items, keyFn, limit){
   const freq = {};
@@ -3581,7 +3576,7 @@ function editTransaction(id, updated){
   const idx = txs.findIndex(t => t.id === id);
   if(idx === -1) return;
   const old = txs[idx];
-  // rollback efek saldo LAMA — cuma kalau dulu beneran udah "cair" ke saldo (bukan pending)
+  // rollback efek saldo LAMA ΓÇö cuma kalau dulu beneran udah "cair" ke saldo (bukan pending)
   if(!old.pending){
     if(old.type === 'transfer'){
       applyBalanceDelta(old.walletId, old.amount);
@@ -3594,7 +3589,7 @@ function editTransaction(id, updated){
   merged.pending = isFutureDate(merged.date);
   txs[idx] = merged;
   setTransactionsLocalOnly(txs);
-  // terapkan efek saldo BARU — cuma kalau tanggal barunya bukan masa depan
+  // terapkan efek saldo BARU ΓÇö cuma kalau tanggal barunya bukan masa depan
   if(!merged.pending){
     if(merged.type === 'transfer'){
       applyBalanceDelta(merged.walletId, -merged.amount);
@@ -3649,7 +3644,7 @@ function addTransfer(transfer){
 }
 
 // Dipanggil saat app dibuka / fokus / tiap beberapa detik: cek transaksi "masa depan" (pending)
-// yang tanggalnya udah tiba (<= hari ini) — begitu ketemu, "cairkan" ke saldo dompet otomatis.
+// yang tanggalnya udah tiba (<= hari ini) ΓÇö begitu ketemu, "cairkan" ke saldo dompet otomatis.
 function activateDuePendingTransactions(){
   const txs = getTransactions();
   const today = todayStr();
@@ -3985,7 +3980,7 @@ function switchTabUI(tab){
    Laporan -> lompat ke Transaksi terfilter). Ini menumpuk 1 layer BARU alih-alih
    mengganti layer tab yang sedang aktif, supaya Back fisik/browser mundur balik ke
    tab asal (dengan state/tampilannya yang sama persis, karena state tab asal itu
-   -mis. laporanMonth- tidak direset) dulu, baru ke Beranda — bukan langsung loncat
+   -mis. laporanMonth- tidak direset) dulu, baru ke Beranda ΓÇö bukan langsung loncat
    ke Beranda. Pindah tab biasa lewat bottom nav TETAP pakai perilaku lama (replace,
    tidak menumpuk) supaya Back dari situ tidak nyangkut banyak layer. */
 function switchTab(tab, opts){
@@ -3995,7 +3990,7 @@ function switchTab(tab, opts){
 
   if(tab === 'beranda' && prevTab !== 'beranda'){
     /* Kembali ke Beranda = pulang ke layer paling awal (navId 0) sekaligus, berapa pun
-       banyaknya layer yang menumpuk di atasnya (mis. Laporan -> Transaksi drilldown) —
+       banyaknya layer yang menumpuk di atasnya (mis. Laporan -> Transaksi drilldown) ΓÇö
        supaya tap "Beranda" di bottom nav SELALU langsung ke Beranda, bukan cuma mundur
        1 layer. history.go(-N) tetap cuma memicu 1 event popstate (bukan N event), jadi
        loop di popstate handler yang membereskan sisa layer/modal di antaranya.
@@ -4038,7 +4033,7 @@ window.addEventListener('popstate', function(e){
   }
   const top = navStack[navStack.length - 1];
   /* Kalau top navStack masih berupa modal (mis. modal Set Limit ditutup tapi modal
-     Edit Anggaran di bawahnya masih terbuka), tab background TIDAK boleh ikut pindah —
+     Edit Anggaran di bawahnya masih terbuka), tab background TIDAK boleh ikut pindah ΓÇö
      cari tab aktif terakhir di stack, jangan asal fallback ke beranda. */
   if(top && top.type === 'tab'){
     if(top.tab !== currentTab) switchTabUI(top.tab);
@@ -4054,17 +4049,17 @@ window.addEventListener('popstate', function(e){
 });
 
 /* Chart.js kadang gagal render dengan benar (donut/tren jadi kosong atau kecil sekali)
-   setelah halaman ini sempat disembunyikan — pindah ke app lain lalu balik lagi, atau
+   setelah halaman ini sempat disembunyikan ΓÇö pindah ke app lain lalu balik lagi, atau
    browser/WebView menghentikan sementara tab di background. Penyebabnya: ukuran canvas
    sempat dihitung saat container-nya tidak terlihat (0 lebar/tinggi), jadi chart-nya
    "nyangkut" di ukuran yang salah. Fix: begitu halaman terlihat lagi, render ulang tab
-   yang sedang aktif — ini otomatis destroy & bikin ulang semua chart dari nol dengan
+   yang sedang aktif ΓÇö ini otomatis destroy & bikin ulang semua chart dari nol dengan
    ukuran yang benar (lihat switchTabUI: renderHome/renderTransactions/dst masing-masing
    memanggil ulang renderDonut/renderTrendChart). */
 function refreshChartsOnResume(){
   /* PENTING: jangan render ulang langsung secara sinkron di sini. Saat visibilitychange
      baru saja terpicu (app baru balik dari background / tab baru terlihat lagi), ukuran
-     container di layout kadang BELUM final — masih di ukuran sementara/lebih kecil selama
+     container di layout kadang BELUM final ΓÇö masih di ukuran sementara/lebih kecil selama
      sepersekian detik akibat transisi UI OS/WebView. Kalau Chart.js diukur & digambar tepat
      di momen itu, dia akan "nyangkut" di ukuran kecil itu walau sesaat kemudian container
      sudah benar. Makanya kita tunda render ulang 2x animation frame supaya browser sempat
@@ -4156,7 +4151,7 @@ document.addEventListener('keydown', function(e){
   btn.click();
 });
 /* Dipakai saat 1 modal "menggantikan" modal lain dalam 1 aksi klik (mis. pilih opsi
-   di modalAddChoice langsung buka modalTransaction) — pakai replaceState (bukan
+   di modalAddChoice langsung buka modalTransaction) ΓÇö pakai replaceState (bukan
    back()+pushState() terpisah) supaya tidak race dengan navigasi async. */
 function swapModal(oldId, newId){
   closeModalUI(oldId);
@@ -4165,7 +4160,7 @@ function swapModal(oldId, newId){
 }
 function openAddChoice(){ openModal('modalAddChoice'); }
 /* ==================================================================
-   Gesture FAB — REWRITE TOTAL #2 (murni jarak, tanpa syarat waktu sama sekali).
+   Gesture FAB ΓÇö REWRITE TOTAL #2 (murni jarak, tanpa syarat waktu sama sekali).
    - TAP (sentuh & lepas, geser tidak berarti apa2)   -> buka menu pilihan (openAddChoice)
    - DRAG ke ATAS sampai mentok (jarak >= threshold)  -> buka Transaksi via AI
    - DRAG ke KIRI sampai mentok (jarak >= threshold)  -> buka Transaksi manual
@@ -4184,15 +4179,15 @@ function openAddChoice(){ openModal('modalAddChoice'); }
    Penyebab sebenarnya: GHOST-CLICK (dan ghost-hover). Begitu menu pilihan
    (bottom-sheet) kebuka dari sebuah tap, browser masih bisa mengirim sequence
    event mouse kompatibilitas (mouseover/mousedown/mouseup/click) susulan dari
-   touch, yang jatuh tepat di koordinat bekas jari — dan kebetulan titik itu
+   touch, yang jatuh tepat di koordinat bekas jari ΓÇö dan kebetulan titik itu
    sering pas menimpa tombol "Transaksi via AI" di modal yang baru muncul,
    karena FAB & modal sama-sama di area kanan-bawah. `preventDefault()` di
    pointerdown ternyata tidak selalu cukup menahan sequence ini pada kombinasi
-   `setPointerCapture()` + touch Android tertentu — bukan cuma click yang bisa
+   `setPointerCapture()` + touch Android tertentu ΓÇö bukan cuma click yang bisa
    nyelonong, tapi mousedown/mouseover juga, yang bikin tombol kelihatan
    "ditekan" (background gelap) padahal user belum menyentuhnya. Fix: pasang
    overlay tak-terlihat sesaat (lihat fabArmClickGuard) setelah setiap gesture
-   FAB selesai, yang menutupi seluruh layar di depan semuanya — jadi sequence
+   FAB selesai, yang menutupi seluruh layar di depan semuanya ΓÇö jadi sequence
    ghost itu jatuh ke overlay, bukan ke tombol manapun, sehingga baik klik
    maupun efek visual "ditekan" sama-sama tidak bisa lolos. */
 const FAB_DRAG_THRESHOLD = 70;   // px yang harus ditempuh sampai dianggap "mentok"
@@ -4201,12 +4196,12 @@ const FAB_CLICK_GUARD_MS = 400;  // durasi "penjegal klik" setelah gesture FAB s
 
 /* Penjegal ghost-click & ghost-hover: pasang overlay tak-terlihat SEKALI di atas seluruh
    layar sesaat setelah setiap gesture FAB selesai. Ini menggantikan pendekatan lama yang
-   cuma "menelan" event click — karena ternyata event mouseover/mousedown susulan (bagian
+   cuma "menelan" event click ΓÇö karena ternyata event mouseover/mousedown susulan (bagian
    dari sequence kompatibilitas mouse yang dikirim browser setelah sentuhan touch) tetap bisa
    membuat tombol yang kebetulan ada di titik itu terlihat "ditekan" (background jadi gelap,
    state :hover/:active CSS), padahal user tidak benar-benar menekannya. Dengan overlay fisik
    di depan semuanya, hit-test dari sequence itu jatuh ke overlay (yang tidak melakukan
-   apa-apa), bukan ke tombol di baliknya — jadi baik klik maupun efek visual "ditekan" sama-
+   apa-apa), bukan ke tombol di baliknya ΓÇö jadi baik klik maupun efek visual "ditekan" sama-
    sama tidak bisa menembus ke tombol manapun. */
 let fabClickGuardEl = null;
 let fabClickGuardTimer = null;
@@ -4270,7 +4265,7 @@ function fabResetVisual(fabEl){
 function fabPressStart(ev){
   /* preventDefault di pointerdown: mencegah browser mengirim ghost-click ("click"
      kompatibilitas mouse) sesaat setelah pointerup, tepat di koordinat bekas jari
-     tadi — yang kalau tidak dicegah bisa "mengenai" tombol di modal yang baru
+     tadi ΓÇö yang kalau tidak dicegah bisa "mengenai" tombol di modal yang baru
      terbuka (krn FAB & modal sama2 di area kanan-bawah). */
   ev.preventDefault();
   const fabEl = ev.currentTarget;
@@ -4313,7 +4308,7 @@ function fabPressMove(ev){
     ? `translateY(${-clamped * 0.55}px) scale(${scale})`
     : `translateX(${-clamped * 0.55}px) scale(${scale})`;
 
-  // Murni feedback visual (warna "siap lepas" + getar) — TIDAK menentukan hasil akhir.
+  // Murni feedback visual (warna "siap lepas" + getar) ΓÇö TIDAK menentukan hasil akhir.
   // Keputusan sesungguhnya baru diambil satu kali di fabPressEnd.
   const wasReady = fabEl.classList.contains('drag-ready');
   const ready = clamped >= FAB_DRAG_THRESHOLD;
@@ -4347,13 +4342,13 @@ function fabPressEnd(ev){
   fabDrag.pointerId = null;
   fabResetVisual(fabEl);
 
-  // Nyalakan penjegal klik SEKARANG, sebelum modal manapun dibuka di bawah ini —
+  // Nyalakan penjegal klik SEKARANG, sebelum modal manapun dibuka di bawah ini ΓÇö
   // supaya ghost-click susulan dari gesture ini (apapun hasilnya: drag atau tap)
   // tidak bisa menembus ke tombol manapun yang kebetulan baru muncul di titik ini.
   fabArmClickGuard();
 
   // Dianggap drag sungguhan HANYA kalau arah sudah terkunci DAN jarak sampai mentok.
-  // Tidak ada syarat waktu/durasi sama sekali — murni jarak.
+  // Tidak ada syarat waktu/durasi sama sekali ΓÇö murni jarak.
   const isRealDrag = dir !== null && displacement >= FAB_DRAG_THRESHOLD;
 
   if(isRealDrag){
@@ -4441,7 +4436,7 @@ let chartRegistry = {};
 let homePeriod = 'month'; // 'day' | 'week' | 'month'
 const CHART_PALETTE = ['#0F766E','#C4453B','#B7791F','#8A6D3B','#1E8F5A','#5B6A68','#0B5951','#D97757','#3D5A80','#9B5DE5'];
 
-/* Donut selection state — hanya untuk pie compact di Dashboard */
+/* Donut selection state ΓÇö hanya untuk pie compact di Dashboard */
 let donutMeta = {};
 let donutSelection = {};
 function hexToRgba(hex, alpha){
@@ -4538,10 +4533,10 @@ function sumInRange(txs, type, startStr, endStr){
 }
 function compareBadgeHtml(current, prev){
   if(prev === 0 && current === 0) return '<span class="compare-badge flat">0%</span>';
-  if(prev === 0) return '<span class="compare-badge up">▲ baru</span>';
+  if(prev === 0) return '<span class="compare-badge up">Γû▓ baru</span>';
   const pct = ((current - prev) / prev) * 100;
   const cls = pct > 0.5 ? 'up' : (pct < -0.5 ? 'down' : 'flat');
-  const arrow = pct > 0.5 ? '▲' : (pct < -0.5 ? '▼' : '–');
+  const arrow = pct > 0.5 ? 'Γû▓' : (pct < -0.5 ? 'Γû╝' : 'ΓÇô');
   return `<span class="compare-badge ${cls}">${arrow} ${Math.abs(pct).toFixed(0)}%</span>`;
 }
 
@@ -4583,12 +4578,11 @@ function renderHome(){
     return (a.createdAt ?? 0) - (b.createdAt ?? 0);
   });
 
+  const checkedWallets = sortedWallets.filter(w => selectedWalletIds.includes(w.id));
   let walletsToRender = [];
   const expandBtn = document.getElementById('heroExpandBtn');
   const expandBtnWrap = document.getElementById('heroExpandBtnWrap');
-
-  // Tombol "Lihat semua dompet" tampil kalau total dompet lebih dari 2 —
-  // terlepas dari berapa yang dicentang di Pengaturan Total Saldo.
+  
   if (sortedWallets.length <= 2) {
     walletsToRender = sortedWallets;
     if (expandBtn) expandBtn.style.display = 'none';
@@ -4698,7 +4692,7 @@ function renderHome(){
   } else if(overCount > 0){
     alertWrap.innerHTML = `<div class="budget-alert-row">${warnSvg()}<span>${overCount} kategori sudah melebihi budget bulan ini</span></div>`;
   } else if(warnCount > 0){
-    alertWrap.innerHTML = `<div class="budget-alert-row">${warnSvg()}<span>${warnCount} kategori sudah mendekati (≥80%) limit budget</span></div>`;
+    alertWrap.innerHTML = `<div class="budget-alert-row">${warnSvg()}<span>${warnCount} kategori sudah mendekati (ΓëÑ80%) limit budget</span></div>`;
   } else {
     alertWrap.innerHTML = `<div class="budget-alert-row ok">${okSvg()}<span>Semua budget masih dalam batas aman</span></div>`;
   }
@@ -4711,7 +4705,7 @@ function renderHome(){
 
 /* Rata-rata Harian (Beranda): total pengeluaran bulan berjalan & per kategori pilihan
    (diatur langsung dari tombol "Atur Kategori" di Beranda), dibagi jumlah hari yang
-   sudah berjalan di bulan ini — supaya dasbord tetap ringkas, hanya kategori yang
+   sudah berjalan di bulan ini ΓÇö supaya dasbord tetap ringkas, hanya kategori yang
    dipilih user yang muncul. */
 function renderDailyAverages(){
   const wrap = document.getElementById('dailyAvgList');
@@ -4737,7 +4731,7 @@ function renderDailyAverages(){
 
   const rows = [`
     <div class="legend-card-item" style="cursor:default;">
-      <div class="ic" style="background:var(--accent);">Σ</div>
+      <div class="ic" style="background:var(--accent);">╬ú</div>
       <span class="name">Total Rata-rata Harian</span>
       <span class="amt">${formatRupiah(totalAvg)}/hari</span>
     </div>`];
@@ -4989,7 +4983,7 @@ function prevMonthStr(monthStr){
 
 function computeRangeBalances(endDateStr){
   const wallets = getWallets();
-  const totalNow = wallets.filter(w => w.id !== 'wallet_tabungan').reduce((s,w) => s + w.balance, 0);
+  const totalNow = wallets.reduce((s,w) => s + w.balance, 0);
   const allTx = getTransactions();
   const netAfter = allTx.filter(t => (t.type === 'income' || t.type === 'expense') && t.date > endDateStr)
     .reduce((s,t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
@@ -5356,7 +5350,7 @@ function renderTrendChart(){
    RENDER: TRANSAKSI
    ========================================================= */
 let filterMonthValue = null, filterWalletValue = 'all', filterCategoryValue = 'all';
-let txPeriodMode = 'month'; // 'day' | 'week' | 'month' | 'year' — pola sama dengan laporanPeriodMode di tab Laporan
+let txPeriodMode = 'month'; // 'day' | 'week' | 'month' | 'year' ΓÇö pola sama dengan laporanPeriodMode di tab Laporan
 let txWeekStart = null; // 'YYYY-MM-DD' (Senin), dipakai saat txPeriodMode === 'week'
 let filterDayValue = null; // 'YYYY-MM-DD', dipakai saat txPeriodMode === 'day'
 let filterYearValue = null; // 'YYYY', dipakai saat txPeriodMode === 'year'
@@ -5495,11 +5489,11 @@ function openFilterCategoryPicker(){
 
 /* =========================================================
    PENCARIAN (Transaksi & Laporan)
-   — Cocokkan berdasar kategori, keterangan, nominal, dan tanggal.
-   — Multi-kata: tiap kata query harus ada di teks transaksi, TIDAK
+   ΓÇö Cocokkan berdasar kategori, keterangan, nominal, dan tanggal.
+   ΓÇö Multi-kata: tiap kata query harus ada di teks transaksi, TIDAK
      harus berurutan (mis. query "kopi 20000 senin" tetap cocok walau
      urutan kemunculan kata di transaksi beda).
-   — Hasil selalu mengikuti filter periode (hari/minggu/bulan/tahun)
+   ΓÇö Hasil selalu mengikuti filter periode (hari/minggu/bulan/tahun)
      yang sedang aktif di tab masing-masing.
    ========================================================= */
 let txSearchOpen = false, txSearchQuery = '';
@@ -5646,9 +5640,9 @@ function renderTransactions(){
   if(catFilter !== 'all') txs = txs.filter(t => t.category === catFilter);
   if(txSearchOpen && txSearchQuery.trim()) txs = applySearchFilter(txs, txSearchQuery);
   if(txViewFuture){
-    txs.sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)); // yg paling deket dulu
+    txs.sort((a,b) => a.date.localeCompare(b.date) || (b.updatedAt || 0) - (a.updatedAt || 0) || a.id.localeCompare(b.id)); // yg paling deket dulu, terbaru di atas
   } else {
-    txs.sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    txs.sort((a,b) => b.date.localeCompare(a.date) || (b.updatedAt || 0) - (a.updatedAt || 0) || b.id.localeCompare(a.id));
   }
 
   const hint = document.getElementById('txSearchHint');
@@ -5689,9 +5683,9 @@ function txItemHtml(t){
     sign = '-'; amtClass = 'expense'; metaExtra = w ? w.name : 'Dompet Terhapus';
   } else {
     iconHtml = `<div class="tx-icon transfer">${transferSvg()}</div>`;
-    sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w?w.name:'Dompet Terhapus') + ' → ' + (tw?tw.name:'Dompet Terhapus');
+    sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w?w.name:'Dompet Terhapus') + ' ΓåÆ ' + (tw?tw.name:'Dompet Terhapus');
   }
-  const note = t.note ? ' · ' + t.note : '';
+  const note = t.note ? ' ┬╖ ' + t.note : '';
   const pendingBadge = t.pending ? ' <span class="tx-pending-badge">Terjadwal</span>' : '';
   return `<div class="tx-item" onclick="openTransactionModal('${t.id}')">
     ${iconHtml}
@@ -5730,15 +5724,15 @@ function chooseAddQuickTx(){
 }
 
 /* =========================================================
-   TAMBAH VIA AI (SCAN FOTO) — fitur 4
+   TAMBAH VIA AI (SCAN FOTO) ΓÇö fitur 4
    WAJIB ada Gemini API Key di Settings. Foto dikirim & dibaca sungguhan
-   lewat Gemini Vision (aiScanWithGemini). Tidak ada data dummy/simulasi —
+   lewat Gemini Vision (aiScanWithGemini). Tidak ada data dummy/simulasi ΓÇö
    kalau key belum diisi atau request gagal, ditampilkan error yang jelas.
    ========================================================= */
 let aiCaptureFiles = [];
 let aiScanRows = [];
 let aiWalletValue = null;
-let aiScanTextValue = ''; // input teks bebas (BARU) — dipakai berdampingan dengan lampiran foto
+let aiScanTextValue = ''; // input teks bebas (BARU) ΓÇö dipakai berdampingan dengan lampiran foto
 
 // ==== Rekam suara (VN) untuk Transaksi via AI ====
 // aiVoiceAudioPart: generative part audio yang SUDAH di-base64-kan, siap dikirim ke Gemini
@@ -5751,7 +5745,7 @@ let aiMicRecording = false;
 let aiVoiceAudioPart = null;
 
 // Peta slang nominal Indonesia yang nilainya SUDAH PASTI/TIDAK AMBIGU (beda dengan mis. "cepek"
-// yang bisa berarti 100 ATAU 100.000 tergantung konteks — sengaja TIDAK dimasukkan ke peta ini,
+// yang bisa berarti 100 ATAU 100.000 tergantung konteks ΓÇö sengaja TIDAK dimasukkan ke peta ini,
 // biar tetap diserahkan ke penalaran AI seperti biasa).
 const SLANG_NOMINAL_MAP = {
   seceng: 1000,
@@ -5763,7 +5757,7 @@ const SLANG_NOMINAL_MAP = {
 };
 // Sisipkan angka literal di sebelah kata slang nominal SEBELUM teks dikirim ke AI. Ini bikin
 // aturan "ADA ANGKA APAPUN = otomatis valid" di prompt kepicu secara PASTI (angkanya beneran
-// tertulis, bukan cuma dikira-kira AI dari kata gaulnya) — jadi gak gantung 100% ke kepatuhan
+// tertulis, bukan cuma dikira-kira AI dari kata gaulnya) ΓÇö jadi gak gantung 100% ke kepatuhan
 // model terhadap instruksi soal daftar slang. Teks asli user TETAP dipakai apa adanya untuk
 // ditampilkan di UI; ini cuma dipakai buat versi yang dikirim ke API.
 function annotateSlangNominalForAi(text){
@@ -5806,7 +5800,7 @@ function onAiFilesAdded(e){
   e.target.value = ''; // biar bisa ambil foto kamera berkali-kali / pilih file yang sama lagi
   renderAiFileChips();
 }
-// Dipanggil saat user mengetik di kolom teks bebas (BARU) — dipakai untuk menentukan aktif/
+// Dipanggil saat user mengetik di kolom teks bebas (BARU) ΓÇö dipakai untuk menentukan aktif/
 // tidaknya tombol "Analisis dengan AI" (aktif kalau teks ATAU foto terisi, salah satu saja cukup).
 function onAiTextInput(el){
   aiScanTextValue = el.value;
@@ -5826,7 +5820,7 @@ function renderAiFileChips(){
   updateAiScanAnalyzeBtnState();
 }
 // Tombol "Analisis dengan AI" aktif kalau SALAH SATU dari teks bebas atau foto terisi
-// (boleh dua-duanya sekaligus, boleh salah satu saja) — lihat bagian 5.1 PRD perluasan.
+// (boleh dua-duanya sekaligus, boleh salah satu saja) ΓÇö lihat bagian 5.1 PRD perluasan.
 function updateAiScanAnalyzeBtnState(){
   const hasText = (aiScanTextValue || '').trim().length > 0;
   document.getElementById('aiScanAnalyzeBtn').disabled = !hasText && aiCaptureFiles.length === 0;
@@ -5847,7 +5841,7 @@ function onAiScanTextKeydown(e){
   btn.click();
 }
 // Ketuk mic: mulai rekam. Ketuk lagi saat sedang rekam: berhenti lalu LANGSUNG kirim ke Gemini
-// (tidak perlu klik "Analisis dengan AI" manual) — audio diperlakukan sebagai transkrip VN,
+// (tidak perlu klik "Analisis dengan AI" manual) ΓÇö audio diperlakukan sebagai transkrip VN,
 // mengikuti aturan pemecahan multi-transaksi yang sudah ada di prompt (lihat poin 4 promptText).
 async function toggleAiVoiceRecording(){
   if(aiMicRecording){ stopAiVoiceRecording(); return; }
@@ -5903,7 +5897,7 @@ function setAiMicUiRecording(isRecording){
   if(btn) btn.classList.toggle('recording', isRecording);
   if(hint){
     hint.style.display = isRecording ? 'block' : 'none';
-    hint.textContent = isRecording ? 'Merekam… ketuk mic lagi untuk berhenti & analisis otomatis' : '';
+    hint.textContent = isRecording ? 'MerekamΓÇª ketuk mic lagi untuk berhenti & analisis otomatis' : '';
   }
 }
 async function onAiVoiceRecordingStopped(){
@@ -5917,7 +5911,7 @@ async function onAiVoiceRecordingStopped(){
     showToast('Rekaman terlalu pendek, coba lagi');
     return;
   }
-  if(hint){ hint.style.display = 'block'; hint.textContent = 'Memproses rekaman suara…'; }
+  if(hint){ hint.style.display = 'block'; hint.textContent = 'Memproses rekaman suaraΓÇª'; }
   const reader = new FileReader();
   reader.onload = () => {
     const base64 = String(reader.result).split(',')[1] || '';
@@ -5951,7 +5945,7 @@ function startAiScanAnalysis(){
     document.getElementById('aiScanErrorView').style.display = 'block';
   };
   if(!key){
-    showAiScanError('Fitur scan AI butuh Gemini API Key. Buka Settings → isi "Gemini API Key" dulu, baru coba lagi.');
+    showAiScanError('Fitur scan AI butuh Gemini API Key. Buka Settings ΓåÆ isi "Gemini API Key" dulu, baru coba lagi.');
     return;
   }
   aiScanWithGemini(key)
@@ -5971,7 +5965,7 @@ function retryAiScanAnalysis(){
   document.getElementById('aiScanErrorView').style.display = 'none';
   startAiScanAnalysis();
 }
-// Sambungan Gemini Vision — dipakai untuk membaca struk/screenshot mutasi.
+// Sambungan Gemini Vision ΓÇö dipakai untuk membaca struk/screenshot mutasi.
 // Kalau Gemini API Key belum diisi, fitur ini tidak bisa dipakai sama sekali (lihat startAiScanAnalysis).
 async function aiScanWithGemini(key){
   const expenseCats = getCategories().filter(c => c.type === 'expense').map(c => c.name);
@@ -5981,22 +5975,22 @@ async function aiScanWithGemini(key){
     '(a) Foto/gambar struk belanja kasir/supermarket/toko (seperti Alfamart, Indomaret, dsb.) yang berisi daftar barang belanjaan (items) beserta diskon, PPN/pajak, dan grand total.\n' +
     '(b) Screenshot riwayat/mutasi m-banking atau e-wallet (list transaksi bertumpuk ke bawah).\n' +
     '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n' +
-    '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
-    'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan). CATATAN: di bagian ini, beberapa kata slang nominal (seceng/goceng/ceban/noceng/goban/gocap) mungkin sudah diberi angka literal dalam kurung tepat setelahnya oleh sistem (mis. "parkir seceng(1000)") — itu HANYA petunjuk nilai nominal buat kamu, JANGAN disalin apa adanya (termasuk tanda kurungnya) ke field "note", tulis "note" secara natural seperti biasa (mis. "Parkir").\n\n' +
+    '(d) Foto BEBAS yang BUKAN struk/dokumen finansial ΓÇö mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
+    'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" ΓÇö itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari (boleh dipakai sendirian tanpa foto, atau digabung dengan foto sebagai keterangan/caption tambahan untuk foto yang dilampirkan). CATATAN: di bagian ini, beberapa kata slang nominal (seceng/goceng/ceban/noceng/goban/gocap) mungkin sudah diberi angka literal dalam kurung tepat setelahnya oleh sistem (mis. "parkir seceng(1000)") ΓÇö itu HANYA petunjuk nilai nominal buat kamu, JANGAN disalin apa adanya (termasuk tanda kurungnya) ke field "note", tulis "note" secara natural seperti biasa (mis. "Parkir").\n\n' +
     '0. VALIDASI WAJIB SEBELUM MEMBUAT TRANSAKSI APAPUN (baca pelan-pelan, ini aturan PALING PENTING):\n' +
-    '   - ATURAN JALAN PINTAS (paling utama, cek ini duluan sebelum aturan lain di bawah): kalau di dalam teks ADA ANGKA APAPUN yang bisa dibaca sebagai nominal uang — angka polos (mis. "2", "200", "300"), angka+satuan (mis. "300rb", "2rb", "2k", "4.3jt"), ATAU slang nominal (mis. "seceng", "goceng", "cepek", "ceban", "goban/gocap") — maka TERLEPAS SEAMBIGU APAPUN sisa kalimatnya, teks itu OTOMATIS DIANGGAP VALID dan WAJIB dibuatkan objek transaksinya. JANGAN PERNAH ditolak/dikeluarkan array kosong kalau ada angka semacam ini, apapun alasannya — cukup tentukan tebakan terbaik untuk "type"/"category"/"note", dan "amount" diisi sesuai angka yang terdeteksi.\n' +
-    '   - Kalau di dalam teks TIDAK ADA angka/nominal sama sekali DAN sisa kalimatnya juga ambigu (tidak jelas ada aktivitas ekonominya), barulah boleh dipertimbangkan untuk ditolak (array kosong) — TAPI tetap usahakan SEMINIMAL MUNGKIN menolak: kalau masih ada kata benda/kata kerja/nama tempat apapun yang berpotensi berkaitan aktivitas ekonomi meski tanpa angka (mis. "kopi", "parkir", "token listrik" tanpa nominal), tetap WAJIB diproses dengan amount 0 (lihat poin 4), BUKAN ditolak.\n' +
-    '   - DEFINISI "transaksi": SEGALA kalimat/frasa yang menyiratkan ada aktivitas ekonomi — uang keluar, uang masuk, ATAU sekadar aktivitas yang LAZIMNYA melibatkan uang di kehidupan sehari-hari orang Indonesia — dianggap transaksi. Ini bukan cuma "beli barang": termasuk juga jasa/servis, transportasi/ongkos, parkir, makan/minum di suatu tempat, langganan (Netflix/Spotify/pulsa/paket data/token listrik/wifi/PDAM/gas), tagihan/cicilan (KPR/kartu kredit/asuransi/BPJS/pajak kendaraan), pendidikan (SPP/les/buku), kesehatan (obat/dokter/vitamin), sosial-keagamaan (zakat/infaq/sumbangan/kondangan/THR/amplop), denda/tilang, sewa, titip/minjem/minjemin/bayar utang, nabung/investasi/setor, gaji/bonus/THR/hasil jualan/uang saku, hadiah/kado, dan aktivitas ekonomi harian lain yang sejenis — daftar ini CONTOH bukan daftar tertutup, pakai penalaran umummu untuk kategori sejenis yang tidak disebut di sini.\n' +
-    '   - Sikap default kamu adalah SANGAT PERMISIF/INKLUSIF: kalau ada keraguan sedikit pun, SELALU pilih untuk MENGANGGAP itu transaksi dan memprosesnya — jangan pernah menolak hanya karena tidak 100% yakin. Yang BOLEH ditolak (dikeluarkan array kosong []) HANYA kalau MEMENUHI SEMUA syarat ini sekaligus: (a) TIDAK ada angka/nominal sama sekali di kalimat (lihat ATURAN JALAN PINTAS di atas), DAN (b) kalimatnya cocok dengan salah satu dari 3 kategori sempit ini:\n' +
+    '   - ATURAN JALAN PINTAS (paling utama, cek ini duluan sebelum aturan lain di bawah): kalau di dalam teks ADA ANGKA APAPUN yang bisa dibaca sebagai nominal uang ΓÇö angka polos (mis. "2", "200", "300"), angka+satuan (mis. "300rb", "2rb", "2k", "4.3jt"), ATAU slang nominal (mis. "seceng", "goceng", "cepek", "ceban", "goban/gocap") ΓÇö maka TERLEPAS SEAMBIGU APAPUN sisa kalimatnya, teks itu OTOMATIS DIANGGAP VALID dan WAJIB dibuatkan objek transaksinya. JANGAN PERNAH ditolak/dikeluarkan array kosong kalau ada angka semacam ini, apapun alasannya ΓÇö cukup tentukan tebakan terbaik untuk "type"/"category"/"note", dan "amount" diisi sesuai angka yang terdeteksi.\n' +
+    '   - Kalau di dalam teks TIDAK ADA angka/nominal sama sekali DAN sisa kalimatnya juga ambigu (tidak jelas ada aktivitas ekonominya), barulah boleh dipertimbangkan untuk ditolak (array kosong) ΓÇö TAPI tetap usahakan SEMINIMAL MUNGKIN menolak: kalau masih ada kata benda/kata kerja/nama tempat apapun yang berpotensi berkaitan aktivitas ekonomi meski tanpa angka (mis. "kopi", "parkir", "token listrik" tanpa nominal), tetap WAJIB diproses dengan amount 0 (lihat poin 4), BUKAN ditolak.\n' +
+    '   - DEFINISI "transaksi": SEGALA kalimat/frasa yang menyiratkan ada aktivitas ekonomi ΓÇö uang keluar, uang masuk, ATAU sekadar aktivitas yang LAZIMNYA melibatkan uang di kehidupan sehari-hari orang Indonesia ΓÇö dianggap transaksi. Ini bukan cuma "beli barang": termasuk juga jasa/servis, transportasi/ongkos, parkir, makan/minum di suatu tempat, langganan (Netflix/Spotify/pulsa/paket data/token listrik/wifi/PDAM/gas), tagihan/cicilan (KPR/kartu kredit/asuransi/BPJS/pajak kendaraan), pendidikan (SPP/les/buku), kesehatan (obat/dokter/vitamin), sosial-keagamaan (zakat/infaq/sumbangan/kondangan/THR/amplop), denda/tilang, sewa, titip/minjem/minjemin/bayar utang, nabung/investasi/setor, gaji/bonus/THR/hasil jualan/uang saku, hadiah/kado, dan aktivitas ekonomi harian lain yang sejenis ΓÇö daftar ini CONTOH bukan daftar tertutup, pakai penalaran umummu untuk kategori sejenis yang tidak disebut di sini.\n' +
+    '   - Sikap default kamu adalah SANGAT PERMISIF/INKLUSIF: kalau ada keraguan sedikit pun, SELALU pilih untuk MENGANGGAP itu transaksi dan memprosesnya ΓÇö jangan pernah menolak hanya karena tidak 100% yakin. Yang BOLEH ditolak (dikeluarkan array kosong []) HANYA kalau MEMENUHI SEMUA syarat ini sekaligus: (a) TIDAK ada angka/nominal sama sekali di kalimat (lihat ATURAN JALAN PINTAS di atas), DAN (b) kalimatnya cocok dengan salah satu dari 3 kategori sempit ini:\n' +
     '     (i) Sapaan/basa-basi murni tanpa konteks lain sama sekali (mis. "halo", "hai", "hallo", "test", "tes", "p", "min", "oy", "woi").\n' +
     '     (ii) Pertanyaan/perintah ke asisten yang TIDAK menyebut barang/jasa/tempat/aktivitas/nominal apapun (mis. "gimana cuaca hari ini", "kamu siapa", "gimana cara pakai aplikasi ini").\n' +
     '     (iii) Teks acak/gibberish yang benar-benar tidak bisa dimaknai sama sekali (mis. karakter/huruf ngawur tanpa makna).\n' +
-    '     SELAIN kombinasi (a)+(b) di atas, WAJIB dianggap transaksi — termasuk kalimat pendek/singkat, satu kata benda saja (mis. "kopi", "bensin", "token listrik"), frasa TANPA kata kerja sama sekali, frasa TANPA nominal sama sekali (asal bukan kategori (i)/(ii)/(iii)), dan frasa yang aktivitasnya belum tentu 100% jelas jenisnya.\n' +
-    '   - JANGAN tertipu oleh typo, singkatan, bahasa gaul, ejaan tidak baku, ATAU kalimat yang ditulis terlalu ringkas/santai — koreksi dulu di kepalamu sebelum memutuskan apakah itu transaksi. Contoh: "beneirn hp rusak lcd rusak 300 rb" adalah typo dari "benerin hp rusak lcd rusak 300rb" = jasa servis/reparasi HP (LCD rusak) senilai Rp300.000 — ini transaksi expense yang VALID dan JELAS, bukan gibberish, dan HARUS diproses (bukan ditolak) meskipun ada typo/ejaan berantakan.\n' +
+    '     SELAIN kombinasi (a)+(b) di atas, WAJIB dianggap transaksi ΓÇö termasuk kalimat pendek/singkat, satu kata benda saja (mis. "kopi", "bensin", "token listrik"), frasa TANPA kata kerja sama sekali, frasa TANPA nominal sama sekali (asal bukan kategori (i)/(ii)/(iii)), dan frasa yang aktivitasnya belum tentu 100% jelas jenisnya.\n' +
+    '   - JANGAN tertipu oleh typo, singkatan, bahasa gaul, ejaan tidak baku, ATAU kalimat yang ditulis terlalu ringkas/santai ΓÇö koreksi dulu di kepalamu sebelum memutuskan apakah itu transaksi. Contoh: "beneirn hp rusak lcd rusak 300 rb" adalah typo dari "benerin hp rusak lcd rusak 300rb" = jasa servis/reparasi HP (LCD rusak) senilai Rp300.000 ΓÇö ini transaksi expense yang VALID dan JELAS, bukan gibberish, dan HARUS diproses (bukan ditolak) meskipun ada typo/ejaan berantakan.\n' +
     '   - Kata kerja jasa/servis umum (typo maupun baku) seperti "benerin/perbaiki/servis/reparasi/betulin/ganti [barang]" SELALU dianggap transaksi jasa yang valid, dengan kategori paling mendekati "Jasa"/"Servis"/kategori sejenis dari daftar kategori yang tersedia, atau "Lainnya" kalau tidak ada yang cocok.\n' +
-    '   - Kalau ada indikasi transaksi sekecil apapun — nama barang/jasa/tempat/aktivitas finansial, ATAU ada nominal uang (angka + "rb"/"ribu"/"rp"/"k"/"jt"/"juta" dsb) di dalam kalimat — WAJIB diproses jadi transaksi, walaupun konteksnya tidak lengkap 100% jelas, walaupun cuma satu-dua kata, walaupun tanpa kata kerja, dan walaupun tanpa nominal sama sekali. Cukup lakukan tebakan terbaik untuk "type", "category", dan "note" (amount boleh 0 kalau memang tidak ada nominalnya sama sekali — lihat poin 4); JANGAN dibuang.\n' +
-    '   - CEK ULANG SEBELUM MENGELUARKAN ARRAY KOSONG: sebelum kamu memutuskan untuk tidak membuat objek transaksi sama sekali (array kosong []), WAJIB baca ulang teksnya sekali lagi dan pastikan: (1) benar-benar TIDAK ADA angka/nominal apapun di teks (lihat ATURAN JALAN PINTAS), DAN (2) betul-betul cocok dengan salah satu dari 3 kategori sempit (i)/(ii)/(iii) di atas. Kalau ada angka SAMA SEKALI, atau ada SATU SAJA kata benda/kata kerja/nama tempat yang berpotensi berkaitan aktivitas ekonomi, itu BUKAN array kosong — buat objek transaksinya.\n' +
-    '   - Untuk kasus yang benar-benar tidak ada kaitan finansial (3 kategori sempit di atas), JANGAN dipaksakan jadi transaksi dengan kategori "Lainnya" — cukup ABAIKAN, jangan hasilkan objek apapun untuk bagian itu (kalau seluruh input begini, keluarkan array kosong []).\n\n' +
+    '   - Kalau ada indikasi transaksi sekecil apapun ΓÇö nama barang/jasa/tempat/aktivitas finansial, ATAU ada nominal uang (angka + "rb"/"ribu"/"rp"/"k"/"jt"/"juta" dsb) di dalam kalimat ΓÇö WAJIB diproses jadi transaksi, walaupun konteksnya tidak lengkap 100% jelas, walaupun cuma satu-dua kata, walaupun tanpa kata kerja, dan walaupun tanpa nominal sama sekali. Cukup lakukan tebakan terbaik untuk "type", "category", dan "note" (amount boleh 0 kalau memang tidak ada nominalnya sama sekali ΓÇö lihat poin 4); JANGAN dibuang.\n' +
+    '   - CEK ULANG SEBELUM MENGELUARKAN ARRAY KOSONG: sebelum kamu memutuskan untuk tidak membuat objek transaksi sama sekali (array kosong []), WAJIB baca ulang teksnya sekali lagi dan pastikan: (1) benar-benar TIDAK ADA angka/nominal apapun di teks (lihat ATURAN JALAN PINTAS), DAN (2) betul-betul cocok dengan salah satu dari 3 kategori sempit (i)/(ii)/(iii) di atas. Kalau ada angka SAMA SEKALI, atau ada SATU SAJA kata benda/kata kerja/nama tempat yang berpotensi berkaitan aktivitas ekonomi, itu BUKAN array kosong ΓÇö buat objek transaksinya.\n' +
+    '   - Untuk kasus yang benar-benar tidak ada kaitan finansial (3 kategori sempit di atas), JANGAN dipaksakan jadi transaksi dengan kategori "Lainnya" ΓÇö cukup ABAIKAN, jangan hasilkan objek apapun untuk bagian itu (kalau seluruh input begini, keluarkan array kosong []).\n\n' +
     'CARA MEMBACA DOKUMEN:\n' +
     '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
     '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
@@ -6014,44 +6008,44 @@ async function aiScanWithGemini(key){
     '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
     '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
     '   - Untuk setiap transaksi mutasi, buat satu objek dengan field: "order" (integer), "date" (YYYY-MM-DD, asumsikan tahun ' + new Date().getFullYear() + ' jika tidak tertulis), "type" ("expense" atau "income"), "amount" (integer rupiah), "note" (keterangan transaksi), "category" (pilih yang paling cocok dari daftar: expense: [' + expenseCats.join(', ') + '], income: [' + incomeCats.join(', ') + ']; atau "Lainnya"), "isDuplicateRead" (boolean).\n\n' +
-    '3. JIKA FOTO BUKAN STRUK/DOKUMEN FINANSIAL (foto bebas — barang, tempat, gerobak, banner, papan menu, antrian, dsb):\n' +
+    '3. JIKA FOTO BUKAN STRUK/DOKUMEN FINANSIAL (foto bebas ΓÇö barang, tempat, gerobak, banner, papan menu, antrian, dsb):\n' +
     '   - Kenali & interpretasikan isi foto seluas-luasnya: apa yang terlihat, termasuk tulisan pada banner/plang/papan menu kalau ada.\n' +
-    '   - Susun "note" yang jelas dari isi foto (contoh: foto gerobak bertuliskan "Bakso Pak Kumis" → note "Bakso Pak Kumis"; foto plang "Bengkel Motor Jaya" → note "Servis di Bengkel Motor Jaya").\n' +
+    '   - Susun "note" yang jelas dari isi foto (contoh: foto gerobak bertuliskan "Bakso Pak Kumis" ΓåÆ note "Bakso Pak Kumis"; foto plang "Bengkel Motor Jaya" ΓåÆ note "Servis di Bengkel Motor Jaya").\n' +
     '   - Tebak "category" paling masuk akal dari daftar kategori yang ada (expense: [' + expenseCats.join(', ') + '], income: [' + incomeCats.join(', ') + ']; atau "Lainnya" kalau tidak ada yang cocok).\n' +
-    '   - "amount": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set "amount" ke 0 — JANGAN MENEBAK nominal untuk jenis foto ini.\n' +
+    '   - "amount": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set "amount" ke 0 ΓÇö JANGAN MENEBAK nominal untuk jenis foto ini.\n' +
     '   - "date": default hari ini (' + todayStr() + ') kalau tidak ada info tanggal di foto/caption.\n\n' +
     '4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER (dan bukan sekadar caption untuk kasus 3 di atas, atau memang berdiri sendiri tanpa foto):\n' +
-    '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda. Pemisah BISA berupa koma, kata "dan", atau baris baru — TAPI JUGA bisa TANPA pemisah eksplisit sama sekali (mis. transkrip suara/VN yang ngalir panjang tanpa koma/titik yang jelas). Untuk kasus tanpa pemisah eksplisit ini, kenali batas antar transaksi dari PERGANTIAN KONTEKS: setiap kali muncul nama barang/jasa/aktivitas BARU yang beda dari sebelumnya, atau muncul angka nominal baru yang jelas menempel ke aktivitas tertentu, itu pertanda transaksi baru dimulai — meskipun tidak ada tanda baca pemisah sama sekali. Baca seluruh teks dulu secara utuh sebelum memutuskan pembagiannya, jangan asal potong per kalimat pendek.\n' +
-    '   - Kenali nama barang/jasa/aktivitas APAPUN meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu di SEMUA kategori kehidupan sehari-hari, bukan cuma makanan). Contoh lintas kategori: makanan/minuman ("naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek); transportasi/bensin ("bensin"/"bensol"→BBM, "ojol"→ojek online, "parkir"); pulsa/langganan ("token"→token listrik, "paketan"/"kuota"→paket data, "streaming"→Netflix/Spotify dsb); jasa/servis ("benerin/betulin/service"); tagihan ("PDAM"→air, "bpjs", "cicilan"/"kredit"); sosial-keagamaan ("kondangan", "amplopan", "infaq/zakat", "arisan"); kesehatan ("obat", "vitamin", "dokter"); lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu TAPI tetap ada indikasi itu adalah barang/jasa/aktivitas finansial (termasuk kalau cuma satu kata benda tanpa kata kerja/konteks tambahan, mis. hanya "token listrik" atau "kopi"), tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks — JANGAN dibuang hanya karena singkat/minim konteks. Ini TIDAK berlaku untuk teks yang sama sekali bukan transaksi (lihat aturan 0) — untuk kasus itu jangan buat objek sama sekali, bukan "tulis apa adanya".\n' +
-    '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. "2,5", "32,75", "1,5") — koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya "kemahalan"/"kemurahan" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) — RUMUS TETAP: "2,5"=2500, "1,5"=1500, "32,75"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. "2,5"≠2500000) kecuali user eksplisit menulis satuan "jt"/"juta" setelahnya (mis. "2,5jt"/"2,5 juta"=2500000 — beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: "wifi 2,5" → amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 — persis 2500 sesuai rumus koma-desimal-ribu). "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): "seceng"=1000, "goceng"=5000, "ceban"=10000, "noceng"=9000, "cepek"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, "cepek" sering juga berarti 100.000 — pilih yang paling masuk akal dari konteks), "goban"/"gocap"=50000, "toserba"/"nogo"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar — JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n' +
+    '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda. Pemisah BISA berupa koma, kata "dan", atau baris baru ΓÇö TAPI JUGA bisa TANPA pemisah eksplisit sama sekali (mis. transkrip suara/VN yang ngalir panjang tanpa koma/titik yang jelas). Untuk kasus tanpa pemisah eksplisit ini, kenali batas antar transaksi dari PERGANTIAN KONTEKS: setiap kali muncul nama barang/jasa/aktivitas BARU yang beda dari sebelumnya, atau muncul angka nominal baru yang jelas menempel ke aktivitas tertentu, itu pertanda transaksi baru dimulai ΓÇö meskipun tidak ada tanda baca pemisah sama sekali. Baca seluruh teks dulu secara utuh sebelum memutuskan pembagiannya, jangan asal potong per kalimat pendek.\n' +
+    '   - Kenali nama barang/jasa/aktivitas APAPUN meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian ΓÇö bukan cuma daftar tertutup, pakai pengetahuan umummu di SEMUA kategori kehidupan sehari-hari, bukan cuma makanan). Contoh lintas kategori: makanan/minuman ("naskun"ΓåÆNasi kuning, "nasgor"ΓåÆNasi goreng, "baso"ΓåÆBakso, "indomie"ΓåÆMie instan, "esteh"ΓåÆEs teh, "kopsus"ΓåÆKopi susu, "gepuk/geprek"ΓåÆAyam geprek); transportasi/bensin ("bensin"/"bensol"ΓåÆBBM, "ojol"ΓåÆojek online, "parkir"); pulsa/langganan ("token"ΓåÆtoken listrik, "paketan"/"kuota"ΓåÆpaket data, "streaming"ΓåÆNetflix/Spotify dsb); jasa/servis ("benerin/betulin/service"); tagihan ("PDAM"ΓåÆair, "bpjs", "cicilan"/"kredit"); sosial-keagamaan ("kondangan", "amplopan", "infaq/zakat", "arisan"); kesehatan ("obat", "vitamin", "dokter"); lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu TAPI tetap ada indikasi itu adalah barang/jasa/aktivitas finansial (termasuk kalau cuma satu kata benda tanpa kata kerja/konteks tambahan, mis. hanya "token listrik" atau "kopi"), tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks ΓÇö JANGAN dibuang hanya karena singkat/minim konteks. Ini TIDAK berlaku untuk teks yang sama sekali bukan transaksi (lihat aturan 0) ΓÇö untuk kasus itu jangan buat objek sama sekali, bukan "tulis apa adanya".\n' +
+    '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. "2,5", "32,75", "1,5") ΓÇö koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya "kemahalan"/"kemurahan" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) ΓÇö RUMUS TETAP: "2,5"=2500, "1,5"=1500, "32,75"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. "2,5"Γëá2500000) kecuali user eksplisit menulis satuan "jt"/"juta" setelahnya (mis. "2,5jt"/"2,5 juta"=2500000 ΓÇö beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: "wifi 2,5" ΓåÆ amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 ΓÇö persis 2500 sesuai rumus koma-desimal-ribu). "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): "seceng"=1000, "goceng"=5000, "ceban"=10000, "noceng"=9000, "cepek"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, "cepek" sering juga berarti 100.000 ΓÇö pilih yang paling masuk akal dari konteks), "goban"/"gocap"=50000, "toserba"/"nogo"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"ΓåÆ25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar ΓÇö JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n' +
     '   - "type": "income" kalau jelas pemasukan (mis. "gaji masuk", "dapat bonus"), selain itu "expense".\n' +
-    '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) → set "amount" ke 0, JANGAN MENEBAK.\n' +
+    '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) ΓåÆ set "amount" ke 0, JANGAN MENEBAK.\n' +
     '   - "date": default hari ini (' + todayStr() + ') kalau tidak disebutkan tanggal lain di teks.\n\n' +
-    '5. ALOKASI KATEGORI & ESTIMASI HARGA DARI SATU TOTAL TANPA RINCIAN PER ITEM (berlaku untuk foto belanjaan ATAU teks bebas yang menyebut beberapa barang beda kategori tapi HANYA memberi satu total nominal, TANPA rincian harga per barang — beda dengan kasus 1 di atas yang rinciannya memang tertulis di struk):\n' +
-    '   - Kenali semua barang berbeda yang disebut/terlihat, masing-masing dengan "category" paling sesuai (JANGAN taruh semua barang di satu kategori sama demi kemudahan — ini sama pentingnya dengan total yang presisi).\n' +
-    '   - PENTING — ATURAN PENGGABUNGAN PER KATEGORI (WAJIB diikuti persis): satu objek transaksi mewakili SATU KATEGORI dalam kelompok itu, BUKAN satu objek per barang. Kalau ada 2+ barang berbeda yang jatuh ke kategori YANG SAMA (mis. beras dan minyak sama-sama "Makan"), GABUNG jadi SATU objek transaksi untuk kategori itu — "amount" diisi jumlah estimasi gabungan barang-barang tsb, dan "note" digabung sebutin semua barangnya (mis. "Alfamart - Beras, Minyak"). Barang dengan kategori berbeda tetap jadi objek terpisah masing-masing.\n' +
+    '5. ALOKASI KATEGORI & ESTIMASI HARGA DARI SATU TOTAL TANPA RINCIAN PER ITEM (berlaku untuk foto belanjaan ATAU teks bebas yang menyebut beberapa barang beda kategori tapi HANYA memberi satu total nominal, TANPA rincian harga per barang ΓÇö beda dengan kasus 1 di atas yang rinciannya memang tertulis di struk):\n' +
+    '   - Kenali semua barang berbeda yang disebut/terlihat, masing-masing dengan "category" paling sesuai (JANGAN taruh semua barang di satu kategori sama demi kemudahan ΓÇö ini sama pentingnya dengan total yang presisi).\n' +
+    '   - PENTING ΓÇö ATURAN PENGGABUNGAN PER KATEGORI (WAJIB diikuti persis): satu objek transaksi mewakili SATU KATEGORI dalam kelompok itu, BUKAN satu objek per barang. Kalau ada 2+ barang berbeda yang jatuh ke kategori YANG SAMA (mis. beras dan minyak sama-sama "Makan"), GABUNG jadi SATU objek transaksi untuk kategori itu ΓÇö "amount" diisi jumlah estimasi gabungan barang-barang tsb, dan "note" digabung sebutin semua barangnya (mis. "Alfamart - Beras, Minyak"). Barang dengan kategori berbeda tetap jadi objek terpisah masing-masing.\n' +
     '     - PENGECUALIAN KHUSUS kategori "Lainnya": barang-barang yang masuk kategori "Lainnya" TETAP dipisah SATU objek per barang (JANGAN digabung sesama "Lainnya"), karena catatan "Lainnya" butuh rincian jelas tiap barangnya berhubung jenisnya gak seragam. Aturan gabung-per-kategori di atas HANYA berlaku untuk kategori selain "Lainnya".\n' +
-    '     - Contoh: belanja alfamart total 350rb isinya beras (Makan), minyak (Makan), sabun (Belanja) → HASIL AKHIR 2 objek saja: (1) category "Makan", note "Alfamart - Beras, Minyak", amount = estimasi beras+minyak digabung; (2) category "Belanja", note "Alfamart - Sabun", amount = estimasi sabun. BUKAN 3 objek terpisah.\n' +
+    '     - Contoh: belanja alfamart total 350rb isinya beras (Makan), minyak (Makan), sabun (Belanja) ΓåÆ HASIL AKHIR 2 objek saja: (1) category "Makan", note "Alfamart - Beras, Minyak", amount = estimasi beras+minyak digabung; (2) category "Belanja", note "Alfamart - Sabun", amount = estimasi sabun. BUKAN 3 objek terpisah.\n' +
     '   - "amount" tiap objek (yang mewakili satu kategori, sudah digabung kalau ada beberapa barang sekategori) diisi ESTIMASI KASAR total harga barang-barang di kategori itu berdasarkan pengetahuan umum harga pasar Indonesia (nilai ini hanya dipakai sisi aplikasi sebagai BOBOT proporsional antar objek, boleh kasar/tidak presisi).\n' +
     '   - Beri SEMUA objek dari satu kelompok alokasi ini "groupId" yang SAMA (string bebas, unik per kelompok dalam satu respons ini, mis. "g1", "g2" kalau ada lebih dari satu kelompok begini dalam satu respons), dan "groupTotal" (integer) berisi TOTAL NOMINAL PERSIS seperti yang disebutkan/diinput user untuk kelompok itu. Kedua field ini WAJIB diisi kalau baris berasal dari kasus alokasi tanpa rincian ini (di luar kasus ini, boleh dikosongkan/tidak disertakan).\n' +
-    '   - JANGAN mencoba menjumlahkan sendiri "amount" tiap objek supaya pas dengan total — sisi aplikasi yang akan menyesuaikan angka final secara presisi memakai "groupTotal" yang kamu berikan. Fokusmu cukup: kategori tiap objek benar (sudah digabung sesuai aturan di atas) & proporsi estimasi harga antar objek masuk akal.\n\n' +
-    'CONTOH TEKS_BEBAS_DARI_USER YANG WAJIB DIANGGAP TRANSAKSI VALID (JANGAN PERNAH ditolak/dikeluarkan array kosong untuk kalimat semacam ini — typo, gaul, atau nominal ditulis santai BUKAN alasan untuk menolak):\n' +
-    '   - "benerin ac gaada dingin 300rb" → expense, note "Servis AC (tidak dingin)", amount 300000, category paling dekat "Jasa"/"Servis"/"Rumah Tangga" atau "Lainnya".\n' +
-    '   - "ganti layar hp pecah 450rb" → expense, note "Ganti layar HP (pecah)", amount 450000, category "Jasa"/"Servis"/"Elektronik" atau "Lainnya".\n' +
-    '   - "parkir seceng" → expense, note "Parkir", amount 1000 (seceng=1000), category "Transportasi" atau sejenisnya.\n' +
-    '   - "beneirn hp rusak lcd rusak 300 rb" → expense, note "Servis HP (LCD rusak)", amount 300000.\n' +
-    '   - "cabut ojol ke kantor 12rb" → expense, note "Ojol ke kantor", amount 12000, category "Transportasi".\n' +
-    '   - "kena tilang 100rb duh" → expense, note "Tilang", amount 100000.\n' +
-    '   - "potong rambut abis 25rb" → expense, note "Potong rambut", amount 25000, category "Jasa"/"Perawatan" atau "Lainnya".\n' +
-    '   - "tambal ban bocor 10rb" → expense, note "Tambal ban", amount 10000.\n' +
-    '   - "token listrik 50rb" → expense, note "Token listrik", amount 50000, category "Tagihan"/"Rumah Tangga" atau "Lainnya".\n' +
-    '   - "kopi" (cuma satu kata, tanpa kata kerja, tanpa nominal sama sekali) → expense, note "Kopi", amount 0, category "Jajan"/"Makan" atau "Lainnya" — TETAP dibuatkan objeknya, JANGAN dianggap terlalu singkat untuk diproses.\n' +
-    '   - "dapat THR 500rb dari kantor" → income, note "THR dari kantor", amount 500000, category "Gaji"/"Pemasukan Lain" atau "Lainnya".\n' +
-    '   - "wifi 2,5" → expense, note "Bayar wifi", amount 2500 (rumus koma-desimal-ribu berlaku KONSISTEN di semua konteks, termasuk tagihan besar seperti wifi — JANGAN ditafsir jadi 2500000 hanya karena "kelihatannya" wifi biasanya mahal; ikuti angka literalnya apa adanya).\n' +
-    '   - "minjemin duit ke Budi 200rb" → expense, note "Pinjamkan uang ke Budi", amount 200000, category "Lainnya".\n' +
-    '   - "jadi tadi pagi aku ke pasar beli sayur 25rb terus mampir warkop ngopi 8rb abis itu ke bengkel benerin ban bocor 15rb" (contoh gaya transkrip VN panjang tanpa koma/pemisah jelas) → HARUS dipecah jadi 3 transaksi terpisah berdasarkan pergantian konteks aktivitas: (1) expense "Beli sayur di pasar" 25000, (2) expense "Ngopi di warkop" 8000, (3) expense "Tambal ban bocor" 15000 — JANGAN digabung jadi satu transaksi besar atau dianggap gagal parse hanya karena tidak ada tanda baca pemisah.\n' +
-    'Pola umumnya: SELAMA ada kata benda/kata kerja/nama tempat/aktivitas apapun yang berpotensi berkaitan aktivitas ekonomi (benerin/ganti/servis/parkir/potong/tambal/beli/bayar/jual/dapat/dsb, ATAU sekadar nama barang/jasa/tempat tanpa kata kerja sama sekali) — walau ditulis santai, typo, terlalu singkat, nominalnya pakai istilah gaul, ATAU tanpa nominal sama sekali — WAJIB tetap dibuatkan objek transaksinya. JANGAN biarkan ketidakpastian soal kategori, kejelasan nominal, ATAU singkatnya kalimat membuatmu menolak keseluruhan transaksinya; pilih tebakan terbaik dan tetap keluarkan objeknya. Array kosong [] HANYA untuk 3 kategori sempit di aturan 0.\n\n' +
-    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.';
+    '   - JANGAN mencoba menjumlahkan sendiri "amount" tiap objek supaya pas dengan total ΓÇö sisi aplikasi yang akan menyesuaikan angka final secara presisi memakai "groupTotal" yang kamu berikan. Fokusmu cukup: kategori tiap objek benar (sudah digabung sesuai aturan di atas) & proporsi estimasi harga antar objek masuk akal.\n\n' +
+    'CONTOH TEKS_BEBAS_DARI_USER YANG WAJIB DIANGGAP TRANSAKSI VALID (JANGAN PERNAH ditolak/dikeluarkan array kosong untuk kalimat semacam ini ΓÇö typo, gaul, atau nominal ditulis santai BUKAN alasan untuk menolak):\n' +
+    '   - "benerin ac gaada dingin 300rb" ΓåÆ expense, note "Servis AC (tidak dingin)", amount 300000, category paling dekat "Jasa"/"Servis"/"Rumah Tangga" atau "Lainnya".\n' +
+    '   - "ganti layar hp pecah 450rb" ΓåÆ expense, note "Ganti layar HP (pecah)", amount 450000, category "Jasa"/"Servis"/"Elektronik" atau "Lainnya".\n' +
+    '   - "parkir seceng" ΓåÆ expense, note "Parkir", amount 1000 (seceng=1000), category "Transportasi" atau sejenisnya.\n' +
+    '   - "beneirn hp rusak lcd rusak 300 rb" ΓåÆ expense, note "Servis HP (LCD rusak)", amount 300000.\n' +
+    '   - "cabut ojol ke kantor 12rb" ΓåÆ expense, note "Ojol ke kantor", amount 12000, category "Transportasi".\n' +
+    '   - "kena tilang 100rb duh" ΓåÆ expense, note "Tilang", amount 100000.\n' +
+    '   - "potong rambut abis 25rb" ΓåÆ expense, note "Potong rambut", amount 25000, category "Jasa"/"Perawatan" atau "Lainnya".\n' +
+    '   - "tambal ban bocor 10rb" ΓåÆ expense, note "Tambal ban", amount 10000.\n' +
+    '   - "token listrik 50rb" ΓåÆ expense, note "Token listrik", amount 50000, category "Tagihan"/"Rumah Tangga" atau "Lainnya".\n' +
+    '   - "kopi" (cuma satu kata, tanpa kata kerja, tanpa nominal sama sekali) ΓåÆ expense, note "Kopi", amount 0, category "Jajan"/"Makan" atau "Lainnya" ΓÇö TETAP dibuatkan objeknya, JANGAN dianggap terlalu singkat untuk diproses.\n' +
+    '   - "dapat THR 500rb dari kantor" ΓåÆ income, note "THR dari kantor", amount 500000, category "Gaji"/"Pemasukan Lain" atau "Lainnya".\n' +
+    '   - "wifi 2,5" ΓåÆ expense, note "Bayar wifi", amount 2500 (rumus koma-desimal-ribu berlaku KONSISTEN di semua konteks, termasuk tagihan besar seperti wifi ΓÇö JANGAN ditafsir jadi 2500000 hanya karena "kelihatannya" wifi biasanya mahal; ikuti angka literalnya apa adanya).\n' +
+    '   - "minjemin duit ke Budi 200rb" ΓåÆ expense, note "Pinjamkan uang ke Budi", amount 200000, category "Lainnya".\n' +
+    '   - "jadi tadi pagi aku ke pasar beli sayur 25rb terus mampir warkop ngopi 8rb abis itu ke bengkel benerin ban bocor 15rb" (contoh gaya transkrip VN panjang tanpa koma/pemisah jelas) ΓåÆ HARUS dipecah jadi 3 transaksi terpisah berdasarkan pergantian konteks aktivitas: (1) expense "Beli sayur di pasar" 25000, (2) expense "Ngopi di warkop" 8000, (3) expense "Tambal ban bocor" 15000 ΓÇö JANGAN digabung jadi satu transaksi besar atau dianggap gagal parse hanya karena tidak ada tanda baca pemisah.\n' +
+    'Pola umumnya: SELAMA ada kata benda/kata kerja/nama tempat/aktivitas apapun yang berpotensi berkaitan aktivitas ekonomi (benerin/ganti/servis/parkir/potong/tambal/beli/bayar/jual/dapat/dsb, ATAU sekadar nama barang/jasa/tempat tanpa kata kerja sama sekali) ΓÇö walau ditulis santai, typo, terlalu singkat, nominalnya pakai istilah gaul, ATAU tanpa nominal sama sekali ΓÇö WAJIB tetap dibuatkan objek transaksinya. JANGAN biarkan ketidakpastian soal kategori, kejelasan nominal, ATAU singkatnya kalimat membuatmu menolak keseluruhan transaksinya; pilih tebakan terbaik dan tetap keluarkan objeknya. Array kosong [] HANYA untuk 3 kategori sempit di aturan 0.\n\n' +
+    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, isDuplicateRead ΓÇö tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.';
   const parts = [{ text: promptText }];
   const freeText = (aiScanTextValue || '').toString().trim();
   if(freeText){ parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + annotateSlangNominalForAi(freeText) }); }
@@ -6061,7 +6055,7 @@ async function aiScanWithGemini(key){
     parts.push(aiVoiceAudioPart);
     aiVoiceAudioPart = null;
   }
-  // Schema JSON eksplisit — memaksa Gemini balikin struktur ini persis (constrained decoding),
+  // Schema JSON eksplisit ΓÇö memaksa Gemini balikin struktur ini persis (constrained decoding),
   // bukan cuma "diharapkan" lewat instruksi teks di prompt. Ini yang paling menentukan validitas
   // JSON-nya, terlepas dari aturan "angka=valid" (itu cuma ngatur ISI, bukan FORMAT).
   const transactionSchema = {
@@ -6083,7 +6077,7 @@ async function aiScanWithGemini(key){
     }
   };
   // Panggilan AI yang parsing JSON-nya gagal itu masalah stokastik (sama persis inputnya, kadang
-  // Gemini "kepeleset" formatnya) — bukan salah aturan prompt. Daripada langsung lempar error ke
+  // Gemini "kepeleset" formatnya) ΓÇö bukan salah aturan prompt. Daripada langsung lempar error ke
   // user, retry otomatis 1-2x dulu di background sebelum benar-benar dianggap gagal.
   const MAX_ATTEMPTS = 3;
   let items = null, lastParseErr = null;
@@ -6097,7 +6091,7 @@ async function aiScanWithGemini(key){
       break;
     } catch(e){
       lastParseErr = e;
-      console.warn('aiScanWithGemini: percobaan ' + attempt + '/' + MAX_ATTEMPTS + ' gagal — ' + (e && e.message));
+      console.warn('aiScanWithGemini: percobaan ' + attempt + '/' + MAX_ATTEMPTS + ' gagal ΓÇö ' + (e && e.message));
       if(attempt < MAX_ATTEMPTS){ continue; }
     }
   }
@@ -6129,7 +6123,7 @@ async function aiScanWithGemini(key){
   return rows;
 }
 // Menyesuaikan baris-baris yang dikelompokkan AI lewat "groupId"/"groupTotal" (kasus 1 total
-// tanpa rincian per item — lihat bagian 5.3 PRD) supaya jumlah amount dalam satu kelompok PERSIS
+// tanpa rincian per item ΓÇö lihat bagian 5.3 PRD) supaya jumlah amount dalam satu kelompok PERSIS
 // sama dengan groupTotal yang disebutkan/diinput user. amount tiap baris dari AI sebelum fungsi
 // ini dipakai sebagai bobot proporsional kasar (estimasi harga), bukan nilai akhir.
 function applyAiGroupAllocationScaling(rows){
@@ -6156,7 +6150,7 @@ function applyAiGroupAllocationScaling(rows){
     }
   });
 }
-// Bagian 5.5 PRD — kalau nominal suatu baris tidak diketahui (amount masih 0 setelah dibaca
+// Bagian 5.5 PRD ΓÇö kalau nominal suatu baris tidak diketahui (amount masih 0 setelah dibaca
 // AI/diskalakan), cari dulu ke histori transaksi tersimpan sebelum baris ditandai "butuh diisi
 // manual". Menandai row.amountSource = 'history' kalau berhasil ketemu, supaya UI bisa kasih
 // badge visual pembeda dari nominal hasil bacaan langsung.
@@ -6229,7 +6223,7 @@ function matchCategoryByName(name, type){
 }
 // Helper umum panggilan Gemini API (dipakai fitur scan struk & analisa saldo)
 // Daftar model dicoba BERURUTAN dari atas: kalau model pertama kena limit/kuota habis/
-// overload/tidak ditemukan, otomatis lanjut coba model berikutnya di baris bawahnya —
+// overload/tidak ditemukan, otomatis lanjut coba model berikutnya di baris bawahnya ΓÇö
 // tanpa perlu ganti manual. Urutan boleh diubah/ditambah/dikurangi sesuai kebutuhan.
 const GEMINI_MODELS = [
   'gemini-3.7-flash',
@@ -6268,7 +6262,7 @@ function fileToGenerativePart(file){
       .catch(() => sendRaw()); // format foto tak lazim (mis. HEIC) yang gagal diproses canvas: kirim file asli sebagai fallback
   });
 }
-// Mengecilkan & menyeragamkan foto sebelum dikirim ke AI — dipakai untuk SEMUA sumber foto
+// Mengecilkan & menyeragamkan foto sebelum dikirim ke AI ΓÇö dipakai untuk SEMUA sumber foto
 // (screenshot m-banking/e-wallet maupun foto struk kertas dari kamera) supaya kompatibel &
 // konsisten terbaca, apa pun resolusi/orientasi aslinya.
 function compressImageFile(file, maxDim, quality){
@@ -6329,7 +6323,7 @@ async function callGeminiRaw(key, parts, temperature, responseSchema){
       const mIdx = (startModelIdx + mCount) % numModels;
       const model = GEMINI_MODELS[mIdx];
       const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
-      // Model "2.5"/"3.5" flash punya mode "thinking" yang nyala default — buat tugas ekstraksi
+      // Model "2.5"/"3.5" flash punya mode "thinking" yang nyala default ΓÇö buat tugas ekstraksi
       // JSON deterministik kayak gini, thinking cuma nambah risiko token output kepotong
       // (finishReason MAX_TOKENS) sehingga JSON-nya jadi setengah/rusak. Matikan thinking
       // (thinkingBudget: 0) khusus untuk model yang mendukungnya (gemini-2.0-flash TIDAK
@@ -6397,7 +6391,7 @@ function extractGeminiText(data){
   const cand = data && data.candidates && data.candidates[0];
   const parts = cand && cand.content && cand.content.parts;
   if(!Array.isArray(parts) || !parts.length) throw new Error('Respons AI kosong');
-  // Gemini (terutama varian "thinking") kadang kirim beberapa parts — bagian reasoning/"thought"
+  // Gemini (terutama varian "thinking") kadang kirim beberapa parts ΓÇö bagian reasoning/"thought"
   // ditandai part.thought === true dan HARUS diabaikan, cuma parts jawaban final yang dipakai.
   const text = parts
     .filter(p => p && typeof p.text === 'string' && !p.thought)
@@ -6413,7 +6407,7 @@ function extractGeminiText(data){
 function parseAiJson(rawText, kind){
   const cleaned = (rawText || '').toString().replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/, '').trim();
   const tryParse = (s) => {
-    // Trailing comma sebelum `]`/`}` bukan JSON valid tapi kadang disisipkan model — bersihkan dulu.
+    // Trailing comma sebelum `]`/`}` bukan JSON valid tapi kadang disisipkan model ΓÇö bersihkan dulu.
     const noTrailingComma = s.replace(/,(\s*[\]}])/g, '$1');
     return JSON.parse(noTrailingComma);
   };
@@ -6431,7 +6425,7 @@ function parseAiJson(rawText, kind){
   }
   // Kalau yang diminta array tapi hasilnya malah objek (mis. model membungkus jadi
   // {"transactions":[...]} walau sudah diminta HANYA array telanjang), cari properti pertama
-  // yang isinya array dan pakai itu — daripada langsung gagal total.
+  // yang isinya array dan pakai itu ΓÇö daripada langsung gagal total.
   if(kind === 'array' && !Array.isArray(result) && result && typeof result === 'object'){
     const arrProp = Object.keys(result).find(k => Array.isArray(result[k]));
     if(arrProp) return result[arrProp];
@@ -6439,7 +6433,7 @@ function parseAiJson(rawText, kind){
   return result;
 }
 /* =========================================================
-   INSIGHT OTOMATIS DARI AI — muncul di Beranda & Laporan.
+   INSIGHT OTOMATIS DARI AI ΓÇö muncul di Beranda & Laporan.
    Dibuat otomatis 1x/24 jam (dicek ulang tiap Beranda/Laporan dibuka lewat
    checkAndRenderInsight(), dipanggil dari renderHome()/renderLaporan()),
    plus bisa di-refresh manual kapan saja lewat manualRefreshInsight().
@@ -6543,10 +6537,10 @@ function buildInsightSummaryText(){
         else if(s === 'sudah-dibayar') sudahBayar.push(r.name + ' (' + formatRupiah(r.amount) + ')');
         else if(s === 'belum-bayar') belumBayar.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
       });
-      if(terlambat.length) lines.push('⚠ TERLAMBAT (BELUM dibayar di siklus ini, sudah lewat jatuh tempo): ' + terlambat.join(', '));
-      if(jatuhTempo.length) lines.push('⏰ JATUH TEMPO HARI INI: ' + jatuhTempo.join(', '));
-      if(belumBayar.length) lines.push('⏳ BELUM DIBAYAR (dalam periode berjalan, belum jatuh tempo): ' + belumBayar.join(', '));
-      if(sudahBayar.length) lines.push('✅ Sudah dibayar periode ini (aman): ' + sudahBayar.join(', '));
+      if(terlambat.length) lines.push('ΓÜá TERLAMBAT (BELUM dibayar di siklus ini, sudah lewat jatuh tempo): ' + terlambat.join(', '));
+      if(jatuhTempo.length) lines.push('ΓÅ░ JATUH TEMPO HARI INI: ' + jatuhTempo.join(', '));
+      if(belumBayar.length) lines.push('ΓÅ│ BELUM DIBAYAR (dalam periode berjalan, belum jatuh tempo): ' + belumBayar.join(', '));
+      if(sudahBayar.length) lines.push('Γ£à Sudah dibayar periode ini (aman): ' + sudahBayar.join(', '));
     }
   }
 
@@ -6586,7 +6580,7 @@ function buildInsightSummaryText(){
       const sign = t.type === 'income' ? '+' : '-';
       const w = walletById(t.walletId);
       const wName = w ? w.name : '';
-      const noteStr = t.note ? ' · ' + t.note : '';
+      const noteStr = t.note ? ' ┬╖ ' + t.note : '';
       lines.push('- ' + t.date + ' | ' + sign + formatRupiah(t.amount) + ' | ' + (t.category || t.type) + ' | ' + wName + noteStr);
     });
     if(monthTx.length > 30) lines.push('(... dan ' + (monthTx.length - 30) + ' transaksi lainnya)');
@@ -6600,7 +6594,7 @@ async function generateInsightWithGemini(key){
   const promptText =
     'Kamu asisten keuangan pribadi yang cerdas dan perhatian. Berdasarkan data LENGKAP berikut (saldo dompet, arus kas, budget, tagihan berulang, utang piutang, dan tujuan tabungan), buatkan 2-4 kalimat insight berbahasa Indonesia yang:\n' +
     '- HOLISTIK: pertimbangkan saldo aktual dompet (bukan hanya selisih pemasukan-pengeluaran), tagihan yang masih harus dibayar, dan kondisi keseluruhan keuangan user.\n' +
-    '- REALISTIS: jangan bilang "aman" hanya karena pemasukan tinggi — lihat saldo cash yang tersedia sekarang. Dompet Tabungan sebisa mungkin jangan dianggap uang yang bisa dipakai sehari-hari.\n' +
+    '- REALISTIS: jangan bilang "aman" hanya karena pemasukan tinggi ΓÇö lihat saldo cash yang tersedia sekarang. Dompet Tabungan sebisa mungkin jangan dianggap uang yang bisa dipakai sehari-hari.\n' +
     '- KLASIFIKASI TAGIHAN: perhatikan status tagihan berulang. Status "Akan datang" dan "Sudah dibayar" artinya sudah aman dan selesai untuk periode ini, jadi JANGAN dianggap sebagai beban tagihan mendesak. Hanya status "TERLAMBAT", "JATUH TEMPO", atau "BELUM DIBAYAR (dalam periode berjalan)" saja yang perlu diperingatkan.\n' +
     '- HINDARI EMOJI: Jangan menggunakan emoji sama sekali.\n' +
     '- BERVARIASI: jangan pakai template/format yang sama terus. Kadang soroti saldo, kadang tagihan mendatang, kadang pola spending, kadang progress tabungan. Buat tiap kali berbeda sudut pandangnya.\n' +
@@ -6647,7 +6641,9 @@ function checkAndRenderInsight(){
   if(!key) return;
   const cache = getInsightCache();
   const stale = !cache.text || (Date.now() - (cache.generatedAt || 0) >= 24 * 60 * 60 * 1000);
-  if(stale) runInsightGeneration();
+  if(stale && hasSyncedAtLeastOnce && !isSyncingData) {
+    runInsightGeneration();
+  }
 }
 function manualRefreshInsight(){
   const key = getGeminiApiKey();
@@ -6673,7 +6669,7 @@ function runInsightGeneration(){
       renderInsightUI();
     });
 }
-// Render ulang kedua lokasi tampilan insight (Beranda & Laporan) sekaligus — datanya sama persis
+// Render ulang kedua lokasi tampilan insight (Beranda & Laporan) sekaligus ΓÇö datanya sama persis
 // karena insight ini berbasis data bulan berjalan, terlepas dari halaman/mode periode mana yang aktif.
 function renderInsightUI(){
   ['insightHome'].forEach(prefix => {
@@ -6702,7 +6698,7 @@ function renderInsightUI(){
     if(cache.text){
       contentEl.style.display = 'block';
       textEl.textContent = cache.text;
-      timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (insightLoading ? ' · memperbarui...' : '');
+      timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (insightLoading ? ' ┬╖ memperbarui...' : '');
       if(insightLastError && !insightLoading){
         inlineErrEl.style.display = 'block';
         inlineErrEl.innerHTML = 'Gagal memperbarui insight otomatis. <a href="javascript:void(0)" onclick="manualRefreshInsight()">Coba lagi</a>';
@@ -6804,7 +6800,7 @@ function buildAnalysisFullData(){
     sorted.forEach(t => {
       const sign = t.type === 'income' ? '+' : '-';
       const w = walletById(t.walletId);
-      const noteStr = t.note ? ' · ' + t.note : '';
+      const noteStr = t.note ? ' ┬╖ ' + t.note : '';
       lines.push('- ' + t.date + ' | ' + sign + formatRupiah(t.amount) + ' | ' + (t.category || t.type) + ' | ' + (w ? w.name : '') + noteStr);
     });
   }
@@ -6832,10 +6828,10 @@ function buildAnalysisFullData(){
       activeRecurring.forEach(r => {
         const s = recurringStatus(r);
         let statusLabel = '';
-        if(s === 'terlambat') statusLabel = '⚠ TERLAMBAT (belum bayar)';
-        else if(s === 'jatuh-tempo') statusLabel = '⏰ JATUH TEMPO';
-        else if(s === 'belum-bayar') statusLabel = '⏳ Belum bayar (dalam periode berjalan)';
-        else if(s === 'sudah-dibayar') statusLabel = '✅ Sudah bayar (aman/selesai)';
+        if(s === 'terlambat') statusLabel = 'ΓÜá TERLAMBAT (belum bayar)';
+        else if(s === 'jatuh-tempo') statusLabel = 'ΓÅ░ JATUH TEMPO';
+        else if(s === 'belum-bayar') statusLabel = 'ΓÅ│ Belum bayar (dalam periode berjalan)';
+        else if(s === 'sudah-dibayar') statusLabel = 'Γ£à Sudah bayar (aman/selesai)';
         lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + r.nextDue + ')');
       });
     }
@@ -6958,9 +6954,9 @@ function formatAnalysisHtml(text){
   const lines = noEmoji.split(/\n/);
   let html = '';
   let inList = false;
-  // Heading patterns: all-caps line with ≥2 words, or line ending with ':'
+  // Heading patterns: all-caps line with ΓëÑ2 words, or line ending with ':'
   const isHeading = (l) => /^[A-Z\s\-]{6,}$/.test(l.trim()) || /^[A-Z][A-Z\s\-\/]+[A-Z]$/.test(l.trim());
-  const isBullet = (l) => /^\s*[-•]\s/.test(l);
+  const isBullet = (l) => /^\s*[-ΓÇó]\s/.test(l);
 
   for(let i = 0; i < lines.length; i++){
     const line = lines[i].trim();
@@ -6972,7 +6968,7 @@ function formatAnalysisHtml(text){
       if(inList){ html += '</ul>'; inList = false; }
       html += '<div class="analysis-section-title">' + escAttr(line) + '</div>';
     } else if(isBullet(line)){
-      const content = line.replace(/^\s*[-•]\s*/, '');
+      const content = line.replace(/^\s*[-ΓÇó]\s*/, '');
       if(!inList){ html += '<ul class="analysis-bullets">'; inList = true; }
       html += '<li>' + escAttr(content) + '</li>';
     } else {
@@ -7010,7 +7006,7 @@ function renderAnalysisUI(){
   if(cache.text){
     contentEl.style.display = 'block';
     textEl.innerHTML = formatAnalysisHtml(cache.text);
-    timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (analysisLoading ? ' · memperbarui...' : '');
+    timeEl.textContent = 'Diperbarui ' + formatInsightTime(cache.generatedAt) + (analysisLoading ? ' ┬╖ memperbarui...' : '');
     if(analysisLastError && !analysisLoading){
       inlineErrEl.style.display = 'block';
       inlineErrEl.innerHTML = 'Gagal memperbarui analisa. <a href="javascript:void(0)" onclick="manualRefreshAnalysis()">Coba lagi</a>';
@@ -7031,7 +7027,7 @@ function guessTypeForNote(note){
   return /masuk|gaji|bonus/i.test(note) ? 'income' : 'expense';
 }
 // Tebak kategori dari keterangan hasil scan berdasarkan kategori yang SUDAH ADA di app
-// (bukan bikin kategori baru) — kalau tidak ada yang cocok, jatuh ke kategori "Lainnya".
+// (bukan bikin kategori baru) ΓÇö kalau tidak ada yang cocok, jatuh ke kategori "Lainnya".
 function guessCategoryForNote(note, type){
   const cats = getCategories().filter(c => c.type === type);
   const map = [
@@ -7053,17 +7049,17 @@ function addAiManualRow(){
   renderAiScanRows();
   document.getElementById('aiScanRowsWrap').scrollIntoView({behavior:'smooth', block:'end'});
 }
-// Deteksi duplikat versi baru — TIDAK lagi cuma cocok-cocokan tanggal+nominal saja, karena
+// Deteksi duplikat versi baru ΓÇö TIDAK lagi cuma cocok-cocokan tanggal+nominal saja, karena
 // itu gampang salah tangkap: dua transaksi beda yang kebetulan tanggal & nominalnya sama
 // (mis. dua baris "Biaya transfer BI Fast Rp2.500" di hari yang sama untuk 2 transfer berbeda)
 // itu SAH keduanya dan bukan duplikat. Prioritas cek:
-// 1) "isDuplicateRead" dari AI sendiri — AI yang lihat langsung gambarnya, paling tahu kalau
+// 1) "isDuplicateRead" dari AI sendiri ΓÇö AI yang lihat langsung gambarnya, paling tahu kalau
 //    suatu baris ternyata hasil ia membaca ulang baris yang sama (bukan transaksi baru).
 // 2) Baris identik PERSIS di semua field (tanggal+nominal+tipe+keterangan) DAN posisinya
-//    (order) berdekatan/sama, dalam batch scan yang SAMA — ciri khas kesalahan baca ganda.
+//    (order) berdekatan/sama, dalam batch scan yang SAMA ΓÇö ciri khas kesalahan baca ganda.
 //    Di sini keterangan tetap diikutkan karena sumbernya identik (AI membaca gambar yang sama),
 //    jadi keterangan yang beda memang berarti baris yang beda.
-// 3) Sudah pernah tercatat sebelumnya di riwayat tersimpan — cek HANYA tanggal+nominal+tipe
+// 3) Sudah pernah tercatat sebelumnya di riwayat tersimpan ΓÇö cek HANYA tanggal+nominal+tipe
 //    (TANPA keterangan), karena keterangan yang tersimpan bisa saja sudah diedit/ditulis ulang
 //    manual oleh user sebelumnya (typo, gaya penulisan beda, dsb) sehingga tidak bisa diandalkan
 //    sebagai pembanding lintas sesi. Ini untuk kasus user tanpa sadar men-scan ulang foto/struk
@@ -7181,7 +7177,7 @@ function saveAiScanSelected(){
       saved++;
     } else {
       // Perluasan (bagian 5.6 PRD): baris yang belum lengkap (nominal masih 0) TIDAK menghalangi
-      // baris lain yang sudah valid untuk tersimpan — baris ini disimpan state editnya (tanggal/
+      // baris lain yang sudah valid untuk tersimpan ΓÇö baris ini disimpan state editnya (tanggal/
       // keterangan/kategori yang sudah diketik user tetap kepakai) dan tetap ditampilkan di modal
       // supaya user bisa melengkapi nominalnya lalu tekan simpan lagi, bukan hilang begitu saja.
       row.date = date;
@@ -7193,7 +7189,7 @@ function saveAiScanSelected(){
   });
   aiScanRows = remaining;
   if(saved === 0){
-    showToast(aiScanRows.length ? 'Belum ada yang tersimpan — lengkapi dulu nominal yang masih kosong' : 'Tidak ada transaksi valid untuk disimpan');
+    showToast(aiScanRows.length ? 'Belum ada yang tersimpan ΓÇö lengkapi dulu nominal yang masih kosong' : 'Tidak ada transaksi valid untuk disimpan');
     renderAiScanRows();
     return;
   }
@@ -7453,7 +7449,7 @@ function renderGoals(){
     const achieved = pct >= 100;
     let etaHtml = '';
     if(achieved){
-      etaHtml = 'Target tercapai 🎉';
+      etaHtml = 'Target tercapai ≡ƒÄë';
     } else if(g.targetDate){
       const today = new Date(todayStr() + 'T00:00:00');
       const target = new Date(g.targetDate + 'T00:00:00');
@@ -7474,7 +7470,7 @@ function renderGoals(){
         <div class="progress-track"><div class="progress-fill ${achieved ? 'pace-green' : ''}" style="width:${pctBar}%"></div></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-top:2px;flex-wrap:wrap;gap:4px;">
-        <span>${pct}% tercapai · ${wallet ? escAttr(wallet.name) : 'dompet dihapus'}</span>
+        <span>${pct}% tercapai ┬╖ ${wallet ? escAttr(wallet.name) : 'dompet dihapus'}</span>
         ${etaHtml ? `<span>${etaHtml}</span>` : ''}
       </div>
     </div>`;
@@ -7720,7 +7716,7 @@ function renderDebtPersonList(){
       <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(name)}</div>
-        <div class="tx-meta">${subLabel} · ${entries.length} catatan</div>
+        <div class="tx-meta">${subLabel} ┬╖ ${entries.length} catatan</div>
       </div>
       <div class="tx-amt ${amtClass}">${amtHtml}</div>
     </div>`;
@@ -7744,11 +7740,11 @@ function renderDebtAllList(){
     const sign = d.type === 'piutang' ? '+' : '-';
     const amtClass = d.type === 'piutang' ? 'income' : 'expense';
     const typeLabel = d.type === 'piutang' ? 'Piutang' : 'Utang';
-    const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
+    const dueHtml = d.dueDate ? ' ┬╖ jatuh tempo ' + d.dueDate : '';
     return `<div class="tx-item debt-all-row" data-id="${d.id}" style="flex-wrap:wrap;">
       <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
+        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">┬╖ ${typeLabel}</span></div>
         <div class="tx-meta">${d.date}${dueHtml}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -7857,8 +7853,8 @@ function renderDebtHistory(){
     return `<div class="tx-item debt-history-row" data-id="${d.id}" style="flex-wrap:wrap;cursor:pointer;">
       <div class="tx-icon" style="background:var(--accent-soft);color:var(--accent-dark);">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">· ${typeLabel}</span></div>
-        <div class="tx-meta">${d.date}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
+        <div class="tx-cat">${escAttr(d.personName)} <span style="font-weight:500;color:var(--ink-soft);">┬╖ ${typeLabel}</span></div>
+        <div class="tx-meta">${d.date}${d.note ? ' ┬╖ ' + escAttr(d.note) : ''}</div>
         <div class="tx-meta" style="color:var(--income);font-weight:600;">${payoffInfo}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -7899,12 +7895,12 @@ function renderDebtPersonDetailList(){
     const isLunas = d.status === 'lunas';
     const sign = d.type === 'piutang' ? '+' : '-';
     const amtClass = d.type === 'piutang' ? 'income' : 'expense';
-    const dueHtml = d.dueDate ? ' · jatuh tempo ' + d.dueDate : '';
-    const statusHtml = isLunas ? ' · <span class="rec-status rec-status-nonaktif">Lunas</span>' : '';
+    const dueHtml = d.dueDate ? ' ┬╖ jatuh tempo ' + d.dueDate : '';
+    const statusHtml = isLunas ? ' ┬╖ <span class="rec-status rec-status-nonaktif">Lunas</span>' : '';
     return `<div class="tx-item" style="${isLunas ? 'opacity:.55;' : ''}cursor:default;flex-wrap:wrap;">
       <div class="tx-icon ${d.type === 'piutang' ? 'income' : 'expense'}">${iconSvgMarkup('users', 20)}</div>
       <div class="tx-body">
-        <div class="tx-cat">${d.type === 'piutang' ? 'Piutang' : 'Utang'}${d.note ? ' · ' + escAttr(d.note) : ''}</div>
+        <div class="tx-cat">${d.type === 'piutang' ? 'Piutang' : 'Utang'}${d.note ? ' ┬╖ ' + escAttr(d.note) : ''}</div>
         <div class="tx-meta">${d.date}${dueHtml}${statusHtml}</div>
       </div>
       <div class="tx-amt ${amtClass}">${sign}${formatRupiah(d.amount)}</div>
@@ -7917,6 +7913,25 @@ function renderDebtPersonDetailList(){
 }
 function openDebtFormForDetailPerson(){
   openDebtForm(null, debtDetailPersonName);
+}
+
+let debtWalletValue = '';
+function openDebtWalletPicker(){
+  const options = getWallets().map(w => ({value:w.id, label:w.name}));
+  openPicker('Pilih Dompet', options, debtWalletValue, v => { debtWalletValue = v; updateDebtWalletLabel(); });
+}
+function updateDebtWalletLabel(){
+  const w = getWallets().find(x => x.id === debtWalletValue);
+  const label = document.getElementById('debtWalletLabel');
+  if(label) {
+    if(w){
+      label.textContent = w.name;
+      label.classList.remove('ph');
+    } else {
+      label.textContent = 'Pilih dompet';
+      label.classList.add('ph');
+    }
+  }
 }
 
 let currentDebtFormType = 'piutang';
@@ -7941,6 +7956,19 @@ function openDebtForm(id, prefillName){
   document.getElementById('debtNote').value = d ? (d.note || '') : '';
   document.getElementById('debtDueDate').value = d ? (d.dueDate || '') : '';
   document.getElementById('debtDeleteBtn').style.display = d ? 'inline-flex' : 'none';
+
+  let wId = '';
+  if (d) {
+    const tx = getTransactions().find(t => t.id === 'tx_debt_' + d.id);
+    if (tx) wId = tx.walletId;
+  }
+  if (!wId) {
+    const primary = getWallets().find(w => w.isPrimary) || getWallets()[0];
+    wId = primary ? primary.id : '';
+  }
+  debtWalletValue = wId;
+  updateDebtWalletLabel();
+
   populateDebtPersonDatalist();
   clearInvalid('modalDebtForm');
   openModal('modalDebtForm');
@@ -7955,19 +7983,69 @@ function submitDebtForm(){
   let valid = true;
   if(!personName){ document.getElementById('debtPersonName').closest('.field').classList.add('invalid'); valid = false; }
   if(!(amount > 0)){ document.getElementById('debtAmount').closest('.field').classList.add('invalid'); valid = false; }
+  if(!debtWalletValue){ document.getElementById('debtWalletField').classList.add('invalid'); valid = false; }
   if(!valid){ showToast('Lengkapi form terlebih dahulu'); return; }
 
-  const id = document.getElementById('debtId').value;
+  const id = document.getElementById('debtId').value || uid();
   const debts = getDebts();
-  if(id){
+
+  // Find or create "Utang Piutang" category
+  let cat = getCategories().find(c => c.name === 'Utang Piutang');
+  if(!cat){
+    const catId = 'cat_' + uid();
+    const newCat = {
+      id: catId,
+      name: 'Utang Piutang',
+      type: 'expense',
+      icon: 'users',
+      color: '#3b82f6',
+      updatedAt: Date.now()
+    };
+    setCategories([...getCategories(), newCat]);
+    cat = newCat;
+  }
+
+  // Determine transaction type
+  const txType = currentDebtFormType === 'utang' ? 'income' : 'expense';
+  const typeLabel = currentDebtFormType === 'utang' ? 'Utang Baru ke' : 'Piutang Baru ke';
+  const txNote = `${typeLabel} ${personName}: ${note}`.trim();
+
+  // Create/update transaction record
+  const txId = 'tx_debt_' + id;
+  const txRecord = {
+    id: txId,
+    walletId: debtWalletValue,
+    categoryId: cat.id,
+    category: 'Utang Piutang',
+    type: txType,
+    amount: amount,
+    date: date,
+    note: txNote,
+    updatedAt: Date.now()
+  };
+
+  const existingTx = getTransactions().find(t => t.id === txId);
+  let updatedTxs = [];
+  if (existingTx) {
+    updatedTxs = getTransactions().map(t => t.id === txId ? txRecord : t);
+  } else {
+    updatedTxs = [...getTransactions(), txRecord];
+  }
+  setTransactions(updatedTxs);
+
+  if(document.getElementById('debtId').value){
     const d = debts.find(d => d.id === id);
-    Object.assign(d, { personName, type: currentDebtFormType, amount, date, note, dueDate });
+    Object.assign(d, { personName, type: currentDebtFormType, amount, date, note, dueDate, updatedAt: Date.now() });
     showToast('Catatan diperbarui');
   } else {
-    debts.push({ id: uid(), personName, type: currentDebtFormType, amount, date, note, dueDate, status: 'belum' });
+    debts.push({ id, personName, type: currentDebtFormType, amount, date, note, dueDate, status: 'belum', updatedAt: Date.now() });
     showToast('Catatan utang/piutang disimpan');
   }
   setDebts(debts);
+
+  recalculateWalletBalances();
+  triggerSync();
+
   closeModal('modalDebtForm');
   renderDebts();
   if(document.getElementById('modalDebtPersonDetail').classList.contains('open')) renderDebtPersonDetailList();
@@ -7982,17 +8060,28 @@ async function deleteCurrentDebt(){
   });
   if(!confirmed) return;
   await new Promise(r => setTimeout(r, 150));
+
+  const txId = 'tx_debt_' + id;
   if(supabaseClient && navigator.onLine){
     try {
       const code = getAccessCode();
-      await supabaseClient.from('debt_entries').delete().eq('access_code', code).eq('id', id);
+      await Promise.all([
+        supabaseClient.from('debt_entries').delete().eq('access_code', code).eq('id', id),
+        supabaseClient.from('transactions').delete().eq('access_code', code).eq('id', txId)
+      ]);
     } catch(err){
       console.warn('Supabase debt delete err:', err);
     }
   }
 
   recordDeletion(id);
+  recordDeletion(txId);
   setDebts(getDebts().filter(d => d.id !== id));
+  setTransactions(getTransactions().filter(t => t.id !== txId));
+
+  recalculateWalletBalances();
+  triggerSync();
+
   closeModal('modalDebtForm');
   showToast('Catatan dihapus');
   renderDebts();
@@ -8217,7 +8306,7 @@ function openBudgetManage(){
 
 function openBudgetLimitModal(catId, catName){
   document.getElementById('budgetLimitCatId').value = catId;
-  document.getElementById('budgetLimitTitle').textContent = 'Set Limit — ' + catName;
+  document.getElementById('budgetLimitTitle').textContent = 'Set Limit ΓÇö ' + catName;
   const month = budgetMonth || currentMonthStr();
   const b = getEffectiveBudget(catId, month);
   document.getElementById('budgetLimitAmount').value = b ? b.limit.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
@@ -8235,7 +8324,7 @@ function saveBudgetLimit(){
   else budgets.push({ categoryId: catId, month, limit: amount });
   setBudgets(budgets);
   closeModal('modalBudgetLimit');
-  showToast('Limit budget disimpan — berlaku mulai bulan ini');
+  showToast('Limit budget disimpan ΓÇö berlaku mulai bulan ini');
   renderBudget();
   renderHome();
   if(document.getElementById('modalBudgetManage').classList.contains('open')) renderBudgetManageList();
@@ -8286,11 +8375,11 @@ function renderCcWalletsScopeChecklist(){
   wrap.innerHTML = sorted.map(w => {
     const isChecked = scopeIds.includes(w.id);
     return `
-      <label class="hero-wallet-check-item" style="display:flex;flex-direction:row;align-items:center;gap:12px;cursor:pointer;margin-bottom:0;">
-        <input type="checkbox" value="${w.id}" ${isChecked ? 'checked' : ''} onchange="onCcWalletScopeChange()" style="flex-shrink:0;width:18px;height:18px;accent-color:var(--accent);cursor:pointer;margin:0;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:15px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
-          <div style="font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-top:1px;">${formatRupiah(w.balance)}</div>
+      <label class="hero-wallet-check-item" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;margin-bottom:0;">
+        <input type="checkbox" value="${w.id}" ${isChecked ? 'checked' : ''} onchange="onCcWalletScopeChange()" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;margin:0;">
+        <div style="flex:1;">
+          <div style="font-size:13.5px;font-weight:700;color:var(--ink);">${escAttr(w.name)}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);font-weight:600;">${formatRupiah(w.balance)}</div>
         </div>
       </label>`;
   }).join('');
@@ -8329,7 +8418,7 @@ function removeCcFile(i){
 }
 
 /* =========================================================
-   ANALISIS SALDO DENGAN AI — fitur 5
+   ANALISIS SALDO DENGAN AI ΓÇö fitur 5
    ========================================================= */
 let ccaItems = { items: [] };
 
@@ -8357,7 +8446,37 @@ function runCcAnalysis(){
   
   const key = getGeminiApiKey();
   const finish = (result) => {
-    ccaItems = result;
+    const scopeWallets = wallets.filter(w => scopeIds.includes(w.id));
+    const finalItems = scopeWallets.map(w => {
+      // Look for a matched item from AI results for this wallet
+      const aiMatch = result.items.find(it => it.targetWalletId === w.id);
+      return {
+        id: w.id, // Use wallet ID as item ID
+        name: w.name,
+        amount: aiMatch ? aiMatch.amount : 0,
+        targetWalletId: w.id,
+        needsReview: aiMatch ? aiMatch.needsReview : false,
+        matchReason: aiMatch ? aiMatch.matchReason : 'Diisi manual (tidak ada bukti foto)'
+      };
+    });
+    
+    // Also include any AI items that did NOT match any wallet in scope (they will need manual review)
+    result.items.forEach(it => {
+      const alreadyMatched = scopeWallets.some(w => w.id === it.targetWalletId);
+      if (!alreadyMatched) {
+        finalItems.push({
+          id: it.id || uid(),
+          name: it.name,
+          amount: it.amount,
+          targetWalletId: it.targetWalletId,
+          needsReview: true,
+          matchReason: it.matchReason
+        });
+      }
+    });
+
+    ccaItems.items = finalItems;
+    computeAiDupFlags();
     renderCcaItems();
     document.getElementById('ccaLoadingView').style.display = 'none';
     document.getElementById('ccaResultView').style.display = 'block';
@@ -8368,20 +8487,17 @@ function runCcAnalysis(){
     document.getElementById('ccaErrorView').style.display = 'block';
   };
   if(!key){
-    showCcaError('Fitur analisa AI butuh Gemini API Key. Buka Settings → isi "Gemini API Key" dulu, baru coba lagi.');
+    showCcaError('Fitur analisa AI butuh Gemini API Key. Buka Settings ΓåÆ isi "Gemini API Key" dulu, baru coba lagi.');
     return;
   }
   ccAnalyzeWithGemini(key)
     .then(result => {
-      if(result.items.length === 0){
-        showCcaError('AI tidak menemukan saldo apa pun di foto ini. Coba foto yang lebih jelas/terang, atau pastikan angka saldonya kelihatan penuh.');
-        return;
-      }
       finish(result);
     })
     .catch(err => {
       console.error('Gemini balance analysis error:', err);
-      showCcaError((err && err.message) || 'AI gagal membaca foto.');
+      showToast('Gagal memanggil AI. Menampilkan form input manual cakupan dompet.');
+      finish({ items: [] });
     });
 }
 
@@ -8392,143 +8508,170 @@ function retryCcAnalysis(){
 
 async function ccAnalyzeWithGemini(key){
   const scopeIds = getCcWalletsScope();
-  const wallets = getWallets().filter(w => scopeIds.includes(w.id));
-  // Beri AI nomor urut (bukan ID) supaya AI cuma bisa "memilih" dari daftar yang
-  // benar-benar dicentang — nggak ada celah buat nebak/hallucinate ID dompet lain
-  // yang valid di app tapi di luar scope.
-  const walletsText = wallets.map((w, idx) => `${idx + 1}. "${w.name}"`).join('\n');
-
+  const walletsAll = getWallets();
+  const scopeWallets = walletsAll.filter(w => scopeIds.includes(w.id));
+  const walletsText = scopeWallets.map((w, idx) => `${idx + 1}. "${w.name}"`).join('\n');
+  
   const promptText =
-    'Baca setiap lampiran (screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement) dan catat tiap saldo yang terlihat.\n' +
-    'Cocokkan tiap saldo ke salah satu dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar) berdasarkan konteks nama (bukan exact match), misal "GoPay"/"DANA"/"OVO" cocok ke dompet bernama "E-Wallet":\n' +
+    'Kamu asisten keuangan pribadi yang ahli dalam melakukan rekonsiliasi saldo.\n' +
+    'Tugasmu adalah melihat setiap lampiran yang diberikan (screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement) ' +
+    'dan mencocokkan setiap saldo yang terbaca ke daftar dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar):\n' +
     walletsText + '\n\n' +
-    'Kalau tidak ada dompet di daftar itu yang cocok secara konteks (termasuk uang tunai tanpa dompet cash), set wallet_number ke null.\n' +
-    'Kembalikan HANYA objek JSON: {"items":[{"name":"nama singkat sumber saldo (mis. GoPay, Cash, BCA)","amount":<saldo integer rupiah>,"wallet_number":<nomor dari daftar di atas yang cocok, atau null>}, ...]}. ' +
-    'Tanpa teks lain, tanpa markdown code fence.';
+    'Aturan Pencocokan Dompet (Reconciliation Scope):\n' +
+    '1. Lakukan pencocokan berdasarkan konteks/nama institusi, bukan sekadar exact string match. Misal: jika terbaca saldo "GoPay", "Dana", "OVO" sedangkan nama dompet user "E-Wallet", cocokkan ke dompet bernama "E-Wallet" tersebut. Jika terbaca "BCA Mobile" atau "BCA" sedangkan nama dompet user "Bank Central Asia" atau "BCA Utama", cocokkan ke situ.\n' +
+    '2. Uang Tunai/Cash: jika terdeteksi foto uang fisik atau tertulis saldo "Tunai/Cash" tapi tidak ada dompet yang cocok secara konteks, cocokkan ke dompet primary (nomor 1 atau dompet utama). Set wallet_number ke nomor dari daftar di atas yang cocok.\n' +
+    '3. Jika ada item yang terbaca tapi TIDAK cocok dengan dompet manapun di daftar, set wallet_number ke null. Jangan menebak sembarangan.\n' +
+    '4. Ambiguitas Dompet Mirip: jika ada 2 atau lebih dompet user yang sama-sama masuk akal menjadi tujuan match (misal terbaca "GoPay" sedangkan user punya dompet "GoPay Utama" dan "GoPay Bisnis"), JANGAN menebak salah satu. Set wallet_number ke null (akan ditandai sebagai butuh klarifikasi).\n\n' +
+    'Kembalikan HANYA objek JSON dengan struktur berikut:\n' +
+    '{\n' +
+    '  "items": [\n' +
+    '    {\n' +
+    '      "name": "nama saldo yang terbaca di screenshot/struk (mis. GoPay, Cash, BCA)",\n' +
+    '      "amount": <saldo integer rupiah>,\n' +
+    '      "wallet_number": <nomor dari daftar dompet di atas yang cocok, atau null jika tidak cocok / ambigu>,\n' +
+    '      "match_reason": "alasan singkat pencocokan (mis. \'GoPay dicocokkan ke E-wallet karena termasuk e-wallet\', atau \'ambigu antara GoPay Utama dan GoPay Bisnis\')"\n' +
+    '    }, ...\n' +
+    '  ]\n' +
+    '}\n' +
+    'Jangan sertakan penjelasan lain selain objek JSON ini, tanpa markdown code fence.';
 
   const parts = [{ text: promptText }];
   for(const f of ccFiles){ parts.push(await fileToGenerativePart(f)); }
   const data = await callGeminiRaw(key, parts);
   const text = extractGeminiText(data);
   const parsed = parseAiJson(text, 'object');
-
-  // Fallback & validasi WAJIB dari dompet yang dicentang di scope saja —
-  // nomor urut dipetakan balik ke wallet scope; nomor di luar rentang = tidak valid.
-  const primaryInScope = wallets.find(w => w.isPrimary);
-  const primaryId = primaryInScope ? primaryInScope.id : (wallets[0] ? wallets[0].id : null);
+  
+  const primaryInScope = scopeWallets.find(w => w.isPrimary) || scopeWallets[0];
+  const fallbackScopeId = primaryInScope ? primaryInScope.id : 'wallet_utama';
 
   const items = Array.isArray(parsed && parsed.items) ? parsed.items.map(it => {
     const num = Number(it && it.wallet_number);
-    const hasMatch = Number.isInteger(num) && num >= 1 && num <= wallets.length;
+    const hasMatch = Number.isInteger(num) && num >= 1 && num <= scopeWallets.length;
     return {
       id: uid(),
       name: ((it && it.name) || 'Dompet').toString().slice(0, 30),
       amount: Math.max(0, Math.round(Number(it && it.amount) || 0)),
-      // Kalau AI ga nemu dompet yang cocok (atau kasih nomor di luar daftar), otomatis fallback
-      // ke dompet utama DALAM SCOPE — tanpa ditandai apapun, user yang review/edit manual dropdown-nya kalau perlu.
-      targetWalletId: hasMatch ? wallets[num - 1].id : primaryId
+      targetWalletId: hasMatch ? scopeWallets[num - 1].id : fallbackScopeId,
+      needsReview: !hasMatch,
+      matchReason: ((it && it.match_reason) || '').toString()
     };
-  }).filter(it => it.targetWalletId) : [];
+  }) : [];
+  
+  return { items: items.filter(it => scopeIds.includes(it.targetWalletId)) };
+}
 
-  return { items };
+function computeAiDupFlags() {
+  const groups = {}; 
+  ccaItems.items.forEach(it => {
+    if (!it.targetWalletId) return;
+    if (!groups[it.targetWalletId]) groups[it.targetWalletId] = [];
+    groups[it.targetWalletId].push(it);
+  });
+  
+  ccaItems.items.forEach(it => {
+    it.isDuplicate = false;
+    it.isOverride = false;
+    it.overrideWarning = '';
+  });
+  
+  Object.keys(groups).forEach(walletId => {
+    const group = groups[walletId];
+    if (group.length <= 1) return;
+    
+    const seenAmounts = {};
+    group.forEach((it, index) => {
+      if (seenAmounts[it.amount] !== undefined) {
+        it.isDuplicate = true; 
+      } else {
+        seenAmounts[it.amount] = index;
+      }
+    });
+    
+    const activeItems = group.filter(it => !it.isDuplicate);
+    if (activeItems.length > 1) {
+      activeItems.forEach((it, index) => {
+        if (index < activeItems.length - 1) {
+          it.isOverride = true; 
+        } else {
+          it.overrideWarning = `Meng-override item lain untuk dompet ini dengan nilai berbeda!`;
+        }
+      });
+    }
+  });
 }
 
 function renderCcaItems(){
   const wrap = document.getElementById('ccaItemsWrap');
   if (!wrap) return;
-
-  const allWallets = getWallets();
+  
+  const wallets = getWallets();
   const scopeIds = getCcWalletsScope();
+  const scopeWallets = wallets.filter(w => scopeIds.includes(w.id));
+  
+  wrap.innerHTML = ccaItems.items.map(it => {
+    let statusLabel = '';
+    let rowStyle = '';
+    let isIgnored = false;
+    
+    if (it.isDuplicate) {
+      statusLabel = '<span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">Duplikat (Diabaikan)</span>';
+      rowStyle = 'opacity: 0.6;';
+      isIgnored = true;
+    } else if (it.isOverride) {
+      statusLabel = '<span class="badge" style="background:#fee2e2;color:#ef4444;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">Ditimpa (Diabaikan)</span>';
+      rowStyle = 'opacity: 0.6;';
+      isIgnored = true;
+    } else if (it.needsReview) {
+      statusLabel = '<span class="badge" style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">Butuh Review (Terpilih Primary)</span>';
+    }
+    
+    const warningText = it.overrideWarning ? `<div style="color:#ef4444;font-size:11px;font-weight:600;margin-top:2px;">ΓÜá∩╕Å ${it.overrideWarning}</div>` : '';
+    const reasonText = it.matchReason ? `<div style="color:var(--ink-soft);font-size:11px;margin-top:2px;">Konteks: ${escAttr(it.matchReason)}</div>` : '';
 
-  const scopeWallets = allWallets
-    .filter(w => scopeIds.includes(w.id))
-    .sort((a, b) => {
-      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-      if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
-      return (a.createdAt ?? 0) - (b.createdAt ?? 0);
-    });
-
-  // Dompet di luar scope tapi kepakai (mis. dompet baru dibuat lewat dropdown item)
-  const extraWalletIds = Array.from(new Set(
-    ccaItems.items.map(it => it.targetWalletId).filter(id => id && !scopeIds.includes(id))
-  ));
-  const extraWallets = extraWalletIds.map(id => allWallets.find(w => w.id === id)).filter(Boolean);
-
-  const groups = [...scopeWallets, ...extraWallets];
-
-  wrap.innerHTML = groups.map(w => {
-    const groupItems = ccaItems.items.filter(it => it.targetWalletId === w.id);
-    const itemsHtml = groupItems.length
-      ? groupItems.map(it => renderCcaItemCard(it, allWallets)).join('')
-      : `<div class="cca-group-empty">Tidak ada saldo terbaca untuk dompet ini — dianggap tetap.</div>`;
-
-    const sistem = w.balance;
-    const aktual = groupItems.length ? groupItems.reduce((s, it) => s + (Number(it.amount) || 0), 0) : sistem;
-    const diff = aktual - sistem;
-    const diffClass = diff === 0 ? '' : (diff > 0 ? 'pos' : 'neg');
-    const diffText = diff === 0 ? formatRupiah(0) : (diff > 0 ? '+' : '') + formatRupiah(diff);
-
+    const dropdownOptions = scopeWallets.map(w => `
+      <option value="${w.id}" ${w.id === it.targetWalletId ? 'selected' : ''}>${escAttr(w.name)}</option>
+    `).join('');
+    
     return `
-      <div class="cca-group" data-wallet="${w.id}">
-        <div class="cca-group-title">${escAttr(w.name)}${w.isPrimary ? ' <span class="sub">(Utama)</span>' : ''}</div>
-        ${itemsHtml}
-        <div class="cca-group-summary">
-          <div class="cca-group-summary-row"><span>Saldo Sistem</span><b id="ccaSistem_${w.id}">${formatRupiah(sistem)}</b></div>
-          <div class="cca-group-summary-row"><span>Saldo Aktual</span><b id="ccaAktual_${w.id}">${formatRupiah(aktual)}</b></div>
-          <div class="cca-group-summary-row diff"><span>Selisih</span><b id="ccaDiffW_${w.id}" class="${diffClass}">${diffText}</b></div>
+      <div class="cc-item-row" data-id="${it.id}" style="${rowStyle}padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div style="font-weight:700;font-size:13.5px;color:var(--ink);">${escAttr(it.name)}</div>
+            ${statusLabel}
+            ${reasonText}
+            ${warningText}
+          </div>
+          <button type="button" class="cc-item-del" onclick="deleteCcaItem('${it.id}')" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
+          </button>
         </div>
-      </div>`;
-  }).join('');
-
-  updateCcaTotal();
-}
-
-function renderCcaItemCard(it, wallets){
-  const dropdownOptions = wallets.map(w => `
-    <option value="${w.id}" ${w.id === it.targetWalletId ? 'selected' : ''}>${escAttr(w.name)}</option>
-  `).join('');
-
-  return `
-    <div class="cca-item-card" data-id="${it.id}">
-      <div class="cca-item-top">
-        <input type="text" class="cca-item-name" value="${escAttr(it.name)}" oninput="onCcaItemNameChange('${it.id}', this.value)" placeholder="Nama sumber saldo">
-        <button type="button" class="cca-item-del" onclick="deleteCcaItem('${it.id}')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-      <div class="cca-item-fields">
-        <div class="field">
-          <label>Dompet Tujuan</label>
-          <select onchange="onCcaItemWalletChange('${it.id}', this)">
-            ${dropdownOptions}
-            <option value="__NEW__">+ Tambah Dompet Baru</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Saldo Terbaca</label>
-          <div class="amount-input">
-            <span>Rp</span>
-            <input type="text" id="ccaAmt_${it.id}" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" oninput="formatThousandInput(this);onCcaItemAmountChange('${it.id}', this.value)" placeholder="0">
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px;">
+          <div class="field" style="margin:0;">
+            <label style="font-size:11px;">Dompet Tujuan</label>
+            <select onchange="onCcaItemWalletChange('${it.id}', this)" style="width:100%;padding:6px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);">
+              ${dropdownOptions}
+              <option value="__NEW__">+ Tambah Dompet Baru</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label style="font-size:11px;">Saldo Terbaca</label>
+            <div class="amount-input" style="padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);display:flex;align-items:center;">
+              <span style="font-size:12px;color:var(--ink-soft);margin-right:2px;">Rp</span>
+              <input type="text" id="ccaAmt_${it.id}" value="${it.amount ? it.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" onchange="onCcaItemAmountTextChange('${it.id}', this)" onblur="formatCcaItemAmountInput(this)" style="border:none;background:none;outline:none;font-size:12px;width:100%;font-weight:700;color:var(--ink);padding:0;" placeholder="0" ${isIgnored ? 'disabled' : ''}>
+            </div>
           </div>
         </div>
       </div>
-    </div>`;
-}
-
-function onCcaItemNameChange(itemId, name){
-  const it = ccaItems.items.find(x => x.id === itemId);
-  if (it) it.name = name;
+    `;
+  }).join('');
+  
+  updateCcaTotal();
 }
 
 async function onCcaItemWalletChange(itemId, selectEl) {
   const val = selectEl.value;
   if (val === '__NEW__') {
-    const newName = await showInputModal({
-      title: 'Dompet Baru',
-      label: 'Nama Dompet',
-      placeholder: 'Contoh: Dompet Kas, Mandiri, dll',
-      okText: 'Tambah'
-    });
+    const newName = prompt('Masukkan Nama Dompet Baru:');
     if (!newName || !newName.trim()) {
       renderCcaItems();
       return;
@@ -8556,14 +8699,69 @@ async function onCcaItemWalletChange(itemId, selectEl) {
     setWallets(wallets);
     
     const it = ccaItems.items.find(x => x.id === itemId);
-    if (it) it.targetWalletId = newId;
+    if (it) {
+      it.targetWalletId = newId;
+      it.needsReview = false;
+    }
     showToast(`Dompet "${name}" berhasil ditambahkan`);
   } else {
     const it = ccaItems.items.find(x => x.id === itemId);
-    if (it) it.targetWalletId = val;
+    if (it) {
+      it.targetWalletId = val;
+      it.needsReview = false;
+    }
+  }
+  
+  computeAiDupFlags();
+  renderCcaItems();
+}
+
+function parseTextNominal(str) {
+  if (!str) return 0;
+  const lower = str.toLowerCase().trim();
+  
+  const slangMap = {
+    seceng: 1000,
+    goceng: 5000,
+    ceban: 10000,
+    noceng: 9000,
+    goban: 50000,
+    gocap: 50000
+  };
+  
+  for (const [slang, val] of Object.entries(slangMap)) {
+    if (lower.includes(slang)) {
+      return val;
+    }
   }
 
-  renderCcaItems();
+  let match = lower.match(/(\d+(?:[.,]\d+)?)\s*(?:rb|ribu|k)\b/);
+  if (match) {
+    let val = parseFloat(match[1].replace(',', '.'));
+    return Math.round(val * 1000);
+  }
+
+  match = lower.match(/(\d+(?:[.,]\d+)?)\s*(?:jt|juta)\b/);
+  if (match) {
+    let val = parseFloat(match[1].replace(',', '.'));
+    return Math.round(val * 1000000);
+  }
+
+  return parseRupiahInput(str);
+}
+
+function onCcaItemAmountTextChange(itemId, inputEl) {
+  const val = parseTextNominal(inputEl.value);
+  const it = ccaItems.items.find(x => x.id === itemId);
+  if (it) {
+    it.amount = val;
+  }
+  updateCcaTotal();
+}
+
+function formatCcaItemAmountInput(el) {
+  const num = parseTextNominal(el.value);
+  el.value = num ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
 }
 
 function onCcaItemAmountChange(itemId, valStr) {
@@ -8576,78 +8774,61 @@ function onCcaItemAmountChange(itemId, valStr) {
 }
 
 function addCcaManualItem(){
-  const wallets = getWallets();
+  const scopeIds = getCcWalletsScope();
+  const wallets = getWallets().filter(w => scopeIds.includes(w.id));
   const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
   const primaryId = primaryWallet ? primaryWallet.id : 'wallet_utama';
   
   ccaItems.items.push({
     id: uid(),
-    name: '',
+    name: 'Dompet Baru',
     amount: 0,
-    targetWalletId: primaryId
+    targetWalletId: primaryId,
+    needsReview: true,
+    matchReason: 'Item ditambahkan manual oleh user'
   });
+  computeAiDupFlags();
   renderCcaItems();
   document.getElementById('ccaItemsWrap').scrollIntoView({behavior:'smooth', block:'end'});
 }
 
 function deleteCcaItem(id){
   ccaItems.items = ccaItems.items.filter(it => it.id !== id);
+  computeAiDupFlags();
   renderCcaItems();
 }
 
 function updateCcaTotal(){
-  // Sinkron nilai amount dari input yang sedang diketik ke data model
+  let total = 0;
   ccaItems.items.forEach(it => {
+    if (it.isDuplicate || it.isOverride) return;
     const el = document.getElementById('ccaAmt_'+it.id);
-    if (el) it.amount = parseRupiahInput(el.value);
+    const amt = el ? parseTextNominal(el.value) : it.amount;
+    total += amt;
   });
-
+  
+  const totalEl = document.getElementById('ccaTotal');
+  if(totalEl) totalEl.textContent = formatRupiah(total);
+  
   const scopeIds = getCcWalletsScope();
   const wallets = getWallets();
-  const scopeWallets = wallets.filter(w => scopeIds.includes(w.id));
-
-  let totalAktual = 0;
-  scopeWallets.forEach(w => {
-    const groupItems = ccaItems.items.filter(it => it.targetWalletId === w.id);
-    const sistem = w.balance;
-    const aktual = groupItems.length ? groupItems.reduce((s, it) => s + (Number(it.amount) || 0), 0) : sistem;
-    totalAktual += aktual;
-
-    const diff = aktual - sistem;
-    const diffClass = diff === 0 ? '' : (diff > 0 ? 'pos' : 'neg');
-    const diffText = diff === 0 ? formatRupiah(0) : (diff > 0 ? '+' : '') + formatRupiah(diff);
-
-    const aktualEl = document.getElementById('ccaAktual_'+w.id);
-    if (aktualEl) aktualEl.textContent = formatRupiah(aktual);
-    const diffEl2 = document.getElementById('ccaDiffW_'+w.id);
-    if (diffEl2) { diffEl2.textContent = diffText; diffEl2.className = diffClass; }
-  });
-
-  // Dompet di luar scope yang kepakai (edge case dompet baru ditambah lewat dropdown item)
-  const extraTotal = ccaItems.items
-    .filter(it => it.targetWalletId && !scopeIds.includes(it.targetWalletId))
-    .reduce((s, it) => s + (Number(it.amount) || 0), 0);
-  totalAktual += extraTotal;
-
-  const totalEl = document.getElementById('ccaTotal');
-  if(totalEl) totalEl.textContent = formatRupiah(totalAktual);
-
-  const recorded = scopeWallets.reduce((s, w) => s + w.balance, 0);
-  const diff = totalAktual - recorded;
-
+  const recorded = wallets.filter(w => scopeIds.includes(w.id)).reduce((s, w) => s + w.balance, 0);
+  const diff = total - recorded;
+  
   const diffEl = document.getElementById('ccaDiff');
   if(diffEl){
     diffEl.textContent = (diff >= 0 ? '+' : '') + formatRupiah(diff);
     diffEl.className = diff >= 0 ? 'pos' : 'neg';
   }
-  return totalAktual;
+  return total;
 }
 
 function applyPenyesuaian(){
   const wallets = getWallets();
+  const activeItems = ccaItems.items.filter(it => !it.isDuplicate && !it.isOverride);
   
   const walletAmounts = {};
-  ccaItems.items.forEach(it => {
+  activeItems.forEach(it => {
     if (!it.targetWalletId) return;
     if (walletAmounts[it.targetWalletId] === undefined) walletAmounts[it.targetWalletId] = 0;
     walletAmounts[it.targetWalletId] += it.amount;
@@ -8707,7 +8888,7 @@ function applyPenyesuaian(){
 }
 
 /* =========================================================
-   PENYESUAIAN SALDO MANUAL (tanpa AI) — modal terpisah dari modalCcAnalysis
+   PENYESUAIAN SALDO MANUAL (tanpa AI) ΓÇö modal terpisah dari modalCcAnalysis
    ========================================================= */
 let manualAdjItems = { cash: 0, items: [] };
 
@@ -8863,7 +9044,7 @@ function applyManualAdjustment(){
 }
 
 /* =========================================================
-   RIWAYAT PENYESUAIAN SALDO — filter transaksi kategori "Penyesuaian Saldo"
+   RIWAYAT PENYESUAIAN SALDO ΓÇö filter transaksi kategori "Penyesuaian Saldo"
    yang sudah ada (dari fitur AI maupun manual), tidak ada penyimpanan baru.
    ========================================================= */
 function openAdjustmentHistory(){
@@ -8921,7 +9102,7 @@ function saveSettings(){
 }
 
 /* =========================================================
-   BOTTOM NAV MOBILE — render slot inti + tombol "Lainnya"
+   BOTTOM NAV MOBILE ΓÇö render slot inti + tombol "Lainnya"
    ========================================================= */
 function renderBottomNav(){
   const el = document.getElementById('bottomNav');
@@ -8984,8 +9165,8 @@ function renderNavConfigManage(){
       </div>
       <div class="cat-manage-actions">
         ${tab === 'beranda' ? '<span style="font-size:11px;color:var(--ink-soft);">Terkunci</span>' : `
-          <button type="button" class="btn btn-ghost btn-sm" onclick="moveNavCore('${tab}',-1)" ${i<=1?'disabled':''} aria-label="Naikkan">↑</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="moveNavCore('${tab}',1)" ${i===core.length-1?'disabled':''} aria-label="Turunkan">↓</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="moveNavCore('${tab}',-1)" ${i<=1?'disabled':''} aria-label="Naikkan">Γåæ</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="moveNavCore('${tab}',1)" ${i===core.length-1?'disabled':''} aria-label="Turunkan">Γåô</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick="removeFromNavCore('${tab}')">Ke Lainnya</button>
         `}
       </div>
@@ -9008,7 +9189,7 @@ function renderNavConfigManage(){
 function moveNavCore(tab, dir){
   const { core } = getNavConfig();
   const idx = core.indexOf(tab);
-  if(idx <= 0) return; // beranda (idx 0) atau tidak ditemukan — tidak bisa digeser
+  if(idx <= 0) return; // beranda (idx 0) atau tidak ditemukan ΓÇö tidak bisa digeser
   const swapIdx = idx + dir;
   if(swapIdx <= 0 || swapIdx >= core.length) return;
   const tmp = core[idx]; core[idx] = core[swapIdx]; core[swapIdx] = tmp;
@@ -9159,40 +9340,33 @@ function renderWalletManageList(){
 
   listWrap.innerHTML = sorted.map((w, idx) => {
     const isPrimary = w.isPrimary;
-    const dragHandleHtml = isPrimary ? '<div class="wallet-manage-drag-spacer"></div>' : `
-      <div class="wallet-manage-drag" onpointerdown="startWalletDrag(event, '${w.id}')">
+    const dragHandleHtml = isPrimary ? '<div style="width:30px;flex-shrink:0;"></div>' : `
+      <div class="wallet-drag-handle" style="cursor:grab;padding:6px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;touch-action:none;width:30px;box-sizing:border-box;flex-shrink:0;" onpointerdown="startWalletDrag(event, '${w.id}')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
       </div>`;
-
-    const badgeHtml = isPrimary ? `
-      <span class="wallet-manage-badge">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.26L21.5 9l-5 4.87L17.8 21 12 17.27 6.2 21l1.3-7.13-5-4.87 6.6-.74L12 2z"/></svg>
-        Utama
-      </span>` : '';
-
-    const actionsHtml = isPrimary ? '' : `
-      <div class="wallet-manage-actions">
-        <button type="button" class="btn btn-ghost" onclick="setWalletPrimaryDirect('${w.id}')">Jadikan Utama</button>
-        <button type="button" class="btn wallet-manage-btn-danger" onclick="deleteWalletManual('${w.id}')">Hapus</button>
-      </div>`;
+      
+    const badgeOrButtonHtml = isPrimary ? `
+      <span style="font-size:11.5px;background:var(--accent-tint);color:var(--accent);font-weight:700;padding:5px 10px;border-radius:6px;display:inline-block;text-align:center;">Primary</span>
+    ` : `
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button type="button" class="btn btn-ghost" onclick="setWalletPrimaryDirect('${w.id}')" style="font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;border-radius:6px;font-weight:600;">Set Primary</button>
+        <button type="button" class="btn btn-ghost btn-text-danger" onclick="deleteWalletManual('${w.id}')" style="font-size:11.5px;padding:5px 10px;margin:0;line-height:1.2;min-height:unset;color:var(--accent);border-radius:6px;font-weight:600;">Hapus</button>
+      </div>
+    `;
 
     return `
-      <div class="wallet-manage-card cat-manage-row wallet-manage-row${isPrimary ? ' is-primary' : ''}" data-id="${w.id}">
-        <div class="wallet-manage-top">
-          ${dragHandleHtml}
-          <div class="wallet-manage-info">
-            <input type="text" class="wallet-manage-name" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" placeholder="Nama Dompet">
-            <div class="wallet-manage-balance-row">
-              <span class="wallet-manage-balance-label">Saldo</span>
-              <span class="wallet-manage-balance-value" onclick="startEditWalletBalance('${w.id}', this)">
-                <span>${formatRupiah(w.balance)}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-              </span>
-            </div>
+      <div class="settings-row cat-manage-row wallet-manage-row" data-id="${w.id}" style="padding:12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:0;display:flex;align-items:center;gap:12px;box-sizing:border-box;width:100%;">
+        ${dragHandleHtml}
+        <div class="l" style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+          <input type="text" value="${escAttr(w.name)}" onblur="renameWalletDirect('${w.id}', this)" onkeydown="if(event.key==='Enter') this.blur()" style="font-size:14.5px;font-weight:700;color:var(--ink);border:none;background:none;outline:none;padding:0;width:100%;box-sizing:border-box;height:24px;line-height:24px;" placeholder="Nama Dompet">
+          <div style="font-size:12px;color:var(--ink-soft);font-weight:600;margin-top:4px;line-height:1.5;display:flex;align-items:center;gap:4px;">
+            <span>Saldo:</span>
+            <span class="editable-balance-trigger" onclick="startEditWalletBalance('${w.id}', this)" style="color:var(--ink);font-weight:700;border-bottom:1.5px dashed var(--accent);cursor:pointer;padding:0 2px;">${formatRupiah(w.balance)}</span>
           </div>
-          ${badgeHtml}
         </div>
-        ${actionsHtml}
+        <div style="display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+          ${badgeOrButtonHtml}
+        </div>
       </div>`;
   }).join('');
 }
@@ -9227,15 +9401,12 @@ async function startEditWalletBalance(id, spanEl) {
   if (!w) return;
   
   const currentValStr = Math.round(w.balance).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  const inputStr = await showInputModal({
-    title: 'Ubah Saldo',
-    label: `Saldo Baru untuk "${w.name}"`,
-    value: currentValStr,
-    prefix: 'Rp',
-    isRupiah: true,
-    okText: 'Lanjut'
+  const inputStr = await showPromptModal({
+    title: 'Edit Saldo',
+    label: `Masukkan Saldo Baru untuk "${w.name}":`,
+    defaultValue: currentValStr
   });
-  if (inputStr === null) return;
+  if (inputStr === null || inputStr === undefined) return;
   
   const newBalance = parseRupiahInput(inputStr);
   const diff = newBalance - w.balance;
@@ -9602,7 +9773,7 @@ async function confirmResetAllData(){
         reset_at: resetAt,
         updated_at: resetAt
       });
-      showToast('Data server berhasil dihapus ✓');
+      showToast('Data server berhasil dihapus Γ£ô');
     } catch(err) {
       console.warn('Supabase reset err:', err);
       showToast('Gagal hapus data server, coba lagi');
@@ -9682,7 +9853,7 @@ function openCatIconPicker(editingId){
   catEditingId = editingId || null;
   renderIconPickerGrid();
   renderCatManageColorSwatches();
-  /* Buka sebagai layer BARU di atas modalCategories (bukan swap/replace) — supaya
+  /* Buka sebagai layer BARU di atas modalCategories (bukan swap/replace) ΓÇö supaya
      modalCategories tetap ada di navStack di baliknya. Dengan begitu, tombol Back
      fisik/browser atau tombol silang/Batal cuma mundur 1 langkah balik ke Kelola
      Kategori, bukan langsung loncat ke tampilan utama Settings. */
@@ -9865,7 +10036,7 @@ async function deleteCategoryManaged(id){
 }
 
 /* =========================================================
-   PENGINGAT TRANSAKSI BERULANG — UI
+   PENGINGAT TRANSAKSI BERULANG ΓÇö UI
    ========================================================= */
 let currentRecFormType = 'expense';
 let recWalletValue = null, recCategoryValue = null, recConfirmWalletValue = null;
@@ -9887,7 +10058,7 @@ function renderRecurringHomeAlert(){
   const list = getRecurring().filter(r => r.active);
   const dueCount = list.filter(r => { const s = recurringStatus(r); return s === 'jatuh-tempo' || s === 'terlambat'; }).length;
   if(dueCount === 0){ wrap.innerHTML = ''; return; }
-  wrap.innerHTML = `<div class="budget-alert-row" style="cursor:pointer;" onclick="openRecurringManage()">${warnSvg()}<span>${dueCount} pengingat berulang jatuh tempo / terlambat — klik untuk lihat</span></div>`;
+  wrap.innerHTML = `<div class="budget-alert-row" style="cursor:pointer;" onclick="openRecurringManage()">${warnSvg()}<span>${dueCount} pengingat berulang jatuh tempo / terlambat ΓÇö klik untuk lihat</span></div>`;
 }
 
 function openRecurringManage(){
@@ -10001,7 +10172,7 @@ function renderRecurringManageList(){
       <div class="tx-icon ${item.type}">${cat ? iconSvgMarkup(cat.icon, 20) : ''}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(item.name)}</div>
-        <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} · tgl ${item.dayOfMonth} tiap bulan · <span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
+        <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} ┬╖ tgl ${item.dayOfMonth} tiap bulan ┬╖ <span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
       </div>
       <div class="tx-amt ${item.type}">${formatRupiah(item.amount)}</div>
       <div style="width:100%;display:flex;gap:8px;margin-top:8px;">
@@ -10208,17 +10379,17 @@ function submitRecurringConfirm(){
 }
 
 /* =========================================================
-   SHORTCUT TRANSAKSI CEPAT — UI (Checklist, Bagian B)
+   SHORTCUT TRANSAKSI CEPAT ΓÇö UI (Checklist, Bagian B)
    ========================================================= */
 // Nominal shortcut = nominal yang paling sering dipakai untuk kategori itu (dari seluruh riwayat transaksi kategori tsb).
-// Ini tetap otomatis dari kebiasaan (habit-based) — hanya rekomendasi NOMINAL, bukan pemilihan kategori.
+// Ini tetap otomatis dari kebiasaan (habit-based) ΓÇö hanya rekomendasi NOMINAL, bukan pemilihan kategori.
 function modeAmountForCategory(categoryId){
   const txs = getTransactions().filter(t => t.categoryId === categoryId && t.amount > 0);
   if(txs.length === 0) return 0;
   const top = topFrequent(txs, t => t.amount, 1);
   return top.length ? Number(top[0]) : 0;
 }
-// Kategori shortcut SEPENUHNYA manual — user pilih sendiri lewat "Kelola", tidak ada lagi otomatis dari kebiasaan.
+// Kategori shortcut SEPENUHNYA manual ΓÇö user pilih sendiri lewat "Kelola", tidak ada lagi otomatis dari kebiasaan.
 function getShortcutCategoryIds(){
   const ids = getShortcutOverrides(); // array of categoryId, urutan = urutan pilih
   const validIds = new Set(getCategories().map(c => c.id));

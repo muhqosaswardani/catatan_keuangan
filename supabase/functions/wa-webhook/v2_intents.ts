@@ -25,31 +25,19 @@ export async function parseV2Intent(
   apiKeys: string[],
   text: string
 ): Promise<any> {
-  const cleaned = text.toLowerCase();
-  
-  // Quick local check to bypass Gemini intent parsing for obvious normal transactions
-  const intentKeywords = [
-    "transfer", "pindah", "pindahin", "tf", "mutasi",
-    "pinjam", "pinjem", "utang", "hutang", "piutang", "talang", "talangin", "kembalikan", "balikin",
-    "lunas", "lunasin", "cicilan", "tagihan", "arisan"
-  ];
-  
-  const hasKeyword = intentKeywords.some(kw => cleaned.includes(kw));
-  if (!hasKeyword) {
-    return { intent: "none" };
-  }
-
   const prompt = `
 Analisis teks pesan masuk dari user WhatsApp berikut dan tentukan intent/maksud aksinya.
 Aksi teks bebas yang didukung:
 1. "checklist" - Menandai tagihan berulang/checklist bulanan sebagai lunas/dibayar (misal: "bayar kuliah", "lunasin cicilan motor").
 2. "transfer" - Transfer uang antar dompet/rekening (misal: "transfer dari utama ke tabungan 500rb", "pindahin 100k ke gopay").
 3. "debt" - Catat utang baru, piutang baru, cicilan, atau pelunasan utang/piutang ke seseorang (misal: "pinjam ke Budi 100rb", "bayar utang Budi 50rb", "Sari utang ke aku 30k").
-4. "none" - Bukan salah satu dari di atas (misal transaksi pengeluaran biasa seperti "beli bakso 15rb", atau pertanyaan umum).
+4. "query" - Pertanyaan/permintaan informasi mengenai laporan keuangan, detail transaksi, budget, saldo, tagihan, dll (misal: "cek saldo", "berapa pengeluaran makan bulan ini", "apakah ada tagihan jatuh tempo?", "daftar pengeluaran gojek", "selisih bulan lalu").
+5. "transaction" - Pencatatan pemasukan, pengeluaran atau transfer biasa dengan menyebutkan nominal secara eksplisit (misal: "makan bakso 15.000", "pemasukan gajian 5.000.000", "bensin 20rb").
+6. "general_chat" - Obrolan umum, sapaan, ucapan terima kasih, atau hal di luar keuangan (misal: "halo", "terima kasih ya", "siapa pembuatmu?").
 
 Keluarkan JSON dengan schema berikut:
 {
-  "intent": "checklist" | "transfer" | "debt" | "none",
+  "intent": "checklist" | "transfer" | "debt" | "query" | "transaction" | "general_chat",
   "checklist": {
     "item_name": "string (nama tagihan/item checklist yang dicari, misal 'kuliah' atau 'cicilan motor')",
     "amount": number | null
@@ -75,7 +63,7 @@ Teks user: "${text}"
     const responseSchema = {
       type: "OBJECT",
       properties: {
-        intent: { type: "STRING", enum: ["checklist", "transfer", "debt", "none"] },
+        intent: { type: "STRING", enum: ["checklist", "transfer", "debt", "query", "transaction", "general_chat"] },
         checklist: {
           type: "OBJECT",
           properties: {
@@ -113,7 +101,7 @@ Teks user: "${text}"
     return JSON.parse(resultText);
   } catch (err) {
     console.error("Error in parseV2Intent:", err);
-    return { intent: "none" };
+    return { intent: "transaction" };
   }
 }
 
@@ -526,11 +514,32 @@ Ke dompet: ${destWallet.name} (Sisa: ${formatRupiah(updatedDest?.balance ?? 0)})
 /**
  * 3. Menangani Utang Piutang
  */
+function findMentionedWallet(text: string, wallets: any[]): string | undefined {
+  const lowerText = text.toLowerCase();
+  for (const w of wallets) {
+    const lowerName = w.name.toLowerCase();
+    if (lowerText.includes(lowerName)) {
+      return w.name;
+    }
+    const words = lowerName.split(/\s+/).filter((word: string) => word.length > 2 && word !== "dompet" && word !== "rekening");
+    for (const word of words) {
+      if (lowerText.includes(word)) {
+        return w.name;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * 3. Menangani Utang Piutang
+ */
 export async function handleV2DebtIntent(
   db: SupabaseClient,
   apiKeys: string[],
   waChatId: string,
   messageId: string,
+  userText: string,
   debtData: any
 ): Promise<boolean> {
   const amount = Number(debtData.amount) || 0;
@@ -539,13 +548,19 @@ export async function handleV2DebtIntent(
   }
 
   const todayStr = getTodayStr();
-  const allDebts = await db
+  const { data: allDebts, error: fetchErr } = await db
     .from("debt_entries")
     .select("*")
-    .eq("access_code", ACCESS_CODE)
-    .eq("person_name", debtData.person_name);
+    .eq("access_code", ACCESS_CODE);
 
-  const activeDebts = allDebts.filter(d => d.status === "active" || d.status === "belum");
+  if (fetchErr) {
+    console.error("Error fetching debts:", fetchErr);
+    return false;
+  }
+
+  const personLower = debtData.person_name.toLowerCase().trim();
+  const matchedDebts = (allDebts ?? []).filter(d => (d.person_name || "").toLowerCase().trim() === personLower);
+  const activeDebts = matchedDebts.filter(d => d.status === "active" || d.status === "belum");
 
   if (debtData.is_payment) {
     if (activeDebts.length === 0) {
@@ -583,7 +598,8 @@ export async function handleV2DebtIntent(
           pending_data: {
             type: "clarify_debt_payment",
             candidates: activeDebts,
-            amount: amount
+            amount: amount,
+            user_text: userText
           }
         });
       }
@@ -591,7 +607,7 @@ export async function handleV2DebtIntent(
     }
 
     const activeDebt = activeDebts[0];
-    return await executeDebtPayment(db, waChatId, messageId, activeDebt, amount);
+    return await executeDebtPayment(db, waChatId, messageId, activeDebt, amount, userText);
   }
 
   const debtId = `wa_debt_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
@@ -615,13 +631,54 @@ export async function handleV2DebtIntent(
     return false;
   }
 
-  const typeLabel = type === "i_owe" ? "Kamu berutang ke dia" : "Dia berutang ke kamu";
+  // Create Category "Utang Piutang" if not exists
+  const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
+  let cat = categories?.find(c => c.name === "Utang Piutang");
+  if (!cat) {
+    const catId = `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+    await db.from("categories").insert({
+      id: catId,
+      access_code: ACCESS_CODE,
+      name: "Utang Piutang",
+      type: "expense",
+      icon: "users",
+      color: "#3b82f6"
+    });
+    cat = { id: catId, name: "Utang Piutang" };
+  }
+
+  // Match Wallet from user text
+  const { data: walletsList } = await db.from("wallets").select("id, name, is_primary").eq("access_code", ACCESS_CODE);
+  const mentionedWalletName = findMentionedWallet(userText, walletsList || []);
+  const wallets = (walletsList || []) as any[];
+  const primaryWallet = wallets.find(w => w.is_primary) || wallets[0];
+  const walletId = wallets.find(w => w.name === mentionedWalletName)?.id || primaryWallet?.id || DEFAULT_WALLET_ID;
+  const targetWalletName = wallets.find(w => w.id === walletId)?.name || "Dompet Utama";
+
+  // Create Transaction
+  const txType = type === "i_owe" ? "income" : "expense";
+  const txNote = type === "i_owe" 
+    ? `Utang Baru ke ${debtData.person_name}: ${note}`
+    : `Piutang Baru ke ${debtData.person_name}: ${note}`;
+
+  const savedTx = await saveV2Transaction(db, {
+    wallet_id: walletId,
+    category_id: cat.id,
+    category: "Utang Piutang",
+    type: txType,
+    amount: amount,
+    date: todayStr,
+    note: txNote
+  });
+
+  const typeLabel = type === "i_owe" ? "Kamu berutang ke dia (Saldo Bertambah)" : "Dia berutang ke kamu (Saldo Berkurang)";
   const bubble = `Catatan utang disimpan ✓
 Tanggal: ${formatTanggalID(todayStr)}
 
 Nama: ${debtData.person_name}
 Jenis: ${typeLabel}
 Nominal: ${formatRupiah(amount)}
+Dompet: ${targetWalletName}
 Keterangan: ${note}`;
 
   const sentMsgId = await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, bubble, messageId);
@@ -641,7 +698,8 @@ export async function executeDebtPayment(
   waChatId: string,
   replyToMsgId: string,
   activeDebt: any,
-  paymentAmount: number
+  paymentAmount: number,
+  userText?: string
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
@@ -662,9 +720,11 @@ export async function executeDebtPayment(
 
   const isIOwe = activeDebt.type === "i_owe" || activeDebt.type === "utang";
   const txType = isIOwe ? "expense" : "income";
-  const { data: walletsDebt } = await db.from("wallets").select("id, is_primary").eq("access_code", ACCESS_CODE);
+  const { data: walletsDebt } = await db.from("wallets").select("id, name, is_primary").eq("access_code", ACCESS_CODE);
+  const mentionedWalletName = userText ? findMentionedWallet(userText, walletsDebt || []) : undefined;
   const primaryWalletDebt = walletsDebt?.find(w => w.is_primary) || walletsDebt?.[0];
-  const walletId = primaryWalletDebt?.id || DEFAULT_WALLET_ID;
+  const walletId = walletsDebt?.find(w => w.name === mentionedWalletName)?.id || primaryWalletDebt?.id || DEFAULT_WALLET_ID;
+  const targetWalletName = walletsDebt?.find(w => w.id === walletId)?.name || "Dompet Utama";
 
   let bubble = "";
   let savedTxId = "";
@@ -679,7 +739,7 @@ export async function executeDebtPayment(
       type: txType,
       amount: paymentAmount,
       date: todayStr,
-      note: `Cicilan utang Budi: ${activeDebt.note || ""}`.trim()
+      note: `Cicilan utang ke ${activeDebt.person_name}: ${activeDebt.note || ""}`.trim()
     });
     savedTxId = tx.id;
 
@@ -694,9 +754,10 @@ export async function executeDebtPayment(
     bubble = `Cicilan utang dicatat ✓
 Tanggal: ${formatTanggalID(todayStr)}
 
-Pembayaran: ${formatRupiah(paymentAmount)}
+Pembayaran: ${formatRupiah(paymentAmount)} (Saldo ${txType === "expense" ? "Berkurang" : "Bertambah"})
+Dompet: ${targetWalletName}
 Untuk: ${isIOwe ? "Utang ke" : "Piutang dari"} ${activeDebt.person_name}
-Sisa sisa utang: ${formatRupiah(remaining)}
+Sisa utang: ${formatRupiah(remaining)}
 
 Keterangan: ${activeDebt.note || "-"}`;
 
@@ -708,9 +769,9 @@ Keterangan: ${activeDebt.note || "-"}`;
       category_id: cat.id,
       category: "Utang Piutang",
       type: txType,
-      amount: paymentAmount,
+      amount: activeDebt.amount,
       date: todayStr,
-      note: `Pelunasan utang Budi: ${activeDebt.note || ""}`.trim()
+      note: `Pelunasan utang ke ${activeDebt.person_name}: ${activeDebt.note || ""}`.trim()
     });
     savedTxId = tx.id;
 
@@ -727,7 +788,8 @@ Keterangan: ${activeDebt.note || "-"}`;
     bubble = `Utang lunas ✓
 Tanggal: ${formatTanggalID(todayStr)}
 
-Pembayaran: ${formatRupiah(paymentAmount)}
+Pembayaran: ${formatRupiah(activeDebt.amount)} (Saldo ${txType === "expense" ? "Berkurang" : "Bertambah"})
+Dompet: ${targetWalletName}
 Keterangan: ${activeDebt.note || "-"}\n`;
 
     if (excess > 0) {
@@ -792,7 +854,7 @@ export async function handleV2ClarificationReply(
   if (pendingData.type === "clarify_checklist") {
     await executeChecklistPayment(db, apiKeys, waChatId, msg.messageId, selected);
   } else if (pendingData.type === "clarify_debt_payment") {
-    await executeDebtPayment(db, waChatId, msg.messageId, selected, pendingData.amount);
+    await executeDebtPayment(db, waChatId, msg.messageId, selected, pendingData.amount, pendingData.user_text);
   }
 
   return true;

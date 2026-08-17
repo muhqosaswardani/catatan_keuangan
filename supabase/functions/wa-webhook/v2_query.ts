@@ -394,7 +394,18 @@ export async function processV2Query(
       nominal: formatRupiah(t.amount),
       kategori: t.category,
       keterangan: t.note
-    }))
+    })),
+    daftar_transaksi_detail: targetTransactions.map(t => {
+      const linkedWallet = wallets.find(w => w.id === t.wallet_id);
+      return {
+        tanggal: t.date ? formatTanggalID(t.date) : "-",
+        jenis: t.type === "income" ? "Pemasukan" : (t.type === "expense" ? "Pengeluaran" : "Transfer"),
+        nominal: formatRupiah(Number(t.amount) || 0),
+        kategori: t.category || "-",
+        dompet: linkedWallet ? linkedWallet.name : "-",
+        catatan: t.note || "-"
+      };
+    })
   };
 
   // 4. Tahap perangkaian bahasa via Gemini AI dengan instruksi anti-halusinasi ketat

@@ -93,20 +93,31 @@ function uid(): string {
 // HELPER: Fetch kategori & dompet dari Supabase
 // ============================================================
 
-async function getCategories(db: SupabaseClient): Promise<CategoryRow[]> {
+async function getDeletedIds(db: SupabaseClient): Promise<Set<string>> {
   const { data } = await db
-    .from("categories")
-    .select("id, name, type")
-    .eq("access_code", ACCESS_CODE);
-  return (data ?? []) as CategoryRow[];
+    .from("user_settings")
+    .select("deleted_ids")
+    .eq("access_code", ACCESS_CODE)
+    .maybeSingle();
+  return new Set((data?.deleted_ids || []).map(String));
+}
+
+async function getCategories(db: SupabaseClient): Promise<CategoryRow[]> {
+  const [deletedSet, { data }] = await Promise.all([
+    getDeletedIds(db),
+    db.from("categories").select("id, name, type").eq("access_code", ACCESS_CODE)
+  ]);
+  const rows = (data ?? []) as CategoryRow[];
+  return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 async function getWallets(db: SupabaseClient): Promise<WalletRow[]> {
-  const { data } = await db
-    .from("wallets")
-    .select("id, name, balance")
-    .eq("access_code", ACCESS_CODE);
-  return (data ?? []) as WalletRow[];
+  const [deletedSet, { data }] = await Promise.all([
+    getDeletedIds(db),
+    db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", ACCESS_CODE)
+  ]);
+  const rows = (data ?? []) as WalletRow[];
+  return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 // ============================================================
@@ -646,7 +657,7 @@ export async function handleTextMessage(
 
   // Cek perintah khusus
   if (/^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text.trim())) {
-    await handleCekSaldo(db, msg.messageId);
+    await handleCekSaldo(db, msg.from, msg.messageId);
     return;
   }
 
@@ -1545,8 +1556,9 @@ export async function handlePendingNominalReply(
 // HANDLER: Cek saldo
 // ============================================================
 
-async function handleCekSaldo(
+export async function handleCekSaldo(
   db: SupabaseClient,
+  waChatId: string,
   replyToMsgId: string,
 ): Promise<void> {
   const wallets = await getWallets(db);
@@ -1554,7 +1566,7 @@ async function handleCekSaldo(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Belum ada data dompet.",
       replyToMsgId,
     );
@@ -1582,7 +1594,7 @@ async function handleCekSaldo(
   await sendWhatsAppMessage(
     PHONE_NUMBER_ID,
     WA_ACCESS_TOKEN,
-    OWNER_PHONE,
+    waChatId,
     msg.trim(),
     replyToMsgId,
   );

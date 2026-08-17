@@ -5,6 +5,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWhatsAppMessage } from "./whatsapp.ts";
 import { getV2Session, saveV2Session, clearV2Session } from "./v2_db.ts";
 import { processV2Query } from "./v2_query.ts";
+import { handleCekSaldo } from "./handlers.ts";
 import {
   parseV2Intent,
   handleV2ChecklistIntent,
@@ -211,24 +212,36 @@ export async function handleV2Message(
 
   // 3. ROUTER INTENT VERSI 2 - Teks bebas (checklist -> transfer -> utang-piutang)
   if (msg.type === "text") {
+    // 3.1. Cek: apakah pesan murni cek saldo tanpa tanya "?" (Bypass Gemini)
+    const isPureCekSaldo = /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text.trim()) && !text.includes("?");
+    if (isPureCekSaldo) {
+      await handleCekSaldo(db, msg.from, msg.messageId);
+      return true;
+    }
+
     const parsed = await parseV2Intent(apiKeys, text);
 
     if (parsed.intent === "checklist") {
-      const ok = await handleV2ChecklistIntent(db, apiKeys, msg.messageId, text, parsed.checklist);
+      const ok = await handleV2ChecklistIntent(db, apiKeys, msg.from, msg.messageId, text, parsed.checklist);
       if (ok) return true;
     }
     if (parsed.intent === "transfer") {
-      const ok = await handleV2TransferIntent(db, apiKeys, msg.messageId, parsed.transfer);
+      const ok = await handleV2TransferIntent(db, apiKeys, msg.from, msg.messageId, parsed.transfer);
       if (ok) return true;
     }
     if (parsed.intent === "debt") {
-      const ok = await handleV2DebtIntent(db, apiKeys, msg.messageId, parsed.debt);
+      const ok = await handleV2DebtIntent(db, apiKeys, msg.from, msg.messageId, text, parsed.debt);
       if (ok) return true;
+    }
+    if (parsed.intent === "query" || parsed.intent === "general_chat") {
+      const reply = await processV2Query(db, apiKeys, ACCESS_CODE, text);
+      await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
+      return true;
     }
   }
 
-  // 4. Cek: apakah pesan mengandung tanda tanya "?" ATAU murni "cek saldo"
-  const isQuery = text.includes("?") || /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text);
+  // 4. Cek: apakah pesan mengandung tanda tanya "?"
+  const isQuery = text.includes("?");
   if (isQuery) {
     const reply = await processV2Query(db, apiKeys, ACCESS_CODE, text);
     await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
