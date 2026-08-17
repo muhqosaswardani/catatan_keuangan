@@ -2752,7 +2752,7 @@ async function syncAllWithSupabase(silent = true) {
         if (remChkSettings.onboarded) {
           localStorage.setItem(LS_KEYS.onboarded, '1');
         }
-        if (remChkSettings.cek_wallet_scope != null) {
+        if (remChkSettings.cek_wallet_scope != null && !localStorage.getItem('cek_wallet_scope')) {
           localStorage.setItem('cek_wallet_scope', JSON.stringify(remChkSettings.cek_wallet_scope));
         }
       }
@@ -8626,7 +8626,7 @@ function renderCcaItems(){
     }
     
     const warningText = it.overrideWarning ? `<div style="color:#ef4444;font-size:11px;font-weight:600;margin-top:2px;">⚠️ ${it.overrideWarning}</div>` : '';
-    const reasonText = it.matchReason ? `<div style="color:var(--ink-soft);font-size:11px;margin-top:2px;">Konteks: ${escAttr(it.matchReason)}</div>` : '';
+
 
     const dropdownOptions = scopeWallets.map(w => `
       <option value="${w.id}" ${w.id === it.targetWalletId ? 'selected' : ''}>${escAttr(w.name)}</option>
@@ -8638,7 +8638,7 @@ function renderCcaItems(){
           <div>
             <div style="font-weight:700;font-size:13.5px;color:var(--ink);">${escAttr(it.name)}</div>
             ${statusLabel}
-            ${reasonText}
+
             ${warningText}
           </div>
           <button type="button" class="cc-item-del" onclick="deleteCcaItem('${it.id}')" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;">
