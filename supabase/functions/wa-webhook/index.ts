@@ -407,6 +407,21 @@ Deno.serve(async (req: Request) => {
         // "other" types: abaikan
       } catch (e) {
         console.error("Error processing message:", e);
+        // Log error details to wa_logs for debugging
+        try {
+          // @ts-ignore
+          EdgeRuntime.waitUntil(
+            db.from("wa_logs").insert({
+              message: "CRITICAL_ERROR processing message",
+              details: { messageId: msg.messageId, type: msg.type, error: String(e), stack: (e as Error)?.stack?.slice(0, 500) }
+            })
+          );
+        } catch {
+          db.from("wa_logs").insert({
+            message: "CRITICAL_ERROR processing message",
+            details: { messageId: msg.messageId, type: msg.type, error: String(e) }
+          }).catch(() => {});
+        }
         // Kirim pesan error ke user
         try {
           await sendWhatsAppMessage(

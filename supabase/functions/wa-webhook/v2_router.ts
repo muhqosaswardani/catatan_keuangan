@@ -75,9 +75,9 @@ export async function handleV2Message(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       waChatId,
-      `Mode ${modeLabel} otomatis dibatalkan karena tidak ada aktivitas selama 5 menit.`
+      `Mode ${modeLabel} otomatis dibatalkan karena tidak ada aktivitas selama 5 menit. Memproses pesanmu...`
     );
-    return true;
+    // Don't return true! Let the message fall through to normal processing below.
   }
 
   // Jika ada sesi aktif
