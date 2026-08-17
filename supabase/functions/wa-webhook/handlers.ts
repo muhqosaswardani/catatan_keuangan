@@ -323,6 +323,15 @@ async function recalculateDbWalletBalances(
 
   if (!wallets || !transactions) return;
 
+  const { data: settings } = await db
+    .from("user_settings")
+    .select("nav_config, deleted_ids")
+    .eq("access_code", accessCode)
+    .maybeSingle();
+
+  const deletedIds = Array.isArray(settings?.deleted_ids) ? settings.deleted_ids.map(String) : [];
+  const deletedSet = new Set(deletedIds);
+
   const sums: Record<string, number> = {};
   for (const w of wallets) {
     sums[w.id] = 0;
@@ -331,6 +340,7 @@ async function recalculateDbWalletBalances(
   const todayStr = getTodayStr();
 
   for (const t of transactions) {
+    if (deletedSet.has(String(t.id))) continue; // Skip deleted transactions!
     const isFuture = t.date > todayStr;
     if (isFuture) continue;
 
@@ -344,12 +354,6 @@ async function recalculateDbWalletBalances(
       if (sums[t.to_wallet_id] !== undefined) sums[t.to_wallet_id] += amt;
     }
   }
-
-  const { data: settings } = await db
-    .from("user_settings")
-    .select("nav_config")
-    .eq("access_code", accessCode)
-    .maybeSingle();
 
   const navConfig = settings?.nav_config || {};
   const initialBalances = navConfig.initialBalances || {};

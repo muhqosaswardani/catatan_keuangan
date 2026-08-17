@@ -758,9 +758,233 @@
     .btn { font-weight: 600 !important; }
     .field label { font-weight: 500 !important; }
   }
-  @media (min-width:1200px){
-    .app{padding:0 40px;}
+  /* =========================================================
+     PAGE: CHAT — WhatsApp style aesthetics
+     ========================================================= */
+  #page-chat {
+    display: none;
+    flex-direction: column;
+    height: calc(100vh - 78px - env(safe-area-inset-bottom));
+    padding: 14px 14px 0;
   }
+  #page-chat.active {
+    display: flex;
+  }
+  @media (min-width:900px){
+    #page-chat {
+      height: calc(100vh - 48px);
+      padding: 26px 0 0;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+  }
+
+  .chat-container-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    border-radius: var(--radius-l);
+    border: 1.5px solid var(--line);
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-color: var(--surface-2);
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
+    background-size: 16px 16px;
+    scroll-behavior: smooth;
+  }
+
+  .chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: var(--radius-m);
+    font-size: 13.5px;
+    line-height: 1.45;
+    position: relative;
+    word-break: break-word;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    transition: transform 0.15s ease;
+  }
+
+  /* User bubble (Right) */
+  .chat-bubble.user {
+    align-self: flex-end;
+    background: var(--accent-soft);
+    color: var(--ink);
+    border-top-right-radius: 4px;
+  }
+
+  /* Bot bubble (Left) */
+  .chat-bubble.bot {
+    align-self: flex-start;
+    background: var(--surface);
+    color: var(--ink);
+    border-top-left-radius: 4px;
+  }
+
+  /* Transaction bubble (Clickable for editing/deleting) */
+  .chat-bubble.bot.chat-tx-bubble {
+    cursor: pointer;
+    border: 1.5px dashed var(--accent);
+  }
+  .chat-bubble.bot.chat-tx-bubble:hover {
+    transform: scale(1.02);
+    background: var(--accent-soft);
+  }
+
+  .chat-bubble .time {
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    text-align: right;
+    display: block;
+    opacity: 0.8;
+  }
+
+  .chat-bubble img {
+    max-width: 100%;
+    border-radius: var(--radius-s);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* Typing indicator */
+  .chat-typing-indicator {
+    padding: 8px 16px;
+    background: var(--surface);
+    border-top: 1.5px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .chat-typing-indicator .dot {
+    width: 6px;
+    height: 6px;
+    background: var(--ink-soft);
+    border-radius: 50%;
+    animation: chatBounce 1.3s infinite ease-in-out;
+  }
+  .chat-typing-indicator .dot:nth-child(2) { animation-delay: -1.1s; }
+  .chat-typing-indicator .dot:nth-child(3) { animation-delay: -0.9s; }
+
+  @keyframes chatBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+
+  /* Chat input bar */
+  .chat-input-bar {
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-m);
+    margin: 12px 0;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--shadow);
+  }
+
+  /* Quote banner (reply context) */
+  .chat-quote-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    padding: 8px 12px;
+    border-radius: var(--radius-s);
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .chat-quote-banner .quote-content {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .chat-quote-banner .quote-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-weight: 700;
+    padding: 0 4px;
+    margin-left: 8px;
+  }
+
+  .chat-attachment-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-2);
+    padding: 6px 12px;
+    border-radius: var(--radius-s);
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  .chat-clear-attachment {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--expense);
+    cursor: pointer;
+    padding: 0 4px;
+    font-weight: 700;
+  }
+
+  .chat-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chat-btn-attach, .chat-btn-send {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+  }
+  .chat-btn-attach:hover, .chat-btn-send:hover {
+    background: var(--surface-2);
+  }
+
+  .chat-input-row input[type="text"] {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 4px;
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+  }
+  .chat-input-row input[type="text"]::placeholder {
+    color: var(--ink-soft);
+    opacity: 0.8;
+  }
+
 </style>
 </head>
 <body>
@@ -803,6 +1027,10 @@
     <button class="nav-item" data-tab="utang" onclick="switchTab('utang')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 7h13M17 7l-3-3M17 7l-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 17H7M7 17l3-3M7 17l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Utang</span>
+    </button>
+    <button class="nav-item" data-tab="chat" onclick="switchTab('chat')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Chat</span>
     </button>
     <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1-1.55V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.55 1h.09a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -1287,6 +1515,64 @@
           <div class="insight-time" id="analysisTime"></div>
           <div class="insight-inline-error" id="analysisInlineError" style="display:none;"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAGE: CHAT ============ -->
+  <div class="page" id="page-chat">
+    <div class="topbar">
+      <div class="eyebrow">Asisten AI</div>
+      <h1>Chat Asisten</h1>
+    </div>
+    
+    <!-- WhatsApp style chat container -->
+    <div class="chat-container-wrap">
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages will go here -->
+      </div>
+      <div class="chat-typing-indicator" id="chatTypingIndicator" style="display:none;">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span style="margin-left: 8px; font-size: 12px; color: var(--ink-soft); font-weight: 500;">Asisten sedang mengetik...</span>
+      </div>
+    </div>
+    
+    <!-- Chat input bar -->
+    <div class="chat-input-bar">
+      <!-- Quote/Reply banner -->
+      <div id="chatQuoteBanner" style="display:none;" class="chat-quote-banner">
+        <span class="quote-content" id="chatQuoteContent">Membalas transaksi...</span>
+        <button type="button" class="quote-close" onclick="cancelChatReply()" title="Batal membalas">&times;</button>
+      </div>
+
+      <!-- Attachment preview if any file selected -->
+      <div id="chatAttachmentPreview" style="display:none;" class="chat-attachment-preview">
+        <span id="chatAttachmentName"></span>
+        <button type="button" onclick="clearChatAttachment()" class="chat-clear-attachment" title="Hapus lampiran">&times;</button>
+      </div>
+      
+      <div class="chat-input-row">
+        <!-- File input (hidden) -->
+        <input type="file" id="chatFileInput" style="display:none;" accept="image/*" onchange="handleChatFileSelect(event)">
+        
+        <button type="button" class="chat-btn-attach" onclick="document.getElementById('chatFileInput').click()" title="Lampirkan foto struk/screenshot">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </button>
+        
+        <input type="text" id="chatInputText" placeholder="Ketik pesan..." autocomplete="off" onkeydown="if(event.key==='Enter') sendChatMessage()">
+        
+        <button type="button" class="chat-btn-send" onclick="sendChatMessage()" title="Kirim">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -2762,6 +3048,18 @@ async function syncAllWithSupabase(silent = true) {
             merged.dashboardAvgExcludeCatIdsUpdatedAt = localExclTs;
           }
 
+          const localChatTs = Number(localCfg.chatUpdatedAt) || 0;
+          const remoteChatTs = Number(remoteCfg.chatUpdatedAt) || 0;
+          if (localChatTs >= remoteChatTs) {
+            merged.chatHistory = localCfg.chatHistory;
+            merged.chatSession = localCfg.chatSession;
+            merged.chatUpdatedAt = localChatTs;
+          } else {
+            merged.chatHistory = remoteCfg.chatHistory;
+            merged.chatSession = remoteCfg.chatSession;
+            merged.chatUpdatedAt = remoteChatTs;
+          }
+
 
           const mergedInitialBalances = {};
           const localIB = localCfg.initialBalances || {};
@@ -3132,7 +3430,7 @@ function setDebts(d){
    Side-nav desktop TIDAK memakai konfigurasi ini, tetap tampilkan semua
    halaman seperti biasa (lihat markup <nav class="side-nav">).
    ========================================================= */
-const ALL_PAGES_ORDER = ['beranda','laporan','transaksi','budget','crosscheck','checklist','tujuan','utang','settings'];
+const ALL_PAGES_ORDER = ['beranda','laporan','transaksi','budget','crosscheck','checklist','tujuan','utang','chat','settings'];
 const PAGE_META = {
   beranda:    { label:'Beranda',   icon:'<path d="M4 11.5 12 4l8 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-5h2v5h4a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
   laporan:    { label:'Laporan',   icon:'<path d="M4 19V10M10 19V5M16 19v-7M20 19H4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
@@ -3142,6 +3440,7 @@ const PAGE_META = {
   checklist:  { label:'Checklist', icon:'<rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>' },
   tujuan:     { label:'Tujuan',    icon:'<path d="M6 3v18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6 4h11l-2.5 4L17 12H6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
   utang:      { label:'Utang',     icon:'<path d="M4 7h13M17 7l-3-3M17 7l-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 17H7M7 17l3-3M7 17l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
+  chat:       { label:'Chat',      icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
   settings:   { label:'Settings',  icon:'<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H4.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H10a1.7 1.7 0 0 0 1-1.55V4.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V10a1.7 1.7 0 0 0 1.55 1h.09a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' }
 };
 const DEFAULT_NAV_CORE = ['beranda','transaksi','checklist','laporan','budget'];
@@ -4035,6 +4334,7 @@ function switchTabUI(tab){
   if(tab === 'tujuan') renderGoals();
   if(tab === 'utang') renderDebts();
   if(tab === 'settings') renderSettings();
+  if(tab === 'chat') renderChat();
 }
 
 /* opts.push = true: dipakai khusus untuk navigasi "drilldown" (mis. tap kategori di
@@ -10824,6 +11124,2522 @@ function finishOnboarding(){
   localStorage.setItem(LS_KEYS.onboarded, '1');
   document.getElementById('onboarding').classList.remove('open');
   refreshAllViews();
+}
+
+/* =========================================================
+   PAGE CHAT: WEB-BASED CHAT BOT SIMULATOR
+   ========================================================= */
+
+// State variables
+let chatHistory = [];
+let chatSession = null;
+let chatPendingReplyToTxId = null;
+let chatSelectedFile = null;
+
+// Initialize chat
+function initChatState() {
+  const cfg = getNavConfig();
+  if (cfg.chatHistory && Array.isArray(cfg.chatHistory)) {
+    chatHistory = cfg.chatHistory;
+    localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
+  } else {
+    const savedHistory = localStorage.getItem('fk_chat_history');
+    if (savedHistory) {
+      try {
+        chatHistory = JSON.parse(savedHistory);
+      } catch(e) {
+        chatHistory = [];
+      }
+    }
+  }
+  
+  if (chatHistory.length === 0) {
+    // Add default welcome message from Bot
+    chatHistory.push({
+      id: 'msg_welcome',
+      sender: 'bot',
+      text: 'Halo! Saya adalah asisten keuangan pribadimu.\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- `koreksi` : Penyesuaian saldo dompet.\n- `limit` / `anggaran` : Kelola limit anggaran bulanan.\n- `tujuan` / `goals` : Kelola tujuan tabungan keuangan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Checklist: "bayar cicilan motor" untuk melunasi checklist.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya `?` di akhir kalimat untuk bertanya apa saja.',
+      timestamp: Date.now()
+    });
+    localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
+    saveChatStateToNavConfig();
+  }
+
+  if (cfg.chatSession) {
+    chatSession = cfg.chatSession;
+    localStorage.setItem('fk_chat_session', JSON.stringify(chatSession));
+  } else {
+    const savedSession = localStorage.getItem('fk_chat_session');
+    if (savedSession) {
+      try {
+        chatSession = JSON.parse(savedSession);
+      } catch(e) {
+        chatSession = null;
+      }
+    }
+  }
+}
+
+function saveChatStateToNavConfig() {
+  const cfg = getNavConfig();
+  cfg.chatHistory = chatHistory;
+  cfg.chatSession = chatSession;
+  cfg.chatUpdatedAt = Date.now();
+  setNavConfig(cfg);
+}
+
+// Render chat UI
+function renderChat() {
+  initChatState();
+  const container = document.getElementById('chatMessages');
+  if (!container) return;
+  
+  container.innerHTML = chatHistory.map(msg => {
+    const isUser = msg.sender === 'user';
+    const alignClass = isUser ? 'user' : 'bot';
+    let content = '';
+    
+    if (msg.image) {
+      content += `<img src="${msg.image}" alt="Attachment">`;
+    }
+    
+    // Format text with bold backticks/asterisks
+    let textHtml = escapeHtml(msg.text || '')
+      .replace(/\n/g, '<br>')
+      .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+      .replace(/`(.*?)`/g, '<code>$1</code>');
+      
+    content += `<div>${textHtml}</div>`;
+    content += `<span class="time">${formatTime(msg.timestamp)}</span>`;
+    
+    const txAttr = msg.txId ? ` data-tx-id="${msg.txId}"` : '';
+    const txClass = msg.txId ? ' chat-tx-bubble' : '';
+    
+    return `<div class="chat-bubble ${alignClass}${txClass}"${txAttr} onclick="handleChatBubbleClick(this)">${content}</div>`;
+  }).join('');
+  
+  container.scrollTop = container.scrollHeight;
+}
+
+// Click on bubble -> activate reply context for transaction editing/deleting
+function handleChatBubbleClick(el) {
+  const txId = el.getAttribute('data-tx-id');
+  if (!txId) return;
+  
+  const txs = getTransactions();
+  const tx = txs.find(t => t.id === txId);
+  const debts = getDebts();
+  const debt = debts.find(d => d.id === txId);
+  
+  if (!tx && !debt) return;
+  
+  chatPendingReplyToTxId = txId;
+  const banner = document.getElementById('chatQuoteBanner');
+  const bannerContent = document.getElementById('chatQuoteContent');
+  if (banner && bannerContent) {
+    const nameStr = tx ? (tx.note || 'Transaksi') : `Utang ${debt.person_name}`;
+    const amtStr = tx ? formatRupiah(tx.amount) : formatRupiah(debt.amount);
+    bannerContent.innerHTML = `Membalas transaksi: <strong>${nameStr} (${amtStr})</strong>`;
+    banner.style.display = 'flex';
+  }
+}
+
+function cancelChatReply() {
+  chatPendingReplyToTxId = null;
+  const banner = document.getElementById('chatQuoteBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+// Attachment select
+function handleChatFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  chatSelectedFile = file;
+  
+  const preview = document.getElementById('chatAttachmentPreview');
+  const nameEl = document.getElementById('chatAttachmentName');
+  if (preview && nameEl) {
+    nameEl.textContent = `File: ${file.name}`;
+    preview.style.display = 'flex';
+  }
+}
+
+function clearChatAttachment() {
+  chatSelectedFile = null;
+  const preview = document.getElementById('chatAttachmentPreview');
+  const input = document.getElementById('chatFileInput');
+  if (preview) preview.style.display = 'none';
+  if (input) input.value = '';
+}
+
+// Send user message
+async function sendChatMessage() {
+  const input = document.getElementById('chatInputText');
+  if (!input) return;
+  
+  const text = input.value.trim();
+  const file = chatSelectedFile;
+  
+  if (!text && !file) return;
+  
+  // Clear inputs immediately for smooth UI response
+  input.value = '';
+  clearChatAttachment();
+  
+  let imageBase64 = null;
+  let imagePart = null;
+  
+  if (file) {
+    try {
+      imagePart = await fileToGenerativePart(file);
+      imageBase64 = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+    } catch (e) {
+      console.error(e);
+      showToast('Gagal memproses lampiran foto');
+    }
+  }
+  
+  // Append user bubble
+  appendChatBubble('user', text, Date.now(), imageBase64);
+  
+  // Check active session timeout
+  if (chatSession && chatSession.updated_at) {
+    const timePassed = Date.now() - new Date(chatSession.updated_at).getTime();
+    if (timePassed > 5 * 60 * 1000) { // 5 mins
+      chatSession = null;
+      localStorage.removeItem('fk_chat_session');
+      saveChatStateToNavConfig();
+      appendChatBubble('bot', `Mode otomatis dibatalkan karena tidak ada aktivitas selama 5 menit. Memproses pesanmu...`, Date.now());
+    }
+  }
+  
+  showChatTyping();
+  
+  try {
+    const key = getGeminiApiKey();
+    if (!key) {
+      appendChatBubble('bot', 'Gemini API Key tidak ditemukan. Buka Settings dan isi "Gemini API Key" terlebih dahulu.', Date.now());
+      hideChatTyping();
+      return;
+    }
+    
+    // Process message
+    await handleChatIncomingMessage(text, imagePart);
+  } catch (err) {
+    console.error(err);
+    appendChatBubble('bot', 'Maaf, terjadi kesalahan internal saat memproses pesan Anda. Coba lagi ya.', Date.now());
+  } finally {
+    hideChatTyping();
+  }
+}
+
+function appendChatBubble(sender, text, timestamp, imageBase64, txId) {
+  chatHistory.push({
+    id: 'msg_' + uid(),
+    sender,
+    text,
+    timestamp,
+    image: imageBase64 || null,
+    txId: txId || null
+  });
+  localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
+  saveChatStateToNavConfig();
+  renderChat();
+}
+
+function showChatTyping() {
+  const el = document.getElementById('chatTypingIndicator');
+  if (el) el.style.display = 'flex';
+  const container = document.getElementById('chatMessages');
+  if (container) container.scrollTop = container.scrollHeight;
+}
+
+function hideChatTyping() {
+  const el = document.getElementById('chatTypingIndicator');
+  if (el) el.style.display = 'none';
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+async function handleChatIncomingMessage(inputText, imagePart) {
+  const cleaned = inputText.trim().toLowerCase();
+  
+  // 0. Cek: apakah user sedang berada di dalam MODE TERKUNCI aktif?
+  if (chatSession && chatSession.mode) {
+    const currentMode = chatSession.mode;
+    
+    // Cek jika ada pending exit confirmation
+    if (chatSession.session_data && chatSession.session_data.pending_exit_intent) {
+      if (cleaned === 'ya' || cleaned === 'oke') {
+        const pendingText = chatSession.session_data.pending_exit_intent.text;
+        const pendingImagePart = chatSession.session_data.pending_exit_intent.imagePart;
+        chatSession = null;
+        localStorage.removeItem('fk_chat_session');
+        saveChatStateToNavConfig();
+        appendChatBubble('bot', `Keluar dari Mode ${currentMode.toUpperCase()}. Memproses permintaan baru...`, Date.now());
+        await handleChatIncomingMessage(pendingText, pendingImagePart);
+        return;
+      } else if (cleaned === 'tidak' || cleaned === 'batal' || cleaned === 'batalin') {
+        delete chatSession.session_data.pending_exit_intent;
+        chatSession.updated_at = new Date().toISOString();
+        localStorage.setItem('fk_chat_session', JSON.stringify(chatSession));
+        saveChatStateToNavConfig();
+        appendChatBubble('bot', `Tetap berada di dalam Mode ${currentMode.toUpperCase()}.`, Date.now());
+        return;
+      } else {
+        appendChatBubble('bot', `Mohon balas dengan 'ya' untuk keluar dan memproses permintaan baru, atau 'batal' untuk tetap di mode ${currentMode.toUpperCase()}.`, Date.now());
+        return;
+      }
+    }
+    
+    // Cek apakah pesan baru ini memicu intent atau mode lain yang akan keluar dari mode aktif
+    const isEnterKoreksi = cleaned === 'koreksi';
+    const isEnterLimit = cleaned === 'limit' || cleaned === 'anggaran';
+    const isEnterTujuan = cleaned === 'tujuan' || cleaned === 'goals';
+    const isEnterHelp = cleaned === 'help' || cleaned === 'bantuan' || cleaned === 'menu';
+    const isQuery = inputText.includes('?') || /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(inputText);
+    
+    // Deteksi intent teks bebas (hanya jika ada text)
+    let isFreeTextIntent = false;
+    if (inputText && !isEnterKoreksi && !isEnterLimit && !isEnterTujuan && !isEnterHelp && !isQuery) {
+      const parsedIntent = await parseChatIntent(inputText);
+      if (parsedIntent.intent !== 'none' && parsedIntent.intent !== 'transaction' && parsedIntent.intent !== 'general_chat') {
+        isFreeTextIntent = true;
+      }
+    }
+    
+    if (isEnterKoreksi || isEnterLimit || isEnterTujuan || isEnterHelp || isQuery || isFreeTextIntent) {
+      chatSession.session_data.pending_exit_intent = {
+        text: inputText,
+        imagePart: imagePart || null
+      };
+      chatSession.updated_at = new Date().toISOString();
+      localStorage.setItem('fk_chat_session', JSON.stringify(chatSession));
+      saveChatStateToNavConfig();
+      appendChatBubble('bot', `Kamu masih dalam Mode ${currentMode.toUpperCase()}. Mau keluar dari mode ini dan memproses permintaan baru?\n(Balas *'ya'* untuk keluar, atau *'batal'* untuk tetap)`, Date.now());
+      return;
+    }
+    
+    // Proses pesan di dalam mode masing-masing
+    if (currentMode === 'koreksi') {
+      await handleChatModeKoreksiMessage(inputText, imagePart);
+    } else if (currentMode === 'limit') {
+      await handleChatModeLimitMessage(inputText);
+    } else if (currentMode === 'tujuan') {
+      await handleChatModeTujuanMessage(inputText);
+    }
+    return;
+  }
+  
+  // 1. Cek: apakah pesan ini trigger MASUK mode (exact match, case-insensitive)?
+  if (cleaned === 'koreksi') {
+    await handleChatModeKoreksiEnter();
+    return;
+  }
+  if (cleaned === 'limit' || cleaned === 'anggaran') {
+    await handleChatModeLimitEnter();
+    return;
+  }
+  if (cleaned === 'tujuan' || cleaned === 'goals') {
+    await handleChatModeTujuanEnter();
+    return;
+  }
+  if (cleaned === 'help' || cleaned === 'bantuan' || cleaned === 'menu') {
+    appendChatBubble('bot', `*Pusat Bantuan Catatan Keuangan Bot* ✓\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- \`koreksi\` : Penyesuaian saldo dompet.\n- \`limit\` / \`anggaran\` : Kelola limit anggaran bulanan.\n- \`tujuan\` / \`goals\` : Kelola tujuan tabungan keuangan.\n\n*Sub-perintah dalam Mode Terkunci:*\n- \`ya\` / \`oke\` : Konfirmasi aksi final mode.\n- \`batal\` : Keluar tanpa menyimpan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Checklist: "bayar cicilan motor" untuk melunasi checklist.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya \`?\` di akhir kalimat untuk bertanya apa saja.`, Date.now());
+    return;
+  }
+  
+  // 2. Cek: apakah ini REPLY ke transaksi?
+  if (chatPendingReplyToTxId) {
+    const txId = chatPendingReplyToTxId;
+    cancelChatReply(); // clear reply context banner in UI
+    await handleChatReplyToTransaction(inputText, txId);
+    return;
+  }
+  
+  // 3. Cek: apakah ini REPLY ke pertanyaan klarifikasi pending?
+  const pendingClarify = localStorage.getItem('fk_chat_pending_clarify');
+  if (pendingClarify) {
+    try {
+      const pData = JSON.parse(pendingClarify);
+      if (pData && (pData.type === 'clarify_checklist' || pData.type === 'clarify_debt_payment' || pData.type === 'clarify_nominal')) {
+        localStorage.removeItem('fk_chat_pending_clarify');
+        await handleChatClarificationReply(inputText, pData);
+        return;
+      }
+    } catch(e) {
+      localStorage.removeItem('fk_chat_pending_clarify');
+    }
+  }
+
+  // 4. Jika ada foto, proses foto belanja/struk (Vision parsing)
+  if (imagePart) {
+    await handleChatImageMessage(inputText, imagePart);
+    return;
+  }
+  
+  // 5. Cek: apakah pesan murni cek saldo tanpa tanya "?"
+  const isPureCekSaldo = /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(inputText.trim()) && !inputText.includes('?');
+  if (isPureCekSaldo) {
+    await handleChatCekSaldo();
+    return;
+  }
+  
+  // Coba batalkan transaksi terakhir
+  const isCancelCommand = /^(batalkan|batal|hapus transaksi terakhir|hapus terakhir|hapus|undo|ga jadi|gajadi|cancel|batalin|delete|del|back)$/i.test(inputText.trim()) ||
+    /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(inputText.trim());
+  if (isCancelCommand) {
+    await handleChatHapusTerakhir();
+    return;
+  }
+
+  // 6. ROUTER INTENT VERSI 2 - Teks bebas
+  const parsed = await parseChatIntent(inputText);
+  
+  if (parsed.intent === 'checklist') {
+    const ok = await handleChatChecklistIntent(inputText, parsed.checklist);
+    if (ok) return;
+  }
+  if (parsed.intent === 'transfer') {
+    const ok = await handleChatTransferIntent(parsed.transfer);
+    if (ok) return;
+  }
+  if (parsed.intent === 'debt') {
+    const ok = await handleChatDebtIntent(inputText, parsed.debt);
+    if (ok) return;
+  }
+  if (parsed.intent === 'query') {
+    const reply = await processChatFinanceQuery(inputText);
+    appendChatBubble('bot', reply, Date.now());
+    return;
+  }
+  if (parsed.intent === 'general_chat') {
+    const reply = await generateNaturalResponse([getGeminiApiKey()], inputText);
+    appendChatBubble('bot', reply, Date.now());
+    return;
+  }
+  
+  // Fallback ke normal transaction parsing
+  await handleChatNormalTransaction(inputText);
+}
+
+async function parseChatIntent(text) {
+  const prompt = `
+Analisis teks pesan masuk dari user berikut dan tentukan intent/maksud aksinya.
+Aksi teks bebas yang didukung:
+1. "checklist" - Menandai tagihan berulang/checklist bulanan sebagai lunas/dibayar (misal: "bayar kuliah", "lunasin cicilan motor").
+2. "transfer" - Transfer uang antar dompet/rekening (misal: "transfer dari utama ke tabungan 500rb", "pindahin 100k ke gopay").
+3. "debt" - Catat utang baru, piutang baru, cicilan, atau pelunasan utang/piutang ke seseorang (misal: "pinjam ke Budi 100rb", "bayar utang Budi 50rb", "Sari utang ke aku 30k").
+4. "query" - Pertanyaan/permintaan informasi mengenai laporan keuangan, detail transaksi, budget, saldo, tagihan, dll (misal: "cek saldo", "berapa pengeluaran makan bulan ini", "apakah ada tagihan jatuh tempo?", "daftar pengeluaran gojek").
+5. "transaction" - Pencatatan pemasukan, pengeluaran atau transfer biasa dengan menyebutkan nominal secara eksplisit (misal: "makan bakso 15.000", "pemasukan gajian 5.000.000", "bensin 20rb").
+6. "general_chat" - Obrolan umum, sapaan, ucapan terima kasih, atau hal di luar keuangan (misal: "halo", "terima kasih ya").
+
+Keluarkan JSON dengan schema berikut:
+{
+  "intent": "checklist" | "transfer" | "debt" | "query" | "transaction" | "general_chat",
+  "checklist": {
+    "item_name": "string (nama tagihan/item checklist yang dicari, misal 'kuliah' atau 'cicilan motor')",
+    "amount": number | null
+  },
+  "transfer": {
+    "source_wallet": "string (dompet asal, misal 'utama')",
+    "dest_wallet": "string (dompet tujuan, misal 'tabungan')",
+    "amount": number | null
+  },
+  "debt": {
+    "person_name": "string (nama orang, misal 'Budi' atau 'Sari')",
+    "type": "i_owe" | "owed_to_me" | null,
+    "amount": number | null,
+    "is_payment": boolean, 
+    "note": "string (keterangan tambahan jika ada)"
+  }
+}
+
+Teks user: "${text}"
+`;
+
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      intent: { type: "STRING", enum: ["checklist", "transfer", "debt", "query", "transaction", "general_chat"] },
+      checklist: {
+        type: "OBJECT",
+        properties: {
+          item_name: { type: "STRING" },
+          amount: { type: "NUMBER" }
+        },
+        required: ["item_name"]
+      },
+      transfer: {
+        type: "OBJECT",
+        properties: {
+          source_wallet: { type: "STRING" },
+          dest_wallet: { type: "STRING" },
+          amount: { type: "NUMBER" }
+        },
+        required: ["source_wallet", "dest_wallet", "amount"]
+      },
+      debt: {
+        type: "OBJECT",
+        properties: {
+          person_name: { type: "STRING" },
+          type: { type: "STRING", enum: ["i_owe", "owed_to_me"] },
+          amount: { type: "NUMBER" },
+          is_payment: { type: "BOOLEAN" },
+          note: { type: "STRING" }
+        },
+        required: ["person_name", "is_payment"]
+      }
+    },
+    required: ["intent"]
+  };
+
+  try {
+    const key = getGeminiApiKey();
+    const data = await callGeminiRaw(key, [{ text: prompt }], 0.1, responseSchema);
+    const resultText = extractGeminiText(data);
+    return JSON.parse(resultText);
+  } catch (err) {
+    console.error("Error in parseChatIntent:", err);
+    return { intent: "transaction" };
+  }
+}
+
+async function handleChatCekSaldo() {
+  const wallets = getWallets();
+  let text = `*Ringkasan Saldo Dompet:* ✓\n\n`;
+  wallets.forEach((w) => {
+    text += `• ${w.name}: ${formatRupiah(w.balance)}\n`;
+  });
+  const total = wallets.reduce((sum, w) => sum + (Number(w.balance) || 0), 0);
+  text += `\n*Total Saldo:* ${formatRupiah(total)}`;
+  appendChatBubble('bot', text, Date.now());
+}
+
+async function handleChatHapusTerakhir() {
+  const txs = getTransactions();
+  if (txs.length === 0) {
+    appendChatBubble('bot', 'Belum ada transaksi yang tercatat.', Date.now());
+    return;
+  }
+  
+  const sorted = [...txs].sort((a, b) => b.updatedAt - a.updatedAt);
+  const lastTx = sorted[0];
+  
+  const updatedTxs = txs.filter(t => t.id !== lastTx.id);
+  setTransactionsLocalOnly(updatedTxs);
+  
+  const deletedIds = JSON.parse(localStorage.getItem(LS_KEYS.deletedIds) || '[]');
+  if (!deletedIds.includes(String(lastTx.id))) {
+    deletedIds.push(String(lastTx.id));
+    localStorage.setItem(LS_KEYS.deletedIds, JSON.stringify(deletedIds));
+  }
+  
+  recalculateWalletBalances();
+  refreshAllViews();
+  syncAllWithSupabase(true);
+  
+  appendChatBubble('bot', `Berhasil membatalkan transaksi terakhir:\n*"${lastTx.note}" ${formatRupiah(lastTx.amount)}*`, Date.now());
+}
+
+async function handleChatChecklistIntent(text, intentChecklist) {
+  const todayStrVal = todayStr();
+  const recurringItems = getRecurring();
+  
+  const resetDay = 25;
+  const dueItems = recurringItems
+    .map(item => {
+      const { status, nextDue } = getLocalRecurringStatus(item, todayStrVal, resetDay);
+      return { item, status, nextDue };
+    })
+    .filter(x => x.status === "terlambat" || x.status === "jatuh-tempo")
+    .map(x => ({
+      id: x.item.id,
+      name: x.item.name,
+      amount: Number(x.item.amount) || 0,
+      category_id: x.item.category_id,
+      wallet_id: x.item.wallet_id,
+      type: x.item.type,
+      next_due_date: x.nextDue
+    }));
+
+  if (dueItems.length === 0) {
+    return false;
+  }
+
+  const matches = await matchChatChecklist(text, dueItems);
+
+  if (matches.length === 0) {
+    return false;
+  }
+
+  if (matches.length > 1) {
+    const candidates = dueItems.filter(d => matches.includes(d.id));
+    let optionsText = `Ada lebih dari satu tagihan jatuh tempo yang cocok. Balas pesan ini dengan mengetik nomor pilihan:\n\n`;
+    candidates.forEach((c, idx) => {
+      optionsText += `${idx + 1}. ${c.name} (${formatRupiah(c.amount)})\n`;
+    });
+    
+    const pendingData = {
+      type: 'clarify_checklist',
+      candidates: candidates.map(c => ({ id: c.id, name: c.name, amount: c.amount, category_id: c.category_id, wallet_id: c.wallet_id, type: c.type, next_due_date: c.next_due_date }))
+    };
+    localStorage.setItem('fk_chat_pending_clarify', JSON.stringify(pendingData));
+    
+    appendChatBubble('bot', optionsText, Date.now());
+    return true;
+  }
+
+  const target = dueItems.find(d => d.id === matches[0]);
+  await executeChatChecklistPayment(target);
+  return true;
+}
+
+async function matchChatChecklist(userText, dueItems) {
+  const prompt = `
+Cocokkan kalimat user berikut terhadap daftar item tagihan/checklist jatuh tempo yang tersedia.
+User ingin membayar/menyelesaikan salah satu tagihan. Pilihlah item tagihan yang secara semantik/makna cocok dengan kalimat user (abaikan kata kerja seperti "bayar", "lunas", "beres").
+
+Daftar tagihan jatuh tempo:
+${dueItems.map((it, idx) => `${idx + 1}. ID: "${it.id}", Nama: "${it.name}", Nominal: ${it.amount}`).join("\n")}
+
+Kalimat user: "${userText}"
+
+Aturan:
+- Kembalikan array berisi ID tagihan yang cocok.
+- Jika ada kecocokan yang ambigu (misal user sebut "cicilan" dan ada "Cicilan Mobil" serta "Cicilan Motor"), kembalikan semua ID yang berpotensi cocok.
+- Jika tidak ada yang cocok sama sekali, kembalikan array kosong [].
+
+Keluarkan JSON dengan schema:
+{
+  "matches": ["string (ID yang cocok)"]
+}
+`;
+
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      matches: {
+        type: "ARRAY",
+        items: { type: "STRING" }
+      }
+    },
+    required: ["matches"]
+  };
+
+  try {
+    const key = getGeminiApiKey();
+    const data = await callGeminiRaw(key, [{ text: prompt }], 0.1, responseSchema);
+    const resultText = extractGeminiText(data);
+    const parsed = JSON.parse(resultText);
+    return parsed.matches || [];
+  } catch (err) {
+    console.error("Error in matchChatChecklist:", err);
+    return [];
+  }
+}
+
+function getLocalRecurringStatus(item, todayStr, resetDay) {
+  const currentPeriodStart = localRecurringPeriodStart(todayStr, resetDay);
+  const lastPaidPeriod = item.last_confirmed_date
+    ? localRecurringPeriodStart(item.last_confirmed_date, resetDay)
+    : null;
+
+  const isPaidThisPeriod = lastPaidPeriod === currentPeriodStart;
+  const currentDue = localComputeInitialDueDate(item.day_of_month, todayStr, resetDay);
+
+  if (isPaidThisPeriod) {
+    return {
+      status: "sudah-dibayar",
+      nextDue: localAdvanceDueDateOneMonth(item.day_of_month, currentDue),
+    };
+  }
+
+  if (currentDue < todayStr) {
+    return { status: "terlambat", nextDue: currentDue };
+  } else if (currentDue === todayStr) {
+    return { status: "jatuh-tempo", nextDue: currentDue };
+  } else {
+    return { status: "belum-bayar", nextDue: currentDue };
+  }
+}
+
+function localRecurringPeriodStart(dateStr, resetDay) {
+  const d = new Date(dateStr + "T00:00:00");
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+
+  const clampDay = (yy, mm) => Math.min(resetDay, new Date(yy, mm + 1, 0).getDate());
+  const cThis = clampDay(y, m);
+  if (day >= cThis) return `${y}-${String(m + 1).padStart(2, '0')}-${String(cThis).padStart(2, '0')}`;
+
+  const py = m === 0 ? y - 1 : y;
+  const pm = m === 0 ? 11 : m - 1;
+  return `${py}-${String(pm + 1).padStart(2, '0')}-${String(clampDay(py, pm)).padStart(2, '0')}`;
+}
+
+function localComputeInitialDueDate(dayOfMonth, baseDateStr, resetDay) {
+  const startStr = localRecurringPeriodStart(baseDateStr, resetDay);
+  const startDate = new Date(startStr + "T00:00:00");
+  let y = startDate.getFullYear();
+  let m = startDate.getMonth();
+
+  if (dayOfMonth < resetDay) {
+    m = m === 11 ? 0 : m + 1;
+    if (m === 0) y++;
+  }
+
+  const d = Math.min(dayOfMonth, new Date(y, m + 1, 0).getDate());
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+function localAdvanceDueDateOneMonth(dayOfMonth, currentDueStr) {
+  const cur = new Date(currentDueStr + "T00:00:00");
+  const y = cur.getFullYear();
+  const m = cur.getMonth();
+  const ny = m === 11 ? y + 1 : y;
+  const nm = m === 11 ? 0 : m + 1;
+  const d = Math.min(dayOfMonth, new Date(ny, nm + 1, 0).getDate());
+  return `${ny}-${String(nm + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+async function executeChatChecklistPayment(target) {
+  const wallets = getWallets();
+  const walletId = target.wallet_id || wallets.find(w => w.isPrimary)?.id || wallets[0]?.id;
+  const categoryId = target.category_id || matchCategoryByName("Tagihan", "expense");
+  
+  const txs = getTransactions();
+  const txId = 'tx_' + uid();
+  const newTx = {
+    id: txId,
+    access_code: getAccessCode(),
+    wallet_id: walletId,
+    category_id: categoryId,
+    category: "Tagihan",
+    type: target.type || "expense",
+    amount: target.amount,
+    date: todayStr(),
+    note: target.name,
+    source: "whatsapp",
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  txs.push(newTx);
+  setTransactionsLocalOnly(txs);
+  
+  const recurring = getRecurring();
+  const recItem = recurring.find(r => r.id === target.id);
+  if (recItem) {
+    recItem.last_confirmed_date = todayStr();
+    recItem.updatedAt = Date.now();
+    setRecurringLocalOnly(recurring);
+  }
+  
+  recalculateWalletBalances();
+  refreshAllViews();
+  syncAllWithSupabase(true);
+  
+  const wName = wallets.find(w => w.id === walletId)?.name || 'Dompet';
+  appendChatBubble('bot', `Berhasil membayar tagihan *"${target.name}"* sebesar *${formatRupiah(target.amount)}* menggunakan *${wName}*! ✓`, Date.now(), null, txId);
+}
+
+async function handleChatTransferIntent(intentTransfer) {
+  const wallets = getWallets();
+  const sourceName = intentTransfer.source_wallet;
+  const destName = intentTransfer.dest_wallet;
+  let amount = intentTransfer.amount;
+  
+  let sourceW = wallets.find(w => w.name.toLowerCase().includes(sourceName.toLowerCase()));
+  let destW = wallets.find(w => w.name.toLowerCase().includes(destName.toLowerCase()));
+  
+  if (!sourceW || !destW) {
+    appendChatBubble('bot', `Gagal memproses transfer. Pastikan nama dompet asal ("${sourceName}") dan tujuan ("${destName}") sudah benar.`, Date.now());
+    return true;
+  }
+  
+  if (sourceW.id === destW.id) {
+    appendChatBubble('bot', `Dompet asal dan tujuan tidak boleh sama.`, Date.now());
+    return true;
+  }
+  
+  if (!amount || amount <= 0) {
+    appendChatBubble('bot', `Berapa nominal transfernya? (contoh: "pindahin 100k")`, Date.now());
+    return true;
+  }
+  
+  const txs = getTransactions();
+  const txId = 'tx_' + uid();
+  const newTx = {
+    id: txId,
+    access_code: getAccessCode(),
+    wallet_id: sourceW.id,
+    to_wallet_id: destW.id,
+    category_id: matchCategoryByName("Transfer", "expense") || "transfer",
+    category: "Transfer",
+    type: "transfer",
+    amount: amount,
+    date: todayStr(),
+    note: `Transfer dari ${sourceW.name} ke ${destW.name}`,
+    source: "whatsapp",
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  txs.push(newTx);
+  setTransactionsLocalOnly(txs);
+  
+  recalculateWalletBalances();
+  refreshAllViews();
+  syncAllWithSupabase(true);
+  
+  appendChatBubble('bot', `Berhasil memindahkan dana sebesar *${formatRupiah(amount)}* dari *${sourceW.name}* ke *${destW.name}*! ✓`, Date.now(), null, txId);
+  return true;
+}
+
+async function handleChatDebtIntent(text, intentDebt) {
+  const personName = intentDebt.person_name;
+  const isPayment = !!intentDebt.is_payment;
+  const amount = intentDebt.amount;
+  const note = intentDebt.note || "";
+  const type = intentDebt.type; // "i_owe" atau "owed_to_me"
+  
+  if (!personName) {
+    appendChatBubble('bot', `Mohon sebutkan nama orang terkait utang/piutang tersebut.`, Date.now());
+    return true;
+  }
+  
+  if (!amount || amount <= 0) {
+    appendChatBubble('bot', `Mohon sebutkan nominal uangnya.`, Date.now());
+    return true;
+  }
+  
+  const debts = getDebts();
+  
+  if (isPayment) {
+    const activeEntries = debts.filter(d => d.person_name.toLowerCase() === personName.toLowerCase() && d.status === "active");
+    if (activeEntries.length === 0) {
+      appendChatBubble('bot', `Tidak ditemukan catatan utang/piutang aktif untuk nama "${personName}".`, Date.now());
+      return true;
+    }
+    
+    if (activeEntries.length > 1) {
+      let optionsText = `Ada lebih dari satu catatan utang/piutang aktif untuk "${personName}". Pilih transaksi mana yang mau dilunasi/dicicil:\n\n`;
+      activeEntries.forEach((c, idx) => {
+        const typeLabel = c.type === 'i_owe' ? 'Saya Utang ke Dia' : 'Dia Utang ke Saya';
+        optionsText += `${idx + 1}. ${typeLabel}: ${formatRupiah(c.amount)} (${c.note || 'tanpa catatan'})\n`;
+      });
+      
+      const pendingData = {
+        type: 'clarify_debt_payment',
+        person_name: personName,
+        payment_amount: amount,
+        note: note,
+        candidates: activeEntries
+      };
+      localStorage.setItem('fk_chat_pending_clarify', JSON.stringify(pendingData));
+      
+      appendChatBubble('bot', optionsText, Date.now());
+      return true;
+    }
+    
+    await executeChatDebtPayment(activeEntries[0], amount, note);
+    return true;
+  } else {
+    if (!type) {
+      appendChatBubble('bot', `Mohon perjelas: Kamu meminjam uang (utang) atau memberikan pinjaman (piutang)?`, Date.now());
+      return true;
+    }
+    
+    const debtId = 'debt_' + uid();
+    debts.push({
+      id: debtId,
+      access_code: getAccessCode(),
+      person_name: personName,
+      type: type,
+      amount: amount,
+      date: todayStr(),
+      note: note,
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    setDebtsLocalOnly(debts);
+    
+    const txs = getTransactions();
+    const txId = 'tx_' + uid();
+    const wallets = getWallets();
+    const primaryW = wallets.find(w => w.isPrimary) || wallets[0];
+    
+    const txType = type === 'i_owe' ? 'income' : 'expense';
+    const catId = matchCategoryByName("Utang Piutang", txType);
+    
+    const newTx = {
+      id: txId,
+      access_code: getAccessCode(),
+      wallet_id: primaryW?.id || 'wallet_utama',
+      category_id: catId,
+      category: "Utang Piutang",
+      type: txType,
+      amount: amount,
+      date: todayStr(),
+      note: type === 'i_owe' ? `Utang baru ke ${personName}: ${note}` : `Piutang baru ke ${personName}: ${note}`,
+      source: "whatsapp",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    txs.push(newTx);
+    setTransactionsLocalOnly(txs);
+    
+    recalculateWalletBalances();
+    refreshAllViews();
+    syncAllWithSupabase(true);
+    
+    const label = type === 'i_owe' ? `Berhasil mencatat *utang baru* ke *${personName}*` : `Berhasil mencatat *piutang baru* ke *${personName}*`;
+    appendChatBubble('bot', `${label} sebesar *${formatRupiah(amount)}*! ✓`, Date.now(), null, debtId);
+    return true;
+  }
+}
+
+async function executeChatDebtPayment(entry, payAmount, note) {
+  const debts = getDebts();
+  const currentAmt = Number(entry.amount) || 0;
+  const diff = currentAmt - payAmount;
+  
+  const wallets = getWallets();
+  const primaryW = wallets.find(w => w.isPrimary) || wallets[0];
+  
+  let resultMsg = "";
+  const dbEntry = debts.find(d => d.id === entry.id);
+  if (!dbEntry) return;
+
+  if (diff <= 0) {
+    dbEntry.status = "lunas";
+    dbEntry.payoff_wallet_id = primaryW?.id || 'wallet_utama';
+    dbEntry.payoff_date = todayStr();
+    dbEntry.amount = 0;
+    dbEntry.updatedAt = Date.now();
+    
+    resultMsg = `Berhasil melunasi utang/piutang ke *${entry.person_name}*! ✓`;
+    
+    if (diff < 0) {
+      const overpay = Math.abs(diff);
+      const reverseType = entry.type === "i_owe" ? "owed_to_me" : "i_owe";
+      debts.push({
+        id: 'debt_' + uid(),
+        access_code: getAccessCode(),
+        person_name: entry.person_name,
+        type: reverseType,
+        amount: overpay,
+        date: todayStr(),
+        note: `Kelebihan pembayaran untuk "${entry.note || ''}"`,
+        status: "active",
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+      resultMsg += `\nKelebihan pembayaran sebesar *${formatRupiah(overpay)}* dicatat sebagai transaksi baru terbalik.`;
+    }
+  } else {
+    dbEntry.amount = diff;
+    dbEntry.updatedAt = Date.now();
+    resultMsg = `Berhasil membayar cicilan utang/piutang ke *${entry.person_name}* sebesar *${formatRupiah(payAmount)}*. Sisa utang saat ini: *${formatRupiah(diff)}*. ✓`;
+  }
+  
+  setDebtsLocalOnly(debts);
+  
+  const txType = entry.type === 'i_owe' ? 'expense' : 'income';
+  const catId = matchCategoryByName("Utang Piutang", txType);
+  const txs = getTransactions();
+  const txId = 'tx_' + uid();
+  const newTx = {
+    id: txId,
+    access_code: getAccessCode(),
+    wallet_id: primaryW?.id || 'wallet_utama',
+    category_id: catId,
+    category: "Utang Piutang",
+    type: txType,
+    amount: payAmount,
+    date: todayStr(),
+    note: entry.type === 'i_owe' ? `Cicilan utang ke ${entry.person_name}: ${note}` : `Pelunasan piutang dari ${entry.person_name}: ${note}`,
+    source: "whatsapp",
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  txs.push(newTx);
+  setTransactionsLocalOnly(txs);
+  
+  recalculateWalletBalances();
+  refreshAllViews();
+  syncAllWithSupabase(true);
+  
+  appendChatBubble('bot', resultMsg, Date.now(), null, txId);
+}
+
+async function handleChatClarificationReply(replyText, pData) {
+  if (pData.type === 'clarify_checklist') {
+    const num = parseInt(replyText.trim(), 10);
+    if (!isNaN(num) && num > 0 && num <= pData.candidates.length) {
+      const selected = pData.candidates[num - 1];
+      await executeChatChecklistPayment(selected);
+    } else {
+      appendChatBubble('bot', 'Pilihan tidak valid. Silakan ketik nomor opsi yang benar.', Date.now());
+    }
+  } else if (pData.type === 'clarify_debt_payment') {
+    const num = parseInt(replyText.trim(), 10);
+    if (!isNaN(num) && num > 0 && num <= pData.candidates.length) {
+      const selected = pData.candidates[num - 1];
+      await executeChatDebtPayment(selected, pData.payment_amount, pData.note);
+    } else {
+      appendChatBubble('bot', 'Pilihan tidak valid. Silakan ketik nomor opsi yang benar.', Date.now());
+    }
+  } else if (pData.type === 'clarify_nominal') {
+    const num = parseFloat(replyText.replace(/[^0-9]/g, ''));
+    if (!isNaN(num) && num > 0) {
+      const pendingTx = pData.transaction;
+      pendingTx.amount = num;
+      pendingTx.id = 'tx_' + uid();
+      
+      const txs = getTransactions();
+      txs.push(pendingTx);
+      setTransactionsLocalOnly(txs);
+      
+      recalculateWalletBalances();
+      refreshAllViews();
+      syncAllWithSupabase(true);
+      
+      const wallets = getWallets();
+      const wName = wallets.find(w => w.id === pendingTx.wallet_id)?.name || 'Dompet';
+      appendChatBubble('bot', `Catat: *"${pendingTx.note}"* sebesar *${formatRupiah(pendingTx.amount)}* (${wName}) ✓`, Date.now(), null, pendingTx.id);
+    } else {
+      appendChatBubble('bot', 'Nominal tidak valid. Silakan ketik angkanya saja.', Date.now());
+    }
+  }
+}
+
+function buildTransactionPromptText(expenseCats, incomeCats, todayStrVal) {
+  return 'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini:\n' +
+    '(a) Foto/gambar struk belanja kasir/supermarket/toko (seperti Alfamart, Indomaret, dsb.) yang berisi daftar barang belanjaan (items) beserta diskon, PPN/pajak, dan grand total.\n' +
+    '(b) Screenshot riwayat/mutasi m-banking atau e-wallet (list transaksi bertumpuk ke bawah).\n' +
+    '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n' +
+    '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
+    'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari. CATATAN: di bagian ini, beberapa kata slang nominal (seceng/goceng/ceban/noceng/goban/gocap) mungkin sudah diberi angka literal dalam kurung tepat setelahnya oleh sistem (mis. "parkir seceng(1000)") — itu HANYA petunjuk nilai nominal buat kamu, JANGAN disalin apa adanya (termasuk tanda kurungnya) ke field "note", tulis "note" secara natural seperti biasa (mis. "Parkir").\n\n' +
+    '0. VALIDASI WAJIB SEBELUM MEMBUAT TRANSAKSI APAPUN (baca pelan-pelan, ini aturan PALING PENTING):\n' +
+    '   - ATURAN JALAN PINTAS (paling utama, cek ini duluan sebelum aturan lain di bawah): kalau di dalam teks ADA ANGKA APAPUN yang bisa dibaca sebagai nominal uang — angka polos (mis. "2", "200", "300"), angka+satuan (mis. "300rb", "2rb", "2k", "4.3jt"), ATAU slang nominal (mis. "seceng", "goceng", "cepek", "ceban", "goban/gocap") — maka TERLEPAS SEAMBIGU APAPUN sisa kalimatnya, teks itu OTOMATIS DIANGGAP VALID dan WAJIB dibuatkan objek transaksinya. JANGAN PERNAH ditolak/dikeluarkan array kosong kalau ada angka semacam ini, apapun alasannya — cukup tentukan tebakan terbaik untuk "type"/"category"/"note", dan "amount" diisi sesuai angka yang terdeteksi.\n' +
+    '   - Kalau di dalam teks TIDAK ADA angka/nominal sama sekali DAN sisa kalimatnya juga ambigu (tidak jelas ada aktivitas ekonominya), barulah boleh dipertimbangkan untuk ditolak (array kosong) — TAPI tetap usahakan SEMINIMAL MUNGKIN menolak: kalau masih ada kata benda/kata kerja/nama tempat apapun yang berpotensi berkaitan aktivitas ekonomi meski tanpa angka (mis. "kopi", "parkir", "token listrik" tanpa nominal), tetap WAJIB diproses dengan amount 0, BUKAN ditolak.\n' +
+    '   - DEFINISI "transaksi": SEGALA kalimat/frasa yang menyiratkan ada aktivitas ekonomi — uang keluar, uang masuk, ATAU sekadar aktivitas yang LAZIMNYA melibatkan uang di kehidupan sehari-hari orang Indonesia — dianggap transaksi. Ini bukan cuma "beli barang": termasuk juga jasa/servis, transportasi/ongkos, parkir, makan/minum di suatu tempat, langganan (Netflix/Spotify/pulsa/paket data/token listrik/wifi/PDAM/gas), tagihan/cicilan (KPR/kartu kredit/asuransi/BPJS/pajak kendaraan), pendidikan (SPP/les/buku), kesehatan (obat/dokter/vitamin), sosial-keagamaan (zakat/infaq/sumbangan/kondangan/THR/amplop), denda/tilang, sewa, titip/minjem/minjemin/bayar utang, nabung/investasi/setor, gaji/bonus/THR/hasil jualan/uang saku, hadiah/kado, dan aktivitas ekonomi harian lain yang sejenis.\n' +
+    '   - Sikap default kamu adalah SANGAT PERMISIF/INKLUSIF: kalau ada keraguan sedikit pun, SELALU pilih untuk MENGANGGAP itu transaksi dan memprosesnya. Yang BOLEH ditolak (dikeluarkan array kosong []) HANYA kalau MEMENUHI SEMUA syarat ini sekaligus: (a) TIDAK ada angka/nominal sama sekali di kalimat, DAN (b) kalimatnya cocok dengan salah satu dari 3 kategori sempit ini:\n' +
+    '     (i) Sapaan/basa-basi murni tanpa konteks lain sama sekali (mis. "halo", "hai", "hallo", "test", "tes", "p", "min", "oy", "woi").\n' +
+    '     (ii) Pertanyaan/perintah ke asisten yang TIDAK menyebut barang/jasa/tempat/aktivitas/nominal apapun (mis. "gimana cuaca hari ini", "kamu siapa", "gimana cara pakai aplikasi ini").\n' +
+    '     (iii) Teks acak/gibberish yang benar-benar tidak bisa dimaknai sama sekali.\n\n' +
+    'CARA MEMBACA DOKUMEN:\n' +
+    '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
+    '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
+    '   - Hitung nilai "amount" bersih untuk kategori tersebut. Kelompokkan barang-barang belanjaan tersebut ke dalam kategori-kategori yang sesuai. Untuk SETIAP kategori yang ditemukan, buat SATU objek pengeluaran ("type": "expense").\n\n' +
+    '2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n' +
+    '   - Baca dokumen baris per baris dari atas ke bawah. Setiap baris transaksi dicatat sebagai transaksi TERSENDIRI.\n\n' +
+    '3. JIKA FOTO BUKAN STRUK/DOKUMEN FINANSIAL:\n' +
+    '   - Kenali & interpretasikan isi foto seluas-luasnya. Susun "note" yang jelas dari isi foto. Tebak "category" paling masuk akal dari daftar kategori yang ada.\n\n' +
+    '4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER:\n' +
+    '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda.\n' +
+    '   - "type": "income" kalau jelas pemasukan, selain itu "expense".\n' +
+    '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks → set "amount" ke 0.\n' +
+    '   - "date": default hari ini (' + todayStrVal + ') kalau tidak disebutkan tanggal lain di teks.\n\n' +
+    'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut.';
+}
+
+async function handleChatNormalTransaction(inputText) {
+  const expenseCats = getCategories().filter(c => c.type === 'expense').map(c => c.name);
+  const incomeCats = getCategories().filter(c => c.type === 'income').map(c => c.name);
+  const todayStrVal = todayStr();
+  
+  const promptText = buildTransactionPromptText(expenseCats, incomeCats, todayStrVal);
+  const annotatedText = annotateSlangNominalForAi(inputText);
+  const parts = [
+    { text: promptText },
+    { text: `TEKS_BEBAS_DARI_USER: ${annotatedText}` }
+  ];
+  
+  const transactionSchema = {
+    type: 'ARRAY',
+    items: {
+      type: 'OBJECT',
+      properties: {
+        order: { type: 'INTEGER' },
+        date: { type: 'STRING' },
+        type: { type: 'STRING', enum: ['income', 'expense'] },
+        amount: { type: 'NUMBER' },
+        note: { type: 'STRING' },
+        category: { type: 'STRING' },
+        isDuplicateRead: { type: 'BOOLEAN' },
+        groupId: { type: 'STRING' },
+        groupTotal: { type: 'NUMBER' }
+      },
+      required: ['type', 'amount', 'note', 'category']
+    }
+  };
+
+  const key = getGeminiApiKey();
+  let items = null;
+  try {
+    const data = await callGeminiRaw(key, parts, 0.15, transactionSchema);
+    const resultText = extractGeminiText(data);
+    items = JSON.parse(resultText);
+  } catch (e) {
+    console.error(e);
+    appendChatBubble('bot', 'Maaf, gagal memproses transaksi. Coba lagi ya.', Date.now());
+    return;
+  }
+
+  if (!items || items.length === 0) {
+    try {
+      const reply = await generateNaturalResponse([key], inputText);
+      appendChatBubble('bot', reply, Date.now());
+    } catch {
+      appendChatBubble('bot', 'Halo! Ada yang bisa saya bantu?', Date.now());
+    }
+    return;
+  }
+
+  const wallets = getWallets();
+  const mentionedWalletId = findMentionedWalletId(inputText, wallets);
+  const targetWalletId = mentionedWalletId || wallets.find(w => w.isPrimary)?.id || wallets[0]?.id;
+
+  const txs = getTransactions();
+  
+  for (const it of items) {
+    const type = it.type === 'income' ? 'income' : 'expense';
+    const amount = Number(it.amount) || 0;
+    
+    if (amount === 0) {
+      const pendingData = {
+        type: 'clarify_nominal',
+        transaction: {
+          wallet_id: targetWalletId,
+          category_id: matchCategoryByName(it.category, type),
+          category: it.category,
+          type: type,
+          date: todayStrVal,
+          note: it.note,
+          source: "whatsapp",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+      };
+      localStorage.setItem('fk_chat_pending_clarify', JSON.stringify(pendingData));
+      appendChatBubble('bot', `${it.note} ini harganya berapa?`, Date.now());
+      return;
+    }
+    
+    const txId = 'tx_' + uid();
+    txs.push({
+      id: txId,
+      access_code: getAccessCode(),
+      wallet_id: targetWalletId,
+      category_id: matchCategoryByName(it.category, type),
+      category: it.category,
+      type: type,
+      amount: amount,
+      date: todayStrVal,
+      note: it.note,
+      source: "whatsapp",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    setTransactionsLocalOnly(txs);
+    
+    recalculateWalletBalances();
+    refreshAllViews();
+    syncAllWithSupabase(true);
+    
+    const wName = wallets.find(w => w.id === targetWalletId)?.name || 'Dompet';
+    appendChatBubble('bot', `Catat: *"${it.note}"* sebesar *${formatRupiah(amount)}* (${wName}) ✓`, Date.now(), null, txId);
+  }
+}
+
+function findMentionedWalletId(text, wallets) {
+  const lower = text.toLowerCase();
+  for (const w of wallets) {
+    if (lower.includes(w.name.toLowerCase())) {
+      return w.id;
+    }
+  }
+  return null;
+}
+
+async function handleChatImageMessage(inputText, imagePart) {
+  const expenseCats = getCategories().filter(c => c.type === 'expense').map(c => c.name);
+  const incomeCats = getCategories().filter(c => c.type === 'income').map(c => c.name);
+  const todayStrVal = todayStr();
+  
+  const promptText = buildTransactionPromptText(expenseCats, incomeCats, todayStrVal);
+  const parts = [
+    { text: promptText },
+    imagePart
+  ];
+  if (inputText) {
+    parts.push({ text: `TEKS_BEBAS_DARI_USER: ${annotateSlangNominalForAi(inputText)}` });
+  }
+
+  const transactionSchema = {
+    type: 'ARRAY',
+    items: {
+      type: 'OBJECT',
+      properties: {
+        order: { type: 'INTEGER' },
+        date: { type: 'STRING' },
+        type: { type: 'STRING', enum: ['income', 'expense'] },
+        amount: { type: 'NUMBER' },
+        note: { type: 'STRING' },
+        category: { type: 'STRING' },
+        isDuplicateRead: { type: 'BOOLEAN' },
+        groupId: { type: 'STRING' },
+        groupTotal: { type: 'NUMBER' }
+      },
+      required: ['type', 'amount', 'note', 'category']
+    }
+  };
+
+  const key = getGeminiApiKey();
+  let items = null;
+  try {
+    const data = await callGeminiRaw(key, parts, 0.15, transactionSchema);
+    const resultText = extractGeminiText(data);
+    items = JSON.parse(resultText);
+  } catch (e) {
+    console.error(e);
+    appendChatBubble('bot', 'Maaf, gagal memproses foto tersebut. Coba kirim ulang ya.', Date.now());
+    return;
+  }
+
+  if (!items || items.length === 0) {
+    appendChatBubble('bot', 'Tidak ada data transaksi yang terbaca dari foto tersebut.', Date.now());
+    return;
+  }
+
+  const wallets = getWallets();
+  const primaryW = wallets.find(w => w.isPrimary) || wallets[0];
+  const targetWalletId = primaryW?.id || 'wallet_utama';
+  const txs = getTransactions();
+
+  for (const it of items) {
+    const type = it.type === 'income' ? 'income' : 'expense';
+    const amount = Number(it.amount) || 0;
+    
+    const txId = 'tx_' + uid();
+    txs.push({
+      id: txId,
+      access_code: getAccessCode(),
+      wallet_id: targetWalletId,
+      category_id: matchCategoryByName(it.category, type),
+      category: it.category,
+      type: type,
+      amount: amount,
+      date: todayStrVal,
+      note: it.note,
+      source: "whatsapp",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    setTransactionsLocalOnly(txs);
+    
+    recalculateWalletBalances();
+    refreshAllViews();
+    syncAllWithSupabase(true);
+    
+    appendChatBubble('bot', `Berhasil memproses foto belanja:\nCatat *"${it.note}"* sebesar *${formatRupiah(amount)}* (${primaryW.name}) ✓`, Date.now(), null, txId);
+  }
+}
+
+async function handleChatModeKoreksiEnter() {
+  const wallets = getWallets();
+  let text = `*Mode Koreksi Saldo* (Cek) ✓\nPilih dompet yang mau dikoreksi (boleh lebih dari satu):\n\n`;
+  wallets.forEach((w, idx) => {
+    text += `${idx + 1}. ${w.name} — ${formatRupiah(w.balance)}\n`;
+  });
+  text += `\nKetik nomornya, mis. "1" untuk satu dompet, "1 2" untuk beberapa dompet sekaligus, atau ketik "semua" untuk semua dompet.\nKetik 'batal' untuk keluar dari mode.`;
+  
+  chatSession = {
+    mode: "koreksi",
+    session_data: {
+      step: 1,
+      selected_wallets: [],
+      items: []
+    },
+    updated_at: new Date().toISOString()
+  };
+  saveChatStateToNavConfig();
+  
+  appendChatBubble('bot', text, Date.now());
+}
+
+async function handleChatModeKoreksiMessage(text, imagePart) {
+  const cleaned = text.trim().toLowerCase();
+  
+  if (cleaned === 'batal') {
+    chatSession = null;
+    saveChatStateToNavConfig();
+    appendChatBubble('bot', 'Mode koreksi dibatalkan. Tidak ada perubahan saldo.', Date.now());
+    return;
+  }
+  
+  const wallets = getWallets();
+  
+  // Step 1: Pemilihan Dompet
+  if (chatSession.session_data.step === 1 || !chatSession.session_data.step) {
+    const tokens = cleaned.split(/[\s,;]+/).map(t => t.trim()).filter(Boolean);
+    const selectedIds = [];
+    
+    const isAll = cleaned === "semua" || cleaned === "all";
+    if (isAll) {
+      selectedIds.push(...wallets.map(w => w.id));
+    } else {
+      for (const token of tokens) {
+        const num = parseInt(token, 10);
+        if (!isNaN(num) && num > 0 && num <= wallets.length) {
+          const w = wallets[num - 1];
+          if (!selectedIds.includes(w.id)) {
+            selectedIds.push(w.id);
+          }
+        } else {
+          const matches = wallets.filter(w => w.name.toLowerCase().includes(token));
+          if (matches.length > 0) {
+            matches.forEach(w => {
+              if (!selectedIds.includes(w.id)) {
+                selectedIds.push(w.id);
+              }
+            });
+          }
+        }
+      }
+    }
+    
+    if (selectedIds.length === 0) {
+      appendChatBubble('bot', `Pilihan dompet tidak valid. Silakan balas dengan mengetik nomor dompet (misal: '1' atau '1 2'), atau ketik nama dompetnya.`, Date.now());
+      return;
+    }
+    
+    const selectedWallets = wallets.filter(w => selectedIds.includes(w.id));
+    const items = selectedWallets.map(w => ({
+      wallet_id: w.id,
+      wallet_name: w.name,
+      amount: Number(w.balance) || 0,
+      breakdown: []
+    }));
+    
+    chatSession.session_data = {
+      step: 2,
+      selected_wallets: selectedIds,
+      items: items
+    };
+    chatSession.updated_at = new Date().toISOString();
+    saveChatStateToNavConfig();
+    
+    let reply = `Dompet terpilih untuk dikoreksi:\n`;
+    selectedWallets.forEach((w, idx) => {
+      reply += `${idx + 1}. ${w.name} (Saldo saat ini: ${formatRupiah(w.balance)})\n`;
+    });
+    reply += `\nSilakan kirim foto uang fisik (struk) atau ketik nilai nominal aktual untuk dompet-dompet di atas (contoh: 'dompet utama 50rb', '1 50rb', atau jika hanya 1 dompet langsung ketik angkanya '50000').\n\n` +
+             `Ketik *"ya"* jika semua nominal sudah sesuai untuk memproses, atau *"batal"* untuk keluar.`;
+             
+    appendChatBubble('bot', reply, Date.now());
+    return;
+  }
+  
+  // Step 2: Proses nominal/foto
+  const draftItems = chatSession.session_data.items || [];
+  
+  if (cleaned === 'ya' || cleaned === 'oke') {
+    if (draftItems.length === 0) {
+      appendChatBubble('bot', 'Draft koreksi kosong. Silakan kirim data koreksi dulu atau ketik \'batal\' untuk keluar.', Date.now());
+      return;
+    }
+    
+    // Eksekusi koreksi saldo (Penyesuaian Saldo)
+    let cats = getCategories();
+    let catExpense = cats.find(c => c.name === "Penyesuaian Saldo" && c.type === "expense");
+    let catIncome = cats.find(c => c.name === "Penyesuaian Saldo" && c.type === "income");
+    
+    if (!catExpense) {
+      const catId = 'cat_' + uid();
+      catExpense = { id: catId, name: "Penyesuaian Saldo", type: "expense", icon: "sliders", color: "#6b7280" };
+      cats.push(catExpense);
+    }
+    if (!catIncome) {
+      const catId = 'cat_' + uid();
+      catIncome = { id: catId, name: "Penyesuaian Saldo", type: "income", icon: "sliders", color: "#6b7280" };
+      cats.push(catIncome);
+    }
+    setCategoriesLocalOnly(cats);
+    
+    const todayStrVal = todayStr();
+    const txs = getTransactions();
+    
+    for (const item of draftItems) {
+      const wallet = wallets.find(w => w.id === item.wallet_id);
+      if (!wallet) continue;
+      
+      const currentBalance = Number(wallet.balance) || 0;
+      const actualBalance = Number(item.amount) || 0;
+      const diff = actualBalance - currentBalance;
+      
+      if (diff === 0) continue;
+      
+      const txType = diff < 0 ? "expense" : "income";
+      const catId = diff < 0 ? catExpense.id : catIncome.id;
+      const adjustAmount = Math.abs(diff);
+      
+      txs.push({
+        id: 'tx_' + uid(),
+        access_code: getAccessCode(),
+        wallet_id: wallet.id,
+        category_id: catId,
+        category: "Penyesuaian Saldo",
+        type: txType,
+        amount: adjustAmount,
+        date: todayStrVal,
+        note: `Koreksi saldo Chat`,
+        source: "whatsapp",
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+    }
+    
+    setTransactionsLocalOnly(txs);
+    recalculateWalletBalances();
+    refreshAllViews();
+    syncAllWithSupabase(true);
+    
+    chatSession = null;
+    saveChatStateToNavConfig();
+    appendChatBubble('bot', 'Koreksi saldo berhasil disimpan! ✓', Date.now());
+    return;
+  }
+  
+  // Memproses input koreksi menggunakan Gemini
+  const selectedIds = chatSession.session_data.selected_wallets;
+  const selectedWallets = wallets.filter(w => selectedIds.includes(w.id));
+  
+  const mediaParts = [];
+  if (imagePart) mediaParts.push(imagePart);
+  
+  const key = getGeminiApiKey();
+  
+  // Panggil Gemini untuk mendeteksi item koreksi saldo
+  const detectedItems = await parseChatKoreksi(key, text, mediaParts, selectedWallets, draftItems);
+  
+  if (detectedItems.length === 0) {
+    const walletNames = selectedWallets.map(w => w.name).join(", ");
+    appendChatBubble('bot', `Tidak terdeteksi nominal saldo untuk dompet terpilih (${walletNames}) dari foto/kalimat yang dikirim.\n\nSilakan ketik nominal manual (contoh: '1 50rb') atau pastikan foto memuat saldo dompet tersebut.`, Date.now());
+    return;
+  }
+  
+  // Kelompokkan hasil deteksi
+  const grouped = {};
+  for (const item of detectedItems) {
+    const wallet = selectedWallets.find(w => w.id === item.target_wallet_id);
+    if (!wallet) continue;
+    
+    if (!grouped[wallet.id]) {
+      grouped[wallet.id] = {
+        wallet_id: wallet.id,
+        wallet_name: wallet.name,
+        breakdown: []
+      };
+    }
+    
+    const existing = grouped[wallet.id].breakdown.find(b => b.name.toLowerCase() === item.account_name.toLowerCase());
+    if (existing) {
+      existing.amount = item.amount;
+    } else {
+      grouped[wallet.id].breakdown.push({
+        name: item.account_name,
+        amount: item.amount
+      });
+    }
+  }
+  
+  let updatedDraft = [...draftItems];
+  for (const walletId in grouped) {
+    const group = grouped[walletId];
+    const existingIdx = updatedDraft.findIndex(d => d.wallet_id === walletId);
+    
+    if (existingIdx >= 0) {
+      const currentBreakdown = updatedDraft[existingIdx].breakdown || [];
+      for (const newB of group.breakdown) {
+        const bIdx = currentBreakdown.findIndex(b => b.name.toLowerCase() === newB.name.toLowerCase());
+        if (bIdx >= 0) {
+          currentBreakdown[bIdx].amount = newB.amount;
+        } else {
+          currentBreakdown.push(newB);
+        }
+      }
+      updatedDraft[existingIdx].breakdown = currentBreakdown;
+      updatedDraft[existingIdx].amount = currentBreakdown.reduce((sum, b) => sum + b.amount, 0);
+    } else {
+      updatedDraft.push({
+        wallet_id: walletId,
+        wallet_name: group.wallet_name,
+        breakdown: group.breakdown,
+        amount: group.breakdown.reduce((sum, b) => sum + b.amount, 0)
+      });
+    }
+  }
+  
+  chatSession.session_data.items = updatedDraft;
+  chatSession.updated_at = new Date().toISOString();
+  saveChatStateToNavConfig();
+  
+  // Cetak draft koreksi
+  let report = `📋 *Draft Koreksi Saldo*\n\n`;
+  updatedDraft.forEach((item, idx) => {
+    const orig = wallets.find(w => w.id === item.wallet_id);
+    const systemBalance = orig ? Number(orig.balance) : 0;
+    const diff = item.amount - systemBalance;
+    const diffStr = diff === 0 ? "Rp0" : (diff < 0 ? `-${formatRupiah(Math.abs(diff))}` : `+${formatRupiah(diff)}`);
+    
+    report += `${idx + 1}. *${item.wallet_name}*\n`;
+    if (item.breakdown && item.breakdown.length > 0) {
+      item.breakdown.forEach(b => {
+        report += `   • ${b.name}: ${formatRupiah(b.amount)}\n`;
+      });
+    }
+    report += `   Saldo sistem : ${formatRupiah(systemBalance)}\n` +
+              `   Saldo aktual : ${formatRupiah(item.amount)}\n` +
+              `   Selisih      : ${diffStr}\n\n`;
+  });
+  
+  let totalSystem = 0;
+  let totalActual = 0;
+  updatedDraft.forEach((item) => {
+    const orig = wallets.find(w => w.id === item.wallet_id);
+    totalSystem += orig ? Number(orig.balance) : 0;
+    totalActual += item.amount;
+  });
+  const totalDiff = totalActual - totalSystem;
+  const totalDiffStr = totalDiff === 0 ? "Rp0" : (totalDiff < 0 ? `-${formatRupiah(Math.abs(totalDiff))}` : `+${formatRupiah(totalDiff)}`);
+  
+  report += `-------------------------\n` +
+            `*Total Saldo Aktual:* ${formatRupiah(totalActual)}\n` +
+            `*Saldo Tercatat di App:* ${formatRupiah(totalSystem)}\n` +
+            `*Selisih (Penyesuaian):* ${totalDiffStr}\n\n`;
+            
+  report += `Ketik nomor/nama + nilai baru untuk mengubah (misal: '1 60rb'), atau ketik *"ya"* untuk memproses, *"batal"* untuk keluar.`;
+  appendChatBubble('bot', report, Date.now());
+}
+
+async function parseChatKoreksi(key, text, mediaParts, selectedWallets, draftItems) {
+  const prompt = `
+Kamu asisten Mode Koreksi Saldo. User sedang mengoreksi saldo dompet terpilih berikut:
+${selectedWallets.map((w, idx) => `${idx + 1}. ${w.name} (ID: ${w.id})`).join("\n")}
+
+Draft koreksi saat ini:
+${draftItems.map((it, idx) => {
+  const breakdownStr = it.breakdown ? it.breakdown.map(b => `${b.name}: ${b.amount}`).join(", ") : "";
+  return `${idx + 1}. Wallet: ${it.wallet_name}, Actual: ${it.amount} (${breakdownStr})`;
+}).join("\n")}
+
+Tugasmu:
+1. Baca semua gambar screenshot/foto saldo rekening bank, e-wallet (DANA, OVO, GoPay, ShopeePay, LinkAja, dll), atau kalimat user.
+2. Ekstrak nama akun/sumber saldo (misal: "DANA", "OVO", "GoPay", "ShopeePay", "BCA", "Uang Cash") dan nominal saldonya yang terbaca dari gambar/teks.
+3. Cocokkan nama akun tersebut ke salah satu dompet terpilih di atas.
+4. Keluarkan daftar item yang terdeteksi.
+
+Keluarkan JSON dengan schema:
+{
+  "detected_items": [
+    {
+      "account_name": "string (nama akun yang terbaca, misal: 'DANA', 'GoPay', 'Input Manual')",
+      "amount": number,
+      "target_wallet_id": "string (ID dompet terpilih tempat akun ini dicocokkan)"
+    }
+  ]
+}
+`;
+
+  const parts = [{ text: prompt }];
+  if (text) parts.push({ text: `Kalimat user: "${text}"` });
+  if (mediaParts.length > 0) parts.push(...mediaParts);
+
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      detected_items: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            account_name: { type: "STRING" },
+            amount: { type: "NUMBER" },
+            target_wallet_id: { type: "STRING" }
+          },
+          required: ["account_name", "amount", "target_wallet_id"]
+        }
+      }
+    },
+    required: ["detected_items"]
+  };
+
+  try {
+    const data = await callGeminiRaw(key, parts, 0.1, responseSchema);
+    const resultText = extractGeminiText(data);
+    const parsed = JSON.parse(resultText);
+    return parsed.detected_items || [];
+  } catch (err) {
+    console.error("Error in parseChatKoreksi:", err);
+    return [];
+  }
+}
+
+async function renderChatLimitList() {
+  const categories = getCategories();
+  const todayStrVal = todayStr();
+  const currentMonth = todayStrVal.slice(0, 7);
+  const budgets = getBudgets().filter(b => b.month === currentMonth);
+  
+  const transactions = getTransactions().filter(t => t.type === "expense" && t.date && t.date.slice(0, 7) === currentMonth);
+  const spentMap = {};
+  transactions.forEach(t => {
+    spentMap[t.category] = (spentMap[t.category] || 0) + (Number(t.amount) || 0);
+  });
+  
+  const monthParts = todayStrVal.split("-");
+  const monthLabel = `${INDO_MONTHS_VAL[parseInt(monthParts[1]) - 1].toUpperCase()} ${monthParts[0]}`;
+  
+  let text = `Daftar Limit Anggaran (${monthLabel}):\n\n`;
+  const expenseCats = categories.filter(c => c.type === "expense");
+  
+  const sortedCats = [...expenseCats].sort((catA, catB) => {
+    const bA = budgets.find(b => b.category_id === catA.id);
+    const bB = budgets.find(b => b.category_id === catB.id);
+    const hasLimitA = bA ? 1 : 0;
+    const hasLimitB = bB ? 1 : 0;
+    if (hasLimitA !== hasLimitB) return hasLimitB - hasLimitA;
+    return catA.name.localeCompare(catB.name);
+  });
+
+  sortedCats.forEach((c, idx) => {
+    const b = budgets.find(b => b.category_id === c.id);
+    const limit = b ? Number(b.limit_amount) : null;
+    const spent = spentMap[c.name] || 0;
+    const remaining = limit !== null ? limit - spent : null;
+    
+    text += `${idx + 1}. ${c.name}\n`;
+    if (limit !== null) {
+      text += `   Limit    : ${formatRupiah(limit)}\n` +
+              `   Terpakai : ${formatRupiah(spent)}\n` +
+              `   Sisa     : ${formatRupiah(remaining || 0)}\n\n`;
+    } else {
+      text += `   Belum ada limit\n\n`;
+    }
+  });
+
+  text += `Mau tambah, edit, atau hapus yang mana?\n` +
+    `- Edit: 'edit 1 1.2jt' atau 'edit Makan 1.2jt'\n` +
+    `- Tambah: 'tambah Transportasi 300rb'\n` +
+    `- Hapus: 'hapus 1' atau 'hapus Makan'\n\n` +
+    `Ketik 'batal' untuk keluar.`;
+    
+  return { text, sortedCats, budgets };
+}
+
+async function handleChatModeLimitEnter() {
+  const { text } = await renderChatLimitList();
+  
+  chatSession = {
+    mode: "limit",
+    session_data: {},
+    updated_at: new Date().toISOString()
+  };
+  saveChatStateToNavConfig();
+  
+  appendChatBubble('bot', text, Date.now());
+}
+
+async function handleChatModeLimitMessage(text) {
+  const cleaned = text.trim().toLowerCase();
+  
+  if (cleaned === 'batal') {
+    chatSession = null;
+    saveChatStateToNavConfig();
+    appendChatBubble('bot', 'Keluar dari mode limit anggaran.', Date.now());
+    return;
+  }
+  
+  const { sortedCats, budgets: curBudgets } = await renderChatLimitList();
+  
+  const budgetList = sortedCats.map(c => {
+    const b = curBudgets.find(bg => bg.category_id === c.id);
+    return {
+      category_id: c.id,
+      category_name: c.name,
+      limit: b ? Number(b.limit_amount) : null,
+      budget_id: b ? b.id : null
+    };
+  });
+  
+  const key = getGeminiApiKey();
+  const parsedAction = await parseChatLimitAction(key, text, sortedCats, budgetList);
+  
+  if (parsedAction.action === "none") {
+    appendChatBubble('bot', `Perintah tidak dipahami. Silakan gunakan format 'edit/tambah/hapus' (contoh: 'edit 1 1jt', 'hapus 2').`, Date.now());
+    return;
+  }
+  
+  let targetCat = null;
+  if (parsedAction.index !== null) {
+    const idx = parsedAction.index - 1;
+    if (idx >= 0 && idx < budgetList.length) {
+      targetCat = budgetList[idx];
+    }
+  } else if (parsedAction.category_name) {
+    const matches = sortedCats.filter(c => c.name.toLowerCase().includes(parsedAction.category_name.toLowerCase()));
+    if (matches.length === 1) {
+      targetCat = budgetList.find(b => b.category_id === matches[0].id);
+    } else if (matches.length > 1) {
+      let optText = `Nama kategori ambigu. Pilihan:\n`;
+      matches.forEach((c, idx) => { optText += `${idx + 1}. ${c.name}\n`; });
+      optText += `\nMohon ketik ulang perintah dengan nama kategori spesifik.`;
+      appendChatBubble('bot', optText, Date.now());
+      return;
+    }
+  }
+  
+  if (!targetCat) {
+    appendChatBubble('bot', `Kategori tidak ditemukan.`, Date.now());
+    return;
+  }
+  
+  const amount = parsedAction.amount ?? 0;
+  const budgets = getBudgets();
+  const todayStrVal = todayStr();
+  const currentMonth = todayStrVal.slice(0, 7);
+  
+  if (parsedAction.action === "delete") {
+    if (targetCat.budget_id) {
+      const updated = budgets.filter(b => b.id !== targetCat.budget_id);
+      setBudgetsLocalOnly(updated);
+      appendChatBubble('bot', `Limit anggaran untuk kategori "${targetCat.category_name}" berhasil dihapus.`, Date.now());
+    } else {
+      appendChatBubble('bot', `Kategori "${targetCat.category_name}" memang belum memiliki limit.`, Date.now());
+    }
+  } else {
+    // Add / Edit
+    if (amount <= 0) {
+      appendChatBubble('bot', `Nominal limit tidak valid.`, Date.now());
+      return;
+    }
+    
+    if (targetCat.budget_id) {
+      // Update
+      const bItem = budgets.find(b => b.id === targetCat.budget_id);
+      if (bItem) {
+        bItem.limit_amount = amount;
+        bItem.updatedAt = Date.now();
+      }
+    } else {
+      // Add new
+      budgets.push({
+        id: 'b_' + uid(),
+        access_code: getAccessCode(),
+        category_id: targetCat.category_id,
+        month: currentMonth,
+        limit_amount: amount,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+    }
+    setBudgetsLocalOnly(budgets);
+    appendChatBubble('bot', `Limit anggaran kategori "${targetCat.category_name}" disimpan senilai ${formatRupiah(amount)}.`, Date.now());
+  }
+  
+  // Render list terupdate
+  const { text: updatedText } = await renderChatLimitList();
+  appendChatBubble('bot', `Ada lagi yang mau disesuaikan? Ketik 'batal' jika sudah selesai.\n\n` + updatedText, Date.now());
+}
+
+async function parseChatLimitAction(key, text, categories, budgets) {
+  const prompt = `
+Kamu asisten Mode Limit Anggaran. Berdasarkan kalimat user, tentukan tindakan perubahan limit anggaran kategori untuk bulan ini.
+Daftar kategori tersedia: [${categories.map(c => c.name).join(", ")}]
+Daftar limit saat ini:
+${budgets.map((b, idx) => `${idx + 1}. Kategori: ${b.category_name}, Limit: ${b.limit || '0'}`).join("\n")}
+
+Aksi yang mungkin:
+1. "add" - Menambah limit kategori baru (misal: "tambah Transportasi 300rb").
+2. "edit" - Mengubah nominal limit kategori yang ada (misal: "edit 1 1jt", "edit Makan 1.2jt").
+3. "delete" - Menghapus limit kategori (misal: "hapus Makan", "hapus 1").
+4. "none" - Tidak dikenali.
+
+Keluarkan JSON dengan schema:
+{
+  "action": "add" | "edit" | "delete" | "none",
+  "category_name": "string (nama kategori)",
+  "amount": number | null,
+  "index": number | null
+}
+`;
+
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      action: { type: "STRING", enum: ["add", "edit", "delete", "none"] },
+      category_name: { type: "STRING" },
+      amount: { type: "NUMBER" },
+      index: { type: "NUMBER" }
+    },
+    required: ["action"]
+  };
+
+  try {
+    const data = await callGeminiRaw(key, [{ text: prompt }, { text: `Kalimat user: "${text}"` }], 0.1, responseSchema);
+    const resultText = extractGeminiText(data);
+    return JSON.parse(resultText);
+  } catch (err) {
+    console.error("Error in parseChatLimitAction:", err);
+    return { action: "none" };
+  }
+}
+
+async function renderChatGoalsList() {
+  const goals = getGoals();
+  const wallets = getWallets();
+  
+  const sortedGoals = [...goals].sort((a, b) => {
+    const targetA = Number(a.target_amount) || 0;
+    const targetB = Number(b.target_amount) || 0;
+    if (targetA !== targetB) return targetB - targetA;
+    return a.name.localeCompare(b.name);
+  });
+
+  let text = `Daftar Tujuan Tabungan:\n\n`;
+  if (sortedGoals.length === 0) {
+    text += `(kosong)\n`;
+  } else {
+    sortedGoals.forEach((g, idx) => {
+      const target = Number(g.target_amount) || 0;
+      const linked = wallets.find(w => w.id === g.wallet_id);
+      const progress = linked ? Number(linked.balance) : 0;
+      const pct = target > 0 ? Math.round((progress / target) * 100) : 0;
+      const remaining = target - progress;
+      
+      text += `${idx + 1}. ${g.name}\n` +
+              `   Target     : ${formatRupiah(target)}\n` +
+              `   Terkumpul  : ${formatRupiah(progress)} (${pct}%)\n` +
+              `   Sisa       : ${formatRupiah(remaining || 0)}\n\n`;
+    });
+  }
+
+  text += `Mau tambah, edit, atau hapus yang mana?\n` +
+    `- Edit: 'edit 1 target 12jt' atau 'edit Laptop target 10jt'\n` +
+    `- Tambah: 'tambah Liburan target 5jt'\n` +
+    `- Hapus: 'hapus 1' atau 'hapus Laptop'\n\n` +
+    `Ketik 'batal' untuk keluar.`;
+    
+  return { text, sortedGoals };
+}
+
+async function handleChatModeTujuanEnter() {
+  const { text } = await renderChatGoalsList();
+  
+  chatSession = {
+    mode: "tujuan",
+    session_data: {},
+    updated_at: new Date().toISOString()
+  };
+  saveChatStateToNavConfig();
+  
+  appendChatBubble('bot', text, Date.now());
+}
+
+async function handleChatModeTujuanMessage(text) {
+  const cleaned = text.trim().toLowerCase();
+  
+  if (cleaned === 'batal') {
+    chatSession = null;
+    saveChatStateToNavConfig();
+    appendChatBubble('bot', 'Keluar dari mode tujuan tabungan.', Date.now());
+    return;
+  }
+  
+  const { sortedGoals } = await renderChatGoalsList();
+  const key = getGeminiApiKey();
+  const parsedAction = await parseChatTujuanAction(key, text, sortedGoals);
+  
+  if (parsedAction.action === "none") {
+    appendChatBubble('bot', `Perintah tidak dipahami. Gunakan format 'edit/tambah/hapus' (contoh: 'edit 1 target 15jt', 'tambah Mobil target 120jt').`, Date.now());
+    return;
+  }
+  
+  let targetGoal = null;
+  if (parsedAction.index !== null) {
+    const idx = parsedAction.index - 1;
+    if (idx >= 0 && idx < sortedGoals.length) {
+      targetGoal = sortedGoals[idx];
+    }
+  } else if (parsedAction.goal_name) {
+    const matches = sortedGoals.filter(g => g.name.toLowerCase().includes(parsedAction.goal_name.toLowerCase()));
+    if (matches.length === 1) {
+      targetGoal = matches[0];
+    } else if (matches.length > 1) {
+      let optText = `Nama tujuan ambigu. Pilihan:\n`;
+      matches.forEach((g, idx) => { optText += `${idx + 1}. ${g.name}\n`; });
+      optText += `\nMohon ketik ulang perintah dengan nama tujuan spesifik.`;
+      appendChatBubble('bot', optText, Date.now());
+      return;
+    }
+  }
+  
+  const goals = getGoals();
+  const wallets = getWallets();
+  
+  if (parsedAction.action === "delete") {
+    if (!targetGoal) {
+      appendChatBubble('bot', `Tujuan tabungan tidak ditemukan.`, Date.now());
+      return;
+    }
+    const updatedGoals = goals.filter(g => g.id !== targetGoal.id);
+    setGoalsLocalOnly(updatedGoals);
+    
+    if (targetGoal.wallet_id) {
+      const updatedWallets = wallets.filter(w => w.id !== targetGoal.wallet_id);
+      setWalletsLocalOnly(updatedWallets);
+    }
+    
+    appendChatBubble('bot', `Tujuan tabungan "${targetGoal.name}" berhasil dihapus.`, Date.now());
+  } else if (parsedAction.action === "add") {
+    if (!parsedAction.goal_name || !(parsedAction.amount > 0)) {
+      appendChatBubble('bot', `Format tambah tujuan tidak lengkap. Sebutkan nama & nominal target.`, Date.now());
+      return;
+    }
+    
+    const walletId = 'w_' + uid();
+    wallets.push({
+      id: walletId,
+      name: `Tabungan ${parsedAction.goal_name}`,
+      balance: 0,
+      isPrimary: false,
+      order: wallets.length,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    setWalletsLocalOnly(wallets);
+    
+    goals.push({
+      id: 'g_' + uid(),
+      access_code: getAccessCode(),
+      name: parsedAction.goal_name,
+      target_amount: parsedAction.amount,
+      wallet_id: walletId,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    setGoalsLocalOnly(goals);
+    
+    appendChatBubble('bot', `Tujuan tabungan "${parsedAction.goal_name}" berhasil dibuat dengan target ${formatRupiah(parsedAction.amount)}.`, Date.now());
+  } else if (parsedAction.action === "edit") {
+    if (!targetGoal) {
+      appendChatBubble('bot', `Tujuan tabungan tidak ditemukan.`, Date.now());
+      return;
+    }
+    const amount = parsedAction.amount ?? 0;
+    if (amount <= 0) {
+      appendChatBubble('bot', `Target nominal tidak valid.`, Date.now());
+      return;
+    }
+    
+    const gItem = goals.find(g => g.id === targetGoal.id);
+    if (gItem) {
+      gItem.target_amount = amount;
+      gItem.updatedAt = Date.now();
+      setGoalsLocalOnly(goals);
+    }
+    
+    appendChatBubble('bot', `Tujuan tabungan "${targetGoal.name}" diubah targetnya menjadi ${formatRupiah(amount)}.`, Date.now());
+  }
+  
+  recalculateWalletBalances();
+  refreshAllViews();
+  syncAllWithSupabase(true);
+  
+  const { text: updatedText } = await renderChatGoalsList();
+  appendChatBubble('bot', `Ada lagi yang mau disesuaikan? Ketik 'batal' jika sudah selesai.\n\n` + updatedText, Date.now());
+}
+
+async function parseChatTujuanAction(key, text, goals) {
+  const prompt = `
+Kamu asisten Mode Tujuan Tabungan. Berdasarkan kalimat user, tentukan tindakan perubahan tujuan tabungan.
+Daftar tujuan tabungan saat ini:
+${goals.map((g, idx) => `${idx + 1}. Tujuan: ${g.name}, Target: ${g.target_amount || '0'}`).join("\n")}
+
+Aksi yang mungkin:
+1. "add" - Menambah tujuan tabungan baru (misal: "tambah Mobil target 150jt").
+2. "edit" - Mengubah target nominal atau tanggal tujuan yang ada (misal: "edit 1 target 12jt", "edit Laptop target 10jt").
+3. "delete" - Menghapus tujuan tabungan (misal: "hapus Laptop", "hapus 1").
+4. "none" - Tidak dikenali.
+
+Keluarkan JSON dengan schema:
+{
+  "action": "add" | "edit" | "delete" | "none",
+  "goal_name": "string (nama tujuan/goal)",
+  "amount": number | null,
+  "index": number | null
+}
+`;
+
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      action: { type: "STRING", enum: ["add", "edit", "delete", "none"] },
+      goal_name: { type: "STRING" },
+      amount: { type: "NUMBER" },
+      index: { type: "NUMBER" }
+    },
+    required: ["action"]
+  };
+
+  try {
+    const data = await callGeminiRaw(key, [{ text: prompt }, { text: `Kalimat user: "${text}"` }], 0.1, responseSchema);
+    const resultText = extractGeminiText(data);
+    return JSON.parse(resultText);
+  } catch (err) {
+    console.error("Error in parseChatTujuanAction:", err);
+    return { action: "none" };
+  }
+}
+
+async function handleChatReplyToTransaction(replyText, transactionId) {
+  const cleanReply = replyText.trim().toLowerCase();
+  
+  if (transactionId.startsWith("debt_")) {
+    const isDirectDelete = /^(batalkan|batal|hapus|undo|ga jadi|gajadi|cancel|batalin|delete|del|back)$/i.test(cleanReply) ||
+      /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(cleanReply);
+
+    if (isDirectDelete) {
+      const debts = getDebts();
+      const debtData = debts.find(d => d.id === transactionId);
+      
+      if (debtData) {
+        const updatedDebts = debts.filter(d => d.id !== transactionId);
+        setDebtsLocalOnly(updatedDebts);
+        
+        const txs = getTransactions();
+        const updatedTxs = txs.filter(t => !t.note.includes(debtData.person_name) || t.category !== "Utang Piutang");
+        setTransactionsLocalOnly(updatedTxs);
+        
+        recalculateWalletBalances();
+        refreshAllViews();
+        syncAllWithSupabase(true);
+        
+        appendChatBubble('bot', `Catatan utang ${debtData.person_name} sebesar ${formatRupiah(debtData.amount)} berhasil dihapus.`, Date.now());
+      } else {
+        appendChatBubble('bot', `Catatan utang tidak ditemukan atau sudah dihapus.`, Date.now());
+      }
+      return;
+    } else {
+      appendChatBubble('bot', `Catatan utang baru hanya bisa dihapus/dibatalkan. Ketik 'hapus' untuk membatalkan.`, Date.now());
+      return;
+    }
+  }
+
+  const txs = getTransactions();
+  const txData = txs.find(t => t.id === transactionId);
+  if (!txData) {
+    appendChatBubble('bot', 'Transaksi tidak ditemukan. Mungkin sudah dihapus sebelumnya.', Date.now());
+    return;
+  }
+
+  const isDirectDelete = /^(batalkan|batal|hapus|undo|ga jadi|gajadi|cancel|batalin|delete|del|back)$/i.test(cleanReply) ||
+    /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(cleanReply);
+
+  let instruction;
+  if (isDirectDelete) {
+    instruction = { action: "delete" };
+  } else {
+    const cats = getCategories();
+    const wallets = getWallets();
+    const expenseCats = cats.filter(c => c.type === "expense").map(c => c.name);
+    const incomeCats = cats.filter(c => c.type === "income").map(c => c.name);
+    const walletNames = wallets.map(w => w.name);
+    
+    const key = getGeminiApiKey();
+    const promptText =
+      `Kamu asisten keuangan. User membalas (reply) ke pesan konfirmasi transaksi berikut:\n` +
+      `${JSON.stringify(txData, null, 2)}\n\n` +
+      `Teks balasan user: "${replyText}"\n\n` +
+      `Tentukan apa instruksi user:\n` +
+      `- "edit": update satu atau beberapa field (amount, category, note, wallet)\n` +
+      `- "delete": hapus transaksi ini\n` +
+      `- "unclear": instruksi tidak jelas, minta klarifikasi\n\n` +
+      `Kategori expense yang tersedia: [${expenseCats.join(", ")}]\n` +
+      `Kategori income yang tersedia: [${incomeCats.join(", ")}]\n\n` +
+      `Dompet yang tersedia: [${walletNames.join(", ")}]\n\n` +
+      `Keluarkan JSON sesuai schema. Untuk "edit", isi hanya field yang berubah (kosongkan field yang tidak disebutkan user).` +
+      ` Untuk "unclear", isi "reason" dengan penjelasan singkat apa yang perlu diklarifikasi.`;
+
+    const responseSchema = {
+      type: "OBJECT",
+      properties: {
+        action: { type: "STRING", enum: ["edit", "delete", "unclear"] },
+        amount: { type: "NUMBER" },
+        category: { type: "STRING" },
+        note: { type: "STRING" },
+        wallet: { type: "STRING" },
+        reason: { type: "STRING" }
+      },
+      required: ["action"]
+    };
+
+    try {
+      const data = await callGeminiRaw(key, [{ text: promptText }], 0.1, responseSchema);
+      const text = extractGeminiText(data);
+      instruction = JSON.parse(text);
+    } catch(e) {
+      appendChatBubble('bot', 'Gagal memproses instruksi, coba lagi ya.', Date.now());
+      return;
+    }
+  }
+
+  if (instruction.action === "unclear") {
+    appendChatBubble('bot', `Kurang jelas nih: ${instruction.reason ?? 'coba tulis lebih spesifik'}`, Date.now());
+    return;
+  }
+
+  if (instruction.action === "delete") {
+    if (txData.source === "whatsapp") {
+      const recurring = getRecurring();
+      const matchedRec = recurring.find(r => r.name === txData.note && r.category_id === txData.category_id);
+      if (matchedRec) {
+        matchedRec.last_confirmed_date = null;
+        matchedRec.updatedAt = Date.now();
+        setRecurringLocalOnly(recurring);
+      }
+      
+      if (txData.category === "Utang Piutang") {
+        const note = txData.note ?? "";
+        const personMatch = note.match(/(?:utang|piutang)\s+([A-Za-z0-9_]+)/i);
+        if (personMatch) {
+          const personName = personMatch[1];
+          const debts = getDebts();
+          const personDebts = debts.filter(d => d.person_name.toLowerCase() === personName.toLowerCase());
+          
+          if (personDebts.length > 0) {
+            const payoffEntry = personDebts.find(d => d.status === "lunas" && d.payoff_date === txData.date);
+            if (payoffEntry) {
+              payoffEntry.status = "active";
+              payoffEntry.payoff_wallet_id = null;
+              payoffEntry.payoff_date = null;
+              payoffEntry.updatedAt = Date.now();
+              
+              const reverseType = payoffEntry.type === "i_owe" ? "owed_to_me" : "i_owe";
+              const idx = debts.findIndex(d => d.person_name.toLowerCase() === personName.toLowerCase() && d.type === reverseType && d.status === "active" && d.date === txData.date && d.note.includes("Kelebihan pembayaran"));
+              if (idx >= 0) debts.splice(idx, 1);
+            } else {
+              const activeEntry = personDebts.find(d => d.status === "active");
+              if (activeEntry) {
+                activeEntry.amount = (Number(activeEntry.amount) || 0) + (Number(txData.amount) || 0);
+                activeEntry.updatedAt = Date.now();
+              }
+            }
+            setDebtsLocalOnly(debts);
+          }
+        }
+      }
+    }
+
+    const updatedTxs = txs.filter(t => t.id !== transactionId);
+    setTransactionsLocalOnly(updatedTxs);
+    
+    const deletedIds = JSON.parse(localStorage.getItem(LS_KEYS.deletedIds) || '[]');
+    if (!deletedIds.includes(String(transactionId))) {
+      deletedIds.push(String(transactionId));
+      localStorage.setItem(LS_KEYS.deletedIds, JSON.stringify(deletedIds));
+    }
+    
+    recalculateWalletBalances();
+    refreshAllViews();
+    syncAllWithSupabase(true);
+    
+    appendChatBubble('bot', `Transaksi dihapus:\n"${txData.note}" ${formatRupiah(txData.amount)} (${txData.date})`, Date.now());
+    return;
+  }
+
+  const wallets = getWallets();
+  const cats = getCategories();
+  const txIdx = txs.findIndex(t => t.id === transactionId);
+  if (txIdx < 0) return;
+  
+  const tx = txs[txIdx];
+  tx.updatedAt = Date.now();
+
+  if (instruction.amount != null && instruction.amount > 0) {
+    tx.amount = instruction.amount;
+  }
+
+  if (instruction.category) {
+    const type = tx.type;
+    const catId = matchCategoryByName(instruction.category, type);
+    const catName = cats.find(c => c.id === catId)?.name || instruction.category;
+    tx.category_id = catId;
+    tx.category = catName;
+  }
+
+  if (instruction.note) {
+    tx.note = instruction.note.slice(0, 80);
+  }
+
+  if (instruction.wallet) {
+    const targetWalletId = matchWalletByName(instruction.wallet);
+    if (targetWalletId) {
+      tx.wallet_id = targetWalletId;
+    } else {
+      appendChatBubble('bot', "Dompetnya belum ketemu. Sebutkan nama dompet yang ada ya.", Date.now());
+      return;
+    }
+  }
+
+  setTransactionsLocalOnly(txs);
+  recalculateWalletBalances();
+  refreshAllViews();
+  syncAllWithSupabase(true);
+  
+  const wName = wallets.find(w => w.id === tx.wallet_id)?.name || 'Dompet';
+  appendChatBubble('bot', `Transaksi diubah:\n*"${tx.note}"* sebesar *${formatRupiah(tx.amount)}* (${wName}) ✓`, Date.now(), null, tx.id);
+}
+
+function matchWalletByName(name) {
+  const wallets = getWallets();
+  const lower = String(name || '').toLowerCase();
+  let found = wallets.find(w => w.name.toLowerCase().includes(lower));
+  if (!found) found = wallets.find(w => w.isPrimary) || wallets[0];
+  return found ? found.id : null;
+}
+
+async function processChatFinanceQuery(userQuestion) {
+  const todayStrVal = todayStr();
+  const { monthStr, label: periodLabel, filterByMonth } = localParseQueryMonth(userQuestion, todayStrVal);
+  
+  const wallets = getWallets();
+  const categories = getCategories();
+  const savingsGoals = getGoals();
+  const debtEntries = getDebts();
+  const recurringItems = getRecurring();
+  const allTransactions = getTransactions();
+  
+  const resetDay = 25;
+  
+  let targetTransactions = allTransactions;
+  if (filterByMonth && monthStr) {
+    targetTransactions = allTransactions.filter(t => t.date && t.date.slice(0, 7) === monthStr);
+  }
+  
+  const sortedWallets = [...wallets].sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+  
+  const totalBalance = wallets.reduce((s, w) => s + (Number(w.balance) || 0), 0);
+  
+  const periodIncome = targetTransactions
+    .filter(t => t.type === "income")
+    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    
+  const periodExpense = targetTransactions
+    .filter(t => t.type === "expense")
+    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    
+  const categorySpentMap = {};
+  for (const t of targetTransactions) {
+    if (t.type === "expense") {
+      const catName = t.category || "Lainnya";
+      categorySpentMap[catName] = (categorySpentMap[catName] || 0) + (Number(t.amount) || 0);
+    }
+  }
+  
+  let budgets = [];
+  if (filterByMonth && monthStr) {
+    budgets = getBudgets().filter(b => b.month === monthStr);
+  }
+  
+  const budgetStatusList = categories
+    .filter(c => c.type === "expense")
+    .map(c => {
+      const budgetLimit = budgets.find(b => b.category_id === c.id);
+      const limitAmt = budgetLimit ? Number(budgetLimit.limit_amount) : null;
+      const spentAmt = categorySpentMap[c.name] || 0;
+      const remainingAmt = limitAmt !== null ? limitAmt - spentAmt : null;
+      return {
+        category_id: c.id,
+        category_name: c.name,
+        has_limit: limitAmt !== null,
+        limit: limitAmt,
+        spent: spentAmt,
+        remaining: remainingAmt
+      };
+    });
+    
+  let daysPassed = 1;
+  const todayParts = todayStrVal.split("-");
+  const currentMonthStr = `${todayParts[0]}-${todayParts[1]}`;
+  
+  if (filterByMonth && monthStr === currentMonthStr) {
+    daysPassed = Math.max(1, parseInt(todayParts[2], 10));
+  } else if (filterByMonth && monthStr) {
+    const [y, m] = monthStr.split("-").map(Number);
+    daysPassed = new Date(y, m, 0).getDate();
+  } else {
+    daysPassed = 30;
+  }
+  
+  const categoryDailyAverage = Object.entries(categorySpentMap).map(([name, amount]) => {
+    return {
+      category_name: name,
+      total_spent: amount,
+      daily_average: Math.round(amount / daysPassed)
+    };
+  });
+  
+  const goalsProgressList = savingsGoals.map(g => {
+    const targetAmt = Number(g.target_amount) || 0;
+    const linkedWallet = wallets.find(w => w.id === g.wallet_id);
+    const progressAmt = linkedWallet ? Number(linkedWallet.balance) : 0;
+    const pct = targetAmt > 0 ? Math.round((progressAmt / targetAmt) * 100) : 0;
+    return {
+      goal_name: g.name,
+      target_amount: targetAmt,
+      progress_amount: progressAmt,
+      progress_percentage: pct,
+      target_date: g.target_date || "-"
+    };
+  });
+  
+  const activeDebts = debtEntries.filter(d => d.status === "active");
+  const debtSummaryMap = {};
+  for (const d of activeDebts) {
+    const person = d.person_name;
+    debtSummaryMap[person] = debtSummaryMap[person] || { I_owe: 0, owes_me: 0 };
+    const amt = Number(d.amount) || 0;
+    if (d.type === "i_owe") {
+      debtSummaryMap[person].I_owe += amt;
+    } else {
+      debtSummaryMap[person].owes_me += amt;
+    }
+  }
+  
+  const debtList = Object.entries(debtSummaryMap).map(([name, val]) => ({
+    person_name: name,
+    I_owe: val.I_owe,
+    owes_me: val.owes_me
+  }));
+  
+  const totalUtang = activeDebts
+    .filter(d => d.type === "i_owe")
+    .reduce((s, d) => s + (Number(d.amount) || 0), 0);
+  const totalPiutang = activeDebts
+    .filter(d => d.type === "owed_to_me")
+    .reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    
+  const checklistList = recurringItems.map(item => {
+    const { status, nextDue } = getLocalRecurringStatus(item, todayStrVal, resetDay);
+    const linkedWallet = wallets.find(w => w.id === item.wallet_id);
+    return {
+      item_name: item.name,
+      type: item.type,
+      amount: Number(item.amount) || 0,
+      wallet_name: linkedWallet ? linkedWallet.name : "-",
+      day_of_month: item.day_of_month,
+      active: item.active !== false,
+      status: status,
+      next_due_date: nextDue
+    };
+  });
+  
+  const largestTransactions = [...targetTransactions]
+    .filter(t => t.type === "expense")
+    .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+    .slice(0, 5)
+    .map(t => ({
+      date: t.date || "-",
+      amount: Number(t.amount) || 0,
+      category: t.category || "Lainnya",
+      note: t.note || "-"
+    }));
+    
+  const realFinancialContext = {
+    konteks_waktu: {
+      tanggal_hari_ini: todayStrVal,
+      periode_laporan: periodLabel,
+      jumlah_hari_berjalan_dalam_periode: daysPassed
+    },
+    dompet_dan_saldo: {
+      daftar_dompet: sortedWallets.map(w => ({ nama: w.name, saldo: formatRupiah(w.balance) })),
+      total_saldo_semua_dompet: formatRupiah(totalBalance)
+    },
+    ringkasan_arus_kas_periode: {
+      total_pemasukan: formatRupiah(periodIncome),
+      total_pengeluaran: formatRupiah(periodExpense),
+      selisih_bersih: formatRupiah(periodIncome - periodExpense)
+    },
+    breakdown_pengeluaran_per_kategori: Object.entries(categorySpentMap).map(([name, val]) => ({
+      kategori: name,
+      total_pengeluaran: formatRupiah(val)
+    })),
+    status_budget_anggaran: budgetStatusList.map(b => ({
+      kategori: b.category_name,
+      ada_limit: b.has_limit ? "Ya" : "Tidak",
+      limit_budget: b.has_limit ? formatRupiah(b.limit || 0) : "Belum ada limit",
+      terpakai: formatRupiah(b.spent),
+      sisa_budget: b.has_limit ? formatRupiah(b.remaining || 0) : "N/A"
+    })),
+    rata_rata_pengeluaran_harian: {
+      per_kategori: categoryDailyAverage.map(a => ({
+        kategori: a.category_name,
+        total_pengeluaran: formatRupiah(a.total_spent),
+        rata_rata_harian: `${formatRupiah(a.daily_average)} / hari`
+      })),
+      total_rata_rata_harian_keseluruhan: `${formatRupiah(categoryDailyAverage.reduce((s, a) => s + a.daily_average, 0))} / hari`
+    },
+    tujuan_tabungan: goalsProgressList.map(g => ({
+      nama_tujuan: g.goal_name,
+      target_nominal: formatRupiah(g.target_amount),
+      progress_saat_ini: `${formatRupiah(g.progress_amount)} (${g.progress_percentage}%)`,
+      tanggal_target: g.target_date
+    })),
+    utang_piutang: {
+      daftar_per_orang: debtList.map(d => ({
+        nama: d.person_name,
+        utang_saya_ke_dia: formatRupiah(d.I_owe),
+        utang_dia_ke_saya: formatRupiah(d.owes_me)
+      })),
+      total_utang_saya: formatRupiah(totalUtang),
+      total_piutang_saya: formatRupiah(totalPiutang)
+    },
+    checklist_tagihan_berulang: checklistList.map(c => ({
+      nama_tagihan: c.item_name,
+      nominal: formatRupiah(c.amount),
+      status_pembayaran: c.status === "sudah-dibayar" ? "Sudah Dibayar" : (c.status === "terlambat" ? "TERLAMBAT" : (c.status === "jatuh-tempo" ? "Jatuh Tempo Hari Ini" : "Belum Dibayar")),
+      tanggal_jatuh_tempo_berikutnya: c.next_due_date
+    })),
+    pengeluaran_terbesar: largestTransactions.map((t, idx) => ({
+      nomor: idx + 1,
+      tanggal: t.date,
+      nominal: formatRupiah(t.amount),
+      kategori: t.category,
+      keterangan: t.note
+    })),
+    daftar_transaksi_detail: targetTransactions.map(t => {
+      const linkedWallet = wallets.find(w => w.id === t.wallet_id);
+      return {
+        tanggal: t.date || "-",
+        jenis: t.type === "income" ? "Pemasukan" : (t.type === "expense" ? "Pengeluaran" : "Transfer"),
+        nominal: formatRupiah(Number(t.amount) || 0),
+        kategori: t.category || "-",
+        dompet: linkedWallet ? linkedWallet.name : "-",
+        catatan: t.note || "-"
+      };
+    })
+  };
+  
+  const promptText = `
+Kamu asisten pencatatan keuangan pribadi pintar. Jawab pertanyaan user mengenai laporan keuangan mereka hanya menggunakan data riil yang disediakan di bawah ini.
+
+ATURAN UMUM KEMAMPUAN ANALISIS, KALKULASI & PERBANDINGAN:
+- AI tidak boleh bertindak sekadar sebagai 'penyaji data mentah' yang menyodorkan seluruh data tanpa diolah. Kamu adalah asisten analis keuangan pribadi yang pintar.
+- Jika user menanyakan perbandingan, bandingkan nilai-nilainya secara matematis, hitung selisihnya jika relevan, lalu simpulkan dengan jelas dan langsung menjawab intinya.
+- Jika user meminta penggabungan, total, rata-rata, pengelompokan, atau kalkulasi tertentu, lakukan kalkulasi matematis menggunakan data dasar yang disediakan di DATA_FINANSIAL_RIIL.
+- Jangan pernah menjawab "data tidak tersedia" jika jawaban tersebut sebenarnya bisa diperoleh dengan melakukan kalkulasi matematika sederhana (penjumlahan, pengurangan, perbandingan) terhadap angka-angka yang ada di DATA_FINANSIAL_RIIL.
+
+ATURAN ANTI-HALUSINASI:
+1. Semua data dasar HARUS berasal dari DATA_FINANSIAL_RIIL di bawah ini.
+2. Kamu DIPERBOLEHKAN dan DIHARAPKAN melakukan kalkulasi aritmatika (menjumlahkan, mengurangi, mengalikan, membagi, mencari rata-rata, menggabungkan) terhadap data-data dasar tersebut untuk menjawab pertanyaan user secara akurat.
+3. Jawab dalam bahasa Indonesia yang natural dan santai. Boleh panjang jika memang dibutuhkan untuk kejelasan analisis.
+4. Jangan gunakan emoji apa pun kecuali jika user meminta secara khusus di pertanyaannya.
+5. Selalu format angka nominal menggunakan Rp (Rupiah) dengan pemisah ribuan (titik).
+
+DATA_FINANSIAL_RIIL:
+${JSON.stringify(realFinancialContext, null, 2)}
+
+PERTANYAAN_USER:
+"${userQuestion}"
+`;
+
+  try {
+    const key = getGeminiApiKey();
+    const data = await callGeminiRaw(key, [{ text: promptText }], 0.15);
+    const text = extractGeminiText(data);
+    return text.trim();
+  } catch (err) {
+    console.error("Error in processChatFinanceQuery:", err);
+    return "Maaf, saat ini asisten tidak dapat memproses laporan. Silakan coba beberapa saat lagi.";
+  }
+}
+
+const INDO_MONTHS_VAL = [
+  "januari", "februari", "maret", "april", "mei", "juni",
+  "juli", "agustus", "september", "oktober", "november", "desember"
+];
+
+function localParseQueryMonth(text, todayStr) {
+  const lower = text.toLowerCase();
+
+  if (/\b(semua bulan|semua data|semua transaksi)\b/.test(lower)) {
+    return { monthStr: "", label: "Semua Periode", filterByMonth: false };
+  }
+
+  const todayParts = todayStr.split("-");
+  let targetYear = parseInt(todayParts[0], 10);
+  let targetMonth = parseInt(todayParts[1], 10);
+
+  const yearMatch = lower.match(/\b(20\d{2})\b/);
+  if (yearMatch) {
+    targetYear = parseInt(yearMatch[1], 10);
+  }
+
+  let foundMonthIdx = -1;
+  for (let i = 0; i < INDO_MONTHS_VAL.length; i++) {
+    if (lower.includes(INDO_MONTHS_VAL[i])) {
+      foundMonthIdx = i;
+      break;
+    }
+  }
+
+  if (foundMonthIdx !== -1) {
+    const formattedMonth = String(foundMonthIdx + 1).padStart(2, '0');
+    const monthLabel = INDO_MONTHS_VAL[foundMonthIdx].charAt(0).toUpperCase() + INDO_MONTHS_VAL[foundMonthIdx].slice(1);
+    return {
+      monthStr: `${targetYear}-${formattedMonth}`,
+      label: `${monthLabel} ${targetYear}`,
+      filterByMonth: true
+    };
+  }
+
+  if (/\b(bulan lalu|bulan kemaren|bulan kemarin)\b/.test(lower)) {
+    let prevMonth = targetMonth - 1;
+    let prevYear = targetYear;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear--;
+    }
+    const formattedMonth = String(prevMonth).padStart(2, '0');
+    const monthLabel = INDO_MONTHS_VAL[prevMonth - 1].charAt(0).toUpperCase() + INDO_MONTHS_VAL[prevMonth - 1].slice(1);
+    return {
+      monthStr: `${prevYear}-${formattedMonth}`,
+      label: `${monthLabel} ${prevYear}`,
+      filterByMonth: true
+    };
+  }
+
+  const currentMonthLabel = INDO_MONTHS_VAL[targetMonth - 1].charAt(0).toUpperCase() + INDO_MONTHS_VAL[targetMonth - 1].slice(1);
+  return {
+    monthStr: `${targetYear}-${String(targetMonth).padStart(2, '0')}`,
+    label: `${currentMonthLabel} ${targetYear}`,
+    filterByMonth: true
+  };
 }
 
 /* =========================================================
