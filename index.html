@@ -2831,7 +2831,7 @@ async function syncAllWithSupabase(silent = true) {
       if (txsUpdated) {
         setTransactions(newTxs);
         recalculateWalletBalances();
-        setTimeout(() => triggerSync(), 2000);
+        setTimeout(() => syncAllWithSupabase(true), 2000);
       }
     } catch(migErr) {
       console.warn('Debt transaction migration err:', migErr);
@@ -8044,7 +8044,7 @@ function submitDebtForm(){
   setDebts(debts);
 
   recalculateWalletBalances();
-  triggerSync();
+  syncAllWithSupabase(true);
 
   closeModal('modalDebtForm');
   renderDebts();
@@ -8080,7 +8080,7 @@ async function deleteCurrentDebt(){
   setTransactions(getTransactions().filter(t => t.id !== txId));
 
   recalculateWalletBalances();
-  triggerSync();
+  syncAllWithSupabase(true);
 
   closeModal('modalDebtForm');
   showToast('Catatan dihapus');
