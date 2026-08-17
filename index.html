@@ -2385,7 +2385,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.3.6)';
+  const version = ' (v2.3.7)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -10840,6 +10840,29 @@ function refreshAllViews(){
 }
 
 async function init(){
+  // Hotfix: Correct corrupted initial balance for Dompet Utama (w_mssuo8zcgq0xlu)
+  try {
+    const rawNav = localStorage.getItem('fk_navconfig') || 'null';
+    if (rawNav !== 'null') {
+      const cfg = JSON.parse(rawNav);
+      if (cfg && cfg.initialBalances && cfg.initialBalances['w_mssuo8zcgq0xlu'] === 4850000) {
+        cfg.initialBalances['w_mssuo8zcgq0xlu'] = -10000;
+        localStorage.setItem('fk_navconfig', JSON.stringify(cfg));
+        
+        const rawWallets = localStorage.getItem('fk_wallets') || '[]';
+        const wallets = JSON.parse(rawWallets);
+        const w = wallets.find(x => x.id === 'w_mssuo8zcgq0xlu');
+        if (w) {
+          w.balance = 861697;
+          w.updatedAt = Date.now();
+          localStorage.setItem('fk_wallets', JSON.stringify(wallets));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Hotfix initialBalances error:', e);
+  }
+
   // Load custom web fonts only on desktop screens (>=900px) to prevent modifying native system styling on mobile
   if (window.innerWidth >= 900) {
     const link = document.createElement('link');
