@@ -2359,7 +2359,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.2.0)';
+  const version = ' (v2.2.1)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -8471,24 +8471,41 @@ function runCcAnalysis(){
   
   const key = getGeminiApiKey();
   const finish = (result) => {
-    const scopeWallets = wallets.filter(w => scopeIds.includes(w.id));
-    const finalItems = scopeWallets.map(w => {
-      // Look for a matched item from AI results for this wallet
-      const aiMatch = result.items.find(it => it.targetWalletId === w.id);
-      return {
-        id: w.id, // Use wallet ID as item ID
-        name: w.name,
-        amount: aiMatch ? aiMatch.amount : 0,
-        targetWalletId: w.id,
-        needsReview: aiMatch ? aiMatch.needsReview : false,
-        matchReason: aiMatch ? aiMatch.matchReason : 'Diisi manual (tidak ada bukti foto)'
-      };
-    });
-    
-    // Also include any AI items that did NOT match any wallet in scope (they will need manual review)
+    const finalItems = [];
+
+    // 1. Add all items returned by Gemini AI that belong to the active scope
     result.items.forEach(it => {
-      const alreadyMatched = scopeWallets.some(w => w.id === it.targetWalletId);
-      if (!alreadyMatched) {
+      if (scopeIds.includes(it.targetWalletId)) {
+        finalItems.push({
+          id: it.id || uid(),
+          name: it.name,
+          amount: it.amount,
+          targetWalletId: it.targetWalletId,
+          needsReview: it.needsReview,
+          matchReason: it.matchReason
+        });
+      }
+    });
+
+    // 2. Pre-fill any scoped wallet that does not have any AI matches
+    const scopeWallets = wallets.filter(w => scopeIds.includes(w.id));
+    scopeWallets.forEach(w => {
+      const hasMatch = finalItems.some(it => it.targetWalletId === w.id);
+      if (!hasMatch) {
+        finalItems.push({
+          id: uid(),
+          name: w.name,
+          amount: 0,
+          targetWalletId: w.id,
+          needsReview: false,
+          matchReason: 'Diisi manual (tidak ada bukti foto)'
+        });
+      }
+    });
+
+    // 3. Add any AI items that did NOT match any wallet in scope (needs review)
+    result.items.forEach(it => {
+      if (!scopeIds.includes(it.targetWalletId)) {
         finalItems.push({
           id: it.id || uid(),
           name: it.name,
