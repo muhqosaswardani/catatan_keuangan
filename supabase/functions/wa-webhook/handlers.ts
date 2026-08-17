@@ -103,19 +103,15 @@ async function getDeletedIds(db: SupabaseClient): Promise<Set<string>> {
 }
 
 async function getCategories(db: SupabaseClient): Promise<CategoryRow[]> {
-  const [deletedSet, { data }] = await Promise.all([
-    getDeletedIds(db),
-    db.from("categories").select("id, name, type").eq("access_code", ACCESS_CODE)
-  ]);
+  const deletedSet = await getDeletedIds(db);
+  const { data } = await db.from("categories").select("id, name, type").eq("access_code", ACCESS_CODE);
   const rows = (data ?? []) as CategoryRow[];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 async function getWallets(db: SupabaseClient): Promise<WalletRow[]> {
-  const [deletedSet, { data }] = await Promise.all([
-    getDeletedIds(db),
-    db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", ACCESS_CODE)
-  ]);
+  const deletedSet = await getDeletedIds(db);
+  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", ACCESS_CODE);
   const rows = (data ?? []) as WalletRow[];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }

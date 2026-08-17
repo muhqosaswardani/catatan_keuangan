@@ -157,19 +157,15 @@ export async function v2GetDeletedIds(db: SupabaseClient, accessCode: string): P
 }
 
 export async function v2GetWallets(db: SupabaseClient, accessCode: string) {
-  const [deletedSet, { data }] = await Promise.all([
-    v2GetDeletedIds(db, accessCode),
-    db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", accessCode)
-  ]);
+  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", accessCode);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 export async function v2GetCategories(db: SupabaseClient, accessCode: string) {
-  const [deletedSet, { data }] = await Promise.all([
-    v2GetDeletedIds(db, accessCode),
-    db.from("categories").select("id, name, type").eq("access_code", accessCode)
-  ]);
+  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const { data } = await db.from("categories").select("id, name, type").eq("access_code", accessCode);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
@@ -179,28 +175,22 @@ export async function v2GetBudgets(
   accessCode: string,
   monthStr: string,
 ) {
-  const [deletedSet, { data }] = await Promise.all([
-    v2GetDeletedIds(db, accessCode),
-    db.from("budgets").select("id, category_id, limit_amount, month").eq("access_code", accessCode).eq("month", monthStr)
-  ]);
+  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const { data } = await db.from("budgets").select("id, category_id, limit_amount, month").eq("access_code", accessCode).eq("month", monthStr);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 export async function v2GetSavingsGoals(db: SupabaseClient, accessCode: string) {
-  const [deletedSet, { data }] = await Promise.all([
-    v2GetDeletedIds(db, accessCode),
-    db.from("savings_goals").select("id, name, target_amount, wallet_id, target_date").eq("access_code", accessCode)
-  ]);
+  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const { data } = await db.from("savings_goals").select("id, name, target_amount, wallet_id, target_date").eq("access_code", accessCode);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 export async function v2GetDebtEntries(db: SupabaseClient, accessCode: string) {
-  const [deletedSet, { data }] = await Promise.all([
-    v2GetDeletedIds(db, accessCode),
-    db.from("debt_entries").select("id, person_name, type, amount, date, note, due_date, status, payoff_wallet_id, payoff_date").eq("access_code", accessCode)
-  ]);
+  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const { data } = await db.from("debt_entries").select("id, person_name, type, amount, date, note, due_date, status, payoff_wallet_id, payoff_date").eq("access_code", accessCode);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
@@ -209,10 +199,8 @@ export async function v2GetRecurringItems(
   db: SupabaseClient,
   accessCode: string,
 ) {
-  const [deletedSet, { data }] = await Promise.all([
-    v2GetDeletedIds(db, accessCode),
-    db.from("recurring_items").select("id, name, type, amount, wallet_id, category_id, day_of_month, active, last_confirmed_date").eq("access_code", accessCode)
-  ]);
+  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const { data } = await db.from("recurring_items").select("id, name, type, amount, wallet_id, category_id, day_of_month, active, last_confirmed_date").eq("access_code", accessCode);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
