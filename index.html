@@ -2019,14 +2019,14 @@
         <div class="field" style="margin-bottom:12px;">
           <label>Teks Bebas (opsional)</label>
           <div class="ai-text-wrap">
-            <textarea id="ccAiTextInput" rows="3" placeholder="Tulis catatan atau instruksi tambahan di sini (misal: 'cocokkan DANA ke Dompet Utama')" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+            <textarea id="ccAiTextInput" rows="3" placeholder="Tulis catatan di sini" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
             <button type="button" class="ai-mic-btn" id="ccAiMicBtn" onclick="toggleCcAiVoiceRecording()" aria-label="Rekam suara">
               <svg id="ccAiMicIcon" width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
           <p class="ai-mic-hint" id="ccAiMicHint" style="display:none;"></p>
         </div>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Ambil foto screenshot m-banking / e-wallet, pilih beberapa sekaligus dari galeri, atau lampirkan file PDF e-statement.</p>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">Pilih lampiran foto screenshot atau file PDF:</p>
         <div class="ai-choice-grid ai-choice-grid-3">
           <div class="ai-choice-btn" onclick="document.getElementById('ccCameraInput').click()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="#5B6A68" stroke-width="1.6"/></svg>
@@ -2370,7 +2370,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.3.0)';
+  const version = ' (v2.3.1)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
