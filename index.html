@@ -2385,7 +2385,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.3.5)';
+  const version = ' (v2.3.6)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -2763,7 +2763,19 @@ async function syncAllWithSupabase(silent = true) {
           }
 
 
-          const mergedInitialBalances = { ...(localCfg.initialBalances || {}), ...(remoteCfg.initialBalances || {}) };
+          const mergedInitialBalances = {};
+          const localIB = localCfg.initialBalances || {};
+          const remoteIB = remoteCfg.initialBalances || {};
+          const allIBKeys = new Set([...Object.keys(localIB), ...Object.keys(remoteIB)]);
+          for (const key of allIBKeys) {
+            const localVal = localIB[key];
+            const remoteVal = remoteIB[key];
+            if (localVal !== undefined && remoteVal !== undefined) {
+              mergedInitialBalances[key] = (localVal !== 0) ? localVal : remoteVal;
+            } else {
+              mergedInitialBalances[key] = localVal !== undefined ? localVal : remoteVal;
+            }
+          }
           merged.initialBalances = mergedInitialBalances;
 
           setNavConfigLocalOnly(merged);
