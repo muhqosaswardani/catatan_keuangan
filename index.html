@@ -764,8 +764,9 @@
   #page-chat {
     display: none;
     flex-direction: column;
-    height: calc(100vh - 78px - env(safe-area-inset-bottom));
-    padding: 14px 14px 0;
+    height: calc(100dvh - 78px - env(safe-area-inset-bottom));
+    padding: 0 14px;
+    overflow: hidden;
   }
   #page-chat.active {
     display: flex;
@@ -787,7 +788,7 @@
     background: var(--surface-2);
     border-radius: var(--radius-l);
     border: 1.5px solid var(--line);
-    margin-top: 12px;
+    margin-top: 8px;
     position: relative;
     overflow: hidden;
   }
@@ -888,12 +889,13 @@
     background: var(--surface);
     border: 1.5px solid var(--line);
     border-radius: var(--radius-m);
-    margin: 12px 0;
+    margin: 8px 0 4px;
     padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
     box-shadow: var(--shadow);
+    flex-shrink: 0;
   }
 
   /* Quote banner (reply context) */
@@ -2671,7 +2673,7 @@ function parseSafeDate(dateStr) {
 function updateSyncStatusUI(status, isManual) {
   const label = document.getElementById('lastSyncLabel');
   if (!label) return;
-  const version = ' (v2.5.0)';
+  const version = ' (v2.5.1)';
   if (status === 'syncing' && isManual) {
     label.textContent = '⟳ Sinkronisasi...' + version;
   } else if (status === 'online') {
@@ -4323,6 +4325,12 @@ function switchTabUI(tab){
     const { core } = getNavConfig();
     bottomNavMore.classList.toggle('active', !core.includes(tab));
   }
+  // Hide FAB "+" on chat tab
+  const fabEl = document.querySelector('.fab');
+  const fabHint = document.getElementById('fabDragHint');
+  if(fabEl) fabEl.style.display = tab === 'chat' ? 'none' : '';
+  if(fabHint) fabHint.style.display = tab === 'chat' ? 'none' : '';
+
   currentTab = tab;
   localStorage.setItem('last_active_tab', tab);
   if(tab === 'beranda') renderHome();
