@@ -11286,13 +11286,16 @@ async function sendChatMessage() {
   input.value = '';
   clearChatAttachment();
   
-  let imageBase64 = null;
-  let imagePart = null;
+  let imageBase64ForDisplay = null;
+  let imageDataForServer = null;
+  let imageMimeType = null;
   
   if (file) {
     try {
-      imagePart = await fileToGenerativePart(file);
-      imageBase64 = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+      const part = await fileToGenerativePart(file);
+      imageBase64ForDisplay = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      imageDataForServer = part.inlineData.data;
+      imageMimeType = part.inlineData.mimeType;
     } catch (e) {
       console.error(e);
       showToast('Gagal memproses lampiran foto');
@@ -11300,34 +11303,63 @@ async function sendChatMessage() {
   }
   
   // Append user bubble
-  appendChatBubble('user', text, Date.now(), imageBase64);
-  
-  // Check active session timeout
-  if (chatSession && chatSession.updated_at) {
-    const timePassed = Date.now() - new Date(chatSession.updated_at).getTime();
-    if (timePassed > 5 * 60 * 1000) { // 5 mins
-      chatSession = null;
-      localStorage.removeItem('fk_chat_session');
-      saveChatStateToNavConfig();
-      appendChatBubble('bot', `Mode otomatis dibatalkan karena tidak ada aktivitas selama 5 menit. Memproses pesanmu...`, Date.now());
-    }
-  }
+  appendChatBubble('user', text, Date.now(), imageBase64ForDisplay);
   
   showChatTyping();
   
   try {
-    const key = getGeminiApiKey();
-    if (!key) {
-      appendChatBubble('bot', 'Gemini API Key tidak ditemukan. Buka Settings dan isi "Gemini API Key" terlebih dahulu.', Date.now());
-      hideChatTyping();
+    // Build payload for Edge Function
+    const payload = {
+      text: text,
+      from: '6281226964679',
+      messageId: 'msg_web_' + uid()
+    };
+    
+    if (imageDataForServer && imageMimeType) {
+      payload.image = {
+        data: imageDataForServer,
+        mimeType: imageMimeType
+      };
+    }
+    
+    // Call Edge Function with x-web-chat header
+    const edgeFnUrl = SUPABASE_URL + '/functions/v1/wa-webhook';
+    const response = await fetch(edgeFnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-web-chat': 'true',
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Edge Function error:', response.status, errText);
+      appendChatBubble('bot', 'Maaf, terjadi kesalahan server. Coba lagi ya.', Date.now());
       return;
     }
     
-    // Process message
-    await handleChatIncomingMessage(text, imagePart);
+    const result = await response.json();
+    
+    if (result.success && result.messages && result.messages.length > 0) {
+      for (const msg of result.messages) {
+        appendChatBubble('bot', msg, Date.now());
+      }
+    } else if (result.error) {
+      appendChatBubble('bot', 'Maaf, terjadi kesalahan: ' + result.error, Date.now());
+    } else {
+      appendChatBubble('bot', 'Pesan diterima, tapi tidak ada balasan dari server.', Date.now());
+    }
+    
+    // Sync data after server-side changes
+    await syncAllWithSupabase(true);
+    refreshAllViews();
+    
   } catch (err) {
-    console.error(err);
-    appendChatBubble('bot', 'Maaf, terjadi kesalahan internal saat memproses pesan Anda. Coba lagi ya.', Date.now());
+    console.error('sendChatMessage error:', err);
+    appendChatBubble('bot', 'Maaf, tidak bisa terhubung ke server. Periksa koneksi internet kamu.', Date.now());
   } finally {
     hideChatTyping();
   }

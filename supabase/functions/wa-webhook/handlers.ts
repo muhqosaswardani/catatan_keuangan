@@ -1645,6 +1645,65 @@ async function handleHapusTerakhir(
   );
 }
 
+export async function handleWebChatImage(
+  db: SupabaseClient,
+  apiKeys: string[],
+  msg: any,
+  imageBlobBase64: string,
+  imageMimeType: string
+): Promise<void> {
+  const today = getTodayStr();
+  const [cats, wallets] = await Promise.all([
+    getCategories(db),
+    getWallets(db),
+  ]);
+  const expenseCats = cats
+    .filter((c) => c.type === "expense")
+    .map((c) => c.name);
+  const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
+
+  const parts: GeminiPart[] = [
+    { inlineData: { data: imageBlobBase64, mimeType: imageMimeType } }
+  ];
+  if (msg.text) {
+    parts.push({ text: `TEKS_BEBAS_DARI_USER: ${msg.text}` });
+  }
+
+  let items: ParsedTransaction[];
+  try {
+    items = await parseTransactions(
+      apiKeys,
+      parts,
+      expenseCats,
+      incomeCats,
+      today,
+    );
+  } catch {
+    await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      msg.from,
+      "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
+      msg.messageId,
+    );
+    return;
+  }
+
+  if (!items.length) {
+    await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      msg.from,
+      "Tidak ketemu info transaksi dari media ini. Coba ketik manual atau kirim pesan suara.",
+      msg.messageId,
+    );
+    return;
+  }
+
+  const mentionedWalletName = findMentionedWallet(msg.text || "", wallets);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, mentionedWalletName, true);
+}
+
 // ============================================================
 // HELPER EXPORT: Cek apakah sender adalah pemilik produk
 // ============================================================

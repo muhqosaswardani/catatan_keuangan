@@ -11,12 +11,13 @@ import {
   handleReplyToTransaction,
   handlePendingNominalReply,
   isOwner,
+  handleWebChatImage,
   BATCH_WINDOW_MS,
   PHONE_NUMBER_ID,
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
-import { sendWhatsAppMessage, markAsRead, withTypingIndicator } from "./whatsapp.ts";
+import { sendWhatsAppMessage, markAsRead, withTypingIndicator, chatContext } from "./whatsapp.ts";
 
 // ============================================================
 // ENV VARS (diset di Supabase Edge Function Secrets)
@@ -222,6 +223,17 @@ async function enqueueAndScheduleMedia(
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
+  // ── OPTIONS: CORS preflight ──────────────────────────────
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-web-chat",
+      }
+    });
+  }
+
   // ── GET: Webhook verification dari Meta ──────────────────
   if (req.method === "GET") {
     const mode = url.searchParams.get("hub.mode");
@@ -234,8 +246,99 @@ Deno.serve(async (req: Request) => {
     return new Response("Forbidden", { status: 403 });
   }
 
-  // ── POST: Pesan masuk dari Meta ──────────────────────────
+  // ── POST: Pesan masuk ────────────────────────────────────
   if (req.method === "POST") {
+    const rawBody = await req.text();
+    const isWebChat = req.headers.get("x-web-chat") === "true" || url.searchParams.get("web_chat") === "true";
+
+    const db = getDb();
+
+    if (isWebChat) {
+      let webPayload: Record<string, any>;
+      try {
+        webPayload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*"
+          }
+        });
+      }
+
+      const msg = {
+        messageId: webPayload.messageId || ("msg_web_" + Math.random().toString(36).slice(2, 9)),
+        from: webPayload.from || "6281226964679", // default to owner phone
+        type: webPayload.image ? "image" : "text",
+        text: webPayload.text || "",
+        contextId: webPayload.contextId || null
+      };
+
+      const responseMessages: string[] = [];
+
+      try {
+        await chatContext.run({ isWebChat: true, messages: responseMessages }, async () => {
+          if (webPayload.image && webPayload.image.data && webPayload.image.mimeType) {
+            await handleWebChatImage(db, GEMINI_API_KEYS, msg, webPayload.image.data, webPayload.image.mimeType);
+            return;
+          }
+
+          // 1. Cek V2 Message router
+          const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
+          if (handled) return;
+
+          // 2. Cek reply to transaction
+          if (msg.contextId) {
+            const { data: mapping } = await db
+              .from("wa_message_transactions")
+              .select("transaction_id")
+              .eq("wa_message_id", msg.contextId)
+              .single();
+
+            if (mapping?.transaction_id) {
+              await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id);
+              return;
+            }
+
+            const { data: pending } = await db
+              .from("wa_pending_transactions")
+              .select("id")
+              .eq("wa_question_message_id", msg.contextId)
+              .single();
+
+            if (pending?.id) {
+              await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);
+              return;
+            }
+          }
+
+          // 3. Fallback to normal text handler
+          await handleTextMessage(db, GEMINI_API_KEYS, msg);
+        });
+
+        return new Response(JSON.stringify({ success: true, messages: responseMessages }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*"
+          }
+        });
+      } catch (e) {
+        console.error("Web Chat processing error:", e);
+        return new Response(JSON.stringify({ error: String(e) }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*"
+          }
+        });
+      }
+    }
+
     if (
       !APP_SECRET ||
       !SUPABASE_URL ||
@@ -251,7 +354,6 @@ Deno.serve(async (req: Request) => {
       );
       return new Response("Service unavailable", { status: 503 });
     }
-    const rawBody = await req.text();
 
     // Verifikasi signature (keamanan)
     const signature = req.headers.get("X-Hub-Signature-256");

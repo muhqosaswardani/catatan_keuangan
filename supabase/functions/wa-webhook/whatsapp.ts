@@ -1,5 +1,11 @@
-// supabase/functions/wa-webhook/whatsapp.ts
-// Modul: WhatsApp Cloud API — kirim pesan, download media
+import { AsyncLocalStorage } from "node:async_hooks";
+
+export interface ChatContextStore {
+  isWebChat: boolean;
+  messages: string[];
+}
+
+export const chatContext = new AsyncLocalStorage<ChatContextStore>();
 
 const WA_API_BASE = "https://graph.facebook.com/v20.0";
 
@@ -10,6 +16,12 @@ export async function sendWhatsAppMessage(
   body: string,
   replyToMessageId?: string,
 ): Promise<string> {
+  const store = chatContext.getStore();
+  if (store && store.isWebChat) {
+    store.messages.push(body);
+    return "msg_web_" + Math.random().toString(36).slice(2, 9);
+  }
+
   const payload: Record<string, unknown> = {
     messaging_product: "whatsapp",
     to,
