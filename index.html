@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.7)';
+      const version = ' (v2.6.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15413,14 +15413,13 @@
         const debts = getDebts();
         const debt = debts.find(d => d.id === txId);
 
-        if (!tx && !debt) return;
-
         chatPendingReplyToTxId = txId;
-        chatPendingReplyToMsgId = null;
+        chatPendingReplyToMsgId = msgId || null;
         if (banner && bannerContent) {
-          const nameStr = tx ? (tx.note || 'Transaksi') : `Utang ${debt.person_name}`;
-          const amtStr = tx ? formatRupiah(tx.amount) : formatRupiah(debt.amount);
-          bannerContent.innerHTML = `Membalas transaksi: <strong>${nameStr} (${amtStr})</strong>`;
+          const nameStr = tx ? (tx.note || 'Transaksi') : (debt ? `Utang ${debt.person_name}` : 'Transaksi');
+          const amtStr = tx ? formatRupiah(tx.amount) : (debt ? formatRupiah(debt.amount) : '');
+          const detailsStr = amtStr ? ` (${amtStr})` : '';
+          bannerContent.innerHTML = `Membalas transaksi: <strong>${nameStr}${detailsStr}</strong>`;
           banner.style.display = 'flex';
         }
         if (inputEl) inputEl.focus();
@@ -15608,7 +15607,26 @@
       let replyTo = null;
       let contextId = null;
 
-      if (chatPendingReplyToTxId) {
+      if (chatPendingReplyToMsgId) {
+        const matchedMsg = chatHistory.find(m => m.id === chatPendingReplyToMsgId);
+        if (matchedMsg) {
+          contextId = chatPendingReplyToMsgId;
+          replyTo = {
+            text: matchedMsg.text,
+            sender: matchedMsg.sender,
+            isTx: !!chatPendingReplyToTxId || !!matchedMsg.txId,
+            isClarify: !chatPendingReplyToTxId && (!!matchedMsg.isClarify || (matchedMsg.text && (matchedMsg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(matchedMsg.text))))
+          };
+        } else {
+          contextId = chatPendingReplyToMsgId;
+          replyTo = {
+            text: 'Transaksi tercatat',
+            sender: 'bot',
+            isTx: !!chatPendingReplyToTxId,
+            isClarify: false
+          };
+        }
+      } else if (chatPendingReplyToTxId) {
         const matchedMsg = chatHistory.find(m => m.txId === chatPendingReplyToTxId);
         if (matchedMsg) {
           contextId = matchedMsg.id;
@@ -15617,17 +15635,6 @@
             sender: matchedMsg.sender,
             isTx: true,
             isClarify: false
-          };
-        }
-      } else if (chatPendingReplyToMsgId) {
-        const matchedMsg = chatHistory.find(m => m.id === chatPendingReplyToMsgId);
-        if (matchedMsg) {
-          contextId = chatPendingReplyToMsgId;
-          replyTo = {
-            text: matchedMsg.text,
-            sender: matchedMsg.sender,
-            isTx: false,
-            isClarify: !!matchedMsg.isClarify || (matchedMsg.text && (matchedMsg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(matchedMsg.text)))
           };
         }
       }
