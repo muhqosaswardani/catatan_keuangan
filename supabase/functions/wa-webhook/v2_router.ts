@@ -128,9 +128,20 @@ export async function handleV2Message(
     const isEnterHelp = cleaned === "help" || cleaned === "bantuan" || cleaned === "menu";
     const isQuery = text.includes("?") || /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text);
 
+    // Helper: deteksi input sederhana yang ditujukan untuk active mode
+    const isSimpleModeInput = (t: string): boolean => {
+      const c = t.trim().toLowerCase();
+      if (/^[\d\s,;]+$/.test(c)) return true; // angka / list angka (pilih dompet)
+      const words = ["batal", "batalin", "selesai", "simpan", "done", "ok", "yes", "no", "ya", "tidak", "semua", "all", "satu", "dua", "tiga"];
+      if (words.includes(c)) return true;
+      if (/^\d+[\d\s\.,]*(rb|jt|ribu|juta)?$/i.test(c)) return true; // nominal uang saja
+      return false;
+    };
+
     // Deteksi intent teks bebas
     let isFreeTextIntent = false;
-    if (msg.type === "text" && !isEnterKoreksi && !isEnterLimit && !isEnterTujuan && !isEnterHelp && !isQuery) {
+    // BANYAKAN BYPASS: jika input sederhana atau ini adalah REPLY (msg.contextId ada), jangan anggap trigger keluar mode
+    if (msg.type === "text" && !isEnterKoreksi && !isEnterLimit && !isEnterTujuan && !isEnterHelp && !isQuery && !msg.contextId && !isSimpleModeInput(text)) {
       const parsedIntent = await parseV2Intent(apiKeys, text);
       if (parsedIntent.intent !== "none") {
         isFreeTextIntent = true;
