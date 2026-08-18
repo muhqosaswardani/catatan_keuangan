@@ -4121,6 +4121,60 @@
       display: block;
     }
 
+    /* Chat Lightbox Modal Overlay */
+    .chat-lightbox {
+      display: none;
+      position: fixed;
+      z-index: 99999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    
+    .chat-lightbox.active {
+      display: flex;
+      opacity: 1;
+    }
+
+    .chat-lightbox-content {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      transform: scale(0.95);
+      transition: transform 0.25s ease;
+    }
+
+    .chat-lightbox.active .chat-lightbox-content {
+      transform: scale(1);
+    }
+
+    .chat-lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 25px;
+      color: #fff;
+      font-size: 40px;
+      font-weight: bold;
+      background: none;
+      border: none;
+      cursor: pointer;
+      line-height: 1;
+      padding: 5px 10px;
+      transition: color 0.2s;
+    }
+
+    .chat-lightbox-close:hover {
+      color: #ccc;
+    }
+
     /* Typing indicator */
     .chat-typing-indicator {
       padding: 8px 16px;
@@ -6339,6 +6393,12 @@
       </div>
     </div>
 
+    <!-- Chat Lightbox Modal -->
+    <div id="chatLightbox" class="chat-lightbox" onclick="closeChatLightbox()">
+      <button class="chat-lightbox-close" onclick="closeChatLightbox(); event.stopPropagation();">&times;</button>
+      <img id="chatLightboxImage" class="chat-lightbox-content" src="" alt="Lightbox Preview" onclick="event.stopPropagation()">
+    </div>
+
     <div class="toast" id="toast"></div>
   </div>
 
@@ -6604,7 +6664,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.1)';
+      const version = ' (v2.6.2)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10767,7 +10827,7 @@
           }
           let res;
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 seconds timeout
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
           try {
             res = await fetch(url, {
               method: 'POST',
@@ -15219,7 +15279,7 @@
         }
 
         if (msg.image) {
-          content += `<img src="${msg.image}" alt="Attachment">`;
+          content += `<img src="${msg.image}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
         }
 
         // Format text with bold backticks/asterisks
@@ -15314,6 +15374,25 @@
           }
           if (inputEl) inputEl.focus();
         }
+      }
+    }
+
+    function openChatLightbox(src, event) {
+      if (event) {
+        event.stopPropagation();
+      }
+      const lightbox = document.getElementById('chatLightbox');
+      const img = document.getElementById('chatLightboxImage');
+      if (lightbox && img) {
+        img.src = src;
+        lightbox.classList.add('active');
+      }
+    }
+
+    function closeChatLightbox() {
+      const lightbox = document.getElementById('chatLightbox');
+      if (lightbox) {
+        lightbox.classList.remove('active');
       }
     }
 

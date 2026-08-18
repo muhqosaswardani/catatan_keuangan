@@ -248,7 +248,7 @@ export async function callGeminiRaw(
 
       let res: Response;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 seconds timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
       try {
         res = await fetch(url, {
           method: "POST",
