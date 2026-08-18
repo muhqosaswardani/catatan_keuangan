@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.4)';
+      const version = ' (v2.7.5)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -8974,6 +8974,7 @@
     }
 
     let isHeroWalletsExpanded = false;
+    let _lastChartDataHash = '';
     function toggleHeroWalletsExpand() {
       isHeroWalletsExpanded = !isHeroWalletsExpanded;
       renderHome();
@@ -9130,7 +9131,13 @@
         alertWrap.innerHTML = `<div class="budget-alert-row ok">${okSvg()}<span>Semua budget masih dalam batas aman</span></div>`;
       }
 
-      renderCharts(range);
+      // Hanya render ulang chart jika data benar-benar berubah (mencegah animasi chart berputar terus)
+      const _allTxForHash = getTransactions();
+      const _chartHash = JSON.stringify({ period: homePeriod, trendM: trendMonths, txCount: _allTxForHash.length, txTotal: _allTxForHash.reduce((s, t) => s + t.amount, 0), lastTxId: (_allTxForHash[_allTxForHash.length - 1] || {}).id });
+      if (_chartHash !== _lastChartDataHash) {
+        _lastChartDataHash = _chartHash;
+        renderCharts(range);
+      }
       renderDailyAverages();
       renderRecurringHomeAlert();
       checkAndRenderInsight();
