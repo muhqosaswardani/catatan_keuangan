@@ -6664,7 +6664,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.4)';
+      const version = ' (v2.6.5)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15295,12 +15295,14 @@
           `;
         }
 
+        const msgText = String(msg.text || '');
+
         if (msg.image) {
           content += `<img src="${msg.image}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
         }
 
         // Format text with bold backticks/asterisks
-        let textHtml = escapeHtml(msg.text || '')
+        let textHtml = escapeHtml(msgText)
           .replace(/\n/g, '<br>')
           .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
           .replace(/`(.*?)`/g, '<code>$1</code>');
@@ -15308,18 +15310,18 @@
         content += `<div>${textHtml}</div>`;
         content += `<span class="time">${formatTime(msg.timestamp)}</span>`;
 
-        const isTx = !!msg.txId || (!isUser && (msg.text && (
-          msg.text.includes('Transaksi tercatat') || 
-          msg.text.includes('Transaksi diperbarui') || 
-          msg.text.includes('Transaksi berhasil diperbarui') || 
-          msg.text.includes('Transaksi dihapus') || 
-          msg.text.includes('Transfer berhasil') || 
-          msg.text.includes('Berhasil mencatat') || 
-          msg.text.includes('Berhasil menghapus') ||
-          /mencatat transaksi|menghapus transaksi|memperbarui transaksi/i.test(msg.text)
-        )));
+        const isTx = !!msg.txId || (!isUser && (
+          msgText.includes('Transaksi tercatat') || 
+          msgText.includes('Transaksi diperbarui') || 
+          msgText.includes('Transaksi berhasil diperbarui') || 
+          msgText.includes('Transaksi dihapus') || 
+          msgText.includes('Transfer berhasil') || 
+          msgText.includes('Berhasil mencatat') || 
+          msgText.includes('Berhasil menghapus') ||
+          /mencatat transaksi|menghapus transaksi|memperbarui transaksi/i.test(msgText)
+        ));
         // Check both stored isClarify and match dynamically in case of unsaved/legacy messages
-        const isClarify = !!msg.isClarify || (!isUser && (msg.text && (msg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(msg.text))));
+        const isClarify = !!msg.isClarify || (!isUser && (msgText.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(msgText)));
 
         let txClass = '';
         let badgeHtml = '';
