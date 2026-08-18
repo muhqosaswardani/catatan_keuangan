@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.5)';
+      const version = ' (v2.7.6)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -9134,9 +9134,12 @@
       // Hanya render ulang chart jika data benar-benar berubah (mencegah animasi chart berputar terus)
       const _allTxForHash = getTransactions();
       const _chartHash = JSON.stringify({ period: homePeriod, trendM: trendMonths, txCount: _allTxForHash.length, txTotal: _allTxForHash.reduce((s, t) => s + t.amount, 0), lastTxId: (_allTxForHash[_allTxForHash.length - 1] || {}).id });
-      if (_chartHash !== _lastChartDataHash) {
+      const _chartsExist = !!(chartRegistry['pieChart'] && chartRegistry['pieChartIncome'] && lineChartInst);
+      if (_chartHash !== _lastChartDataHash || !_chartsExist) {
+        const _dataChanged = (_chartHash !== _lastChartDataHash);
         _lastChartDataHash = _chartHash;
-        renderCharts(range);
+        // Jika hanya kembali ke tab (data sama, chart hilang): render ulang tanpa animasi
+        renderCharts(range, { noAnimation: !_dataChanged });
       }
       renderDailyAverages();
       renderRecurringHomeAlert();
@@ -9234,7 +9237,7 @@
         type: 'doughnut',
         data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
         options: {
-          animation: { animateRotate: true, animateScale: false, duration: 600, easing: 'easeOutQuart' },
+          animation: opts.noAnimation ? false : { animateRotate: true, animateScale: false, duration: 600, easing: 'easeOutQuart' },
           plugins: { legend: { display: false }, tooltip: { enabled: false } },
           cutout: '62%',
           onClick: (evt, elements) => {
@@ -9648,7 +9651,8 @@
       renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
     }
 
-    function renderCharts(range) {
+    function renderCharts(range, opts) {
+      const noAnimation = !!(opts && opts.noAnimation);
       range = range || getPeriodRanges(homePeriod);
       const allTx = getTransactions();
       const expTxs = allTx.filter(t => t.type === 'expense' && !t.excludeFromReport && t.date >= range.start && t.date <= range.end);
@@ -9658,10 +9662,10 @@
       const byCatInc = {};
       incTxs.forEach(t => { byCatInc[t.category] = (byCatInc[t.category] || 0) + t.amount; });
 
-      pieChartInst = renderDonut('pieChart', 'pieEmpty', 'pieExpenseLegend', byCatExp, Object.values(byCatExp).reduce((s, v) => s + v, 0), { catType: 'expense' });
-      pieChartIncomeInst = renderDonut('pieChartIncome', 'pieIncomeEmpty', 'pieIncomeLegend', byCatInc, Object.values(byCatInc).reduce((s, v) => s + v, 0), { catType: 'income' });
+      pieChartInst = renderDonut('pieChart', 'pieEmpty', 'pieExpenseLegend', byCatExp, Object.values(byCatExp).reduce((s, v) => s + v, 0), { catType: 'expense', noAnimation });
+      pieChartIncomeInst = renderDonut('pieChartIncome', 'pieIncomeEmpty', 'pieIncomeLegend', byCatInc, Object.values(byCatInc).reduce((s, v) => s + v, 0), { catType: 'income', noAnimation });
 
-      renderTrendChart();
+      renderTrendChart(noAnimation);
     }
 
     let trendMonths = 1; // 1 | 3 | 6 | 12
@@ -9692,7 +9696,7 @@
       return String(Math.round(v));
     }
 
-    function renderTrendChart() {
+    function renderTrendChart(noAnimation) {
       const heading = document.getElementById('trendHeading');
       const allTx = getTransactions();
       const lineCanvas = document.getElementById('lineChart');
@@ -9748,7 +9752,7 @@
           },
           plugins: [trendCrosshairPlugin],
           options: {
-            animation: { duration: 500, easing: 'easeOutQuart' },
+            animation: noAnimation ? false : { duration: 500, easing: 'easeOutQuart' },
             interaction: { mode: 'index', intersect: false },
             plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, font: { size: 11, family: 'Inter' } } }, tooltip: { boxPadding: 6 } },
             scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font: { size: 10 }, maxTicksLimit: 6 } }, x: { ticks: { font: { size: 10, autoSkip: true, maxRotation: 0 }, maxTicksLimit: 10 } } }
@@ -9778,7 +9782,7 @@
         },
         plugins: [trendCrosshairPlugin],
         options: {
-          animation: { duration: 500, easing: 'easeOutQuart' },
+          animation: noAnimation ? false : { duration: 500, easing: 'easeOutQuart' },
           interaction: { mode: 'index', intersect: false },
           plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, font: { size: 11, family: 'Inter' } } }, tooltip: { boxPadding: 6 } },
           scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font: { size: 10 }, maxTicksLimit: 6 } }, x: { ticks: { font: { size: 10, autoSkip: true, maxRotation: 0 }, maxTicksLimit: trendMonths > 6 ? 6 : trendMonths } } }
