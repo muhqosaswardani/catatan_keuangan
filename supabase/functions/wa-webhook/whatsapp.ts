@@ -1,11 +1,20 @@
-import { AsyncLocalStorage } from "node:async_hooks";
-
 export interface ChatContextStore {
   isWebChat: boolean;
   messages: string[];
 }
 
-export const chatContext = new AsyncLocalStorage<ChatContextStore>();
+// Simple global context (safe: each Edge Function invocation is isolated)
+let _chatStore: ChatContextStore | null = null;
+
+export const chatContext = {
+  run<T>(store: ChatContextStore, fn: () => Promise<T>): Promise<T> {
+    _chatStore = store;
+    return fn().finally(() => { _chatStore = null; });
+  },
+  getStore(): ChatContextStore | null {
+    return _chatStore;
+  }
+};
 
 const WA_API_BASE = "https://graph.facebook.com/v20.0";
 

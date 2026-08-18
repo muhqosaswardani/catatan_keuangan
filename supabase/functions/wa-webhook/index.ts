@@ -251,9 +251,8 @@ Deno.serve(async (req: Request) => {
     const rawBody = await req.text();
     const isWebChat = req.headers.get("x-web-chat") === "true" || url.searchParams.get("web_chat") === "true";
 
-    const db = getDb();
-
     if (isWebChat) {
+      const db = getDb();
       let webPayload: Record<string, any>;
       try {
         webPayload = JSON.parse(rawBody);
