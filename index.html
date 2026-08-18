@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.2)';
+      const version = ' (v2.7.3)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15315,10 +15315,13 @@
     }
 
     // Render chat UI
-    function renderChat() {
+    function renderChat(forceScroll = false) {
       initChatState();
       const container = document.getElementById('chatMessages');
       if (!container) return;
+
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      const isInitialRender = !container.innerHTML.trim();
 
       let html = '';
       let lastDateStr = '';
@@ -15409,7 +15412,9 @@
       });
 
       container.innerHTML = html;
-      container.scrollTop = container.scrollHeight;
+      if (forceScroll || isInitialRender || isNearBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
     }
 
     // Click on bubble -> activate reply context for transaction editing/deleting or message clarifying
@@ -15759,7 +15764,7 @@
       });
       localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
       saveChatStateToNavConfig();
-      renderChat();
+      renderChat(true);
     }
 
     function showChatTyping() {
