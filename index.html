@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.0)';
+      const version = ' (v2.7.1)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15237,11 +15237,22 @@
             msg.text = '';
           }
           msg.timestamp = Number(msg.timestamp) || Date.now();
+          // Koreksi isClarify untuk pesan-pesan lama di riwayat chat agar sesuai aturan
+          if (msg.sender === 'bot') {
+            const lowerText = (msg.text || '').toLowerCase();
+            if (lowerText.includes('tren keuangan') || lowerText.includes('arus kas') || lowerText.includes('sisa dompet:') || lowerText.includes('bagaimana tren')) {
+              msg.isClarify = false;
+            } else if (lowerText.includes('mode koreksi') || lowerText.includes('pilih dompet') || lowerText.includes('pilihan kategori') || lowerText.includes('ketik nomornya') || lowerText.includes('mau hapus data')) {
+              msg.isClarify = true;
+            }
+          }
           return true;
         });
       } else {
         chatHistory = [];
       }
+      localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
+      saveChatStateToNavConfig();
 
       if (chatHistory.length === 0) {
         // Add default welcome message from Bot
