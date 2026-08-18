@@ -176,12 +176,14 @@ async function saveV2Transaction(
     date: string;
     note: string;
     to_wallet_id?: string | null;
-  }
+  },
+  userId: string,
 ): Promise<any> {
   const id = tx.id || `wa_tx_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const { error } = await db.from("transactions").upsert({
     id,
-    access_code: ACCESS_CODE,
+    user_id: userId,
+    access_code: "wa_" + userId,
     wallet_id: tx.wallet_id,
     category_id: tx.category_id,
     category: tx.category,
@@ -196,20 +198,20 @@ async function saveV2Transaction(
 
   if (error) throw new Error(`Gagal menyimpan transaksi V2: ${error.message}`);
   
-  await recalculateBalances(db);
+  await recalculateBalances(db, userId);
 
   return { id, ...tx };
 }
 
-async function recalculateBalances(db: SupabaseClient) {
-  const { data: wallets } = await db.from("wallets").select("*").eq("access_code", ACCESS_CODE);
-  const { data: transactions } = await db.from("transactions").select("*").eq("access_code", ACCESS_CODE);
+async function recalculateBalances(db: SupabaseClient, userId: string) {
+  const { data: wallets } = await db.from("wallets").select("*").eq("user_id", userId);
+  const { data: transactions } = await db.from("transactions").select("*").eq("user_id", userId);
   if (!wallets || !transactions) return;
 
   const { data: settings } = await db
     .from("user_settings")
     .select("nav_config, deleted_ids")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .maybeSingle();
 
   const deletedIds = Array.isArray(settings?.deleted_ids) ? settings.deleted_ids.map(String) : [];
@@ -260,10 +262,11 @@ export async function handleV2ChecklistIntent(
   waChatId: string,
   messageId: string,
   userText: string,
-  checklistData: any
+  checklistData: any,
+  userId: string,
 ): Promise<boolean> {
   const todayStr = getTodayStr();
-  const recurringItems = await v2GetRecurringItems(db, ACCESS_CODE);
+  const recurringItems = await v2GetRecurringItems(db, userId);
 
   const dueItems = recurringItems
     .map(item => {
@@ -309,7 +312,8 @@ export async function handleV2ChecklistIntent(
     if (questionMsgId) {
       await db.from("wa_pending_transactions").insert({
         id: `pend_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
-        access_code: ACCESS_CODE,
+        user_id: userId,
+        access_code: "wa_" + userId,
         wa_chat_id: waChatId,
         wa_question_message_id: questionMsgId,
         pending_data: {
@@ -322,7 +326,7 @@ export async function handleV2ChecklistIntent(
   }
 
   const selected = dueItems.find(d => d.id === matches[0])!;
-  return await executeChecklistPayment(db, apiKeys, waChatId, messageId, selected);
+  return await executeChecklistPayment(db, apiKeys, waChatId, messageId, selected, userId);
 }
 
 export async function executeChecklistPayment(
@@ -330,7 +334,8 @@ export async function executeChecklistPayment(
   apiKeys: string[],
   waChatId: string,
   replyToMsgId: string,
-  checklistDetails: any
+  checklistDetails: any,
+  userId: string,
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
@@ -346,7 +351,7 @@ export async function executeChecklistPayment(
   const { data: txs } = await db
     .from("transactions")
     .select("amount")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("type", checklistDetails.type)
     .eq("category_id", checklistDetails.category_id)
     .eq("note", checklistDetails.name)
@@ -362,7 +367,7 @@ export async function executeChecklistPayment(
     return false;
   }
 
-  const { data: walletsCheck } = await db.from("wallets").select("id, is_primary").eq("access_code", ACCESS_CODE);
+  const { data: walletsCheck } = await db.from("wallets").select("id, is_primary").eq("user_id", userId);
   const primaryWalletCheck = walletsCheck?.find(w => w.is_primary) || walletsCheck?.[0];
   const walletId = checklistDetails.wallet_id || primaryWalletCheck?.id || DEFAULT_WALLET_ID;
   const savedTx = await saveV2Transaction(db, {
@@ -373,7 +378,7 @@ export async function executeChecklistPayment(
     amount,
     date: todayStr,
     note: checklistDetails.name
-  });
+  }, userId);
 
   await db
     .from("recurring_items")
@@ -388,7 +393,7 @@ export async function executeChecklistPayment(
   const walletBalance = Number(walletData?.balance) || 0;
 
   const typeLabel = checklistDetails.type === "income" ? "Pemasukan" : "Pengeluaran";
-  const bubble = `Tagihan dibayar ✓
+  const bubble = `Tagihan dibayar
 Tanggal: ${formatTanggalID(todayStr)}
 
 ${typeLabel}: ${formatRupiah(amount)}
@@ -403,7 +408,8 @@ Sisa dompet: ${formatRupiah(walletBalance)}`;
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
       transaction_id: savedTx.id,
-      access_code: ACCESS_CODE
+      user_id: userId,
+      access_code: "wa_" + userId
     });
   }
 
@@ -418,14 +424,15 @@ export async function handleV2TransferIntent(
   apiKeys: string[],
   waChatId: string,
   messageId: string,
-  transferData: any
+  transferData: any,
+  userId: string,
 ): Promise<boolean> {
   const amount = Number(transferData.amount) || 0;
   if (amount <= 0) {
     return false;
   }
 
-  const wallets = await v2GetWallets(db, ACCESS_CODE);
+  const wallets = await v2GetWallets(db, userId);
 
   const sourceMatches = wallets.filter(w =>
     w.name.toLowerCase().includes(transferData.source_wallet.toLowerCase())
@@ -458,7 +465,7 @@ export async function handleV2TransferIntent(
     return true;
   }
 
-  return await executeTransfer(db, waChatId, messageId, sourceWallet, destWallet, amount);
+  return await executeTransfer(db, waChatId, messageId, sourceWallet, destWallet, amount, userId);
 }
 
 async function executeTransfer(
@@ -467,17 +474,19 @@ async function executeTransfer(
   replyToMsgId: string,
   sourceWallet: any,
   destWallet: any,
-  amount: number
+  amount: number,
+  userId: string,
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
-  const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
+  const { data: categories } = await db.from("categories").select("*").eq("user_id", userId);
   let cat = categories?.find(c => c.name === "Transfer");
   if (!cat) {
     const catId = `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     await db.from("categories").insert({
       id: catId,
-      access_code: ACCESS_CODE,
+      user_id: userId,
+      access_code: "wa_" + userId,
       name: "Transfer",
       type: "expense",
       icon: "refresh",
@@ -495,7 +504,7 @@ async function executeTransfer(
     date: todayStr,
     note: `Transfer ke ${destWallet.name}`,
     to_wallet_id: destWallet.id
-  });
+  }, userId);
 
   const { data: updatedWallets } = await db
     .from("wallets")
@@ -505,7 +514,7 @@ async function executeTransfer(
   const updatedSource = updatedWallets?.find(w => w.id === sourceWallet.id);
   const updatedDest = updatedWallets?.find(w => w.id === destWallet.id);
 
-  const bubble = `Transfer berhasil ✓
+  const bubble = `Transfer berhasil
 Tanggal: ${formatTanggalID(todayStr)}
 
 Nominal: ${formatRupiah(amount)}
@@ -517,7 +526,8 @@ Ke dompet: ${destWallet.name} (Sisa: ${formatRupiah(updatedDest?.balance ?? 0)})
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
       transaction_id: savedTx.id,
-      access_code: ACCESS_CODE
+      user_id: userId,
+      access_code: "wa_" + userId
     });
   }
 
@@ -553,7 +563,8 @@ export async function handleV2DebtIntent(
   waChatId: string,
   messageId: string,
   userText: string,
-  debtData: any
+  debtData: any,
+  userId: string,
 ): Promise<boolean> {
   if (!debtData.person_name) {
     return false;
@@ -562,7 +573,7 @@ export async function handleV2DebtIntent(
   const todayStr = getTodayStr();
   let allDebts = [];
   try {
-    allDebts = await v2GetDebtEntries(db, ACCESS_CODE);
+    allDebts = await v2GetDebtEntries(db, userId);
   } catch (fetchErr) {
     console.error("Error fetching debts:", fetchErr);
     return false;
@@ -607,7 +618,8 @@ export async function handleV2DebtIntent(
         if (questionMsgId) {
           await db.from("wa_pending_transactions").insert({
             id: `pend_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
-            access_code: ACCESS_CODE,
+            user_id: userId,
+            access_code: "wa_" + userId,
             wa_chat_id: waChatId,
             wa_question_message_id: questionMsgId,
             pending_data: {
@@ -640,7 +652,8 @@ export async function handleV2DebtIntent(
       if (questionMsgId) {
         await db.from("wa_pending_transactions").insert({
           id: `pend_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
-          access_code: ACCESS_CODE,
+          user_id: userId,
+          access_code: "wa_" + userId,
           wa_chat_id: waChatId,
           wa_question_message_id: questionMsgId,
           pending_data: {
@@ -655,7 +668,7 @@ export async function handleV2DebtIntent(
     }
 
     const activeDebt = activeDebts[0];
-    return await executeDebtPayment(db, waChatId, messageId, activeDebt, amount, userText);
+    return await executeDebtPayment(db, waChatId, messageId, activeDebt, amount, userText, userId);
   }
 
   // Untuk membuat utang baru, nominal wajib ada
@@ -669,7 +682,8 @@ export async function handleV2DebtIntent(
 
   const { error } = await db.from("debt_entries").insert({
     id: debtId,
-    access_code: ACCESS_CODE,
+    user_id: userId,
+    access_code: "wa_" + userId,
     person_name: debtData.person_name,
     type,
     amount,
@@ -685,13 +699,14 @@ export async function handleV2DebtIntent(
   }
 
   // Create Category "Utang Piutang" if not exists
-  const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
+  const { data: categories } = await db.from("categories").select("*").eq("user_id", userId);
   let cat = categories?.find(c => c.name === "Utang Piutang");
   if (!cat) {
     const catId = `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     await db.from("categories").insert({
       id: catId,
-      access_code: ACCESS_CODE,
+      user_id: userId,
+      access_code: "wa_" + userId,
       name: "Utang Piutang",
       type: "expense",
       icon: "users",
@@ -701,7 +716,7 @@ export async function handleV2DebtIntent(
   }
 
   // Match Wallet from user text
-  const { data: walletsList } = await db.from("wallets").select("id, name, is_primary").eq("access_code", ACCESS_CODE);
+  const { data: walletsList } = await db.from("wallets").select("id, name, is_primary").eq("user_id", userId);
   const mentionedWalletName = findMentionedWallet(userText, walletsList || []);
   const wallets = (walletsList || []) as any[];
   const primaryWallet = wallets.find(w => w.is_primary) || wallets[0];
@@ -723,10 +738,10 @@ export async function handleV2DebtIntent(
     amount: amount,
     date: todayStr,
     note: txNote
-  });
+  }, userId);
 
   const typeLabel = type === "i_owe" ? "Kamu berutang ke dia (Saldo Bertambah)" : "Dia berutang ke kamu (Saldo Berkurang)";
-  const bubble = `Catatan utang disimpan ✓
+  const bubble = `Catatan utang disimpan
 Tanggal: ${formatTanggalID(todayStr)}
 
 Nama: ${debtData.person_name}
@@ -740,7 +755,8 @@ Keterangan: ${note}`;
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
       transaction_id: debtId,
-      access_code: ACCESS_CODE
+      user_id: userId,
+      access_code: "wa_" + userId
     });
   }
 
@@ -753,17 +769,19 @@ export async function executeDebtPayment(
   replyToMsgId: string,
   activeDebt: any,
   paymentAmount: number,
-  userText?: string
+  userText?: string,
+  userId?: string,
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
-  const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
+  const { data: categories } = await db.from("categories").select("*").eq("user_id", userId);
   let cat = categories?.find(c => c.name === "Utang Piutang");
   if (!cat) {
     const catId = `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     await db.from("categories").insert({
       id: catId,
-      access_code: ACCESS_CODE,
+      user_id: userId,
+      access_code: "wa_" + userId,
       name: "Utang Piutang",
       type: "expense",
       icon: "users",
@@ -774,7 +792,7 @@ export async function executeDebtPayment(
 
   const isIOwe = activeDebt.type === "i_owe" || activeDebt.type === "utang";
   const txType = isIOwe ? "expense" : "income";
-  const { data: walletsDebt } = await db.from("wallets").select("id, name, is_primary").eq("access_code", ACCESS_CODE);
+  const { data: walletsDebt } = await db.from("wallets").select("id, name, is_primary").eq("user_id", userId);
   const mentionedWalletName = userText ? findMentionedWallet(userText, walletsDebt || []) : undefined;
   const primaryWalletDebt = walletsDebt?.find(w => w.is_primary) || walletsDebt?.[0];
   const walletId = walletsDebt?.find(w => w.name === mentionedWalletName)?.id || primaryWalletDebt?.id || DEFAULT_WALLET_ID;
@@ -796,7 +814,7 @@ export async function executeDebtPayment(
       amount: payoffAmount,
       date: todayStr,
       note: `Cicilan utang ke ${activeDebt.person_name}: ${activeDebt.note || ""}`.trim()
-    });
+    }, userId);
     savedTxId = tx.id;
 
     await db
@@ -807,7 +825,7 @@ export async function executeDebtPayment(
       })
       .eq("id", activeDebt.id);
 
-    bubble = `Cicilan utang dicatat ✓
+    bubble = `Cicilan utang dicatat
 Tanggal: ${formatTanggalID(todayStr)}
 
 Pembayaran: ${formatRupiah(payoffAmount)} (Saldo ${txType === "expense" ? "Berkurang" : "Bertambah"})
@@ -828,7 +846,7 @@ Keterangan: ${activeDebt.note || "-"}`;
       amount: activeDebt.amount,
       date: todayStr,
       note: `Pelunasan utang ke ${activeDebt.person_name}: ${activeDebt.note || ""}`.trim()
-    });
+    }, userId);
     savedTxId = tx.id;
 
     await db
@@ -841,7 +859,7 @@ Keterangan: ${activeDebt.note || "-"}`;
       })
       .eq("id", activeDebt.id);
 
-    bubble = `Utang lunas ✓
+    bubble = `Utang lunas
 Tanggal: ${formatTanggalID(todayStr)}
 
 Pembayaran: ${formatRupiah(activeDebt.amount)} (Saldo ${txType === "expense" ? "Berkurang" : "Bertambah"})
@@ -853,7 +871,8 @@ Keterangan: ${activeDebt.note || "-"}\n`;
       const newDebtId = `wa_debt_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
       await db.from("debt_entries").insert({
         id: newDebtId,
-        access_code: ACCESS_CODE,
+        user_id: userId,
+        access_code: "wa_" + userId,
         person_name: activeDebt.person_name,
         type: reverseType,
         amount: excess,
@@ -873,7 +892,8 @@ Keterangan: ${activeDebt.note || "-"}\n`;
     await db.from("wa_message_transactions").insert({
       wa_message_id: sentMsgId,
       transaction_id: savedTxId,
-      access_code: ACCESS_CODE
+      user_id: userId,
+      access_code: "wa_" + userId
     });
   }
 
@@ -888,7 +908,8 @@ export async function handleV2ClarificationReply(
   db: SupabaseClient,
   apiKeys: string[],
   msg: any,
-  pendingData: any
+  pendingData: any,
+  userId: string,
 ): Promise<boolean> {
   const waChatId = msg.from;
   const replyText = (msg.text ?? "").trim();
@@ -908,9 +929,9 @@ export async function handleV2ClarificationReply(
   const selected = pendingData.candidates[choiceIdx];
 
   if (pendingData.type === "clarify_checklist") {
-    await executeChecklistPayment(db, apiKeys, waChatId, msg.messageId, selected);
+    await executeChecklistPayment(db, apiKeys, waChatId, msg.messageId, selected, userId);
   } else if (pendingData.type === "clarify_debt_payment") {
-    await executeDebtPayment(db, waChatId, msg.messageId, selected, pendingData.amount, pendingData.user_text);
+    await executeDebtPayment(db, waChatId, msg.messageId, selected, pendingData.amount, pendingData.user_text, userId);
   }
 
   return true;

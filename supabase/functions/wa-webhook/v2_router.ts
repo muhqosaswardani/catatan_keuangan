@@ -30,7 +30,7 @@ const ACCESS_CODE = Deno.env.get("WA_ACCESS_CODE") ?? "";
  * Pusat Bantuan (help/bantuan/menu) - Exits immediately
  */
 async function handleHelpCommand(waChatId: string, messageId: string): Promise<void> {
-  const helpText = `Pusat Bantuan Catatan Keuangan Bot ✓
+  const helpText = `Pusat Bantuan Catatan Keuangan Bot
 
 *Menu Mode Terkunci (Ketik kata eksak untuk masuk):*
 - 'koreksi' : Penyesuaian saldo dompet (kirim foto cash/nominal).
@@ -60,7 +60,8 @@ async function handleHelpCommand(waChatId: string, messageId: string): Promise<v
 export async function handleV2Message(
   db: SupabaseClient,
   apiKeys: string[],
-  msg: any
+  msg: any,
+  userId: string,
 ): Promise<boolean> {
   const text = (msg.text ?? msg.caption ?? "").trim();
   const cleaned = text.toLowerCase();
@@ -96,12 +97,12 @@ export async function handleV2Message(
           `Keluar dari Mode ${currentMode?.toUpperCase()}. Memproses permintaan baru...`
         );
         // Re-run message processing recursively
-        return await handleV2Message(db, apiKeys, pendingMsg);
+        return await handleV2Message(db, apiKeys, pendingMsg, userId);
       } else if (cleaned === "tidak" || cleaned === "batal" || cleaned === "batalin") {
         // Hapus pending exit intent dan tetap di mode
         const cleanSessionData = { ...session.session_data };
         delete cleanSessionData.pending_exit_intent;
-        await saveV2Session(db, waChatId, ACCESS_CODE, currentMode, cleanSessionData);
+        await saveV2Session(db, waChatId, userId, currentMode, cleanSessionData);
         await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
@@ -162,7 +163,7 @@ export async function handleV2Message(
           caption: msg.caption
         }
       };
-      await saveV2Session(db, waChatId, ACCESS_CODE, currentMode, updatedData);
+      await saveV2Session(db, waChatId, userId, currentMode, updatedData);
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
@@ -175,26 +176,26 @@ export async function handleV2Message(
 
     // Proses pesan di dalam mode masing-masing
     if (currentMode === "koreksi") {
-      await handleModeKoreksiMessage(db, apiKeys, msg, session);
+      await handleModeKoreksiMessage(db, apiKeys, msg, session, userId);
     } else if (currentMode === "limit") {
-      await handleModeLimitMessage(db, apiKeys, msg, session);
+      await handleModeLimitMessage(db, apiKeys, msg, session, userId);
     } else if (currentMode === "tujuan") {
-      await handleModeTujuanMessage(db, apiKeys, msg, session);
+      await handleModeTujuanMessage(db, apiKeys, msg, session, userId);
     }
     return true;
   }
 
   // 1. Cek: apakah pesan ini trigger MASUK mode (exact match, case-insensitive)?
   if (cleaned === "koreksi") {
-    await handleModeKoreksiEnter(db, waChatId, msg.messageId);
+    await handleModeKoreksiEnter(db, waChatId, msg.messageId, userId);
     return true;
   }
   if (cleaned === "limit" || cleaned === "anggaran") {
-    await handleModeLimitEnter(db, waChatId, msg.messageId);
+    await handleModeLimitEnter(db, waChatId, msg.messageId, userId);
     return true;
   }
   if (cleaned === "tujuan" || cleaned === "goals") {
-    await handleModeTujuanEnter(db, waChatId, msg.messageId);
+    await handleModeTujuanEnter(db, waChatId, msg.messageId, userId);
     return true;
   }
   if (cleaned === "help" || cleaned === "bantuan" || cleaned === "menu") {
@@ -213,7 +214,7 @@ export async function handleV2Message(
     if (pending) {
       const pData = typeof pending.pending_data === "string" ? JSON.parse(pending.pending_data) : pending.pending_data;
       if (pData.type === "clarify_checklist" || pData.type === "clarify_debt_payment") {
-        await handleV2ClarificationReply(db, apiKeys, msg, pData);
+        await handleV2ClarificationReply(db, apiKeys, msg, pData, userId);
         // Hapus pending entry
         await db.from("wa_pending_transactions").delete().eq("id", pending.id);
         return true;
@@ -229,26 +230,26 @@ export async function handleV2Message(
     // 3.1. Cek: apakah pesan murni cek saldo tanpa tanya "?" (Bypass Gemini)
     const isPureCekSaldo = /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text.trim()) && !text.includes("?");
     if (isPureCekSaldo) {
-      await handleCekSaldo(db, msg.from, msg.messageId);
+      await handleCekSaldo(db, msg.from, msg.messageId, userId);
       return true;
     }
 
     const parsed = await parseV2Intent(apiKeys, text);
 
     if (parsed.intent === "checklist") {
-      const ok = await handleV2ChecklistIntent(db, apiKeys, msg.from, msg.messageId, text, parsed.checklist);
+      const ok = await handleV2ChecklistIntent(db, apiKeys, msg.from, msg.messageId, text, parsed.checklist, userId);
       if (ok) return true;
     }
     if (parsed.intent === "transfer") {
-      const ok = await handleV2TransferIntent(db, apiKeys, msg.from, msg.messageId, parsed.transfer);
+      const ok = await handleV2TransferIntent(db, apiKeys, msg.from, msg.messageId, parsed.transfer, userId);
       if (ok) return true;
     }
     if (parsed.intent === "debt") {
-      const ok = await handleV2DebtIntent(db, apiKeys, msg.from, msg.messageId, text, parsed.debt);
+      const ok = await handleV2DebtIntent(db, apiKeys, msg.from, msg.messageId, text, parsed.debt, userId);
       if (ok) return true;
     }
     if (parsed.intent === "query" || parsed.intent === "general_chat") {
-      const reply = await processV2Query(db, apiKeys, ACCESS_CODE, text);
+      const reply = await processV2Query(db, apiKeys, userId, text);
       await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
       return true;
     }
@@ -257,7 +258,7 @@ export async function handleV2Message(
   // 4. Cek: apakah pesan mengandung tanda tanya "?"
   const isQuery = text.includes("?");
   if (isQuery) {
-    const reply = await processV2Query(db, apiKeys, ACCESS_CODE, text);
+    const reply = await processV2Query(db, apiKeys, userId, text);
     await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
     return true;
   }

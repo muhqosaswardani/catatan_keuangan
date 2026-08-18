@@ -4494,6 +4494,971 @@
     .chat-btn-action .icon-mic { display: flex; }
     .chat-btn-action.is-send .icon-send { display: flex; }
     .chat-btn-action.is-send .icon-mic { display: none; }
+
+    /* =========================================================
+       ONBOARDING / AUTH SCREENS STYLING
+       ========================================================= */
+    .auth-onboarding-container {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 10000;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      max-width: 560px;
+      margin: 0 auto;
+      box-shadow: 0 0 40px rgba(0,0,0,0.15);
+    }
+    .auth-onboarding-container.open {
+      display: flex;
+    }
+    .screen {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px 18px 24px;
+      animation: fadein .22s ease;
+      flex-direction: column;
+    }
+    .screen.active {
+      display: flex;
+    }
+    .screen:has(.screen-footer) {
+      overflow: hidden;
+    }
+    .screen-main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    .screen:has(.screen-footer) .screen-main {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .screen-footer {
+      flex: 0 0 auto;
+      padding-top: 16px;
+    }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .brand-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -.01em;
+    }
+    .brand-title .brand-ai {
+      font-family: 'Sora', sans-serif;
+      font-weight: 800;
+      color: #10b981; /* Green color on AI */
+      letter-spacing: 0;
+    }
+    .promo-hero {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      border-radius: var(--radius-l);
+      padding: 26px 20px;
+      color: #fff;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+      text-align: left;
+    }
+    .promo-hero::after {
+      content: "";
+      position: absolute;
+      right: -40px;
+      top: -40px;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,.16), transparent 70%);
+    }
+    .promo-hero h1 {
+      font-size: 24px;
+      margin: 0 0 8px;
+      line-height: 1.25;
+      position: relative;
+      z-index: 2;
+    }
+    .promo-hero p {
+      margin: 0 0 18px;
+      font-size: 13.5px;
+      opacity: .9;
+      line-height: 1.55;
+      position: relative;
+      z-index: 2;
+    }
+    .feat-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 2px;
+      text-align: left;
+    }
+    .feat-row .ic {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .feat-row .t {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .feat-row .d {
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+      line-height: 1.5;
+    }
+    .btn-wa {
+      background: var(--wa);
+      color: #fff;
+    }
+    .btn-wa:hover {
+      background: var(--wa-dark);
+    }
+    .wa-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: default;
+      padding: 12px 4px;
+      user-select: none;
+      text-align: left;
+    }
+    .wa-checkbox-wrap {
+      display: flex;
+      align-items: flex-start;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .wa-checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid var(--line);
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      transition: background .15s, border-color .15s;
+    }
+    .wa-checkbox svg {
+      opacity: 0;
+      transform: scale(.5);
+      transition: opacity .15s, transform .15s;
+    }
+    .wa-check-row input {
+      display: none;
+    }
+    .wa-check-row input:checked + .wa-checkbox {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .wa-check-row input:checked + .wa-checkbox svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .wa-check-row .txt {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--ink-soft);
+      font-weight: 500;
+    }
+    .wa-check-row .txt a {
+      color: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 7px 13px;
+      border-radius: 100px;
+    }
+    .status-pill.wait {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+    .status-pill.ok {
+      background: var(--income-soft);
+      color: var(--income);
+    }
+    .spin {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,.15);
+      border-top-color: currentColor;
+      animation: sp .8s linear infinite;
+    }
+    @keyframes sp {
+      to { transform: rotate(360deg); }
+    }
+    .step-dots {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin: 0 0 14px;
+    }
+    .step-dots span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--line);
+      transition: .2s;
+    }
+    .step-dots span.active {
+      background: var(--accent);
+      width: 22px;
+      border-radius: 5px;
+    }
+    .aikey-opt {
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius-m);
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      background: var(--surface);
+      text-align: left;
+    }
+    .aikey-opt.selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .aikey-opt-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    .aikey-opt-head b {
+      font-size: 13.5px;
+    }
+    .aikey-opt .d {
+      font-size: 12px;
+      color: var(--ink-soft);
+      line-height: 1.55;
+    }
+    .aikey-radio {
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .aikey-radio .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .aikey-opt.selected .aikey-radio {
+      border-color: var(--accent);
+    }
+    .aikey-opt.selected .aikey-radio .dot {
+      opacity: 1;
+    }
+    .aikey-own-input {
+      margin-top: 11px;
+      display: none;
+    }
+    .aikey-opt.selected .aikey-own-input {
+      display: block;
+    }
+    .aikey-guide-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 9px 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .aikey-guide-link .ic {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .aikey-guide-link .label {
+      flex: 1;
+      min-width: 0;
+      line-height: 1.4;
+      color: var(--ink-soft);
+      font-weight: 500;
+    }
+    .aikey-guide-link .label b {
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .aikey-guide-link .chev {
+      flex-shrink: 0;
+      color: var(--ink-soft);
+    }
+    .intro-badge-free {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 100px;
+      background: var(--income-soft);
+      color: var(--income);
+      white-space: nowrap;
+    }
+    .intro-badge-own {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 100px;
+      background: var(--info-soft);
+      color: var(--info-dark);
+      white-space: nowrap;
+    }
+    .intro-visual {
+      border-radius: var(--radius-m);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .wa-mock {
+      background: #E7DFD3;
+      text-align: left;
+    }
+    .wa-mock-head {
+      background: #075E54;
+      color: #fff;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .wa-mock-head .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #0B5951;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .wa-mock-head .name {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .wa-mock-head .sub {
+      font-size: 10.5px;
+      opacity: .8;
+    }
+    .wa-mock-body {
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 150px;
+    }
+    .wa-bub {
+      max-width: 80%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      line-height: 1.45;
+      box-shadow: 0 1px 1px rgba(0,0,0,.08);
+    }
+    .wa-bub.in {
+      background: #fff;
+      align-self: flex-start;
+      border-top-left-radius: 2px;
+      color: #152524;
+    }
+    .wa-bub.out {
+      background: #DCF8C6;
+      align-self: flex-end;
+      border-top-right-radius: 2px;
+      color: #152524;
+    }
+    .wa-bub .tm {
+      display: block;
+      text-align: right;
+      font-size: 9px;
+      color: #8a978f;
+      margin-top: 3px;
+    }
+    .wa-bub.receipt {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .wa-bub.receipt .thumb {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-dark);
+      flex-shrink: 0;
+    }
+    .wa-bub b {
+      color: var(--accent-dark);
+    }
+    .browser-mock {
+      background: var(--surface);
+    }
+    .browser-mock-bar {
+      background: #EDEFEE;
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border-bottom: 1px solid var(--line);
+    }
+    .browser-mock-bar .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #D7DBD9;
+    }
+    .browser-mock-bar .url {
+      flex: 1;
+      background: #fff;
+      border-radius: 100px;
+      padding: 4px 10px;
+      font-size: 10px;
+      color: var(--ink-soft);
+      margin-left: 6px;
+      border: 1px solid var(--line);
+    }
+    .browser-mock-body {
+      padding: 14px;
+    }
+    .dash-card-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .dash-stat {
+      flex: 1;
+      background: var(--surface-2);
+      border-radius: 10px;
+      padding: 9px 10px;
+      text-align: left;
+    }
+    .dash-stat .l {
+      font-size: 9.5px;
+      color: var(--ink-soft);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .dash-stat .v {
+      font-size: 14px;
+      font-weight: 800;
+      margin-top: 2px;
+      font-family: 'Sora', sans-serif;
+    }
+    .dash-stat.income .v {
+      color: var(--income);
+    }
+    .dash-stat.expense .v {
+      color: var(--expense);
+    }
+    .dash-bar-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 44px;
+      margin-top: 2px;
+    }
+    .dash-bar {
+      flex: 1;
+      background: var(--accent);
+      opacity: .3;
+      border-radius: 3px 3px 0 0;
+    }
+    .dash-bar.hi {
+      opacity: .9;
+    }
+    .dash-tx {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 11.5px;
+    }
+    .dash-tx:last-child {
+      border-bottom: none;
+    }
+    .dash-tx .cat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dash-tx .ic {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .dash-tx .amt.plus {
+      color: var(--income);
+      font-weight: 700;
+    }
+    .dash-tx .amt.minus {
+      color: var(--expense);
+      font-weight: 700;
+    }
+    .guide-step {
+      margin-bottom: 22px;
+      text-align: left;
+    }
+    .guide-step-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 9px;
+    }
+    .guide-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-family: 'Sora', sans-serif;
+    }
+    .guide-step-head h4 {
+      margin: 0;
+      font-size: 14.5px;
+    }
+    .guide-step p {
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      line-height: 1.6;
+      margin: 0 0 10px;
+    }
+    .photo-slot {
+      width: 100%;
+      border-radius: var(--radius-m);
+      border: 1.5px dashed var(--line);
+      background: var(--surface-2);
+      overflow: hidden;
+      position: relative;
+    }
+    .photo-slot img {
+      width: 100%;
+      display: block;
+    }
+    .photo-slot .ph-empty {
+      padding: 32px 14px;
+      text-align: center;
+      color: var(--ink-soft);
+    }
+    .photo-slot .ph-empty svg {
+      margin: 0 auto 8px;
+      color: var(--line);
+    }
+    .photo-slot .ph-empty .lbl {
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .photo-slot .ph-empty .fname {
+      font-family: monospace;
+      font-size: 11px;
+      background: var(--surface);
+      padding: 2px 8px;
+      border-radius: 6px;
+      margin-top: 7px;
+      display: inline-block;
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+    }
+    .wallet-field {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius-m);
+      padding: 13px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .wallet-field-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .wallet-field-head b {
+      font-size: 13px;
+    }
+    .wallet-remove {
+      background: none;
+      border: none;
+      color: var(--expense);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    .topbar-back {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .topbar-back h2 {
+      font-size: 17px;
+      margin: 0;
+    }
+    .apikey-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-2);
+      border-radius: 10px;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .apikey-row button {
+      background: none;
+      border: none;
+      color: var(--expense);
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .type-toggle {
+      display: flex;
+      background: var(--surface-2);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+    .type-toggle button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 10px;
+      border-radius: 9px;
+      font-weight: 700;
+      font-size: 13.5px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .type-toggle button.active {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .type-toggle button.active[data-type="income"] {
+      color: var(--income);
+    }
+    .type-toggle button.active[data-type="expense"] {
+      color: var(--expense);
+    }
+    .cat-icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cat-manage-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--surface);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 9px 10px;
+      margin-bottom: 8px;
+      text-align: left;
+    }
+    .cat-manage-row .l {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+    .cat-manage-row .l span.name {
+      font-size: 13.5px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cat-manage-actions {
+      flex-shrink: 0;
+    }
+    .cat-add-form {
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      margin-top: 4px;
+    }
+    .cat-add-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .cat-add-row input {
+      flex: 1;
+      min-width: 0;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 13px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--surface);
+    }
+    .cat-add-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .cat-icon-trigger {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: none;
+      flex-shrink: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .color-swatch-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      box-shadow: 0 0 0 1px rgba(21,37,36,.08) inset;
+    }
+    .color-swatch.selected {
+      border-color: var(--ink);
+    }
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      max-height: 44vh;
+      overflow-y: auto;
+    }
+    .icon-grid-btn {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .icon-grid-btn.selected {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    .btn-sm {
+      padding: 10px 14px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .empty-note {
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      padding: 8px 2px 14px;
+      text-align: left;
+    }
+    #screen-kategori {
+      height: 100%;
+      overflow: hidden;
+      padding-bottom: 16px;
+    }
+    #screen-kategori .screen-main {
+      flex: 1 1 auto;
+      min-height: 0;
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+    #screen-kategori #catManageList {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-right: 2px;
+      margin-bottom: 0;
+    }
+    #screen-kategori .type-toggle, #screen-kategori .cat-add-form {
+      flex: 0 0 auto;
+    }
+    #screen-kategori .screen-footer {
+      flex: 0 0 auto;
+    }
+    .trial-topbar {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+    }
+    .trial-topbar .app-name {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .trial-chip {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      border-radius: 100px;
+    }
+    .trial-chip.active {
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+    }
+    .trial-chip.habis {
+      background: var(--expense-soft);
+      color: var(--expense);
+    }
+    .trial-chip.paid {
+      background: var(--income-soft);
+      color: var(--income);
+    }
+    .token-input {
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      font-weight: 700;
+      text-align: center;
+      font-size: 17px;
+    }
+
+    /* iOS Switch */
+    .switch-ios {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .switch-ios input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .switch-ios-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: var(--line);
+      transition: .3s;
+      border-radius: 34px;
+    }
+    .switch-ios-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .switch-ios-slider {
+      background-color: #10b981;
+    }
+    input:checked + .switch-ios-slider:before {
+      transform: translateX(20px);
+    }
   </style>
 </head>
 
@@ -4601,23 +5566,233 @@
   </nav>
 
   <div class="app" id="app">
+    <!-- ============ MULTI-USER AUTH & ONBOARDING ============ -->
+    <div id="auth-onboarding" class="auth-onboarding-container">
+      
+      <!-- 1) HALAMAN PROMOSI -->
+      <div class="screen active" id="screen-promo">
+        <div class="brand-row">
+          <div class="brand-mark">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </div>
+          <div class="brand-title">Kasly<span class="brand-ai">AI</span></div>
+        </div>
+        <div class="promo-hero">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.85;margin-bottom:6px;">Catatan Keuangan</div>
+          <h1>Catat keuangan, cukup dari WhatsApp &amp; HP kamu</h1>
+          <p>Coba gratis 7 hari fitur AI pencatat otomatis &amp; asisten WhatsApp. Fitur dasar catat transaksi tetap gratis selamanya.</p>
+          <button class="btn btn-primary btn-block" onclick="gotoScreen('screen-daftar')">Coba Aplikasinya, Gratis</button>
+        </div>
 
-    <!-- ============ ONBOARDING ============ -->
-    <div class="onb-overlay" id="onboarding" style="overflow-y:auto; padding:40px 20px;">
-      <div class="logo-mark">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-          <path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor"
-            stroke-width="1.8" />
-          <path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        </svg>
+        <div class="screen-main" style="justify-content: flex-start;">
+          <div class="card" style="margin-bottom:0; box-shadow: var(--shadow);">
+            <div class="feat-row">
+              <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v9l7 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg></div>
+              <div><div class="t">Trial 7 hari fitur AI</div><div class="d">Kirim foto struk / chat, otomatis tercatat rapi.</div></div>
+            </div>
+            <div class="feat-row">
+              <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+              <div><div class="t">Terhubung ke WhatsApp</div><div class="d">Login cukup pakai nomor WA, tanpa akun Google/password.</div></div>
+            </div>
+            <div class="feat-row">
+              <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><div class="t">Fitur dasar gratis selamanya</div><div class="d">Catat transaksi manual tidak pernah kena limit waktu.</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="screen-footer">
+          <button class="btn btn-wa btn-block" onclick="openWaAdmin('lifetime')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Chat Admin (Tanya-tanya / Beli Lifetime)
+          </button>
+        </div>
       </div>
-      <h1>Selamat datang</h1>
-      <p style="margin-bottom:20px;">Sebelum mulai, catat dulu saldo awal di masing-masing dompet kamu. Ini jadi titik
-        awal semua catatan keuangan.</p>
-      <div id="onboardingWalletsList" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
-      <button type="button" class="btn btn-ghost btn-block" onclick="addOnboardingWalletField()"
-        style="margin-bottom:20px; border:1px dashed var(--line); text-align:center;">+ Tambah Dompet</button>
-      <button class="btn btn-primary btn-block" onclick="finishOnboarding()">Mulai Catat</button>
+
+      <!-- 2) DAFTAR -->
+      <div class="screen" id="screen-daftar">
+        <div class="topbar-back">
+          <button class="icon-btn" onclick="gotoScreen('screen-promo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>Daftar / Masuk Akun</h2>
+        </div>
+
+        <div class="screen-main">
+          <div class="field" id="fieldNama">
+            <label>Nama Lengkap</label>
+            <input type="text" id="inpNama" placeholder="Contoh: Budi Santoso" oninput="clearErr('fieldNama')">
+            <div class="err">Nama wajib diisi.</div>
+          </div>
+          <div class="field" id="fieldWa">
+            <label>Nomor WhatsApp Aktif</label>
+            <input type="tel" id="inpWa" placeholder="Contoh: 081234567890" oninput="clearErr('fieldWa')">
+            <div class="err">Masukkan nomor WhatsApp yang valid.</div>
+          </div>
+          <div class="field" id="fieldTokenTrial">
+            <label>Token Aktivasi / Token Trial (Opsional)</label>
+            <input type="text" id="inpTokenTrial" placeholder="Kosongkan jika tidak ada (default 7 hari)" style="text-transform: uppercase;">
+          </div>
+
+          <div class="wa-check-row" id="agreeRow">
+            <label class="wa-checkbox-wrap" onclick="handleAgreeRowClick()">
+              <input type="checkbox" id="chkAgree" tabindex="-1">
+              <span class="wa-checkbox"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </label>
+            <span class="txt">Saya setuju dengan <a onclick="openModal('modalSyarat')">Syarat &amp; Ketentuan</a> dan <a onclick="openModal('modalKebijakan')">Kebijakan Privasi</a> KaslyAI.</span>
+          </div>
+        </div>
+
+        <div class="screen-footer">
+          <button class="btn btn-primary btn-block" id="btnLanjutDaftar" disabled onclick="submitDaftar()">Lanjutkan &amp; Verifikasi via WhatsApp</button>
+        </div>
+      </div>
+
+      <!-- 3) VERIFIKASI WA -->
+      <div class="screen" id="screen-verifikasi">
+        <div class="topbar-back" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="icon-btn" onclick="gotoScreen('screen-daftar')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <h2>Verifikasi WhatsApp</h2>
+          </div>
+        </div>
+
+        <div class="screen-main">
+          <div class="card" style="text-align:center;padding:30px 20px;">
+            <div style="width:54px;height:54px;border-radius:50%;background:var(--wa);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            </div>
+            <h3 style="margin:0 0 6px;font-size:15.5px;">Kirim Kode Verifikasi</h3>
+            <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 20px;">Kirim pesan berisi kode OTP ke WhatsApp KaslyAI, atau tunggu beberapa saat setelah Anda mengirimkannya.</p>
+
+            <div class="code-box">
+              <div class="lbl">KODE OTP ANDA</div>
+              <div class="code" id="lblVerifCode">...</div>
+            </div>
+
+            <button class="btn btn-wa btn-block" id="btnVerifWa" onclick="openWaVerification()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              Kirim via WhatsApp
+            </button>
+
+            <div style="margin-top:16px;" id="verifStatusWrap">
+              <span class="status-pill wait" id="verifStatusPill"><span class="spin"></span> Menunggu verifikasi…</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="screen-footer">
+          <button class="btn btn-primary btn-block" id="btnLanjutVerif" style="display:none;" onclick="lanjutDariVerifikasi()">Lanjut</button>
+        </div>
+      </div>
+
+      <!-- 4) ONBOARDING INTRO CAROUSEL -->
+      <div class="screen" id="screen-intro">
+        <div class="screen-main">
+          <div id="introSlides"></div>
+        </div>
+        <div class="screen-footer">
+          <div class="step-dots"><span></span><span></span><span></span><span></span></div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-ghost" onclick="introBack()" id="introBackBtn" style="flex:0 0 auto;">Kembali</button>
+            <button class="btn btn-primary btn-block" onclick="introNext()" id="introNextBtn">Lanjut</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4b) PANDUAN GEMINI API KEY -->
+      <div class="screen" id="screen-api-guide">
+        <div class="topbar-back">
+          <button class="icon-btn" onclick="gotoScreen('screen-intro'); renderIntro();"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>Cara Ambil API Key Gemini</h2>
+        </div>
+        <p style="color:var(--ink-soft);font-size:13.5px;margin:-8px 0 16px;text-align:left;">Gratis dari Google, cukup pakai akun Google biasa — nggak sampai 5 menit. Ikuti langkah-langkah ini:</p>
+
+        <div class="guide-step">
+          <div class="guide-step-head"><span class="guide-num">1</span><h4>Buka Google AI Studio</h4></div>
+          <p>Buka <a href="https://aistudio.google.com/app/u/8/api-keys" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+        </div>
+
+        <div class="guide-step">
+          <div class="guide-step-head"><span class="guide-num">2</span><h4>Klik "Get API key"</h4></div>
+          <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> (biasanya di pojok kiri atas / menu samping).</p>
+        </div>
+
+        <div class="guide-step">
+          <div class="guide-step-head"><span class="guide-num">3</span><h4>Buat API Key Baru</h4></div>
+          <p>Klik <b>Create API key</b>, lalu pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis.</p>
+        </div>
+
+        <div class="guide-step">
+          <div class="guide-step-head"><span class="guide-num">4</span><h4>Salin API Key-nya</h4></div>
+          <p>API key otomatis muncul dalam bentuk deretan huruf &amp; angka. Klik ikon salin (copy) di sampingnya.</p>
+        </div>
+
+        <div class="guide-step" style="margin-bottom:8px;">
+          <div class="guide-step-head"><span class="guide-num">5</span><h4>Tempel di Sini</h4></div>
+          <p>Balik ke halaman sebelumnya, tempel API key tadi ke kolom <b>"API Key Gemini Sendiri"</b>, lalu lanjutkan pendaftaran.</p>
+        </div>
+
+        <div class="card" style="background:var(--accent-soft);box-shadow:none;margin-bottom:16px;text-align:left;">
+          <div style="font-size:12.5px;color:var(--accent-dark);line-height:1.6;"><b>Aman kok.</b> API key ini dikunci rapat, cuma dipakai buat manggil AI Gemini atas nama akunmu sendiri, dan gak ada satu pun pihak lain (termasuk admin kami) yang bisa lihat isinya. Bisa dihapus / diganti kapan saja lewat menu Setting.</div>
+        </div>
+
+        <button class="btn btn-primary btn-block" onclick="gotoScreen('screen-intro'); renderIntro();">Sudah Punya, Lanjutkan Pendaftaran</button>
+      </div>
+
+      <!-- 5) SETUP DOMPET AWAL -->
+      <div class="screen" id="screen-dompet">
+        <div class="topbar-back">
+          <h2>Saldo Awal Dompet</h2>
+        </div>
+
+        <div class="screen-main">
+          <p style="color:var(--ink-soft);font-size:13.5px;margin:-8px 0 16px;text-align:left;">Catat dulu saldo awal di masing-masing dompet kamu sekarang. Ini jadi titik awal semua catatan keuangan kamu.</p>
+          <div id="onbWalletsList"></div>
+          <button type="button" class="btn btn-ghost btn-block" onclick="addWalletField()" style="margin:6px 0 4px; border:1px dashed var(--line);">+ Tambah Dompet</button>
+        </div>
+
+        <div class="screen-footer">
+          <button class="btn btn-primary btn-block" onclick="initCategoriesOnb();setCatManageTypeOnb('expense');gotoScreen('screen-kategori');">Lanjut ke Kategori</button>
+        </div>
+      </div>
+
+      <!-- 5b) SETUP KATEGORI AWAL -->
+      <div class="screen" id="screen-kategori">
+        <div class="topbar-back" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button class="icon-btn" onclick="gotoScreen('screen-dompet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <h2>Kategori Transaksi</h2>
+          </div>
+          <button class="icon-btn" onclick="openModal('modalInfoKategori')" aria-label="Info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <div class="screen-main">
+          <div class="type-toggle">
+            <button type="button" id="btnToggleCatExpense" class="active" onclick="setCatManageTypeOnb('expense')">Pengeluaran</button>
+            <button type="button" id="btnToggleCatIncome" onclick="setCatManageTypeOnb('income')">Pemasukan</button>
+          </div>
+          <div id="catManageList"></div>
+          <div class="cat-add-form">
+            <div class="cat-add-row">
+              <button type="button" class="cat-icon-trigger" id="catManageIconTrigger" onclick="openCatIconPicker()"></button>
+              <input type="text" id="catManageNewName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryFromManager();}">
+            </div>
+            <button class="btn btn-primary btn-block btn-sm" style="margin-top:8px;" onclick="addCategoryFromManager()">+ Tambah Kategori</button>
+          </div>
+        </div>
+
+        <div class="screen-footer">
+          <button class="btn btn-primary btn-block" onclick="finishOnboardingMultiuser()">Mulai Catat</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============ TRIAL & PREMIUM TOPBAR ============ -->
+    <div class="trial-topbar" id="trialTopbar" style="display:none;">
+      <div class="app-name" style="font-weight:700;color:var(--ink);">Kasly<span class="brand-ai" style="color:var(--accent);">AI</span></div>
+      <span class="trial-chip" id="trialChip" onclick="handleTrialChipClick()" style="cursor:pointer;"></span>
     </div>
 
     <!-- ============ PAGE: BERANDA ============ -->
@@ -5065,8 +6240,21 @@
           <button type="button" class="settings-row-card" onclick="copySyncUrlToClipboard()">
             <div class="sr-title">Salin Link <span class="sr-arrow">›</span></div>
           </button>
+          <button type="button" class="settings-row-card" onclick="openModal('modalApiKey')">
+            <div class="sr-title">API Key Gemini Saya <span class="sr-arrow">›</span></div>
+          </button>
+          <div class="settings-row-card" style="display:flex;justify-content:space-between;align-items:center;cursor:default;">
+            <div class="sr-title" style="flex:1;">Auto-Reply Asisten WhatsApp</div>
+            <label class="switch-ios">
+              <input type="checkbox" id="settWaAutoReply" onchange="toggleWaAutoReply(this.checked)">
+              <span class="switch-ios-slider"></span>
+            </label>
+          </div>
           <button type="button" class="settings-row-card danger" onclick="openResetConfirm()">
             <div class="sr-title">Reset Semua Data <span class="sr-arrow">›</span></div>
+          </button>
+          <button type="button" class="settings-row-card danger" onclick="logoutUser()">
+            <div class="sr-title">Log Out (Keluar Akun) <span class="sr-arrow">›</span></div>
           </button>
         </div>
       </div>
@@ -6019,6 +7207,141 @@
       </div>
     </div>
 
+    <!-- ============ MODAL: INFO KATEGORI ============ -->
+    <div class="modal-overlay" id="modalInfoKategori">
+      <div class="modal">
+        <div class="modal-head"><h3>Soal Kategori</h3><button class="modal-close" onclick="closeModal('modalInfoKategori')">&times;</button></div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;">Ini kategori bawaan untuk mulai. Semuanya — termasuk yang bawaan — bisa dihapus atau diedit (nama, ikon, warna) kapan saja, sekarang maupun nanti lewat menu Setting.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:0;">Tap kotak ikon di kiri nama kategori untuk ganti ikon &amp; warnanya.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: TRIAL HABIS ==================== -->
+    <div class="modal-overlay modal-center" id="modalTrialHabis">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Masa Trial Sudah Habis</h3>
+          <button class="modal-close" onclick="closeModal('modalTrialHabis')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="width:56px;height:56px;border-radius:50%;background:var(--warn-soft);color:var(--warn);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg>
+            </div>
+            <div style="font-weight:700;font-size:15px;">Fitur AI &amp; WhatsApp terkunci</div>
+            <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.55;">
+              Tenang, catatan transaksi manual kamu tetap bisa dipakai penuh &amp; gratis selamanya. Untuk buka lagi fitur AI, masukkan kode token di bawah, atau hubungi admin.
+            </div>
+          </div>
+
+          <div class="field" id="fieldToken">
+            <label>Kode Akses / Token</label>
+            <input type="text" class="token-input" id="inpToken" maxlength="10" oninput="clearErr('fieldToken')">
+            <div class="err">Kode tidak valid / sudah pernah dipakai.</div>
+          </div>
+          <button class="btn btn-primary btn-block" onclick="submitToken()" style="margin-bottom:10px;">Aktifkan dengan Token</button>
+          <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Hubungi Admin untuk Beli Token
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: API KEY GEMINI ==================== -->
+    <div class="modal-overlay modal-center" id="modalApiKey">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>API Key Gemini Saya</h3>
+          <button class="modal-close" onclick="closeModal('modalApiKey')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="userKeyList"></div>
+          <div class="field" style="margin-top:14px;">
+            <label>Tambah API Key Gemini Baru</label>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="inpUserKey" placeholder="AIzaSy...">
+              <button class="btn btn-primary" onclick="addUserKey()">+ Tambah</button>
+            </div>
+          </div>
+          <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:8px;">API Key disimpan aman secara terenkripsi dan hanya digunakan untuk memproses perintah AI akun Anda sendiri.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: SYARAT & KETENTUAN ==================== -->
+    <div class="modal-overlay modal-center" id="modalSyarat">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Syarat &amp; Ketentuan</h3>
+          <button class="modal-close" onclick="closeModal('modalSyarat')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;margin-top:0;"><b style="color:var(--ink);">1. Layanan.</b> KaslyAI menyediakan aplikasi pencatatan transaksi pribadi, termasuk fitur asisten pencatatan otomatis lewat WhatsApp yang didukung AI Gemini.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">2. Akun &amp; Verifikasi.</b> Pendaftaran memakai nomor WhatsApp aktif sebagai identitas login. Kamu bertanggung jawab menjaga keamanan nomor tersebut.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">3. Trial &amp; Berlangganan.</b> Fitur AI &amp; asisten WhatsApp tersedia gratis selama masa trial; setelah trial habis, fitur ini memerlukan token/lisensi berbayar. Fitur catat transaksi manual tetap gratis tanpa batas waktu.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">4. API Key Sendiri.</b> Jika kamu menambahkan API key Gemini milik sendiri, penggunaannya menjadi tanggung jawab dan mengikuti kebijakan kuota dari Google.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: KEBIJAKAN PRIVASI ==================== -->
+    <div class="modal-overlay modal-center" id="modalKebijakan">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Kebijakan Privasi</h3>
+          <button class="modal-close" onclick="closeModal('modalKebijakan')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;margin-top:0;"><b style="color:var(--ink);">1. Data yang Dikumpulkan.</b> Nama, nomor WhatsApp, data transaksi keuangan yang kamu catat, dan (opsional) API key Gemini milik kamu sendiri.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">2. Penggunaan Data.</b> Data dipakai untuk menjalankan fitur pencatatan, verifikasi identitas via WhatsApp, dan memproses transaksi lewat AI Gemini atas nama akunmu.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">3. Penyimpanan.</b> Data disimpan di server KaslyAI dan tidak dijual atau dibagikan ke pihak ketiga di luar penyedia layanan yang dibutuhkan (mis. Google Gemini untuk fitur AI).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: INFO VERIFIKASI WA ==================== -->
+    <div class="modal-overlay modal-center" id="modalInfoVerif">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Cara Kerja Verifikasi</h3>
+          <button class="modal-close" onclick="closeModal('modalInfoVerif')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;">Tombol "Verifikasi via WhatsApp" otomatis membuka chat ke nomor resmi KaslyAI, <b>+62 812-2696-4679</b>, dengan pesan yang sudah terisi kode unik kamu di dalamnya — tinggal tap kirim, tanpa perlu mengetik apa pun.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: DETAIL API KEY & KEAMANAN ==================== -->
+    <div class="modal-overlay modal-center" id="modalApiKeyDetail">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Apa Itu API Key &amp; Kenapa Aman?</h3>
+          <button class="modal-close" onclick="closeModal('modalApiKeyDetail')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;"><b style="color:var(--ink);">Apa itu API key?</b> API key itu semacam kunci akses pribadi dari akun Google kamu, khusus buat "memanggil" layanan AI Gemini.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;"><b style="color:var(--ink);">Gimana cara kerjanya?</b> Waktu kamu kirim foto struk atau chat ke asisten WhatsApp KaslyAI, sistem kami pakai API key itu di belakang layar.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: INFO AI / API KEY ==================== -->
+    <div class="modal-overlay modal-center" id="modalInfoAiKey">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Soal Limit AI</h3>
+          <button class="modal-close" onclick="closeModal('modalInfoAiKey')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;"><b style="color:var(--ink);">AI Gratis (bawaan)</b> — pakai API key Gemini milik KaslyAI, dipakai bareng-bareng semua pengguna.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ MODAL: PILIH ICON KATEGORI ============ -->
     <div class="modal-overlay" id="modalIconPicker">
       <div class="modal">
@@ -6752,8 +8075,987 @@
       }
     }
 
+    // Global Multi-User State
+    let currentUserId = null;
+    let userKeys = [];
+    const BRAND_NAME = 'KaslyAI';
+    const WA_BOT_NUMBER = '6281226964679';
+    let onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
+    let onboardingCategories = [];
+    let onboardingState = {
+      nama: '',
+      wa: '',
+      token: '',
+      verifCode: '',
+      pollingInterval: null,
+      introIdx: 0,
+      aiChoice: 'free' // 'free' or 'own'
+    };
+
+    function gotoScreen(screenId) {
+      document.querySelectorAll('#auth-onboarding .screen').forEach(s => s.classList.remove('active'));
+      const activeScreen = document.getElementById(screenId);
+      if (activeScreen) activeScreen.classList.add('active');
+    }
+
+    function toggleAgree() {
+      const isChecked = document.getElementById('chkAgree').checked;
+      document.getElementById('btnLanjutDaftar').disabled = !isChecked;
+    }
+
+    function handleAgreeRowClick() {
+      const chk = document.getElementById('chkAgree');
+      chk.checked = !chk.checked;
+      toggleAgree();
+    }
+
+    function clearErr(fieldId) {
+      const f = document.getElementById(fieldId);
+      if (f) f.classList.remove('has-error');
+    }
+
+    function markErr(fieldId) {
+      const f = document.getElementById(fieldId);
+      if (f) f.classList.add('has-error');
+    }
+
+    async function submitDaftar() {
+      const nama = document.getElementById('inpNama').value.trim();
+      const wa = document.getElementById('inpWa').value.trim();
+      const token = document.getElementById('inpTokenTrial').value.trim().toUpperCase();
+
+      let ok = true;
+      if (!nama) { markErr('fieldNama'); ok = false; } else { clearErr('fieldNama'); }
+      if (!/^[0-9+]{9,15}$/.test(wa)) { markErr('fieldWa'); ok = false; } else { clearErr('fieldWa'); }
+      if (!document.getElementById('chkAgree').checked) {
+        showToast('Centang persetujuan Syarat & Kebijakan Privasi ya.');
+        ok = false;
+      }
+      if (!ok) return;
+
+      onboardingState.nama = nama;
+      onboardingState.wa = wa;
+      onboardingState.token = token;
+
+      // Call start-registration API
+      const btn = document.getElementById('btnLanjutDaftar');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/start-registration`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nomor_wa: wa, nama: nama, token: token || null })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          showToast(data.error || 'Gagal memulai pendaftaran.');
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+
+        onboardingState.verifCode = data.code;
+        document.getElementById('lblVerifCode').textContent = data.code;
+        
+        // Reset status pill
+        document.getElementById('verifStatusWrap').innerHTML = `
+          <span class="status-pill wait" id="verifStatusPill"><span class="spin"></span> Menunggu verifikasi…</span>
+        `;
+        document.getElementById('btnVerifWa').style.display = 'flex';
+        document.getElementById('btnLanjutVerif').style.display = 'none';
+
+        gotoScreen('screen-verifikasi');
+        
+        // Open WhatsApp link immediately in desktop/phone
+        openWaVerification();
+
+        // Start polling check-verification
+        startVerificationPolling();
+
+      } catch (err) {
+        console.error(err);
+        showToast('Gagal terhubung ke server.');
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    function openWaVerification() {
+      const text = encodeURIComponent(`Verifikasi ${BRAND_NAME}\nKode: ${onboardingState.verifCode}`);
+      window.open(`https://wa.me/${WA_BOT_NUMBER}?text=${text}`, '_blank');
+    }
+
+    function startVerificationPolling() {
+      if (onboardingState.pollingInterval) clearInterval(onboardingState.pollingInterval);
+      onboardingState.pollingInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/check-verification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nomor_wa: onboardingState.wa })
+          });
+          const data = await res.json();
+          if (data && data.verified) {
+            clearInterval(onboardingState.pollingInterval);
+            onboardingState.pollingInterval = null;
+            
+            // Mark verified in UI
+            const pill = document.getElementById('verifStatusWrap');
+            if (pill) {
+              pill.innerHTML = `<span class="status-pill ok" id="verifStatusPill">✓ Nomor WA terverifikasi</span>`;
+            }
+            showToast('Verifikasi berhasil! Akun aktif.');
+            document.getElementById('btnVerifWa').style.display = 'none';
+            document.getElementById('btnLanjutVerif').style.display = 'flex';
+          }
+        } catch (err) {
+          console.warn('Gagal polling verifikasi:', err);
+        }
+      }, 3000);
+    }
+
+    async function lanjutDariVerifikasi() {
+      if (onboardingState.pollingInterval) {
+        clearInterval(onboardingState.pollingInterval);
+        onboardingState.pollingInterval = null;
+      }
+
+      // Complete registration on server to fetch password
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/complete-verification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nomor_wa: onboardingState.wa, kode: onboardingState.verifCode })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          showToast(data.error || 'Gagal memproses verifikasi.');
+          return;
+        }
+
+        // Login using Supabase Auth
+        const loginRes = await supabaseClient.auth.signInWithPassword({
+          email: data.email,
+          password: data.password
+        });
+
+        if (loginRes.error) {
+          showToast(`Login gagal: ${loginRes.error.message}`);
+          return;
+        }
+
+        currentUserId = loginRes.data.user.id;
+        
+        // Load settings to check if they are already onboarded in the database!
+        const { data: profile } = await supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle();
+        if (profile && profile.status_verifikasi === 'verified') {
+          // Check if default wallet exists in the DB
+          const { data: wallets } = await supabaseClient.from('wallets').select('*').eq('user_id', currentUserId);
+          if (wallets && wallets.length > 0) {
+            // Already fully set up! Directly skip to dashboard!
+            localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
+            document.getElementById('auth-onboarding').classList.remove('open');
+            // Re-run init to start dashboard sync
+            init();
+            return;
+          }
+        }
+
+        // Proceed to intro screens
+        onboardingState.introIdx = 0;
+        renderIntro();
+        gotoScreen('screen-intro');
+
+      } catch (err) {
+        console.error(err);
+        showToast('Gagal memproses verifikasi.');
+      }
+    }
+
+    // Intro Carousel Slides
+    const introSlides = [
+      () => `
+        <div class="brand-row" style="justify-content:center;margin-bottom:20px;">
+          <div class="brand-mark">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </div>
+          <div class="brand-title" style="font-size:24px;">Kasly<span class="brand-ai">AI</span></div>
+        </div>
+        <h2 style="text-align:center;font-size:18px;margin:0 0 8px;">Selamat Datang, ${onboardingState.nama || ''}!</h2>
+        <p style="text-align:center;color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin:0 0 20px;">Yuk kenalan sebentar dengan fitur asisten keuangan otomatis yang terhubung ke WhatsApp kamu ini.</p>
+        <div class="intro-visual browser-mock">
+          <div class="browser-mock-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="url">kaslyai.com/dashboard</span>
+          </div>
+          <div class="browser-mock-body">
+            <div class="dash-card-row">
+              <div class="dash-stat income"><div class="l">Masuk</div><div class="v">Rp 8.5M</div></div>
+              <div class="dash-stat expense"><div class="l">Keluar</div><div class="v">Rp 2.4M</div></div>
+            </div>
+            <div class="dash-bar-wrap"><div class="dash-bar" style="height:30%"></div><div class="dash-bar" style="height:50%"></div><div class="dash-bar hi" style="height:90%"></div><div class="dash-bar" style="height:40%"></div></div>
+          </div>
+        </div>
+      `,
+      () => `
+        <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">1. Kirim Transaksi via WhatsApp</h3>
+        <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin:0 0 16px;text-align:left;">Gak perlu buka aplikasi web! Cukup chat asisten WhatsApp kami seperti biasa. AI akan memproses kalimat kamu otomatis.</p>
+        <div class="intro-visual wa-mock">
+          <div class="wa-mock-head">
+            <div class="avatar">K</div>
+            <div><div class="name">Asisten KaslyAI</div><div class="sub">Online</div></div>
+          </div>
+          <div class="wa-mock-body">
+            <div class="wa-bub out">Beli nasi goreng 15rb pakai cash<span class="tm">10:02</span></div>
+            <div class="wa-bub in">Catat: <b>Makanan</b> - Rp 15.000 (Dompet: Tunai). Saldo Dompet saat ini Rp 185.000. 📝<span class="tm">10:02</span></div>
+          </div>
+        </div>
+      `,
+      () => `
+        <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">2. Scan Foto Struk Belanja</h3>
+        <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin:0 0 16px;text-align:left;">Foto struk belanja, bon makan, atau invoice lalu kirim ke WhatsApp. AI akan mendeteksi nominal, kategori, dan mencatatnya seketika.</p>
+        <div class="intro-visual wa-mock">
+          <div class="wa-mock-head">
+            <div class="avatar">K</div>
+            <div><div class="name">Asisten KaslyAI</div><div class="sub">Online</div></div>
+          </div>
+          <div class="wa-mock-body">
+            <div class="wa-bub out receipt">
+              <div class="thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+              <div><b>Kirim Foto Struk</b><br><span style="font-size:10px;opacity:.8;">struk-indomaret.jpg</span></div>
+            </div>
+            <div class="wa-bub in">Berhasil mendeteksi struk Indomaret sebesar Rp 45.300. Dicatat ke kategori <b>Belanja Bulanan</b>. ✓<span class="tm">10:05</span></div>
+          </div>
+        </div>
+      `,
+      () => `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="font-size:16px;margin:0;">3. Atur Sumber Mesin AI</h3>
+          <span class="intro-badge-${onboardingState.aiChoice==='free'?'free':'own'}" onclick="openModal('modalInfoAiKey')" style="cursor:pointer;">
+            ${onboardingState.aiChoice==='free'?'AI Gratis Bersama':'API Key Sendiri'} 🛈
+          </span>
+        </div>
+        <p style="color:var(--ink-soft);font-size:13px;line-height:1.55;margin:0 0 14px;text-align:left;">Pilih mesin AI yang kamu inginkan. Kamu bisa gunakan API Key Gemini milik akun Google kamu sendiri secara gratis agar tidak terkena antrean limit bersama.</p>
+        
+        <div class="aikey-opt ${onboardingState.aiChoice==='free'?'selected':''}" data-aikey="free" onclick="selectAiOption('free')">
+          <div class="aikey-opt-head">
+            <b>Pakai AI Gratis Bersama (Jatah KaslyAI)</b>
+            <span class="aikey-radio"><span class="dot"></span></span>
+          </div>
+          <div class="d">Gratis tanpa setting apa pun. Berbagi limit dengan pengguna lain (berisiko delay jika antrean penuh).</div>
+        </div>
+
+        <div class="aikey-opt ${onboardingState.aiChoice==='own'?'selected':''}" data-aikey="own" onclick="selectAiOption('own')">
+          <div class="aikey-opt-head">
+            <b>Pakai API Key Gemini Sendiri (Rekomendasi)</b>
+            <span class="aikey-radio"><span class="dot"></span></span>
+          </div>
+          <div class="d">Jaminan lancar tanpa berebut kuota. 100% gratis dari Google AI Studio.</div>
+          <div class="aikey-own-input" onclick="event.stopPropagation()">
+            <div id="ownKeyListSlide" style="margin-bottom:8px;"></div>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="inpOwnKeySlide" placeholder="Masukkan API Key Gemini...">
+              <button type="button" class="btn btn-primary" onclick="addOwnKeySlide()">+ Tambah</button>
+            </div>
+            <div class="aikey-guide-link" onclick="openApiGuide()">
+              <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+              <span class="label">Belum punya key? Lihat <b>Panduan 5 Menit Ambil API Key</b></span>
+              <span class="chev">›</span>
+            </div>
+          </div>
+        </div>
+      `
+    ];
+
+    function renderIntro() {
+      const content = document.getElementById('introSlides');
+      if (content) content.innerHTML = introSlides[onboardingState.introIdx]();
+      
+      document.querySelectorAll('#screen-intro .step-dots span').forEach((s, i) => {
+        s.classList.toggle('active', i === onboardingState.introIdx);
+      });
+      document.getElementById('introBackBtn').style.visibility = onboardingState.introIdx === 0 ? 'hidden' : 'visible';
+      document.getElementById('introNextBtn').textContent = onboardingState.introIdx === introSlides.length - 1 ? 'Lanjut Isi Saldo Awal' : 'Lanjut';
+      renderUserKeys();
+    }
+
+    function selectAiOption(choice) {
+      onboardingState.aiChoice = choice;
+      document.querySelectorAll('.aikey-opt').forEach(el => {
+        el.classList.toggle('selected', el.dataset.aikey === choice);
+      });
+      if (choice === 'own') {
+        setTimeout(() => document.getElementById('inpOwnKeySlide')?.focus(), 50);
+      }
+    }
+
+    function addOwnKeySlide() {
+      const inp = document.getElementById('inpOwnKeySlide');
+      const v = inp.value.trim();
+      if (!v) return;
+      userKeys.push(v);
+      inp.value = '';
+      renderUserKeys();
+      showToast('API Key ditambahkan.');
+    }
+
+    function openApiGuide() {
+      gotoScreen('screen-api-guide');
+    }
+
+    function introNext() {
+      if (onboardingState.introIdx < introSlides.length - 1) {
+        onboardingState.introIdx++;
+        renderIntro();
+      } else {
+        if (onboardingState.aiChoice === 'own' && userKeys.length === 0) {
+          showToast('Belum ada API key ditambahkan — sementara pakai AI gratis dulu.');
+        }
+        renderWalletsOnb();
+        gotoScreen('screen-dompet');
+      }
+    }
+
+    function introBack() {
+      if (onboardingState.introIdx > 0) {
+        onboardingState.introIdx--;
+        renderIntro();
+      }
+    }
+
+    // Wallets Setup Onboarding
+    function renderWalletsOnb() {
+      const wrap = document.getElementById('onbWalletsList');
+      if (!wrap) return;
+      wrap.innerHTML = onboardingWallets.map((w, i) => `
+        <div class="wallet-field">
+          <div class="wallet-field-head">
+            <b>Dompet ${i + 1}</b>
+            ${onboardingWallets.length > 1 ? `<button type="button" class="wallet-remove" onclick="removeWalletFieldOnb(${i})">Hapus</button>` : ''}
+          </div>
+          <div class="field" style="margin-bottom:8px;">
+            <input type="text" placeholder="Nama dompet (mis: Cash / Rekening BCA)" value="${w.nama}" oninput="onboardingWallets[${i}].nama=this.value">
+          </div>
+          <div class="field amount-input" style="margin-bottom:0;">
+            <span class="prefix">Rp</span>
+            <input type="number" placeholder="0" value="${w.saldo}" oninput="onboardingWallets[${i}].saldo=this.value">
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addWalletFieldOnb() {
+      onboardingWallets.push({ nama: '', saldo: '' });
+      renderWalletsOnb();
+    }
+
+    function removeWalletFieldOnb(i) {
+      onboardingWallets.splice(i, 1);
+      renderWalletsOnb();
+    }
+
+    // Categories Setup Onboarding
+    const PRESET_ICONS = {
+      food:      { label:'Makan',       path:'<path d="M8 2v7a2 2 0 0 0 4 0V2M8 2v20M8 5v4M16 2v8a3 3 0 0 1-3 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' },
+      cookie:    { label:'Jajan',       path:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.1"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/><circle cx="10" cy="15" r="1.2" fill="currentColor"/><circle cx="16" cy="14" r="1.1" fill="currentColor"/>' },
+      coffee:    { label:'Kopi',        path:'<path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+      cart:      { label:'Sembako',     path:'<circle cx="9" cy="20" r="1.5" fill="currentColor"/><circle cx="18" cy="20" r="1.5" fill="currentColor"/><path d="M1 2h3.5l2.6 12.3a2 2 0 0 0 2 1.7h9.8a2 2 0 0 0 2-1.6L22 6H6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+      bag:       { label:'Belanja',     path:'<path d="M6 8h12l1 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+      car:       { label:'Transport',   path:'<path d="M4 16V11l2-5h12l2 5v5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M2 16h20v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.6" fill="currentColor"/><circle cx="17" cy="16" r="1.6" fill="currentColor"/>' },
+      motorcycle:{ label:'Motor/Ojol',  path:'<path d="M5 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2.1"/><path d="M19 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2.1"/><path d="M12 16V9l4-4h3M5 13l4-5h4l3 5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+      fuel:      { label:'Bensin',      path:'<path d="M5 21V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 21h13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M15 9h1.5a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6h4v4H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+      parking:   { label:'Parkir',      path:'<rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="2.1"/><path d="M9 17V7h4.5a3.5 3.5 0 0 1 0 7H9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' },
+      zap:       { label:'Listrik',     path:'<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+      water:     { label:'Air/Galon',   path:'<path d="M8 2h8v3H8Z" stroke="currentColor" stroke-width="2"/><path d="M6 5h12v3a2 2 0 0 1-2 2h-1.5v12h-5V10H8a2 2 0 0 1-2-2V5Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+      receipt:   { label:'Tagihan',     path:'<path d="M6 2h12v20l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V2Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' },
+      shirt:     { label:'Pakaian',     path:'<path d="M8 3 4 6l2 3 2-1v11a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V8l2 1 2-3-4-3-2 2h-4L8 3Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+      tv:        { label:'TV/Stream',   path:'<rect x="2" y="7" width="20" height="13" rx="2" stroke="currentColor" stroke-width="2.1"/><path d="M17 2l-5 5-5-5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+      ticket:    { label:'Bioskop',     path:'<path d="M2 9a3 3 0 0 1 0 6v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a3 3 0 0 1 0-6V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v4Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+      film:      { label:'Hiburan',     path:'<rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2.1"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4" stroke="currentColor" stroke-width="1.9"/>' },
+      music:     { label:'Musik',       path:'<path d="M9 18V4l11-2v14" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2.2"/><circle cx="17" cy="16" r="3" stroke="currentColor" stroke-width="2.2"/>' },
+      gamepad:   { label:'Game',        path:'<rect x="2" y="7" width="20" height="11" rx="5" stroke="currentColor" stroke-width="2.2"/><path d="M7 10v4M5 12h4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="16" cy="10.5" r="1.1" fill="currentColor"/><circle cx="18.5" cy="13" r="1.1" fill="currentColor"/>' },
+      book:      { label:'Pendidikan',  path:'<path d="M12 6c-2-1.3-5-2-8-2v14c3 0 6 .7 8 2 2-1.3 5-2 8-2V4c-3 0-6 .7-8 2Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 6v14" stroke="currentColor" stroke-width="2"/>' },
+      briefcase: { label:'Kerja/Gaji',  path:'<rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2.2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2.2"/><path d="M3 12h18" stroke="currentColor" stroke-width="2"/>' },
+      gift:      { label:'Hadiah/Bonus',path:'<rect x="3" y="8" width="18" height="13" rx="1" stroke="currentColor" stroke-width="2.2"/><path d="M3 12h18M12 8v13" stroke="currentColor" stroke-width="2.1"/><path d="M12 8c-2 0-5-1-5-3.2A2.3 2.3 0 0 1 9.3 2.5C11.5 2.5 12 5.5 12 8Zm0 0c2 0 5-1 5-3.2A2.3 2.3 0 0 0 14.7 2.5C12.5 2.5 12 5.5 12 8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+      piggy:     { label:'Tabungan',    path:'<path d="M4 12a6 6 0 0 1 6-6h5.5a4.5 4.5 0 0 1 4.5 4.5V13l2 1.5-2 .8V17a1 1 0 0 1-1 1h-2v2h-3v-2h-2l-1 2H8l-.5-2A6 6 0 0 1 4 12Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="11" r="1" fill="currentColor"/>' },
+      trending:  { label:'Investasi',   path:'<path d="M3 17 9 11l4 4 8-8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' },
+      hospital:  { label:'Dokter/Klinik',path:'<path d="M3 21h18V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v15Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 8v6M9 11h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+      pill:      { label:'Obat',        path:'<path d="M10.5 4.5a5 5 0 0 1 7.1 7.1l-6 6a5 5 0 0 1-7.1-7.1l6-6Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M8.5 12.5l7-7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>' },
+      heart:     { label:'Kesehatan',   path:'<path d="M12 21s-7.5-4.6-10-9.3C.5 8.2 2.3 5 5.7 5c2 0 3.4 1.1 4.3 2.5C11 6.1 12.4 5 14.4 5c3.4 0 5.2 3.2 3.7 6.7C19.5 16.4 12 21 12 21Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+      tools:     { label:'Perbaikan',   path:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+      home:      { label:'Rumah/Kos',   path:'<path d="M3 11 12 3l9 8" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>' },
+      paw:       { label:'Hewan',       path:'<circle cx="7" cy="8" r="2" fill="currentColor"/><circle cx="12" cy="5.5" r="2" fill="currentColor"/><circle cx="17" cy="8" r="2" fill="currentColor"/><path d="M8 15c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4.5-4 4.5S8 17.2 8 15Z" fill="currentColor"/>' },
+      dumbbell:  { label:'Olahraga',    path:'<path d="M4 9v6M2 10.5v3M20 9v6M22 10.5v3M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><rect x="6" y="8" width="3" height="8" rx="1" stroke="currentColor" stroke-width="2.2"/><rect x="15" y="8" width="3" height="8" rx="1" stroke="currentColor" stroke-width="2.2"/>' },
+      phone:     { label:'Pulsa/Hp',    path:'<rect x="6" y="2" width="12" height="20" rx="2" stroke="currentColor" stroke-width="2.2"/><path d="M10 18h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+      wifi:      { label:'Internet',    path:'<path d="M2 8.5a17 17 0 0 1 20 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5.5 12.5a11.5 11.5 0 0 1 13 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M9 16.3a6 6 0 0 1 6 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="19.5" r="1.3" fill="currentColor"/>' },
+      plane:     { label:'Travel',      path:'<path d="M10.5 14.5 4 17l1-3.5L10.5 12l-3-6 1.7-.5 4.6 5 5-1.7a1.6 1.6 0 0 1 2 2l-1.7 5-5 4.6-.5 1.7-6-3 2.5-1.5Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>' },
+      shield:    { label:'Asuransi',    path:'<path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+      users:     { label:'Sosial',      path:'<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2.1"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="17" cy="8" r="2.4" stroke="currentColor" stroke-width="2.1"/>' },
+      handheart: { label:'Sedekah',     path:'<path d="M12 6c-1.5-2-4-2.5-5.5-1A3.5 3.5 0 0 0 6 10l6 6 6-6a3.5 3.5 0 0 0-.5-5C16 3.5 13.5 4 12 6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M2 18h6l3 3 7-3h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' },
+      wallet:    { label:'Dompet',      path:'<path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 12h3v3h-3a1.5 1.5 0 0 1 0-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+      more:      { label:'Lainnya',     path:'<rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="2.1"/><circle cx="8" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="16" cy="12" r="1.2" fill="currentColor"/>' }
+    };
+    const PRESET_ICON_KEYS = Object.keys(PRESET_ICONS);
+    const PRESET_COLOR_PALETTE = ['#0F766E','#C4453B','#B7791F','#8A6D3B','#1E8F5A','#5B6A68','#0B5951','#D97757','#3D5A80','#9B5DE5','#2563EB','#DB2777','#059669','#EA580C','#7C3AED','#4F46E5'];
+
+    function iconSvgMarkupOnb(key, size) {
+      size = size || 18;
+      const def = PRESET_ICONS[key] || PRESET_ICONS.more;
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">${def.path}</svg>`;
+    }
+
+    function categoryIconBoxHtmlOnb(cat, opts) {
+      opts = opts || {};
+      const size = opts.size || 34, iconSize = opts.iconSize || Math.round(size * 0.56), radius = opts.radius != null ? opts.radius : 10;
+      const color = (cat && cat.color) || '#5B6A68';
+      const iconKey = (cat && cat.icon) || 'more';
+      return `<div class="cat-icon-box" style="width:${size}px;height:${size}px;border-radius:${radius}px;background:${color}22;color:${color};">${iconSvgMarkupOnb(iconKey, iconSize)}</div>`;
+    }
+
+    function defaultIconForCategoryNameOnb(name) {
+      const map = {
+        'Makan': 'food', 'Transport': 'car', 'Belanja': 'bag', 'Tagihan': 'receipt',
+        'Hiburan': 'film', 'Lainnya': 'more', 'Penyesuaian Saldo': 'wallet',
+        'Gaji': 'briefcase', 'Bonus': 'gift'
+      };
+      return map[name] || 'more';
+    }
+
+    function initCategoriesOnb() {
+      if (onboardingCategories.length) return;
+      const presetExpense = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan', 'Lainnya', 'Penyesuaian Saldo'];
+      const presetIncome = ['Gaji', 'Bonus', 'Lainnya'];
+      let i = 0;
+      presetExpense.forEach(n => {
+        onboardingCategories.push({
+          id: `wa_cat_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+          name: n,
+          type: 'expense',
+          icon: defaultIconForCategoryNameOnb(n),
+          color: PRESET_COLOR_PALETTE[i++ % PRESET_COLOR_PALETTE.length]
+        });
+      });
+      presetIncome.forEach(n => {
+        onboardingCategories.push({
+          id: `wa_cat_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+          name: n,
+          type: 'income',
+          icon: defaultIconForCategoryNameOnb(n),
+          color: PRESET_COLOR_PALETTE[i++ % PRESET_COLOR_PALETTE.length]
+        });
+      });
+    }
+
+    let catManageTypeOnb = 'expense';
+    let catManagePickedIconOnb = 'more';
+    let catManagePickedColorOnb = PRESET_COLOR_PALETTE[0];
+    let catEditingIdOnb = null;
+
+    function setCatManageTypeOnb(type) {
+      catManageTypeOnb = type;
+      const btnExpense = document.getElementById('btnToggleCatExpense');
+      const btnIncome = document.getElementById('btnToggleCatIncome');
+      if (btnExpense) btnExpense.classList.toggle('active', type === 'expense');
+      if (btnIncome) btnIncome.classList.toggle('active', type === 'income');
+      resetCatManageAddFormOnb();
+      renderCatManageListOnb();
+    }
+
+    function resetCatManageAddFormOnb() {
+      catManagePickedIconOnb = 'more';
+      catManagePickedColorOnb = PRESET_COLOR_PALETTE[Math.floor(Math.random() * PRESET_COLOR_PALETTE.length)];
+      const nameInp = document.getElementById('catManageNewName');
+      if (nameInp) nameInp.value = '';
+      updateCatManageIconTriggerOnb();
+    }
+
+    function updateCatManageIconTriggerOnb() {
+      const btn = document.getElementById('catManageIconTrigger');
+      if (!btn) return;
+      btn.style.background = catManagePickedColorOnb + '22';
+      btn.style.color = catManagePickedColorOnb;
+      btn.innerHTML = iconSvgMarkupOnb(catManagePickedIconOnb, 22);
+    }
+
+    function renderCatManageListOnb() {
+      initCategoriesOnb();
+      const cats = onboardingCategories.filter(c => c.type === catManageTypeOnb);
+      const wrap = document.getElementById('catManageList');
+      if (!wrap) return;
+      if (cats.length === 0) {
+        wrap.innerHTML = '<div class="empty-note">Belum ada kategori.</div>';
+        return;
+      }
+      wrap.innerHTML = cats.map(c => `
+        <div class="cat-manage-row" data-id="${c.id}">
+          <div class="l">
+            <span onclick="openCatIconPickerOnb('${c.id}')" style="cursor:pointer;">${categoryIconBoxHtmlOnb(c, { size: 34, radius: 9, iconSize: 19 })}</span>
+            <input type="text" class="name" value="${c.name}" oninput="renameCategoryOnb('${c.id}', this.value)" style="border:none;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 0;min-width:0;flex:1;">
+          </div>
+          <div class="cat-manage-actions">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCategoryManagedOnb('${c.id}')">Hapus</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renameCategoryOnb(id, val) {
+      const cat = onboardingCategories.find(c => c.id === id);
+      if (cat) cat.name = val;
+    }
+
+    function deleteCategoryManagedOnb(id) {
+      onboardingCategories = onboardingCategories.filter(c => c.id !== id);
+      renderCatManageListOnb();
+    }
+
+    function addCategoryFromManager() {
+      const inp = document.getElementById('catManageNewName');
+      if (!inp) return;
+      const name = inp.value.trim();
+      if (!name) { showToast('Isi nama kategori dulu ya.'); return; }
+      onboardingCategories.push({
+        id: `wa_cat_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+        name,
+        type: catManageTypeOnb,
+        icon: catManagePickedIconOnb,
+        color: catManagePickedColorOnb
+      });
+      resetCatManageAddFormOnb();
+      renderCatManageListOnb();
+    }
+
+    // Modal triggers inside onboarding
+    function openCatIconPickerOnb(editingId) {
+      catEditingIdOnb = editingId || null;
+      renderIconPickerGridOnb();
+      renderCatManageColorSwatchesOnb();
+      openModal('modalIconPicker');
+    }
+
+    function renderIconPickerGridOnb() {
+      const grid = document.getElementById('iconPickerGrid');
+      if (!grid) return;
+      const activeIcon = catEditingIdOnb ? (onboardingCategories.find(c => c.id === catEditingIdOnb) || {}).icon : catManagePickedIconOnb;
+      grid.innerHTML = PRESET_ICON_KEYS.map(key => `
+        <button type="button" class="icon-grid-btn${key === activeIcon ? ' selected' : ''}" onclick="pickCatIconOnb('${key}')" aria-label="${PRESET_ICONS[key].label}">${iconSvgMarkupOnb(key, 24)}</button>
+      `).join('');
+    }
+
+    function renderCatManageColorSwatchesOnb() {
+      const row = document.getElementById('iconPickerColorRow');
+      if (!row) return;
+      const activeColor = catEditingIdOnb ? ((onboardingCategories.find(c => c.id === catEditingIdOnb) || {}).color || catManagePickedColorOnb) : catManagePickedColorOnb;
+      row.innerHTML = PRESET_COLOR_PALETTE.map(c => `
+        <span class="color-swatch${c === activeColor ? ' selected' : ''}" style="background:${c}" onclick="selectCatManageColorOnb('${c}')"></span>
+      `).join('');
+    }
+
+    function pickCatIconOnb(key) {
+      if (catEditingIdOnb) {
+        const cat = onboardingCategories.find(c => c.id === catEditingIdOnb);
+        if (cat) cat.icon = key;
+        renderCatManageListOnb();
+      } else {
+        catManagePickedIconOnb = key;
+        updateCatManageIconTriggerOnb();
+      }
+      renderIconPickerGridOnb();
+    }
+
+    function selectCatManageColorOnb(color) {
+      if (catEditingIdOnb) {
+        const cat = onboardingCategories.find(c => c.id === catEditingIdOnb);
+        if (cat) cat.color = color;
+        renderCatManageListOnb();
+      } else {
+        catManagePickedColorOnb = color;
+        updateCatManageIconTriggerOnb();
+      }
+      renderCatManageColorSwatchesOnb();
+    }
+
+    // Modal generic helpers
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('open');
+      document.body.classList.add('modal-lock');
+      if (id === 'modalApiKey') renderUserKeys();
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('open');
+      document.body.classList.remove('modal-lock');
+    }
+
+    // Save user keys & check local settings
+    function renderUserKeys() {
+      const html = userKeys.length ? userKeys.map((k, i) => `
+        <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="event.stopPropagation();userKeys.splice(${i},1);saveKeysToDb();renderUserKeys()">Hapus</button></div>
+      `).join('') + `<div style="font-size:11px;color:var(--ink-soft);padding:4px 2px 0;">${userKeys.length} API Key Gemini Aktif</div>`
+        : '<div style="font-size:12px;color:var(--ink-soft);padding:6px 0;">Belum ada API key ditambahkan.</div>';
+      
+      const el = document.getElementById('userKeyList');
+      if (el) el.innerHTML = html;
+      const elSlide = document.getElementById('ownKeyListSlide');
+      if (elSlide) elSlide.innerHTML = html;
+    }
+
+    function maskKey(k) {
+      return k.length > 8 ? k.slice(0, 4) + '••••' + k.slice(-4) : k;
+    }
+
+    async function saveKeysToDb() {
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        await supabaseClient.from('token_gemini_user').delete().eq('user_id', currentUserId);
+        if (userKeys.length > 0) {
+          const inserts = userKeys.map(k => ({
+            user_id: currentUserId,
+            api_key: k
+          }));
+          await supabaseClient.from('token_gemini_user').insert(inserts);
+        }
+      } catch (err) {
+        console.error('Gagal menyimpan API key ke DB:', err);
+      }
+    }
+
+    async function addUserKey() {
+      const v = document.getElementById('inpUserKey').value.trim();
+      if (!v) return;
+      userKeys.push(v);
+      document.getElementById('inpUserKey').value = '';
+      await saveKeysToDb();
+      renderUserKeys();
+      showToast('API Key ditambahkan.');
+    }
+
+    async function loadUserKeys() {
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        const { data } = await supabaseClient.from('token_gemini_user').select('api_key').eq('user_id', currentUserId);
+        if (data) {
+          userKeys = data.map(r => r.api_key);
+          renderUserKeys();
+        }
+      } catch (err) {
+        console.error('Gagal mengambil API key:', err);
+      }
+    }
+
+    // WA Auto-Reply toggler
+    async function toggleWaAutoReply(checked) {
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        const { error } = await supabaseClient.from('users').update({ balasan_otomatis_wa: checked }).eq('id', currentUserId);
+        if (error) {
+          showToast(`Gagal update auto-reply: ${error.message}`);
+        } else {
+          showToast(checked ? 'Auto-reply asisten WhatsApp aktif.' : 'Auto-reply asisten WhatsApp dinonaktifkan.');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadWaAutoReplySettings() {
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        const { data } = await supabaseClient.from('users').select('balasan_otomatis_wa').eq('id', currentUserId).maybeSingle();
+        if (data) {
+          const check = document.getElementById('settWaAutoReply');
+          if (check) check.checked = data.balasan_otomatis_wa;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Log Out
+    async function logoutUser() {
+      if (!supabaseClient) return;
+      await supabaseClient.auth.signOut();
+      localStorage.removeItem('catatan_keuangan_access_code');
+      location.reload();
+    }
+
+    async function finishOnboardingMultiuser() {
+      if (!currentUserId || !supabaseClient) return;
+
+      const btn = document.querySelector('#screen-kategori .screen-footer .btn');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+
+      try {
+        // 1. Prepare Wallets and Seed Transactions
+        const wallets = [];
+        const transactions = [];
+        
+        // Find category "Penyesuaian Saldo" or fallback to first income category for seed transaction
+        const seedCategory = onboardingCategories.find(c => c.name === 'Penyesuaian Saldo' || c.name === 'Lainnya') || onboardingCategories[0];
+        const seedCatId = seedCategory ? seedCategory.id : null;
+
+        onboardingWallets.forEach((w, i) => {
+          const name = w.nama.trim() || (i === 0 ? 'Dompet Utama' : 'Dompet ' + (i + 1));
+          const balance = parseFloat(w.saldo) || 0;
+          const walletId = `wa_w_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+
+          wallets.push({
+            id: walletId,
+            user_id: currentUserId,
+            access_code: 'wa_' + currentUserId,
+            name: name,
+            balance: balance,
+            is_primary: i === 0,
+            order: i,
+            created_at: new Date(Date.now() + i).toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+          if (balance > 0 && seedCatId) {
+            transactions.push({
+              id: `wa_tx_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+              user_id: currentUserId,
+              access_code: 'wa_' + currentUserId,
+              wallet_id: walletId,
+              category_id: seedCatId,
+              amount: balance,
+              type: 'income',
+              date: todayStr(),
+              description: 'Saldo Awal',
+              is_pending: false,
+              created_at: new Date(Date.now() + i).toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          }
+        });
+
+        // 2. Insert Categories
+        const categories = onboardingCategories.map(c => ({
+          id: c.id,
+          user_id: currentUserId,
+          access_code: 'wa_' + currentUserId,
+          name: c.name,
+          type: c.type,
+          icon: c.icon,
+          color: c.color,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+
+        // 3. Insert User Settings
+        const settings = {
+          user_id: currentUserId,
+          access_code: 'wa_' + currentUserId,
+          deleted_ids: [],
+          nav_config: { initialBalances: {} },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Delete pre-seeded default data to overwrite with customized wizard data
+        await supabaseClient.from('wallets').delete().eq('user_id', currentUserId);
+        await supabaseClient.from('categories').delete().eq('user_id', currentUserId);
+        await supabaseClient.from('user_settings').delete().eq('user_id', currentUserId);
+
+        // Batch upload everything to Supabase
+        const { error: walletsErr } = await supabaseClient.from('wallets').insert(wallets);
+        if (walletsErr) throw walletsErr;
+
+        if (transactions.length > 0) {
+          const { error: txErr } = await supabaseClient.from('transactions').insert(transactions);
+          if (txErr) throw txErr;
+        }
+
+        const { error: catErr } = await supabaseClient.from('categories').insert(categories);
+        if (catErr) throw catErr;
+
+        const { error: settingsErr } = await supabaseClient.from('user_settings').insert(settings);
+        if (settingsErr) throw settingsErr;
+
+        // Update local settings & hide overlay
+        localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
+        localStorage.setItem(LS_KEYS.onboarded, '1');
+        
+        document.getElementById('auth-onboarding').classList.remove('open');
+        showToast('Pendaftaran selesai! Selamat mencatat.');
+
+        // Re-run init to sync from scratch and show the dashboard
+        await init();
+
+      } catch (err) {
+        console.error('Gagal menyelesaikan onboarding:', err);
+        showToast(`Gagal menyimpan data: ${err.message || err}`);
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    let userTrialStatus = 'active'; // 'active', 'habis', 'paid'
+    let trialDaysLeft = 7;
+
+    async function checkTrialStatus() {
+      if (!currentUserId || !supabaseClient) return;
+
+      try {
+        const { data: userProfile, error } = await supabaseClient
+          .from('users')
+          .select('trial_mulai_at, trial_lama_hari, sumber_ai, token_dipakai')
+          .eq('id', currentUserId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!userProfile) return;
+
+        // If they use their own API key, it is unlocked/lifetime premium!
+        if (userProfile.sumber_ai === 'sendiri' || userProfile.token_dipakai) {
+          userTrialStatus = 'paid';
+        } else {
+          // Calculate trial days left
+          const trialStart = new Date(userProfile.trial_mulai_at).getTime();
+          const trialDurationMs = (userProfile.trial_lama_hari || 7) * 24 * 60 * 60 * 1000;
+          const timeElapsed = Date.now() - trialStart;
+          const msLeft = trialDurationMs - timeElapsed;
+          
+          if (msLeft <= 0) {
+            userTrialStatus = 'habis';
+            trialDaysLeft = 0;
+          } else {
+            userTrialStatus = 'active';
+            trialDaysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
+          }
+        }
+
+        // Update UI
+        updateTrialTopbarUI();
+
+        // Enforce lock: if trial is expired, show popup
+        if (userTrialStatus === 'habis') {
+          openModal('modalTrialHabis');
+        }
+      } catch (err) {
+        console.error('Gagal mengecek status trial:', err);
+      }
+    }
+
+    function updateTrialTopbarUI() {
+      const topbar = document.getElementById('trialTopbar');
+      const chip = document.getElementById('trialChip');
+      if (!topbar || !chip) return;
+
+      topbar.style.display = 'flex'; // Show the topbar
+
+      if (userTrialStatus === 'habis') {
+        chip.className = 'trial-chip habis';
+        chip.innerHTML = 'Trial habis · fitur AI terkunci';
+      } else if (userTrialStatus === 'paid') {
+        chip.className = 'trial-chip paid';
+        chip.innerHTML = '✓ Premium Lifetime';
+      } else {
+        chip.className = 'trial-chip active';
+        chip.innerHTML = `Trial aktif · <span>${trialDaysLeft}</span> hari lagi`;
+      }
+    }
+
+    function handleTrialChipClick() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+      }
+    }
+
+    async function submitToken() {
+      const tokenInput = document.getElementById('inpToken');
+      const val = (tokenInput ? tokenInput.value : '').trim().toUpperCase();
+      if (!val) return;
+
+      const btn = document.querySelector('#modalTrialHabis .btn-primary');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+
+      clearErr('fieldToken');
+
+      try {
+        const { data: tokenData, error: tokenErr } = await supabaseClient
+          .from('tokens')
+          .select('*')
+          .eq('code', val)
+          .maybeSingle();
+
+        if (tokenErr || !tokenData) {
+          markErr('fieldToken');
+          document.querySelector('#fieldToken .err').textContent = 'Kode tidak ditemukan / salah ketik.';
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+
+        if (tokenData.status === 'used') {
+          markErr('fieldToken');
+          document.querySelector('#fieldToken .err').textContent = 'Kode ini sudah pernah dipakai akun lain.';
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
+
+        // Update token to 'used'
+        const { error: updateTokenErr } = await supabaseClient
+          .from('tokens')
+          .update({
+            status: 'used',
+            used_by: currentUserId,
+            used_at: new Date().toISOString()
+          })
+          .eq('code', val);
+
+        if (updateTokenErr) throw updateTokenErr;
+
+        // Update user profile
+        const { error: updateUserErr } = await supabaseClient
+          .from('users')
+          .update({
+            token_dipakai: val,
+            trial_lama_hari: 99999
+          })
+          .eq('id', currentUserId);
+
+        if (updateUserErr) throw updateUserErr;
+
+        closeModal('modalTrialHabis');
+        userTrialStatus = 'paid';
+        updateTrialTopbarUI();
+        showToast('✓ Token valid! Fitur AI & WhatsApp aktif selamanya.');
+      } catch (err) {
+        console.error('Gagal mengaktifkan token:', err);
+        showToast('Terjadi kesalahan koneksi saat mengaktifkan token.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+
+    function openWaAdmin(context) {
+      const messages = {
+        lifetime: 'Halo, saya mau tanya-tanya soal KaslyAI / berlangganan paket Lifetime. Boleh dibantu prosesnya?',
+        token: 'Halo, trial fitur AI saya di KaslyAI sudah habis. Saya mau beli token untuk aktifkan lagi fitur AI-nya.'
+      };
+      const text = messages[context] || messages.lifetime;
+      window.open('https://wa.me/6289626112023?text=' + encodeURIComponent(text), '_blank');
+    }
+
     // Access Code Generator & URL Manager (?akses=...)
     function getAccessCode() {
+      if (currentUserId) {
+        const code = 'wa_' + currentUserId;
+        localStorage.setItem('catatan_keuangan_access_code', code);
+        return code;
+      }
       const params = new URLSearchParams(window.location.search);
       let code = params.get('akses') || params.get('access_code');
       if (!code) {
@@ -6788,7 +9090,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.9)';
+      const version = ' (v2.8.0)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -8496,6 +10798,10 @@
        ke Beranda. Pindah tab biasa lewat bottom nav TETAP pakai perilaku lama (replace,
        tidak menumpuk) supaya Back dari situ tidak nyangkut banyak layer. */
     function switchTab(tab, opts) {
+      if (tab === 'chat' && userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       const prevTab = currentTab;
       const push = !!(opts && opts.push);
       if (tab === prevTab) { switchTabUI(tab); return; }
@@ -9060,6 +11366,7 @@
 
     let isHeroWalletsExpanded = false;
     let _lastChartDataHash = '';
+    let _hasInitializedCharts = false;
     function toggleHeroWalletsExpand() {
       isHeroWalletsExpanded = !isHeroWalletsExpanded;
       renderHome();
@@ -9218,11 +11525,15 @@
 
       // Hanya render ulang chart jika data benar-benar berubah (mencegah animasi chart berputar terus)
       const _allTxForHash = getTransactions();
-      const _chartHash = JSON.stringify({ period: homePeriod, trendM: trendMonths, txCount: _allTxForHash.length, txTotal: _allTxForHash.reduce((s, t) => s + t.amount, 0), lastTxId: (_allTxForHash[_allTxForHash.length - 1] || {}).id });
-      const _chartsExist = !!(chartRegistry['pieChart'] && chartRegistry['pieChartIncome'] && lineChartInst);
-      if (_chartHash !== _lastChartDataHash || !_chartsExist) {
-        const _dataChanged = (_chartHash !== _lastChartDataHash);
+      const _chartHash = JSON.stringify({
+        period: homePeriod,
+        trendM: trendMonths,
+        txs: _allTxForHash.map(t => ({ id: t.id, amount: t.amount, category: t.category, type: t.type, date: t.date }))
+      });
+      if (_chartHash !== _lastChartDataHash || !_hasInitializedCharts) {
+        const _dataChanged = (_lastChartDataHash === '' || _chartHash !== _lastChartDataHash);
         _lastChartDataHash = _chartHash;
+        _hasInitializedCharts = true;
         // Jika hanya kembali ke tab (data sama, chart hilang): render ulang tanpa animasi
         renderCharts(range, { noAnimation: !_dataChanged });
       }
@@ -10307,6 +12618,10 @@
 
     function chooseAddAI() {
       closeModalUI('modalAddChoice');
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (!getGeminiApiKey()) { showToast('Gemini API Key tidak ditemukan'); return; }
       openAiScanModal({ skipOpen: true });
       navReplaceTop({ type: 'modal', id: 'modalAiScan' });
@@ -13753,6 +16068,8 @@
       const s = getSettings();
       const settSheetsEl = document.getElementById('settSheetsUrl');
       if (settSheetsEl) settSheetsEl.value = s.sheetsWebAppUrl || '';
+      loadUserKeys();
+      loadWaAutoReplySettings();
     }
 
     function togglePw(inputId, btn) {
@@ -18227,6 +20544,26 @@ PERTANYAAN_USER:
         console.warn('Hotfix initialBalances error:', e);
       }
 
+      // Enforce Supabase Auth session check
+      if (supabaseClient) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session && session.user) {
+            currentUserId = session.user.id;
+            const authOb = document.getElementById('auth-onboarding');
+            if (authOb) authOb.classList.remove('open');
+            checkTrialStatus();
+          } else {
+            const authOb = document.getElementById('auth-onboarding');
+            if (authOb) authOb.classList.add('open');
+            gotoScreen('screen-promo');
+            return; // Halt loading dashboard
+          }
+        } catch (e) {
+          console.warn('Error fetching Supabase session:', e);
+        }
+      }
+
       // Load custom web fonts only on desktop screens (>=900px) to prevent modifying native system styling on mobile
       if (window.innerWidth >= 900) {
         const link = document.createElement('link');
@@ -18261,17 +20598,6 @@ PERTANYAAN_USER:
       activateDuePendingTransactions(); // cairkan transaksi "masa depan" yang tanggalnya udah tiba
       refreshAllViews();
       switchTabUI(currentTab);
-
-      // 5. Tampilkan onboarding HANYA jika pengguna memang belum pernah onboarded di Supabase
-      if (!localStorage.getItem(LS_KEYS.onboarded)) {
-        document.getElementById('onboarding').classList.add('open');
-        const container = document.getElementById('onboardingWalletsList');
-        if (container) {
-          container.innerHTML = '';
-          onboardingWalletCount = 0;
-          addOnboardingWalletField('Dompet Utama', '');
-        }
-      }
 
       window.addEventListener('online', () => syncAllWithSupabase(true));
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));

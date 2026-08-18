@@ -171,7 +171,7 @@ function parseQueryMonth(text: string, todayStr: string): { monthStr: string; la
 export async function processV2Query(
   db: SupabaseClient,
   apiKeys: string[],
-  accessCode: string,
+  userId: string,
   userQuestion: string,
 ): Promise<string> {
   const todayStr = getTodayStr(); // YYYY-MM-DD (WIB)
@@ -179,12 +179,12 @@ export async function processV2Query(
 
   // 1. Dapatkan data dasar secara paralel
   const [wallets, categories, savingsGoals, debtEntries, recurringItems, allTransactions] = await Promise.all([
-    v2GetWallets(db, accessCode),
-    v2GetCategories(db, accessCode),
-    v2GetSavingsGoals(db, accessCode),
-    v2GetDebtEntries(db, accessCode),
-    v2GetRecurringItems(db, accessCode),
-    v2GetTransactions(db, accessCode)
+    v2GetWallets(db, userId),
+    v2GetCategories(db, userId),
+    v2GetSavingsGoals(db, userId),
+    v2GetDebtEntries(db, userId),
+    v2GetRecurringItems(db, userId),
+    v2GetTransactions(db, userId)
   ]);
 
   // Default reset day untuk recurring/checklist
@@ -226,7 +226,7 @@ export async function processV2Query(
   // Ambil data limit budget
   let budgets: any[] = [];
   if (filterByMonth && monthStr) {
-    budgets = await v2GetBudgets(db, accessCode, monthStr);
+    budgets = await v2GetBudgets(db, userId, monthStr);
   }
   const budgetStatusList = categories
     .filter(c => c.type === "expense")

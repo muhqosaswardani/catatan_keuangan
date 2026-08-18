@@ -16,6 +16,7 @@ import {
   generateClarificationQuestion,
   reclassifyCategory,
   cleanClarifiedNote,
+  parseClarificationReply,
   matchHistoryAmountWithAi,
 } from "./gemini.ts";
 import { sendWhatsAppMessage, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
@@ -93,25 +94,25 @@ function uid(): string {
 // HELPER: Fetch kategori & dompet dari Supabase
 // ============================================================
 
-async function getDeletedIds(db: SupabaseClient): Promise<Set<string>> {
+async function getDeletedIds(db: SupabaseClient, userId: string): Promise<Set<string>> {
   const { data } = await db
     .from("user_settings")
     .select("deleted_ids")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .maybeSingle();
   return new Set((data?.deleted_ids || []).map(String));
 }
 
-async function getCategories(db: SupabaseClient): Promise<CategoryRow[]> {
-  const deletedSet = await getDeletedIds(db);
-  const { data } = await db.from("categories").select("id, name, type").eq("access_code", ACCESS_CODE);
+async function getCategories(db: SupabaseClient, userId: string): Promise<CategoryRow[]> {
+  const deletedSet = await getDeletedIds(db, userId);
+  const { data } = await db.from("categories").select("id, name, type").eq("user_id", userId);
   const rows = (data ?? []) as CategoryRow[];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
-async function getWallets(db: SupabaseClient): Promise<WalletRow[]> {
-  const deletedSet = await getDeletedIds(db);
-  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", ACCESS_CODE);
+async function getWallets(db: SupabaseClient, userId: string): Promise<WalletRow[]> {
+  const deletedSet = await getDeletedIds(db, userId);
+  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("user_id", userId);
   const rows = (data ?? []) as WalletRow[];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
@@ -190,11 +191,12 @@ async function findHistoryAmount(
   note: string,
   categoryId: string,
   type: "expense" | "income",
+  userId: string,
 ): Promise<number | null> {
   const { data: txs } = await db
     .from("transactions")
     .select("amount, note, date, category_id")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("type", type)
     .eq("category_id", categoryId)
     .gt("amount", 0)
@@ -283,12 +285,13 @@ function formatConfirmBubble(
 async function recordDeletionInDb(
   db: SupabaseClient,
   id: string,
+  userId: string,
 ): Promise<void> {
   if (!id) return;
   const { data: settings } = await db
     .from("user_settings")
     .select("deleted_ids")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .maybeSingle();
 
   let deletedIds: string[] = [];
@@ -304,29 +307,29 @@ async function recordDeletionInDb(
         deleted_ids: deletedIds,
         updated_at: new Date().toISOString(),
       })
-      .eq("access_code", ACCESS_CODE);
+      .eq("user_id", userId);
   }
 }
 
 async function recalculateDbWalletBalances(
   db: SupabaseClient,
-  accessCode: string,
+  userId: string,
 ): Promise<void> {
   const { data: wallets } = await db
     .from("wallets")
     .select("*")
-    .eq("access_code", accessCode);
+    .eq("user_id", userId);
   const { data: transactions } = await db
     .from("transactions")
     .select("*")
-    .eq("access_code", accessCode);
+    .eq("user_id", userId);
 
   if (!wallets || !transactions) return;
 
   const { data: settings } = await db
     .from("user_settings")
     .select("nav_config, deleted_ids")
-    .eq("access_code", accessCode)
+    .eq("user_id", userId)
     .maybeSingle();
 
   const deletedIds = Array.isArray(settings?.deleted_ids) ? settings.deleted_ids.map(String) : [];
@@ -379,7 +382,7 @@ async function recalculateDbWalletBalances(
     await db
       .from("user_settings")
       .update({ nav_config: navConfig, updated_at: new Date().toISOString() })
-      .eq("access_code", accessCode);
+      .eq("user_id", userId);
   }
 }
 
@@ -407,13 +410,15 @@ async function saveTx(
   db: SupabaseClient,
   tx: Omit<TransactionRow, "id"> & { id?: string },
   wallets: WalletRow[],
+  userId: string,
 ): Promise<{ savedTx: TransactionRow; updatedWallet: WalletRow }> {
   const id = tx.id ?? `wa_tx_${uid()}`;
   const row: TransactionRow = { ...tx, id } as TransactionRow;
 
   const { error: txErr } = await db.from("transactions").insert({
     id,
-    access_code: ACCESS_CODE,
+    user_id: userId,
+    access_code: "wa_" + userId,
     wallet_id: row.wallet_id,
     category_id: row.category_id,
     category: row.category,
@@ -428,7 +433,7 @@ async function saveTx(
   if (txErr) throw new Error(`Gagal simpan transaksi: ${txErr.message}`);
 
   // Recalculate balances murni from database transactions!
-  await recalculateDbWalletBalances(db, ACCESS_CODE);
+  await recalculateDbWalletBalances(db, userId);
 
   // Fetch the updated wallet to return it
   const { data: updatedW } = await db
@@ -453,11 +458,13 @@ async function saveMapping(
   db: SupabaseClient,
   waMessageId: string,
   transactionId: string,
+  userId: string,
 ): Promise<void> {
   await db.from("wa_message_transactions").insert({
     wa_message_id: waMessageId,
     transaction_id: transactionId,
-    access_code: ACCESS_CODE,
+    user_id: userId,
+    access_code: "wa_" + userId,
   });
 }
 
@@ -469,8 +476,10 @@ async function sendAndMapTx(
   db: SupabaseClient,
   tx: TransactionRow,
   wallets: WalletRow[],
+  waChatId: string,
   replyToMsgId?: string,
   isUpdated = false,
+  userId = "",
 ): Promise<void> {
   const wallet = wallets.find((w) => w.id === tx.wallet_id) ?? wallets[0];
   const bubble = formatConfirmBubble(
@@ -483,13 +492,13 @@ async function sendAndMapTx(
   const sentMsgId = await sendWhatsAppMessage(
     PHONE_NUMBER_ID,
     WA_ACCESS_TOKEN,
-    OWNER_PHONE,
+    waChatId,
     bubble,
     replyToMsgId,
   );
 
-  if (sentMsgId) {
-    await saveMapping(db, sentMsgId, tx.id);
+  if (sentMsgId && userId) {
+    await saveMapping(db, sentMsgId, tx.id, userId);
   }
 }
 
@@ -503,19 +512,100 @@ async function processParsedItems(
   items: ParsedTransaction[],
   cats: CategoryRow[],
   wallets: WalletRow[],
+  waChatId: string,
   incomingMsgId: string,
   mentionedWalletName?: string,
   isFromMedia = false,
+  userId = "",
 ): Promise<void> {
   const today = getTodayStr();
 
-  // Scaling proporsional untuk groupId
-  const rawRows = items.map((it, idx) => {
-    const type: "expense" | "income" =
-      it.type === "income" ? "income" : "expense";
+  // 1. Match categories and type for all items first so we can group/merge them properly
+  const matchedItems = items.map(it => {
+    const type: "expense" | "income" = it.type === "income" ? "income" : "expense";
     const catId = matchCategoryId(it.category, type, cats);
-    const catName =
-      cats.find((c) => c.id === catId)?.name ?? it.category ?? "Lainnya";
+    const catName = cats.find((c) => c.id === catId)?.name ?? it.category ?? "Lainnya";
+    return {
+      ...it,
+      type,
+      catId,
+      catName
+    };
+  });
+
+  // 2. Group by matched category (type + catId)
+  const finalMergedItems: typeof matchedItems = [];
+  const groups: Record<string, typeof matchedItems> = {};
+
+  for (const it of matchedItems) {
+    // PENGECUALIAN KHUSUS kategori "Lainnya": barang-barang yang masuk kategori "Lainnya" TETAP dipisah
+    if (it.catName.toLowerCase() === "lainnya") {
+      finalMergedItems.push(it);
+      continue;
+    }
+
+    const key = `${it.type}_${it.catId}`;
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(it);
+  }
+
+  for (const key in groups) {
+    const group = groups[key];
+    if (group.length === 1) {
+      finalMergedItems.push(group[0]);
+    } else {
+      const first = group[0];
+      const mergedAmount = group.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      
+      // Merge notes cleanly (detecting common shop prefixes like "Alfamart - ", "Indomaret - ")
+      const prefixRegex = /^(Alfamart|Indomaret|Alfamidi|Superindo|Toko|Warung|Grab|Gojek)\s*-\s*/i;
+      const noteDetails: string[] = [];
+      let commonPrefix = "";
+
+      for (const item of group) {
+        const noteText = (item.note ?? "").trim();
+        if (!noteText) continue;
+        const match = noteText.match(prefixRegex);
+        if (match) {
+          const prefix = match[0];
+          if (!commonPrefix) {
+            commonPrefix = prefix;
+          } else if (commonPrefix.toLowerCase() !== prefix.toLowerCase()) {
+            commonPrefix = "multiple";
+          }
+        } else {
+          commonPrefix = "none";
+        }
+      }
+
+      for (const item of group) {
+        let noteText = (item.note ?? "").trim();
+        if (!noteText) continue;
+        if (commonPrefix && commonPrefix !== "multiple" && commonPrefix !== "none") {
+          noteText = noteText.replace(prefixRegex, "");
+        }
+        if (noteText) noteDetails.push(noteText);
+      }
+
+      let finalNote = "";
+      if (commonPrefix && commonPrefix !== "multiple" && commonPrefix !== "none" && noteDetails.length > 0) {
+        finalNote = `${commonPrefix}${noteDetails.join(", ")}`;
+      } else {
+        finalNote = group.map(item => (item.note ?? "").trim()).filter(Boolean).join(", ");
+      }
+
+      finalMergedItems.push({
+        ...first,
+        amount: mergedAmount,
+        note: finalNote
+      });
+    }
+  }
+
+  // Scaling proporsional untuk groupId
+  const rawRows = finalMergedItems.map((it, idx) => {
     const walletId = matchWalletId(it.wallet || mentionedWalletName, wallets);
     return {
       _idx: idx,
@@ -523,9 +613,9 @@ async function processParsedItems(
       _groupTotal: it.groupTotal ?? null,
       id: `wa_tx_${uid()}`,
       wallet_id: walletId,
-      category_id: catId,
-      category: catName,
-      type,
+      category_id: it.catId,
+      category: it.catName,
+      type: it.type,
       amount: Math.max(0, Math.round(Number(it.amount) || 0)),
       date: /^\d{4}-\d{2}-\d{2}$/.test(it.date ?? "") ? it.date! : today,
       note: (it.note ?? "").slice(0, 80),
@@ -551,6 +641,7 @@ async function processParsedItems(
           row.note,
           row.category_id,
           row.type,
+          userId,
         );
       }
 
@@ -561,8 +652,9 @@ async function processParsedItems(
         const pendingId = `pend_${uid()}`;
         await db.from("wa_pending_transactions").insert({
           id: pendingId,
-          access_code: ACCESS_CODE,
-          wa_chat_id: OWNER_PHONE,
+          user_id: userId,
+          access_code: "wa_" + userId,
+          wa_chat_id: waChatId,
           pending_data: JSON.stringify(row),
         });
         const questionText = await generateClarificationQuestion(apiKeys, {
@@ -573,7 +665,7 @@ async function processParsedItems(
         const questionMsg = await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
-          OWNER_PHONE,
+          waChatId,
           questionText,
           incomingMsgId,
         );
@@ -593,8 +685,9 @@ async function processParsedItems(
       row.note = ""; // Reset note agar kosong saat ditanya
       await db.from("wa_pending_transactions").insert({
         id: pendingId,
-        access_code: ACCESS_CODE,
-        wa_chat_id: OWNER_PHONE,
+        user_id: userId,
+        access_code: "wa_" + userId,
+        wa_chat_id: waChatId,
         pending_data: JSON.stringify(row),
       });
 
@@ -611,7 +704,7 @@ async function processParsedItems(
       const questionMsg = await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         questionText,
         incomingMsgId,
       );
@@ -629,13 +722,14 @@ async function processParsedItems(
       db,
       row as unknown as TransactionRow,
       wallets,
+      userId,
     );
 
     // Kirim konfirmasi bubble
     const updatedWallets = wallets.map((w) =>
       w.id === updatedWallet.id ? updatedWallet : w,
     );
-    await sendAndMapTx(db, savedTx, updatedWallets, incomingMsgId);
+    await sendAndMapTx(db, savedTx, updatedWallets, waChatId, incomingMsgId, false, userId);
 
     // Update balance di array lokal supaya next tx pakai saldo terbaru
     const wIdx = wallets.findIndex((w) => w.id === updatedWallet.id);
@@ -651,13 +745,14 @@ export async function handleTextMessage(
   db: SupabaseClient,
   apiKeys: string[],
   msg: IncomingMessage,
+  userId: string,
 ): Promise<void> {
   const text = msg.text ?? "";
   const today = getTodayStr();
 
   // Cek perintah khusus
   if (/^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text.trim())) {
-    await handleCekSaldo(db, msg.from, msg.messageId);
+    await handleCekSaldo(db, msg.from, msg.messageId, userId);
     return;
   }
 
@@ -665,16 +760,16 @@ export async function handleTextMessage(
     /^(tolong|mohon)?\s*(hapus|batalkan|cancel|undo|gajadi|ga jadi)\s*(transaksi|aja|catatan|terakhir|yang tadi)?$/i.test(text.trim());
 
   if (isCancelCommand) {
-    await handleHapusTerakhir(db, msg.messageId);
+    await handleHapusTerakhir(db, msg.from, msg.messageId, userId);
     return;
   }
 
   // PRD 5.1a: jawaban nominal boleh dikirim sebagai pesan baru, bukan hanya reply.
-  if (await handlePendingNominalMessage(db, apiKeys, msg)) return;
+  if (await handlePendingNominalMessage(db, apiKeys, msg, userId)) return;
 
   const [cats, wallets] = await Promise.all([
-    getCategories(db),
-    getWallets(db),
+    getCategories(db, userId),
+    getWallets(db, userId),
   ]);
   const expenseCats = cats
     .filter((c) => c.type === "expense")
@@ -698,7 +793,7 @@ export async function handleTextMessage(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      msg.from,
       "Maaf, lagi ada gangguan baca pesannya, coba lagi ya.",
       msg.messageId,
     );
@@ -712,7 +807,7 @@ export async function handleTextMessage(
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        msg.from,
         reply,
         msg.messageId,
       );
@@ -720,7 +815,7 @@ export async function handleTextMessage(
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        msg.from,
         "Halo! Ada yang bisa dibantu?",
         msg.messageId,
       );
@@ -729,7 +824,7 @@ export async function handleTextMessage(
   }
 
   const mentionedWalletName = findMentionedWallet(text, wallets);
-  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, mentionedWalletName, false);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.from, msg.messageId, mentionedWalletName, false, userId);
 }
 
 // ============================================================
@@ -741,11 +836,13 @@ export async function handleMediaBatch(
   apiKeys: string[],
   mediaItems: QueuedMediaItem[],
   firstMsgId: string,
+  waChatId: string,
+  userId: string,
 ): Promise<void> {
   const today = getTodayStr();
   const [cats, wallets] = await Promise.all([
-    getCategories(db),
-    getWallets(db),
+    getCategories(db, userId),
+    getWallets(db, userId),
   ]);
   const expenseCats = cats
     .filter((c) => c.type === "expense")
@@ -788,7 +885,7 @@ export async function handleMediaBatch(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       firstMsgId,
     );
@@ -804,11 +901,11 @@ export async function handleMediaBatch(
       incomeCats,
       today,
     );
-  } catch {
+  } catch (e) {
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       firstMsgId,
     );
@@ -819,7 +916,7 @@ export async function handleMediaBatch(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Tidak ketemu info transaksi dari media ini. Coba ketik manual atau kirim pesan suara.",
       firstMsgId,
     );
@@ -828,7 +925,7 @@ export async function handleMediaBatch(
 
   const isFromMedia = mediaItems.some((m) => m.kind === "image");
   const mentionedWalletName = findMentionedWallet(captions, wallets);
-  await processParsedItems(db, apiKeys, items, cats, wallets, firstMsgId, mentionedWalletName, isFromMedia);
+  await processParsedItems(db, apiKeys, items, cats, wallets, waChatId, firstMsgId, mentionedWalletName, isFromMedia, userId);
 }
 
 // Ambil dan claim media yang sudah melewati jeda hening. Claim kondisional
@@ -837,6 +934,7 @@ export async function processQueuedMediaBatch(
   db: SupabaseClient,
   apiKeys: string[],
   chatId: string,
+  userId: string,
 ): Promise<void> {
   const quietBefore = new Date(Date.now() - BATCH_WINDOW_MS).toISOString();
   // Debounce: bila masih ada media yang baru masuk, timer dari media terakhir
@@ -844,7 +942,7 @@ export async function processQueuedMediaBatch(
   const { data: newest } = await db
     .from("wa_media_queue")
     .select("received_at")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("wa_chat_id", chatId)
     .is("processed_at", null)
     .order("received_at", { ascending: false })
@@ -855,7 +953,7 @@ export async function processQueuedMediaBatch(
   const { data: candidates, error } = await db
     .from("wa_media_queue")
     .select("wa_message_id, media_id, mime_type, media_kind, caption")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("wa_chat_id", chatId)
     .is("processed_at", null)
     .is("processing_started_at", null)
@@ -887,6 +985,8 @@ export async function processQueuedMediaBatch(
         caption: item.caption ?? undefined,
       })),
       claimed[0].wa_message_id,
+      chatId,
+      userId,
     );
     await db
       .from("wa_media_queue")
@@ -918,11 +1018,12 @@ export async function handleAudioMessage(
   db: SupabaseClient,
   apiKeys: string[],
   msg: IncomingMessage,
+  userId: string,
 ): Promise<void> {
   const today = getTodayStr();
   const [cats, wallets] = await Promise.all([
-    getCategories(db),
-    getWallets(db),
+    getCategories(db, userId),
+    getWallets(db, userId),
   ]);
   const expenseCats = cats
     .filter((c) => c.type === "expense")
@@ -941,7 +1042,7 @@ export async function handleAudioMessage(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      msg.from,
       "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       msg.messageId,
     );
@@ -974,7 +1075,7 @@ export async function handleAudioMessage(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      msg.from,
       "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
       msg.messageId,
     );
@@ -985,14 +1086,14 @@ export async function handleAudioMessage(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      msg.from,
       "Tidak ketemu info transaksi dari media ini. Coba ketik manual atau kirim pesan suara.",
       msg.messageId,
     );
     return;
   }
 
-  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, undefined, false);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.from, msg.messageId, undefined, false, userId);
 }
 
 // ============================================================
@@ -1004,7 +1105,10 @@ export async function handleReplyToTransaction(
   apiKeys: string[],
   msg: IncomingMessage,
   transactionId: string,
+  userId: string,
 ): Promise<void> {
+  const waChatId = msg.from;
+
   // ── VERSI 2: Intercept entri utang baru (tanpa transaksi) ──
   if (transactionId.startsWith("wa_debt_")) {
     const replyText = (msg.text ?? "").trim().toLowerCase();
@@ -1016,14 +1120,15 @@ export async function handleReplyToTransaction(
         .from("debt_entries")
         .select("*")
         .eq("id", transactionId)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (debtData) {
-        await db.from("debt_entries").delete().eq("id", transactionId);
+        await db.from("debt_entries").delete().eq("id", transactionId).eq("user_id", userId);
         await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
-          OWNER_PHONE,
+          waChatId,
           `Catatan utang ${debtData.person_name} sebesar ${formatRupiah(debtData.amount)} berhasil dihapus.`,
           msg.messageId
         );
@@ -1031,7 +1136,7 @@ export async function handleReplyToTransaction(
         await sendWhatsAppMessage(
           PHONE_NUMBER_ID,
           WA_ACCESS_TOKEN,
-          OWNER_PHONE,
+          waChatId,
           `Catatan utang tidak ditemukan atau sudah dihapus.`,
           msg.messageId
         );
@@ -1041,7 +1146,7 @@ export async function handleReplyToTransaction(
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         `Catatan utang baru hanya bisa dihapus/dibatalkan. Ketik 'hapus' untuk membatalkan.`,
         msg.messageId
       );
@@ -1054,14 +1159,14 @@ export async function handleReplyToTransaction(
     .from("transactions")
     .select("*")
     .eq("id", transactionId)
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .single();
 
   if (error || !txData) {
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Transaksi tidak ditemukan. Mungkin sudah dihapus sebelumnya.",
       msg.messageId,
     );
@@ -1080,7 +1185,7 @@ export async function handleReplyToTransaction(
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
         msg.messageId,
       );
@@ -1100,8 +1205,8 @@ export async function handleReplyToTransaction(
   }
 
   const [cats, wallets] = await Promise.all([
-    getCategories(db),
-    getWallets(db),
+    getCategories(db, userId),
+    getWallets(db, userId),
   ]);
   const expenseCats = cats
     .filter((c) => c.type === "expense")
@@ -1130,7 +1235,7 @@ export async function handleReplyToTransaction(
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         "Gagal memproses instruksi, coba lagi ya.",
         msg.messageId,
       );
@@ -1142,7 +1247,7 @@ export async function handleReplyToTransaction(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       `Kurang jelas nih: ${instruction.reason ?? 'coba tulis lebih spesifik'}`,
       msg.messageId,
     );
@@ -1151,7 +1256,7 @@ export async function handleReplyToTransaction(
 
   if (instruction.action === "delete") {
     // Sync deletion to user_settings.deleted_ids in database
-    await recordDeletionInDb(db, transactionId);
+    await recordDeletionInDb(db, transactionId, userId);
 
     // ── VERSI 2: Revert checklist / debt payments ──
     if (txData.source === "whatsapp") {
@@ -1159,7 +1264,7 @@ export async function handleReplyToTransaction(
       const { data: recurringItems } = await db
         .from("recurring_items")
         .select("*")
-        .eq("access_code", ACCESS_CODE);
+        .eq("user_id", userId);
 
       if (recurringItems) {
         const matchedRec = recurringItems.find(
@@ -1187,7 +1292,7 @@ export async function handleReplyToTransaction(
           const { data: debtEntries } = await db
             .from("debt_entries")
             .select("*")
-            .eq("access_code", ACCESS_CODE)
+            .eq("user_id", userId)
             .eq("person_name", personName);
 
           if (debtEntries && debtEntries.length > 0) {
@@ -1213,7 +1318,7 @@ export async function handleReplyToTransaction(
               const { data: reverseEntry } = await db
                 .from("debt_entries")
                 .select("id")
-                .eq("access_code", ACCESS_CODE)
+                .eq("user_id", userId)
                 .eq("person_name", personName)
                 .eq("type", reverseType)
                 .eq("status", "active")
@@ -1222,7 +1327,7 @@ export async function handleReplyToTransaction(
                 .maybeSingle();
 
               if (reverseEntry) {
-                await db.from("debt_entries").delete().eq("id", reverseEntry.id);
+                await db.from("debt_entries").delete().eq("id", reverseEntry.id).eq("user_id", userId);
               }
             } else {
               // Ini cicilan. Kembalikan nominalnya ke entri active pertama
@@ -1245,15 +1350,16 @@ export async function handleReplyToTransaction(
       }
     }
 
-    await db.from("transactions").delete().eq("id", transactionId);
+    await db.from("wa_message_transactions").delete().eq("transaction_id", transactionId).eq("user_id", userId);
+    await db.from("transactions").delete().eq("id", transactionId).eq("user_id", userId);
 
     // Recalculate balances murni from database transactions!
-    await recalculateDbWalletBalances(db, ACCESS_CODE);
+    await recalculateDbWalletBalances(db, userId);
 
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       `Transaksi dihapus:\n"${txData.note}" ${formatRupiah(txData.amount)} (${formatTanggalID(txData.date)})`,
       msg.messageId,
     );
@@ -1291,33 +1397,36 @@ export async function handleReplyToTransaction(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Dompetnya belum ketemu. Sebutkan nama dompet yang ada ya.",
       msg.messageId,
     );
     return;
   }
 
-  await db.from("transactions").update(updates).eq("id", transactionId);
+  await db.from("transactions").update(updates).eq("id", transactionId).eq("user_id", userId);
 
   // Recalculate balances murni dari transaksi database!
-  await recalculateDbWalletBalances(db, ACCESS_CODE);
+  await recalculateDbWalletBalances(db, userId);
 
   // Refresh dan kirim konfirmasi
   const { data: updatedTx } = await db
     .from("transactions")
     .select("*")
     .eq("id", transactionId)
+    .eq("user_id", userId)
     .single();
 
   if (updatedTx) {
-    const updatedWallets = await getWallets(db);
+    const updatedWallets = await getWallets(db, userId);
     await sendAndMapTx(
       db,
       updatedTx as unknown as TransactionRow,
       updatedWallets,
+      waChatId,
       msg.messageId,
       true,
+      userId,
     );
   }
 }
@@ -1359,12 +1468,13 @@ export async function handlePendingNominalMessage(
   db: SupabaseClient,
   apiKeys: string[],
   msg: IncomingMessage,
+  userId: string,
 ): Promise<boolean> {
   const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   const { data: pending } = await db
     .from("wa_pending_transactions")
     .select("*")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("wa_chat_id", msg.from)
     .gt("created_at", fifteenMinsAgo)
     .order("created_at", { ascending: false })
@@ -1378,41 +1488,89 @@ export async function handlePendingNominalMessage(
       ? JSON.parse(pending.pending_data)
       : pending.pending_data;
 
+  const userText = (msg.text ?? "").trim();
+  if (!userText) return false;
+
+  const cats = await getCategories(db, userId);
+  const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+  const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+
+  // Parse user reply using AI to update fields (amount, note, category)
+  const result = await parseClarificationReply(
+    apiKeys,
+    userText,
+    {
+      type: pendingData.type,
+      amount: pendingData.amount,
+      note: pendingData.note,
+      category: pendingData.category,
+    },
+    expenseCats,
+    incomeCats,
+  );
+
+  pendingData.amount = result.amount;
+  pendingData.note = result.note;
+  pendingData.category = result.category;
+  pendingData.category_id = matchCategoryId(result.category, pendingData.type, cats);
+
   if (pendingData.amount === 0) {
-    const amount = parseNominalReply(msg.text ?? "");
-    if (!amount) return false;
-    await completePendingNominal(db, apiKeys, msg, pending.id, amount);
-    return true;
-  } else {
-    const rawNote = (msg.text ?? "").trim().slice(0, 80);
-    const genericNotes = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
-    if (!rawNote || genericNotes.includes(rawNote.toLowerCase())) return false;
-    
-    const cleanedNote = await cleanClarifiedNote(apiKeys, rawNote);
-    pendingData.note = cleanedNote;
+    const rawAmt = parseNominalReply(userText);
+    if (rawAmt && rawAmt > 0) {
+      pendingData.amount = rawAmt;
+    } else {
+      return false; // Still no amount, don't consume
+    }
+  }
 
-    const cats = await getCategories(db);
-    const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
-    const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
-    const newCatName = await reclassifyCategory(
-      apiKeys,
-      cleanedNote,
-      pendingData.type,
-      expenseCats,
-      incomeCats,
-    );
-    pendingData.category = newCatName;
-    pendingData.category_id = matchCategoryId(newCatName, pendingData.type, cats);
+  const genericNotes = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
+  const isNoteGeneric = !pendingData.note || genericNotes.includes(pendingData.note.toLowerCase().trim());
 
-    const wallets = await getWallets(db);
-    const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets);
-    const updatedWallets = wallets.map((w) =>
-      w.id === updatedWallet.id ? updatedWallet : w,
+  if (isNoteGeneric) {
+    pendingData.note = "";
+    await db
+      .from("wa_pending_transactions")
+      .update({
+        pending_data: JSON.stringify(pendingData),
+      })
+      .eq("id", pending.id)
+      .eq("user_id", userId);
+
+    let questionText = "";
+    if (pendingData.isFromMedia) {
+      questionText = `Gagal membaca media yang kamu kirim, ${formatRupiah(pendingData.amount)} ini buat bayar apa?`;
+    } else {
+      questionText = await generateClarificationQuestion(apiKeys, {
+        type: "note",
+        amount: pendingData.amount,
+      });
+    }
+
+    const questionMsg = await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      msg.from,
+      questionText,
+      msg.messageId,
     );
-    await sendAndMapTx(db, savedTx, updatedWallets, msg.messageId);
-    await db.from("wa_pending_transactions").delete().eq("id", pending.id);
+    if (questionMsg) {
+      await db
+        .from("wa_pending_transactions")
+        .update({ wa_question_message_id: questionMsg })
+        .eq("id", pending.id)
+        .eq("user_id", userId);
+    }
     return true;
   }
+
+  const wallets = await getWallets(db, userId);
+  const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets, userId);
+  const updatedWallets = wallets.map((w) =>
+    w.id === updatedWallet.id ? updatedWallet : w,
+  );
+  await sendAndMapTx(db, savedTx, updatedWallets, msg.from, msg.messageId, false, userId);
+  await db.from("wa_pending_transactions").delete().eq("id", pending.id).eq("user_id", userId);
+  return true;
 }
 
 async function completePendingNominal(
@@ -1421,11 +1579,13 @@ async function completePendingNominal(
   msg: IncomingMessage,
   pendingId: string,
   amount: number,
+  userId: string,
 ): Promise<void> {
   const { data: pending } = await db
     .from("wa_pending_transactions")
     .select("*")
     .eq("id", pendingId)
+    .eq("user_id", userId)
     .maybeSingle();
   if (!pending) return;
 
@@ -1444,7 +1604,8 @@ async function completePendingNominal(
       .update({
         pending_data: JSON.stringify(pendingData),
       })
-      .eq("id", pendingId);
+      .eq("id", pendingId)
+      .eq("user_id", userId);
 
     let questionText = "";
     if (pendingData.isFromMedia) {
@@ -1459,7 +1620,7 @@ async function completePendingNominal(
     const questionMsg = await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      msg.from,
       questionText,
       msg.messageId,
     );
@@ -1467,18 +1628,19 @@ async function completePendingNominal(
       await db
         .from("wa_pending_transactions")
         .update({ wa_question_message_id: questionMsg })
-        .eq("id", pendingId);
+        .eq("id", pendingId)
+        .eq("user_id", userId);
     }
     return;
   }
 
-  const wallets = await getWallets(db);
-  const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets);
+  const wallets = await getWallets(db, userId);
+  const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets, userId);
   const updatedWallets = wallets.map((w) =>
     w.id === updatedWallet.id ? updatedWallet : w,
   );
-  await sendAndMapTx(db, savedTx, updatedWallets, msg.messageId);
-  await db.from("wa_pending_transactions").delete().eq("id", pendingId);
+  await sendAndMapTx(db, savedTx, updatedWallets, msg.from, msg.messageId, false, userId);
+  await db.from("wa_pending_transactions").delete().eq("id", pendingId).eq("user_id", userId);
 }
 
 export async function handlePendingNominalReply(
@@ -1486,11 +1648,14 @@ export async function handlePendingNominalReply(
   apiKeys: string[],
   msg: IncomingMessage,
   pendingId: string,
+  userId: string,
 ): Promise<void> {
+  const waChatId = msg.from;
   const { data: pending } = await db
     .from("wa_pending_transactions")
     .select("*")
     .eq("id", pendingId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (!pending) return;
@@ -1500,56 +1665,103 @@ export async function handlePendingNominalReply(
       ? JSON.parse(pending.pending_data)
       : pending.pending_data;
 
+  const userText = (msg.text ?? "").trim();
+  if (!userText) {
+    await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      waChatId,
+      "Jawaban kosong, silakan ketik keterangan atau nilai nominalnya.",
+      msg.messageId,
+    );
+    return;
+  }
+
+  const cats = await getCategories(db, userId);
+  const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+  const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
+
+  // Parse user reply using AI to update fields (amount, note, category)
+  const result = await parseClarificationReply(
+    apiKeys,
+    userText,
+    {
+      type: pendingData.type,
+      amount: pendingData.amount,
+      note: pendingData.note,
+      category: pendingData.category,
+    },
+    expenseCats,
+    incomeCats,
+  );
+
+  pendingData.amount = result.amount;
+  pendingData.note = result.note;
+  pendingData.category = result.category;
+  pendingData.category_id = matchCategoryId(result.category, pendingData.type, cats);
+
   if (pendingData.amount === 0) {
-    const amount = parseNominalReply(msg.text ?? "");
+    const amount = parseNominalReply(userText);
     if (!amount) {
       await sendWhatsAppMessage(
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
-        OWNER_PHONE,
+        waChatId,
         "Tidak ketemu angka nominalnya, coba tulis lagi.",
         msg.messageId,
       );
       return;
     }
-    await completePendingNominal(db, apiKeys, msg, pendingId, amount);
-  } else {
-    const rawNote = (msg.text ?? "").trim().slice(0, 80);
-    if (!rawNote) {
-      await sendWhatsAppMessage(
-        PHONE_NUMBER_ID,
-        WA_ACCESS_TOKEN,
-        OWNER_PHONE,
-        "Keterangannya kosong, coba ketik barang atau jasa yang jelas ya",
-        msg.messageId,
-      );
-      return;
+    pendingData.amount = amount;
+  }
+
+  const genericNotes = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
+  const isNoteGeneric = !pendingData.note || genericNotes.includes(pendingData.note.toLowerCase().trim());
+
+  if (isNoteGeneric) {
+    pendingData.note = "";
+    await db
+      .from("wa_pending_transactions")
+      .update({
+        pending_data: JSON.stringify(pendingData),
+      })
+      .eq("id", pendingId)
+      .eq("user_id", userId);
+
+    let questionText = "";
+    if (pendingData.isFromMedia) {
+      questionText = `Gagal membaca media yang kamu kirim, ${formatRupiah(pendingData.amount)} ini buat bayar apa?`;
+    } else {
+      questionText = await generateClarificationQuestion(apiKeys, {
+        type: "note",
+        amount: pendingData.amount,
+      });
     }
 
-    const cleanedNote = await cleanClarifiedNote(apiKeys, rawNote);
-    pendingData.note = cleanedNote;
-
-    const cats = await getCategories(db);
-    const expenseCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
-    const incomeCats = cats.filter((c) => c.type === pendingData.type).map((c) => c.name);
-    const newCatName = await reclassifyCategory(
-      apiKeys,
-      cleanedNote,
-      pendingData.type,
-      expenseCats,
-      incomeCats,
+    const questionMsg = await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      waChatId,
+      questionText,
+      msg.messageId,
     );
-    pendingData.category = newCatName;
-    pendingData.category_id = matchCategoryId(newCatName, pendingData.type, cats);
-
-    const wallets = await getWallets(db);
-    const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets);
-    const updatedWallets = wallets.map((w) =>
-      w.id === updatedWallet.id ? updatedWallet : w,
-    );
-    await sendAndMapTx(db, savedTx, updatedWallets, msg.messageId);
-    await db.from("wa_pending_transactions").delete().eq("id", pendingId);
+    if (questionMsg) {
+      await db
+        .from("wa_pending_transactions")
+        .update({ wa_question_message_id: questionMsg })
+        .eq("id", pendingId)
+        .eq("user_id", userId);
+    }
+    return;
   }
+
+  const wallets = await getWallets(db, userId);
+  const { savedTx, updatedWallet } = await saveTx(db, pendingData, wallets, userId);
+  const updatedWallets = wallets.map((w) =>
+    w.id === updatedWallet.id ? updatedWallet : w,
+  );
+  await sendAndMapTx(db, savedTx, updatedWallets, waChatId, msg.messageId, false, userId);
+  await db.from("wa_pending_transactions").delete().eq("id", pendingId).eq("user_id", userId);
 }
 
 // ============================================================
@@ -1560,8 +1772,9 @@ export async function handleCekSaldo(
   db: SupabaseClient,
   waChatId: string,
   replyToMsgId: string,
+  userId: string,
 ): Promise<void> {
-  const wallets = await getWallets(db);
+  const wallets = await getWallets(db, userId);
   if (!wallets.length) {
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
@@ -1606,12 +1819,14 @@ export async function handleCekSaldo(
 
 async function handleHapusTerakhir(
   db: SupabaseClient,
+  waChatId: string,
   replyToMsgId: string,
+  userId: string,
 ): Promise<void> {
   const { data: txs } = await db
     .from("transactions")
     .select("*")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("source", "whatsapp")
     .order("updated_at", { ascending: false })
     .limit(1);
@@ -1621,7 +1836,7 @@ async function handleHapusTerakhir(
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
-      OWNER_PHONE,
+      waChatId,
       "Tidak ada transaksi WA terakhir yang bisa dihapus.",
       replyToMsgId,
     );
@@ -1629,17 +1844,18 @@ async function handleHapusTerakhir(
   }
 
   // Sync deletion to user_settings.deleted_ids in database
-  await recordDeletionInDb(db, tx.id);
+  await recordDeletionInDb(db, tx.id, userId);
 
-  await db.from("transactions").delete().eq("id", tx.id);
+  await db.from("wa_message_transactions").delete().eq("transaction_id", tx.id).eq("user_id", userId);
+  await db.from("transactions").delete().eq("id", tx.id).eq("user_id", userId);
 
   // Recalculate balances murni from database transactions!
-  await recalculateDbWalletBalances(db, ACCESS_CODE);
+  await recalculateDbWalletBalances(db, userId);
 
   await sendWhatsAppMessage(
     PHONE_NUMBER_ID,
     WA_ACCESS_TOKEN,
-    OWNER_PHONE,
+    waChatId,
     `Transaksi terakhir dihapus:\n"${tx.note}" ${formatRupiah(tx.amount)} (${formatTanggalID(tx.date)})`,
     replyToMsgId,
   );
@@ -1650,12 +1866,13 @@ export async function handleWebChatImage(
   apiKeys: string[],
   msg: any,
   imageBlobBase64: string,
-  imageMimeType: string
+  imageMimeType: string,
+  userId: string,
 ): Promise<void> {
   const today = getTodayStr();
   const [cats, wallets] = await Promise.all([
-    getCategories(db),
-    getWallets(db),
+    getCategories(db, userId),
+    getWallets(db, userId),
   ]);
   const expenseCats = cats
     .filter((c) => c.type === "expense")
@@ -1678,7 +1895,7 @@ export async function handleWebChatImage(
       incomeCats,
       today,
     );
-  } catch {
+  } catch (e) {
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
@@ -1701,7 +1918,7 @@ export async function handleWebChatImage(
   }
 
   const mentionedWalletName = findMentionedWallet(msg.text || "", wallets);
-  await processParsedItems(db, apiKeys, items, cats, wallets, msg.messageId, mentionedWalletName, true);
+  await processParsedItems(db, apiKeys, items, cats, wallets, msg.from, msg.messageId, mentionedWalletName, true, userId);
 }
 
 // ============================================================

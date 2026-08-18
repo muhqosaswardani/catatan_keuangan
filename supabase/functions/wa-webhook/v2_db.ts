@@ -5,7 +5,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface ModeSession {
   wa_chat_id: string;
-  access_code: string;
+  user_id: string;
   mode: "koreksi" | "limit" | "tujuan" | null;
   session_data: any;
   updated_at: string;
@@ -87,14 +87,15 @@ export async function getV2Session(
 export async function saveV2Session(
   db: SupabaseClient,
   waChatId: string,
-  accessCode: string,
+  userId: string,
   mode: "koreksi" | "limit" | "tujuan" | null,
   sessionData: any,
 ): Promise<boolean> {
   try {
     const { error } = await db.from("wa_mode_sessions").upsert({
       wa_chat_id: waChatId,
-      access_code: accessCode,
+      user_id: userId,
+      access_code: "wa_" + waChatId, // non-null legacy fallback
       mode,
       session_data: sessionData,
       updated_at: new Date().toISOString(),
@@ -147,76 +148,76 @@ export async function clearV2Session(
 // DATA FETCHING HELPERS (Untuk query dan mode)
 // ============================================================
 
-export async function v2GetDeletedIds(db: SupabaseClient, accessCode: string): Promise<Set<string>> {
+export async function v2GetDeletedIds(db: SupabaseClient, userId: string): Promise<Set<string>> {
   const { data } = await db
     .from("user_settings")
     .select("deleted_ids")
-    .eq("access_code", accessCode)
+    .eq("user_id", userId)
     .maybeSingle();
   return new Set((data?.deleted_ids || []).map(String));
 }
 
-export async function v2GetWallets(db: SupabaseClient, accessCode: string) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
-  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("access_code", accessCode);
+export async function v2GetWallets(db: SupabaseClient, userId: string) {
+  const deletedSet = await v2GetDeletedIds(db, userId);
+  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("user_id", userId);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
-export async function v2GetCategories(db: SupabaseClient, accessCode: string) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
-  const { data } = await db.from("categories").select("id, name, type").eq("access_code", accessCode);
+export async function v2GetCategories(db: SupabaseClient, userId: string) {
+  const deletedSet = await v2GetDeletedIds(db, userId);
+  const { data } = await db.from("categories").select("id, name, type").eq("user_id", userId);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 export async function v2GetBudgets(
   db: SupabaseClient,
-  accessCode: string,
+  userId: string,
   monthStr: string,
 ) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
-  const { data } = await db.from("budgets").select("id, category_id, limit_amount, month").eq("access_code", accessCode).eq("month", monthStr);
+  const deletedSet = await v2GetDeletedIds(db, userId);
+  const { data } = await db.from("budgets").select("id, category_id, limit_amount, month").eq("user_id", userId).eq("month", monthStr);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
-export async function v2GetSavingsGoals(db: SupabaseClient, accessCode: string) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
-  const { data } = await db.from("savings_goals").select("id, name, target_amount, wallet_id, target_date").eq("access_code", accessCode);
+export async function v2GetSavingsGoals(db: SupabaseClient, userId: string) {
+  const deletedSet = await v2GetDeletedIds(db, userId);
+  const { data } = await db.from("savings_goals").select("id, name, target_amount, wallet_id, target_date").eq("user_id", userId);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
-export async function v2GetDebtEntries(db: SupabaseClient, accessCode: string) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
-  const { data } = await db.from("debt_entries").select("id, person_name, type, amount, date, note, due_date, status, payoff_wallet_id, payoff_date").eq("access_code", accessCode);
+export async function v2GetDebtEntries(db: SupabaseClient, userId: string) {
+  const deletedSet = await v2GetDeletedIds(db, userId);
+  const { data } = await db.from("debt_entries").select("id, person_name, type, amount, date, note, due_date, status, payoff_wallet_id, payoff_date").eq("user_id", userId);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 export async function v2GetRecurringItems(
   db: SupabaseClient,
-  accessCode: string,
+  userId: string,
 ) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
-  const { data } = await db.from("recurring_items").select("id, name, type, amount, wallet_id, category_id, day_of_month, active, last_confirmed_date").eq("access_code", accessCode);
+  const deletedSet = await v2GetDeletedIds(db, userId);
+  const { data } = await db.from("recurring_items").select("id, name, type, amount, wallet_id, category_id, day_of_month, active, last_confirmed_date").eq("user_id", userId);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
 export async function v2GetTransactions(
   db: SupabaseClient,
-  accessCode: string,
+  userId: string,
   startDate?: string,
   endDate?: string,
 ) {
-  const deletedSet = await v2GetDeletedIds(db, accessCode);
+  const deletedSet = await v2GetDeletedIds(db, userId);
   
   let query = db
     .from("transactions")
     .select("id, wallet_id, category_id, category, type, amount, date, note, to_wallet_id, source")
-    .eq("access_code", accessCode);
+    .eq("user_id", userId);
 
   if (startDate) {
     query = query.gte("date", startDate);
@@ -230,11 +231,11 @@ export async function v2GetTransactions(
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }
 
-export async function v2GetUserSettings(db: SupabaseClient, accessCode: string) {
+export async function v2GetUserSettings(db: SupabaseClient, userId: string) {
   const { data } = await db
     .from("user_settings")
     .select("nav_config")
-    .eq("access_code", accessCode)
+    .eq("user_id", userId)
     .maybeSingle();
   return data;
 }

@@ -248,10 +248,11 @@ Keluarkan JSON dengan schema:
 export async function handleModeKoreksiEnter(
   db: SupabaseClient,
   waChatId: string,
-  messageId: string
+  messageId: string,
+  userId: string
 ): Promise<void> {
-  const wallets = await v2GetWallets(db, ACCESS_CODE);
-  let text = `*Mode Koreksi Saldo* (Cek) ✓
+  const wallets = await v2GetWallets(db, userId);
+  let text = `*Mode Koreksi Saldo* (Cek)
 Pilih dompet yang mau dikoreksi (boleh lebih dari satu):
 
 ${wallets.map((w, idx) => `${idx + 1}. ${w.name} — ${formatRupiah(w.balance)}`).join("\n")}
@@ -259,7 +260,7 @@ ${wallets.map((w, idx) => `${idx + 1}. ${w.name} — ${formatRupiah(w.balance)}`
 Ketik nomornya, mis. "1" untuk satu dompet, "1 2" untuk beberapa dompet sekaligus, atau ketik "semua" untuk semua dompet.
 Ketik 'batal' untuk keluar dari mode.`;
 
-  await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
+  await saveV2Session(db, waChatId, userId, "koreksi", {
     step: 1,
     selected_wallets: [],
     items: [],
@@ -272,7 +273,8 @@ export async function handleModeKoreksiMessage(
   db: SupabaseClient,
   apiKeys: string[],
   msg: any,
-  session: any
+  session: any,
+  userId: string
 ): Promise<void> {
   const waChatId = session.wa_chat_id;
   const text = msg.text ?? "";
@@ -286,36 +288,26 @@ export async function handleModeKoreksiMessage(
     return;
   }
 
-  const wallets = await v2GetWallets(db, ACCESS_CODE);
+  const wallets = await v2GetWallets(db, userId);
 
   // Alur Langkah 1: Pemilihan Dompet
   if (session.session_data.step === 1 || !session.session_data.step) {
     const tokens = cleaned.split(/[\s,;]+/).map(t => t.trim()).filter(Boolean);
     const selectedIds: string[] = [];
 
-    const isAll = cleaned === "semua" || cleaned === "all";
-    if (isAll) {
-      selectedIds.push(...wallets.map(w => w.id));
-    } else {
-      for (const token of tokens) {
-        const num = parseInt(token, 10);
-        if (!isNaN(num) && num > 0 && num <= wallets.length) {
-          const w = wallets[num - 1];
-          if (!selectedIds.includes(w.id)) {
-            selectedIds.push(w.id);
-          }
-        } else {
-          const matches = wallets.filter(w => w.name.toLowerCase().includes(token));
-          if (matches.length > 0) {
-            matches.forEach(w => {
-              if (!selectedIds.includes(w.id)) {
-                selectedIds.push(w.id);
-              }
-            });
-          }
-        }
+    tokens.forEach(tok => {
+      if (tok.toLowerCase() === "semua") {
+        wallets.forEach(w => selectedIds.push(w.id));
+        return;
       }
-    }
+      const num = parseInt(tok, 10);
+      if (!isNaN(num) && num > 0 && num <= wallets.length) {
+        selectedIds.push(wallets[num - 1].id);
+      } else {
+        const found = wallets.find(w => w.name.toLowerCase().includes(tok.toLowerCase()));
+        if (found) selectedIds.push(found.id);
+      }
+    });
 
     if (selectedIds.length === 0) {
       await sendWhatsAppMessage(
@@ -336,7 +328,7 @@ export async function handleModeKoreksiMessage(
       breakdown: []
     }));
 
-    await saveV2Session(db, waChatId, ACCESS_CODE, "koreksi", {
+    await saveV2Session(db, waChatId, userId, "koreksi", {
       step: 2,
       selected_wallets: selectedIds,
       items,
@@ -364,18 +356,18 @@ export async function handleModeKoreksiMessage(
     }
 
     // Eksekusi koreksi saldo (Penyesuaian Saldo)
-    const { data: categories } = await db.from("categories").select("*").eq("access_code", ACCESS_CODE);
+    const { data: categories } = await db.from("categories").select("*").eq("user_id", userId);
     let catExpense = categories?.find(c => c.name === "Penyesuaian Saldo" && c.type === "expense");
     let catIncome = categories?.find(c => c.name === "Penyesuaian Saldo" && c.type === "income");
 
     if (!catExpense) {
       const catId = `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-      await db.from("categories").insert({ id: catId, access_code: ACCESS_CODE, name: "Penyesuaian Saldo", type: "expense", icon: "sliders", color: "#6b7280" });
+      await db.from("categories").insert({ id: catId, user_id: userId, access_code: "wa_" + userId, name: "Penyesuaian Saldo", type: "expense", icon: "sliders", color: "#6b7280" });
       catExpense = { id: catId, name: "Penyesuaian Saldo" };
     }
     if (!catIncome) {
       const catId = `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-      await db.from("categories").insert({ id: catId, access_code: ACCESS_CODE, name: "Penyesuaian Saldo", type: "income", icon: "sliders", color: "#6b7280" });
+      await db.from("categories").insert({ id: catId, user_id: userId, access_code: "wa_" + userId, name: "Penyesuaian Saldo", type: "income", icon: "sliders", color: "#6b7280" });
       catIncome = { id: catId, name: "Penyesuaian Saldo" };
     }
 
@@ -398,7 +390,8 @@ export async function handleModeKoreksiMessage(
       const txId = `wa_tx_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
       await db.from("transactions").insert({
         id: txId,
-        access_code: ACCESS_CODE,
+        user_id: userId,
+        access_code: "wa_" + userId,
         wallet_id: wallet.id,
         category_id: catId,
         category: "Penyesuaian Saldo",
@@ -412,8 +405,8 @@ export async function handleModeKoreksiMessage(
     }
 
     // Recalculate balances
-    const { data: rawWallets } = await db.from("wallets").select("*").eq("access_code", ACCESS_CODE);
-    const { data: transactions } = await db.from("transactions").select("*").eq("access_code", ACCESS_CODE);
+    const { data: rawWallets } = await db.from("wallets").select("*").eq("user_id", userId);
+    const { data: transactions } = await db.from("transactions").select("*").eq("user_id", userId);
     if (rawWallets && transactions) {
       const sums: Record<string, number> = {};
       for (const w of rawWallets) sums[w.id] = 0;
@@ -430,7 +423,7 @@ export async function handleModeKoreksiMessage(
         }
       }
 
-      const { data: settings } = await db.from("user_settings").select("nav_config").eq("access_code", ACCESS_CODE).maybeSingle();
+      const { data: settings } = await db.from("user_settings").select("nav_config").eq("user_id", userId).maybeSingle();
       const navConfig = settings?.nav_config || {};
       const initialBalances = navConfig.initialBalances || {};
 
@@ -446,7 +439,7 @@ export async function handleModeKoreksiMessage(
     }
 
     await clearV2Session(db, waChatId);
-    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Koreksi saldo berhasil disimpan! ✓`, msg.messageId);
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Koreksi saldo berhasil disimpan!`, msg.messageId);
     return;
   }
 
@@ -494,7 +487,7 @@ export async function handleModeKoreksiMessage(
     (async () => {
       const delay = 4000; // jeda batch 4 detik
       await new Promise(resolve => setTimeout(resolve, delay));
-      await processModeKoreksiBatch(db, apiKeys, waChatId, msg.messageId);
+      await processModeKoreksiBatch(db, apiKeys, waChatId, msg.messageId, userId);
     })()
   );
 }
@@ -506,7 +499,8 @@ export async function processModeKoreksiBatch(
   db: SupabaseClient,
   apiKeys: string[],
   waChatId: string,
-  triggerMsgId: string
+  triggerMsgId: string,
+  userId: string,
 ): Promise<void> {
   const { session, wasTimedOut } = await getV2Session(db, waChatId);
   if (!session || wasTimedOut) return;
@@ -567,7 +561,7 @@ export async function processModeKoreksiBatch(
 
   combinedText = combinedText.trim();
 
-  const wallets = await v2GetWallets(db, ACCESS_CODE);
+  const wallets = await v2GetWallets(db, userId);
   const draftItems = data.items || [];
   const selectedWallets = wallets.filter(w => data.selected_wallets.includes(w.id));
 
@@ -731,15 +725,15 @@ export async function processModeKoreksiBatch(
 // MODE 2: LIMIT BUDGET
 // ============================================================
 
-async function renderLimitList(db: SupabaseClient, categories: any[]): Promise<string> {
+async function renderLimitList(db: SupabaseClient, categories: any[], userId: string): Promise<string> {
   const todayStr = getTodayStr();
   const currentMonth = todayStr.slice(0, 7);
-  const budgets = await v2GetBudgets(db, ACCESS_CODE, currentMonth);
+  const budgets = await v2GetBudgets(db, userId, currentMonth);
 
   const { data: transactions } = await db
     .from("transactions")
     .select("category, amount")
-    .eq("access_code", ACCESS_CODE)
+    .eq("user_id", userId)
     .eq("type", "expense")
     .gte("date", `${currentMonth}-01`)
     .lte("date", todayStr);
@@ -783,12 +777,13 @@ async function renderLimitList(db: SupabaseClient, categories: any[]): Promise<s
 export async function handleModeLimitEnter(
   db: SupabaseClient,
   waChatId: string,
-  messageId: string
+  messageId: string,
+  userId: string
 ): Promise<void> {
-  const categories = await v2GetCategories(db, ACCESS_CODE);
-  const text = await renderLimitList(db, categories);
+  const categories = await v2GetCategories(db, userId);
+  const text = await renderLimitList(db, categories, userId);
   
-  await saveV2Session(db, waChatId, ACCESS_CODE, "limit", {});
+  await saveV2Session(db, waChatId, userId, "limit", {});
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, text, messageId);
 }
 
@@ -796,7 +791,8 @@ export async function handleModeLimitMessage(
   db: SupabaseClient,
   apiKeys: string[],
   msg: any,
-  session: any
+  session: any,
+  userId: string
 ): Promise<void> {
   const waChatId = session.wa_chat_id;
   const text = msg.text ?? "";
@@ -808,10 +804,10 @@ export async function handleModeLimitMessage(
     return;
   }
 
-  const categories = await v2GetCategories(db, ACCESS_CODE);
+  const categories = await v2GetCategories(db, userId);
   const todayStr = getTodayStr();
   const currentMonth = todayStr.slice(0, 7);
-  const budgets = await v2GetBudgets(db, ACCESS_CODE, currentMonth);
+  const budgets = await v2GetBudgets(db, userId, currentMonth);
 
   const expenseCats = categories.filter(c => c.type === "expense");
   const sortedCats = sortExpenseCategories(expenseCats, budgets);
@@ -897,7 +893,8 @@ export async function handleModeLimitMessage(
       const bId = `wa_b_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
       await db.from("budgets").insert({
         id: bId,
-        access_code: ACCESS_CODE,
+        user_id: userId,
+        access_code: "wa_" + userId,
         category_id: targetCat.category_id,
         month: currentMonth,
         limit_amount: amount,
@@ -915,7 +912,7 @@ export async function handleModeLimitMessage(
   }
 
   // Cetak ulang list terupdate
-  const updatedText = await renderLimitList(db, categories);
+  const updatedText = await renderLimitList(db, categories, userId);
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Ada lagi yang mau disesuaikan? Ketik 'batal' jika sudah selesai.\n\n` + updatedText, msg.messageId);
 }
 
@@ -923,10 +920,10 @@ export async function handleModeLimitMessage(
 // MODE 3: TUJUAN TABUNGAN
 // ============================================================
 
-async function renderGoalsList(db: SupabaseClient): Promise<string> {
-  const goals = await v2GetSavingsGoals(db, ACCESS_CODE);
+async function renderGoalsList(db: SupabaseClient, userId: string): Promise<string> {
+  const goals = await v2GetSavingsGoals(db, userId);
   const sortedGoals = sortGoals(goals);
-  const wallets = await v2GetWallets(db, ACCESS_CODE);
+  const wallets = await v2GetWallets(db, userId);
 
   let text = `Daftar Tujuan Tabungan:\n\n`;
   if (sortedGoals.length === 0) {
@@ -958,11 +955,12 @@ async function renderGoalsList(db: SupabaseClient): Promise<string> {
 export async function handleModeTujuanEnter(
   db: SupabaseClient,
   waChatId: string,
-  messageId: string
+  messageId: string,
+  userId: string
 ): Promise<void> {
-  const text = await renderGoalsList(db);
+  const text = await renderGoalsList(db, userId);
   
-  await saveV2Session(db, waChatId, ACCESS_CODE, "tujuan", {});
+  await saveV2Session(db, waChatId, userId, "tujuan", {});
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, text, messageId);
 }
 
@@ -970,7 +968,8 @@ export async function handleModeTujuanMessage(
   db: SupabaseClient,
   apiKeys: string[],
   msg: any,
-  session: any
+  session: any,
+  userId: string
 ): Promise<void> {
   const waChatId = session.wa_chat_id;
   const text = msg.text ?? "";
@@ -982,7 +981,7 @@ export async function handleModeTujuanMessage(
     return;
   }
 
-  const goals = await v2GetSavingsGoals(db, ACCESS_CODE);
+  const goals = await v2GetSavingsGoals(db, userId);
   const sortedGoals = sortGoals(goals);
   const parsedAction = await parseTujuanAction(apiKeys, text, sortedGoals);
 
@@ -1025,7 +1024,7 @@ export async function handleModeTujuanMessage(
       await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Tujuan tabungan tidak ditemukan.`, msg.messageId);
       return;
     }
-    await db.from("savings_goals").delete().eq("id", targetGoal.id);
+    await db.from("savings_goals").delete().eq("id", targetGoal.id).eq("user_id", userId);
     await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Tujuan tabungan "${targetGoal.name}" berhasil dihapus.`, msg.messageId);
   } else if (parsedAction.action === "add") {
     if (!parsedAction.goal_name || !(parsedAction.amount > 0)) {
@@ -1036,7 +1035,8 @@ export async function handleModeTujuanMessage(
     const walletId = `wa_w_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     await db.from("wallets").insert({
       id: walletId,
-      access_code: ACCESS_CODE,
+      user_id: userId,
+      access_code: "wa_" + userId,
       name: `Tabungan ${parsedAction.goal_name}`,
       balance: 0,
       updated_at: new Date().toISOString()
@@ -1045,7 +1045,8 @@ export async function handleModeTujuanMessage(
     const goalId = `wa_g_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
     await db.from("savings_goals").insert({
       id: goalId,
-      access_code: ACCESS_CODE,
+      user_id: userId,
+      access_code: "wa_" + userId,
       name: parsedAction.goal_name,
       target_amount: parsedAction.amount,
       wallet_id: walletId,
@@ -1076,7 +1077,8 @@ export async function handleModeTujuanMessage(
         target_amount: amount,
         updated_at: new Date().toISOString()
       })
-      .eq("id", targetGoal.id);
+      .eq("id", targetGoal.id)
+      .eq("user_id", userId);
 
     await sendWhatsAppMessage(
       PHONE_NUMBER_ID,
@@ -1088,6 +1090,6 @@ export async function handleModeTujuanMessage(
   }
 
   // Cetak ulang list terupdate
-  const updatedText = await renderGoalsList(db);
+  const updatedText = await renderGoalsList(db, userId);
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, `Ada lagi yang mau disesuaikan? Ketik 'batal' jika sudah selesai.\n\n` + updatedText, msg.messageId);
 }

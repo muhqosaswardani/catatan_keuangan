@@ -144,8 +144,8 @@ export function buildTransactionPrompt(
     '1. JIKA DOKUMEN ADALAH STRUK BELANJA TOKO/SUPERMARKET (Itemized Receipt):\n' +
     '   - AI harus memecah pengeluaran berdasarkan kategori barang yang dibeli secara dinamis sesuai daftar kategori kustom yang dikirim secara real-time ini. Gunakan daftar kategori expense berikut: [' + expenseCats.join(', ') + '].\n' +
     '   - Aturan klasifikasi kategori penting (Ikuti panduan ini agar klasifikasi akurat):\n' +
-    '     * "Makan" (atau kategori makanan utama): Khusus untuk makanan berat, lauk-pauk siap saji (seperti abon, sarden, sosis lauk), mie instan, telur, atau kebutuhan pangan pokok berat.\n' +
-    '     * "Jajan" (atau kategori snack/camilan): Khusus untuk makanan ringan, permen (seperti Mentos), cokelat, snack, es krim, roti manis, serta minuman manis/soda (seperti Sprite, Fanta, Coca-Cola) atau kopi instan/botolan.\n' +
+    '     * "Makan" (atau kategori makanan utama): Khusus untuk makanan berat/pokok. Contoh: nasi, nugget, mie (mie ayam/mie goreng/indomie sebagai makanan berat), bakso, ayam geprek, lauk-pauk siap saji, dsb.\n' +
+    '     * "Jajan" (atau kategori snack/camilan): Khusus untuk makanan/minuman ringan, camilan, minuman manis/kemasan. Contoh: es krim, kopi (instan/kemasan/kopi kekinian), ciki/snack, permen, cokelat, minuman manis/soda (Frestea, Sprite, dll), roti manis, dsb.\n' +
     '     * "Sembako": Khusus untuk bahan mentah dapur dasar (minyak goreng, beras karung, gula pasir, garam, dsb).\n' +
     '     * "Belanja": Khusus untuk kebutuhan rumah tangga non-konsumsi (seperti sabun mandi, detergen, pasta gigi, tisu, shampoo, sikat gigi, dsb).\n' +
     '     * Jika ada kategori kustom baru yang baru saja ditambahkan oleh pengguna, pilihlah jika nama kategorinya lebih spesifik dan cocok dengan barang yang dibeli.\n' +
@@ -443,13 +443,115 @@ export async function generateNaturalResponse(
 // ============================================================
 
 export async function generateClarificationQuestion(
-  _apiKeys: string[],
+  apiKeys: string[],
   context: { type: "note" | "amount"; note?: string; amount?: number },
 ): Promise<string> {
+  let prompt = "";
   if (context.type === "amount") {
-    return `${context.note} ini harganya berapa?`;
+    prompt = `Kamu adalah asisten keuangan pribadi yang ramah, sopan, dan santai. Buatkan kalimat pertanyaan chat WhatsApp yang natural, singkat, dan santai dalam bahasa Indonesia sehari-hari untuk menanyakan berapa nominal/harga dari transaksi berikut.\n\n` +
+      `Keterangan transaksi: "${context.note}"\n\n` +
+      `Aturan:\n` +
+      `- Jangan kaku, buat pertanyaan natural layaknya teman chat (misalnya: "Btw, [nama barang] ini harganya berapa ya?" atau variasi santai lainnya).\n` +
+      `- Jangan bertele-tele, maks 1-2 kalimat pendek.\n` +
+      `- Jangan ada emoji sama sekali.\n` +
+      `- Keluarkan HANYA teks pertanyaan tersebut saja.`;
+  } else {
+    const amtLabel = formatRupiah(context.amount ?? 0);
+    prompt = `Kamu adalah asisten keuangan pribadi yang ramah, sopan, dan santai. Buatkan kalimat pertanyaan chat WhatsApp yang natural, singkat, dan santai dalam bahasa Indonesia sehari-hari untuk menanyakan apa keterangan/kegunaan dari pengeluaran uang sebesar ${amtLabel} berikut.\n\n` +
+      `Nominal transaksi: ${amtLabel}\n\n` +
+      `Aturan:\n` +
+      `- Jangan kaku, buat pertanyaan natural layaknya teman chat (misalnya: "Uang Rp[nominal] tadi buat bayar apa ya?" atau variasi santai lainnya).\n` +
+      `- Jangan bertele-tele, maks 1-2 kalimat pendek.\n` +
+      `- Jangan ada emoji sama sekali.\n` +
+      `- Keluarkan HANYA teks pertanyaan tersebut saja.`;
   }
-  return `Gagal membaca media yang kamu kirim, ${formatRupiah(context.amount ?? 0)} ini buat bayar apa?`;
+
+  try {
+    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.7);
+    const text = extractGeminiText(data).trim();
+    return text.replace(/^["']|["']$/g, "") || (context.type === "amount" ? `${context.note} ini harganya berapa?` : `${formatRupiah(context.amount ?? 0)} ini buat bayar apa?`);
+  } catch {
+    return context.type === "amount"
+      ? `${context.note} ini harganya berapa?`
+      : `${formatRupiah(context.amount ?? 0)} ini buat bayar apa?`;
+  }
+}
+
+// ============================================================
+// Panggil Gemini untuk merinci jawaban klarifikasi user secara holistik
+// ============================================================
+
+export async function parseClarificationReply(
+  apiKeys: string[],
+  userReply: string,
+  pendingTx: { type: string; amount: number; note: string; category: string },
+  expenseCats: string[],
+  incomeCats: string[],
+): Promise<{ amount: number; note: string; category: string }> {
+  const cats = pendingTx.type === "expense" ? expenseCats : incomeCats;
+  
+  const prompt =
+    `Kamu asisten keuangan pribadi yang cerdas. User sedang mengklarifikasi transaksi yang tertunda karena informasi yang kurang lengkap.\n\n` +
+    `Data Transaksi Saat Ini:\n` +
+    `- Tipe: ${pendingTx.type}\n` +
+    `- Nominal: ${pendingTx.amount}\n` +
+    `- Catatan: "${pendingTx.note}"\n` +
+    `- Kategori Saat Ini: "${pendingTx.category}"\n\n` +
+    `Jawaban/Balasan User: "${userReply}"\n\n` +
+    `Daftar Kategori yang Tersedia: [${cats.join(", ")}]\n\n` +
+    `Tugasmu adalah menganalisis balasan user dan memperbarui field transaksi (nominal, catatan, kategori) secara cerdas:\n` +
+    `1. Nominal ("amount"): Perbarui jika user menyebutkan angka nominal baru untuk mengoreksi nominal saat ini. Jika tidak ada nominal baru yang disebutkan, tetap gunakan nominal saat ini.\n` +
+    `2. Catatan ("note"): Bersihkan dan perbarui keterangan transaksi jika user menyebutkan keterangan baru (contoh: "es campur" -> "Es Campur", "buat bayar parkir" -> "Parkir"). Jangan biarkan catatan berisi basa-basi/kata tidak penting.\n` +
+    `3. Kategori ("category"): Klasifikasikan catatan ("note") yang baru/terupdate ke salah satu kategori dari Daftar Kategori yang Tersedia. Ikuti aturan klasifikasi:\n` +
+    `   - "Makan": Khusus untuk makanan berat/pokok. Contoh: nasi, nugget, mie, bakso, geprek, dsb.\n` +
+    `   - "Jajan": Khusus untuk makanan/minuman ringan, camilan, soda, kopi, roti manis, dsb.\n` +
+    `   - "Sembako": Khusus untuk bahan mentah dapur dasar (minyak, beras, gula, dsb).\n` +
+    `   - "Belanja": Khusus untuk kebutuhan rumah tangga non-konsumsi (sabun, detergen, pasta gigi, tisu, dsb).\n` +
+    `   - Jika tidak ada yang cocok dari daftar kategori, pilih "Lainnya" (atau kategori kustom yang ada di daftar jika lebih spesifik).\n\n` +
+    `Keluarkan hasil analisis dalam format JSON dengan properti exact berikut:\n` +
+    `{\n` +
+    `  "amount": number,\n` +
+    `  "note": "string",\n` +
+    `  "category": "string"\n` +
+    `}\n\n` +
+    `Jangan berikan penjelasan lain di luar JSON.`;
+
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      amount: { type: "NUMBER" },
+      note: { type: "STRING" },
+      category: { type: "STRING" },
+    },
+    required: ["amount", "note", "category"],
+  };
+
+  try {
+    const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.1, schema);
+    const text = extractGeminiText(data).trim();
+    const parsed = JSON.parse(text);
+    
+    // Clean up category
+    let cleanedText = (parsed.category || "").replace(/^[#\*\s`'"\-\.]+|[#\*\s`'"\-\.]+$/g, "").trim();
+    let found = cats.find((c) => c.toLowerCase() === cleanedText.toLowerCase());
+    if (!found) {
+      found = cats.find((c) => cleanedText.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(cleanedText.toLowerCase()));
+    }
+    parsed.category = found ?? "Lainnya";
+    
+    return {
+      amount: Math.max(0, Math.round(Number(parsed.amount) || pendingTx.amount)),
+      note: (parsed.note || pendingTx.note || "").slice(0, 80),
+      category: parsed.category,
+    };
+  } catch (err) {
+    console.error("Gagal parse balasan klarifikasi dengan AI:", err);
+    return {
+      amount: pendingTx.amount,
+      note: pendingTx.note,
+      category: pendingTx.category,
+    };
+  }
 }
 
 // ============================================================
@@ -494,8 +596,8 @@ export async function reclassifyCategory(
     `Tipe transaksi: ${type}\n` +
     `List kategori yang tersedia: [${cats.join(", ")}]\n\n` +
     `Aturan klasifikasi:\n` +
-    `- "Makan": Khusus untuk makanan berat, lauk-pauk siap saji (seperti abon, sarden, sosis lauk), mie instan, telur, atau kebutuhan pangan pokok berat.\n` +
-    `- "Jajan": Khusus untuk makanan ringan, permen, cokelat, snack, es krim, roti manis, serta minuman manis/soda (seperti Sprite, Fanta, Coca-Cola) atau kopi instan/botolan.\n` +
+    `- "Makan": Khusus untuk makanan berat/pokok. Contoh: nasi, nugget, mie (mie ayam/mie goreng/indomie sebagai makanan berat), bakso, ayam geprek, lauk-pauk siap saji, dsb.\n` +
+    `- "Jajan": Khusus untuk makanan/minuman ringan, camilan, minuman manis/kemasan. Contoh: es krim, kopi (instan/kemasan/kopi kekinian), ciki/snack, permen, cokelat, minuman manis/soda (Frestea, Sprite, dll), roti manis, dsb.\n` +
     `- "Sembako": Khusus untuk bahan mentah dapur dasar (minyak goreng, beras karung, gula pasir, garam, dsb).\n` +
     `- "Belanja": Khusus untuk kebutuhan rumah tangga non-konsumsi (seperti sabun mandi, detergen, pasta gigi, tisu, shampoo, sikat gigi, dsb).\n\n` +
     `Keluarkan HANYA nama kategori yang paling cocok (persis seperti yang tertulis di list kategori, misal: "Makan" atau "Jajan"). Jangan gunakan markdown code fence, jangan tambahkan kalimat lain.`;
@@ -503,7 +605,13 @@ export async function reclassifyCategory(
   try {
     const data = await callGeminiRaw(apiKeys, [{ text: prompt }], 0.1);
     const text = extractGeminiText(data).trim();
-    const found = cats.find((c) => c.toLowerCase() === text.toLowerCase());
+    let cleanedText = text.replace(/^[#\*\s`'"\-\.]+|[#\*\s`'"\-\.]+$/g, "").trim();
+    cleanedText = cleanedText.replace(/^(kategori|category)\s*:\s*/i, "").trim();
+
+    let found = cats.find((c) => c.toLowerCase() === cleanedText.toLowerCase());
+    if (!found) {
+      found = cats.find((c) => cleanedText.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(cleanedText.toLowerCase()));
+    }
     return found ?? "Lainnya";
   } catch {
     return "Lainnya";

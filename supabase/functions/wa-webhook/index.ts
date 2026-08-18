@@ -48,10 +48,12 @@ function getDb() {
 async function claimIncomingMessage(
   db: ReturnType<typeof getDb>,
   messageId: string,
+  userId?: string,
 ): Promise<boolean> {
   const { error } = await db.from("wa_processed_messages").insert({
     wa_message_id: messageId,
-    access_code: Deno.env.get("WA_ACCESS_CODE"),
+    user_id: userId || null,
+    access_code: userId ? "wa_" + userId : Deno.env.get("WA_ACCESS_CODE"),
   });
   if (!error) return true;
   // PostgreSQL unique_violation = webhook delivery yang pernah diproses.
@@ -173,48 +175,174 @@ function parseWaPayload(payload: Record<string, unknown>): IncomingMessage[] {
 
 const BATCH_DELAY_MS = BATCH_WINDOW_MS + 150;
 
-async function enqueueAndScheduleMedia(
-  db: ReturnType<typeof getDb>,
-  apiKeys: string[],
-  msg: IncomingMessage,
-): Promise<void> {
-  const { error } = await db.from("wa_media_queue").upsert(
-    {
-      wa_message_id: msg.messageId,
-      access_code: Deno.env.get("WA_ACCESS_CODE"),
-      wa_chat_id: msg.from,
-      media_id: msg.mediaId,
-      mime_type:
-        msg.mimeType ?? (msg.type === "audio" ? "audio/ogg" : "image/jpeg"),
-      media_kind: msg.type,
-      caption: msg.caption ?? null,
-    },
-    { onConflict: "wa_message_id", ignoreDuplicates: true },
-  );
-  if (error)
-    throw new Error(`Gagal memasukkan media ke batch: ${error.message}`);
+// ============================================================
+// REGISTRATION & MULTI-USER HELPERS
+// ============================================================
 
-  EdgeRuntime.waitUntil(
-    withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-        await processQueuedMediaBatch(db, apiKeys, msg.from);
-      } catch (e) {
-        console.error("Error in background media batch processing:", e);
-        try {
-          await sendWhatsAppMessage(
-            PHONE_NUMBER_ID,
-            WA_ACCESS_TOKEN,
-            msg.from,
-            "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
-            msg.messageId,
-          );
-        } catch (sendErr) {
-          console.error("Failed to send background error message:", sendErr);
-        }
-      }
-    }),
-  );
+function generateOtpCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 20; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+function generateTempPassword(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let result = "";
+  for (let i = 0; i < 12; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+async function getUserByWa(db: any, nomorWa: string) {
+  const { data, error } = await db
+    .from("users")
+    .select("id, status_verifikasi")
+    .eq("nomor_wa", nomorWa)
+    .maybeSingle();
+  if (error) {
+    console.error("Error fetching user by WA:", error);
+    return null;
+  }
+  return data;
+}
+
+async function initializeUserData(db: any, userId: string) {
+  const accessCode = "wa_" + userId;
+
+  // 1. Insert default wallet "Dompet Utama"
+  const walletId = `wa_w_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  await db.from("wallets").insert({
+    id: walletId,
+    user_id: userId,
+    access_code: accessCode,
+    name: "Dompet Utama",
+    balance: 0,
+    is_primary: true,
+    sort_order: 0
+  });
+
+  // 2. Insert default categories
+  const presetExpense = [
+    { name: "Makan", icon: "utensils", color: "#ef4444" },
+    { name: "Transport", icon: "car", color: "#3b82f6" },
+    { name: "Belanja", icon: "shopping-bag", color: "#ec4899" },
+    { name: "Tagihan", icon: "credit-card", color: "#f59e0b" },
+    { name: "Hiburan", icon: "film", color: "#8b5cf6" },
+    { name: "Lainnya", icon: "folder", color: "#6b7280" },
+    { name: "Penyesuaian Saldo", icon: "sliders", color: "#10b981" },
+    { name: "Transfer", icon: "refresh", color: "#6b7280" },
+    { name: "Utang Piutang", icon: "users", color: "#3b82f6" }
+  ];
+
+  const presetIncome = [
+    { name: "Gaji", icon: "briefcase", color: "#10b981" },
+    { name: "Bonus", icon: "gift", color: "#f59e0b" },
+    { name: "Lainnya", icon: "folder", color: "#6b7280" }
+  ];
+
+  const catInserts = [];
+  for (const cat of presetExpense) {
+    catInserts.push({
+      id: `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
+      user_id: userId,
+      access_code: accessCode,
+      name: cat.name,
+      type: "expense",
+      icon: cat.icon,
+      color: cat.color
+    });
+  }
+
+  for (const cat of presetIncome) {
+    catInserts.push({
+      id: `wa_cat_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`,
+      user_id: userId,
+      access_code: accessCode,
+      name: cat.name,
+      type: "income",
+      icon: cat.icon,
+      color: cat.color
+    });
+  }
+
+  await db.from("categories").insert(catInserts);
+
+  // 3. Insert default user_settings
+  await db.from("user_settings").insert({
+    user_id: userId,
+    access_code: accessCode,
+    deleted_ids: [],
+    nav_config: { initialBalances: {} }
+  });
+}
+
+async function verifyOtpViaChat(
+  db: any,
+  nomorWa: string,
+  otpCode: string,
+  replyToMsgId: string
+): Promise<boolean> {
+  const { data: verif, error: verifErr } = await db
+    .from("verifikasi_wa")
+    .select("*")
+    .eq("nomor_wa", nomorWa)
+    .eq("kode", otpCode)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (verifErr || !verif) {
+    return false;
+  }
+
+  if (new Date(verif.expires_at) < new Date()) {
+    await sendWhatsAppMessage(
+      PHONE_NUMBER_ID,
+      WA_ACCESS_TOKEN,
+      nomorWa,
+      "Maaf, kode verifikasi tersebut sudah kedaluwarsa. Silakan lakukan pendaftaran ulang dari aplikasi web KaslyAI.",
+      replyToMsgId
+    );
+    return true;
+  }
+
+  const { data: user } = await db
+    .from("users")
+    .select("*")
+    .eq("nomor_wa", nomorWa)
+    .maybeSingle();
+
+  if (!user) {
+    return false;
+  }
+
+  if (user.token_dipakai) {
+    await db
+      .from("tokens")
+      .update({
+        status: "used",
+        used_by: nomorWa,
+        used_at: new Date().toISOString()
+      })
+      .eq("code", user.token_dipakai);
+  }
+
+  await db
+    .from("users")
+    .update({ status_verifikasi: "verified" })
+    .eq("id", user.id);
+
+  await db.from("verifikasi_wa").delete().eq("kode", otpCode);
+
+  await initializeUserData(db, user.id);
+
+  const confirmationMsg = `Pendaftaran berhasil! Akun KaslyAI Anda telah aktif.\n\nBerikut password sementara Anda:\n*${verif.password_temp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut. Segera ganti password demi keamanan.`;
+  await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg, replyToMsgId);
+
+  return true;
 }
 
 // ============================================================
@@ -224,14 +352,17 @@ async function enqueueAndScheduleMedia(
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-web-chat",
+    "Content-Type": "application/json"
+  };
+
   // ── OPTIONS: CORS preflight ──────────────────────────────
   if (req.method === "OPTIONS") {
     return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-web-chat",
-      }
+      headers: corsHeaders
     });
   }
 
@@ -247,10 +378,299 @@ Deno.serve(async (req: Request) => {
     return new Response("Forbidden", { status: 403 });
   }
 
-  // ── POST: Pesan masuk ────────────────────────────────────
+  // ── POST: Pesan masuk atau HTTP API request ──────────────
   if (req.method === "POST") {
     const rawBody = await req.text();
     const isWebChat = req.headers.get("x-web-chat") === "true" || url.searchParams.get("web_chat") === "true";
+
+    // ── ENDPOINTS REGISTRASI USER ────────────────────────────
+    if (url.pathname === "/start-registration") {
+      const db = getDb();
+      let payload: any;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const { nomor_wa, nama, token } = payload;
+      if (!nomor_wa || !nama) {
+        return new Response(JSON.stringify({ error: "Nomor WA dan Nama wajib diisi." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+
+      if (token) {
+        const { data: tokenData, error: tokenErr } = await db
+          .from("tokens")
+          .select("*")
+          .eq("code", token)
+          .eq("status", "available")
+          .maybeSingle();
+
+        if (tokenErr || !tokenData) {
+          return new Response(JSON.stringify({ error: "Token trial tidak valid atau sudah digunakan." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+      }
+
+      const { data: existingUser } = await db
+        .from("users")
+        .select("*")
+        .eq("nomor_wa", nomorWa)
+        .maybeSingle();
+
+      const otpCode = generateOtpCode();
+      const email = `${nomorWa}@kaslyai.local`;
+      let userId: string;
+      let passwordTemp: string;
+
+      if (existingUser && existingUser.status_verifikasi === "verified") {
+        userId = existingUser.id;
+        const { data: authUser, error: authGetErr } = await db.auth.admin.getUserById(userId);
+        if (authGetErr || !authUser?.user) {
+          return new Response(JSON.stringify({ error: "Gagal memproses data pengguna." }), {
+            status: 500,
+            headers: corsHeaders,
+          });
+        }
+        passwordTemp = authUser.user.user_metadata?.password_temp;
+        if (!passwordTemp) {
+          passwordTemp = generateTempPassword();
+          await db.auth.admin.updateUserById(userId, {
+            password: passwordTemp,
+            user_metadata: { ...authUser.user.user_metadata, password_temp: passwordTemp }
+          });
+        }
+      } else if (existingUser && existingUser.status_verifikasi === "pending") {
+        userId = existingUser.id;
+        passwordTemp = generateTempPassword();
+        const { data: authUser } = await db.auth.admin.getUserById(userId);
+        const userMeta = authUser?.user?.user_metadata || {};
+        const { error: updateAuthErr } = await db.auth.admin.updateUserById(userId, {
+          password: passwordTemp,
+          user_metadata: { ...userMeta, password_temp: passwordTemp }
+        });
+        if (updateAuthErr) {
+          return new Response(JSON.stringify({ error: `Gagal memperbarui auth: ${updateAuthErr.message}` }), {
+            status: 500,
+            headers: corsHeaders,
+          });
+        }
+        if (token) {
+          await db.from("users").update({ token_dipakai: token, trial_lama_hari: 30 }).eq("id", userId);
+        }
+      } else {
+        passwordTemp = generateTempPassword();
+        const { data: authData, error: authErr } = await db.auth.admin.createUser({
+          email,
+          password: passwordTemp,
+          email_confirm: true,
+          user_metadata: { nama, nomor_wa: nomorWa, password_temp: passwordTemp }
+        });
+
+        if (authErr || !authData?.user) {
+          return new Response(JSON.stringify({ error: `Gagal membuat akun auth: ${authErr?.message}` }), {
+            status: 500,
+            headers: corsHeaders,
+          });
+        }
+
+        userId = authData.user.id;
+
+        const { error: profileErr } = await db.from("users").insert({
+          id: userId,
+          nama,
+          nomor_wa: nomorWa,
+          status_verifikasi: "pending",
+          trial_mulai_at: new Date().toISOString(),
+          trial_lama_hari: token ? 30 : 7,
+          token_dipakai: token || null,
+          sumber_ai: "gratis"
+        });
+
+        if (profileErr) {
+          await db.auth.admin.deleteUser(userId);
+          return new Response(JSON.stringify({ error: `Gagal membuat profil user: ${profileErr.message}` }), {
+            status: 500,
+            headers: corsHeaders,
+          });
+        }
+      }
+
+      const { error: verifErr } = await db.from("verifikasi_wa").upsert({
+        kode: otpCode,
+        nomor_wa: nomorWa,
+        password_temp: passwordTemp,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      });
+
+      if (verifErr) {
+        return new Response(JSON.stringify({ error: `Gagal menyimpan verifikasi: ${verifErr.message}` }), {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
+
+      try {
+        const waMessage = `Halo *${nama}*!\n\nTerima kasih telah mendaftar di *KaslyAI*.\n\nBerikut adalah kode OTP verifikasi pendaftaran Anda:\n\n*${otpCode}*\n\nSilakan balas chat ini dengan mengirimkan kode OTP di atas untuk mengaktifkan akun Anda.`;
+        await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, waMessage);
+      } catch (waErr) {
+        console.error("Gagal mengirim WhatsApp message:", waErr);
+      }
+
+      return new Response(JSON.stringify({ success: true, message: "Kode verifikasi telah dikirim ke WhatsApp Anda.", code: otpCode }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    if (url.pathname === "/check-verification") {
+      const db = getDb();
+      let payload: any;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const { nomor_wa } = payload;
+      if (!nomor_wa) {
+        return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+
+      const { data: user, error } = await db
+        .from("users")
+        .select("status_verifikasi")
+        .eq("nomor_wa", nomorWa)
+        .maybeSingle();
+
+      if (error || !user) {
+        return new Response(JSON.stringify({ verified: false }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      }
+
+      return new Response(JSON.stringify({ verified: user.status_verifikasi === "verified" }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    if (url.pathname === "/complete-verification") {
+      const db = getDb();
+      let payload: any;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const { nomor_wa, kode } = payload;
+      if (!nomor_wa || !kode) {
+        return new Response(JSON.stringify({ error: "Nomor WA dan kode OTP wajib diisi." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+      const otpCode = kode.trim().toUpperCase();
+
+      const { data: verif, error: verifErr } = await db
+        .from("verifikasi_wa")
+        .select("*")
+        .eq("nomor_wa", nomorWa)
+        .eq("kode", otpCode)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (verifErr || !verif) {
+        return new Response(JSON.stringify({ error: "Kode verifikasi tidak cocok atau sudah kadaluwarsa." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      if (new Date(verif.expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: "Kode verifikasi sudah kadaluwarsa." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+
+      const { data: user } = await db
+        .from("users")
+        .select("*")
+        .eq("nomor_wa", nomorWa)
+        .maybeSingle();
+
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Profil user tidak ditemukan." }), {
+          status: 404,
+          headers: corsHeaders,
+        });
+      }
+
+      if (user.token_dipakai) {
+        await db
+          .from("tokens")
+          .update({
+            status: "used",
+            used_by: nomorWa,
+            used_at: new Date().toISOString()
+          })
+          .eq("code", user.token_dipakai);
+      }
+
+      await db
+        .from("users")
+        .update({ status_verifikasi: "verified" })
+        .eq("id", user.id);
+
+      await db.from("verifikasi_wa").delete().eq("kode", otpCode);
+
+      await initializeUserData(db, user.id);
+
+      try {
+        const confirmationMsg = `Akun KaslyAI Anda telah aktif!\n\nSelamat datang di KaslyAI, asisten keuangan pribadi Anda.\n\nBerikut password sementara Anda:\n*${verif.password_temp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut.`;
+        await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg);
+      } catch (waErr) {
+        console.error("Gagal mengirim pesan konfirmasi:", waErr);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Verifikasi berhasil. Silakan login.",
+        email: `${nomorWa}@kaslyai.local`,
+        password: verif.password_temp
+      }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
 
     if (isWebChat) {
       const db = getDb();
@@ -260,11 +680,7 @@ Deno.serve(async (req: Request) => {
       } catch {
         return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
           status: 400,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*"
-          }
+          headers: corsHeaders
         });
       }
 
@@ -276,17 +692,46 @@ Deno.serve(async (req: Request) => {
         contextId: webPayload.contextId || null
       };
 
+      // Resolve userId
+      let userId: string | null = null;
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await db.auth.getUser(token);
+        if (user) {
+          userId = user.id;
+        }
+      }
+
+      if (!userId && msg.from) {
+        const user = await getUserByWa(db, msg.from);
+        if (user && user.status_verifikasi === "verified") {
+          userId = user.id;
+        }
+      }
+
+      if (!userId && isOwner(msg.from)) {
+        userId = "da7b12d5-e9df-46cc-a4ba-f3a748c08412";
+      }
+
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Unauthorized. Mohon login terlebih dahulu." }), {
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+
       const responseMessages: ChatContextMessage[] = [];
 
       try {
         await chatContext.run({ isWebChat: true, messages: responseMessages }, async () => {
           if (webPayload.image && webPayload.image.data && webPayload.image.mimeType) {
-            await handleWebChatImage(db, GEMINI_API_KEYS, msg, webPayload.image.data, webPayload.image.mimeType);
+            await handleWebChatImage(db, GEMINI_API_KEYS, msg, webPayload.image.data, webPayload.image.mimeType, userId);
             return;
           }
 
           // 1. Cek V2 Message router
-          const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
+          const handled = await handleV2Message(db, GEMINI_API_KEYS, msg, userId);
           if (handled) return;
 
           // 2. Cek reply to transaction
@@ -298,7 +743,7 @@ Deno.serve(async (req: Request) => {
               .maybeSingle();
 
             if (mapping?.transaction_id) {
-              await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id);
+              await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id, userId);
               return;
             }
 
@@ -309,13 +754,13 @@ Deno.serve(async (req: Request) => {
               .maybeSingle();
 
             if (pending?.id) {
-              await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);
+              await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id, userId);
               return;
             }
           }
 
           // 3. Fallback to normal text handler
-          await handleTextMessage(db, GEMINI_API_KEYS, msg);
+          await handleTextMessage(db, GEMINI_API_KEYS, msg, userId);
         });
 
         const { session: activeSession, wasTimedOut } = await getV2Session(db, msg.from);
@@ -339,21 +784,13 @@ Deno.serve(async (req: Request) => {
 
         return new Response(JSON.stringify({ success: true, messages: mappedMessages }), {
           status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*"
-          }
+          headers: corsHeaders
         });
       } catch (e) {
         console.error("Web Chat processing error:", e);
         return new Response(JSON.stringify({ error: String(e) }), {
           status: 500,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*"
-          }
+          headers: corsHeaders
         });
       }
     }
@@ -363,7 +800,6 @@ Deno.serve(async (req: Request) => {
       !SUPABASE_URL ||
       !SUPABASE_SERVICE_ROLE_KEY ||
       !GEMINI_API_KEYS.length ||
-      !Deno.env.get("WA_ACCESS_CODE") ||
       !Deno.env.get("WA_DEFAULT_WALLET_ID") ||
       !PHONE_NUMBER_ID ||
       !WA_ACCESS_TOKEN
@@ -379,7 +815,6 @@ Deno.serve(async (req: Request) => {
     const valid = await verifySignature(rawBody, signature);
     if (!valid) {
       console.warn("Signature verification failed");
-      // Tetap return 200 ke Meta supaya tidak retry, tapi tidak proses
       return new Response("OK", { status: 200 });
     }
 
@@ -397,13 +832,17 @@ Deno.serve(async (req: Request) => {
 
     // Proses setiap pesan (biasanya cuma 1 per webhook call)
     for (const msg of messages) {
-      // Security: hanya proses pesan dari pemilik produk
-      if (!isOwner(msg.from)) {
-        console.warn(`Ignored message from non-owner: ${msg.from}`);
-        continue;
+      // Resolve userId
+      let userId: string | null = null;
+      const user = await getUserByWa(db, msg.from);
+
+      if (user && user.status_verifikasi === "verified") {
+        userId = user.id;
+      } else if (isOwner(msg.from)) {
+        userId = "da7b12d5-e9df-46cc-a4ba-f3a748c08412"; // Fallback to static admin UUID
       }
 
-      if (!(await claimIncomingMessage(db, msg.messageId))) {
+      if (!(await claimIncomingMessage(db, msg.messageId, userId || undefined))) {
         console.log(`Duplicate webhook message ignored: ${msg.messageId}`);
         continue;
       }
@@ -413,11 +852,60 @@ Deno.serve(async (req: Request) => {
         () => {},
       );
 
+      if (!userId) {
+        // Unverified user. Check if they sent a 20-character verification OTP.
+        const potentialCode = (msg.text ?? "").trim().toUpperCase();
+        if (potentialCode.length === 20 && /^[A-Z0-9]{20}$/.test(potentialCode)) {
+          const verified = await verifyOtpViaChat(db, msg.from, potentialCode, msg.messageId);
+          if (verified) {
+            continue;
+          }
+        }
+
+        // If not a verification code, send pendaftaran prompt
+        const regPrompt = "Nomor WhatsApp Anda belum terdaftar di *KaslyAI*.\n\nSilakan lakukan pendaftaran terlebih dahulu melalui aplikasi web KaslyAI.";
+        await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.from, regPrompt, msg.messageId);
+        continue;
+      }
+
       const isMedia = msg.type === "image" || msg.type === "audio";
 
       if (isMedia) {
         try {
-          await enqueueAndScheduleMedia(db, GEMINI_API_KEYS, msg);
+          const { error } = await db.from("wa_media_queue").upsert(
+            {
+              wa_message_id: msg.messageId,
+              user_id: userId,
+              access_code: "wa_" + userId,
+              wa_chat_id: msg.from,
+              media_id: msg.mediaId,
+              mime_type: msg.mimeType ?? (msg.type === "audio" ? "audio/ogg" : "image/jpeg"),
+              media_kind: msg.type,
+              caption: msg.caption ?? null,
+            },
+            { onConflict: "wa_message_id", ignoreDuplicates: true },
+          );
+          if (error) throw new Error(`Gagal memasukkan media ke batch: ${error.message}`);
+
+          EdgeRuntime.waitUntil(
+            withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
+              try {
+                await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+                await processQueuedMediaBatch(db, GEMINI_API_KEYS, msg.from, userId);
+              } catch (e) {
+                console.error("Error in background media batch processing:", e);
+                try {
+                  await sendWhatsAppMessage(
+                    PHONE_NUMBER_ID,
+                    WA_ACCESS_TOKEN,
+                    msg.from,
+                    "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
+                    msg.messageId,
+                  );
+                } catch {}
+              }
+            }),
+          );
         } catch (e) {
           console.error("Error scheduling media:", e);
           try {
@@ -433,37 +921,42 @@ Deno.serve(async (req: Request) => {
       } else {
         await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
           try {
-            // // VERSI 2 - Router Intent & Mode (Isolatable & Rollbackable)
             if (Deno.env.get("WA_V2_ENABLED") === "true") {
-              // Log incoming message metadata (non-blocking)
               try {
                 // @ts-ignore
                 EdgeRuntime.waitUntil(
                   db.from("wa_logs").insert({
+                    user_id: userId,
+                    access_code: "wa_" + userId,
                     message: "Incoming Message metadata",
                     details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
                   })
                 );
               } catch {
                 db.from("wa_logs").insert({
+                  user_id: userId,
+                  access_code: "wa_" + userId,
                   message: "Incoming Message metadata",
                   details: { messageId: msg.messageId, from: msg.from, type: msg.type, text: msg.text ?? msg.caption }
                 }).catch(() => {});
               }
 
-              const handled = await handleV2Message(db, GEMINI_API_KEYS, msg);
+              const handled = await handleV2Message(db, GEMINI_API_KEYS, msg, userId);
 
-              // Log V2 Router finished (non-blocking)
               try {
                 // @ts-ignore
                 EdgeRuntime.waitUntil(
                   db.from("wa_logs").insert({
+                    user_id: userId,
+                    access_code: "wa_" + userId,
                     message: "V2 Router finished",
                     details: { messageId: msg.messageId, handled }
                   })
                 );
               } catch {
                 db.from("wa_logs").insert({
+                  user_id: userId,
+                  access_code: "wa_" + userId,
                   message: "V2 Router finished",
                   details: { messageId: msg.messageId, handled }
                 }).catch(() => {});
@@ -476,7 +969,6 @@ Deno.serve(async (req: Request) => {
 
             // ── Cek apakah ini reply ke pesan bot ──────────────
             if (msg.contextId) {
-              // Cek apakah reply ke bubble transaksi
               const { data: mapping } = await db
                 .from("wa_message_transactions")
                 .select("transaction_id")
@@ -484,16 +976,10 @@ Deno.serve(async (req: Request) => {
                 .single();
 
               if (mapping?.transaction_id) {
-                await handleReplyToTransaction(
-                  db,
-                  GEMINI_API_KEYS,
-                  msg,
-                  mapping.transaction_id,
-                );
+                await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id, userId);
                 return;
               }
 
-              // Cek apakah reply ke pertanyaan nominal pending
               const { data: pending } = await db
                 .from("wa_pending_transactions")
                 .select("id")
@@ -501,33 +987,32 @@ Deno.serve(async (req: Request) => {
                 .single();
 
               if (pending?.id) {
-                await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);
+                await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id, userId);
                 return;
               }
-
-              // Reply ke pesan lain yang tidak dikenali → proses normal
             }
 
             // ── Route berdasarkan tipe pesan ────────────────────
             if (msg.type === "text") {
-              await handleTextMessage(db, GEMINI_API_KEYS, msg);
+              await handleTextMessage(db, GEMINI_API_KEYS, msg, userId);
             }
           } catch (e) {
             console.error("Error processing message:", e);
-            // Log error details to wa_logs for debugging
             try {
               await db.from("wa_logs").insert({
+                user_id: userId,
+                access_code: "wa_" + userId,
                 message: "CRITICAL_ERROR processing message",
                 details: { messageId: msg.messageId, type: msg.type, error: String(e), stack: (e as Error)?.stack?.slice(0, 500) }
               });
             } catch {
-              // fallback: fire-and-forget
               db.from("wa_logs").insert({
+                user_id: userId,
+                access_code: "wa_" + userId,
                 message: "CRITICAL_ERROR processing message",
                 details: { messageId: msg.messageId, type: msg.type, error: String(e) }
               }).catch(() => {});
             }
-            // Kirim pesan error ke user
             try {
               await sendWhatsAppMessage(
                 PHONE_NUMBER_ID,
@@ -542,7 +1027,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Selalu return 200 ke Meta (supaya tidak retry)
     return new Response("OK", { status: 200 });
   }
 
