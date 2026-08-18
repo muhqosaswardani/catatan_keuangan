@@ -3993,12 +3993,68 @@
     /* Transaction bubble (Clickable for editing/deleting) */
     .chat-bubble.bot.chat-tx-bubble {
       cursor: pointer;
-      border: 1.5px dashed var(--accent);
+      border: 1.5px solid var(--accent);
+      border-left: 4px solid var(--accent);
     }
 
     .chat-bubble.bot.chat-tx-bubble:hover {
-      transform: scale(1.02);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       background: var(--accent-soft);
+    }
+
+    /* Clarification/Confirmation bubble */
+    .chat-bubble.bot.chat-clarify-bubble {
+      cursor: pointer;
+      border: 1.5px solid #e67e22;
+      border-left: 4px solid #e67e22;
+    }
+
+    .chat-bubble.bot.chat-clarify-bubble:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      background: rgba(230, 126, 34, 0.05);
+    }
+
+    /* Tags inside bubbles */
+    .chat-bubble-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chat-bubble-tag.tx-tag {
+      color: var(--accent);
+    }
+
+    .chat-bubble-tag.clarify-tag {
+      color: #e67e22;
+    }
+
+    .chat-bubble-action-hint {
+      font-size: 9.5px;
+      color: var(--ink-soft);
+      opacity: 0.6;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      border-top: 1px dashed var(--line);
+      padding-top: 4px;
+    }
+
+    .chat-bubble.bot.chat-clickable-bot-bubble {
+      cursor: pointer;
+    }
+
+    .chat-bubble.bot.chat-clickable-bot-bubble:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
     .chat-bubble .time {
@@ -6500,7 +6556,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.7)';
+      const version = ' (v2.5.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14997,6 +15053,7 @@
     let chatHistory = [];
     let chatSession = null;
     let chatPendingReplyToTxId = null;
+    let chatPendingReplyToMsgId = null;
     let chatSelectedFile = null;
 
     // Initialize chat
@@ -15105,41 +15162,84 @@
         content += `<div>${textHtml}</div>`;
         content += `<span class="time">${formatTime(msg.timestamp)}</span>`;
 
-        const txAttr = msg.txId ? ` data-tx-id="${msg.txId}"` : '';
-        const txClass = msg.txId ? ' chat-tx-bubble' : '';
+        const isTx = !!msg.txId;
+        // Check both stored isClarify and match dynamically in case of unsaved/legacy messages
+        const isClarify = !!msg.isClarify || (!isUser && (msg.text && (msg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(msg.text))));
 
-        html += `<div class="chat-bubble ${alignClass}${txClass}"${txAttr} onclick="handleChatBubbleClick(this)">${content}</div>`;
+        let txClass = '';
+        let badgeHtml = '';
+        let actionHintHtml = '';
+
+        if (isTx) {
+          txClass = ' chat-tx-bubble';
+          badgeHtml = `<div class="chat-bubble-tag tx-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Transaksi</div>`;
+          actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Edit / Hapus</div>`;
+        } else if (isClarify) {
+          txClass = ' chat-clarify-bubble';
+          badgeHtml = `<div class="chat-bubble-tag clarify-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Butuh Konfirmasi</div>`;
+          actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Membalas</div>`;
+        } else if (!isUser) {
+          txClass = ' chat-clickable-bot-bubble';
+        }
+
+        const txAttr = msg.txId ? ` data-tx-id="${msg.txId}"` : '';
+        const clarifyAttr = isClarify ? ` data-clarify="true"` : '';
+        const msgIdAttr = ` data-msg-id="${msg.id}"`;
+
+        html += `<div class="chat-bubble ${alignClass}${txClass}"${txAttr}${clarifyAttr}${msgIdAttr} onclick="handleChatBubbleClick(this)">${badgeHtml}${content}${actionHintHtml}</div>`;
       });
 
       container.innerHTML = html;
       container.scrollTop = container.scrollHeight;
     }
 
-    // Click on bubble -> activate reply context for transaction editing/deleting
+    // Click on bubble -> activate reply context for transaction editing/deleting or message clarifying
     function handleChatBubbleClick(el) {
       const txId = el.getAttribute('data-tx-id');
-      if (!txId) return;
+      const msgId = el.getAttribute('data-msg-id');
+      const isBot = !el.classList.contains('user');
 
-      const txs = getTransactions();
-      const tx = txs.find(t => t.id === txId);
-      const debts = getDebts();
-      const debt = debts.find(d => d.id === txId);
-
-      if (!tx && !debt) return;
-
-      chatPendingReplyToTxId = txId;
       const banner = document.getElementById('chatQuoteBanner');
       const bannerContent = document.getElementById('chatQuoteContent');
-      if (banner && bannerContent) {
-        const nameStr = tx ? (tx.note || 'Transaksi') : `Utang ${debt.person_name}`;
-        const amtStr = tx ? formatRupiah(tx.amount) : formatRupiah(debt.amount);
-        bannerContent.innerHTML = `Membalas transaksi: <strong>${nameStr} (${amtStr})</strong>`;
-        banner.style.display = 'flex';
+      const inputEl = document.getElementById('chatInputText');
+
+      if (txId) {
+        const txs = getTransactions();
+        const tx = txs.find(t => t.id === txId);
+        const debts = getDebts();
+        const debt = debts.find(d => d.id === txId);
+
+        if (!tx && !debt) return;
+
+        chatPendingReplyToTxId = txId;
+        chatPendingReplyToMsgId = null;
+        if (banner && bannerContent) {
+          const nameStr = tx ? (tx.note || 'Transaksi') : `Utang ${debt.person_name}`;
+          const amtStr = tx ? formatRupiah(tx.amount) : formatRupiah(debt.amount);
+          bannerContent.innerHTML = `Membalas transaksi: <strong>${nameStr} (${amtStr})</strong>`;
+          banner.style.display = 'flex';
+        }
+        if (inputEl) inputEl.focus();
+      } else if (isBot && msgId) {
+        const msg = chatHistory.find(m => m.id === msgId);
+        if (msg) {
+          chatPendingReplyToTxId = null;
+          chatPendingReplyToMsgId = msgId;
+          if (banner && bannerContent) {
+            const cleanText = msg.text || '';
+            const truncatedText = cleanText.length > 50 ? cleanText.substring(0, 50) + '...' : cleanText;
+            const prefix = msg.isClarify ? 'Membalas konfirmasi' : 'Membalas';
+            bannerContent.innerHTML = `${prefix}: <em>"${escapeHtml(truncatedText)}"</em>`;
+            banner.style.display = 'flex';
+          }
+          if (inputEl) inputEl.focus();
+        }
       }
     }
 
     function cancelChatReply() {
       chatPendingReplyToTxId = null;
+      chatPendingReplyToMsgId = null;
       const banner = document.getElementById('chatQuoteBanner');
       if (banner) banner.style.display = 'none';
     }
@@ -15332,14 +15432,15 @@
       }
     }
 
-    function appendChatBubble(sender, text, timestamp, imageBase64, txId) {
+    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify) {
       chatHistory.push({
         id: 'msg_' + uid(),
         sender,
         text,
         timestamp,
         image: imageBase64 || null,
-        txId: txId || null
+        txId: txId || null,
+        isClarify: !!isClarify
       });
       localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
       saveChatStateToNavConfig();
