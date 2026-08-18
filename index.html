@@ -6482,7 +6482,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.5)';
+      const version = ' (v2.5.6)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -6859,17 +6859,27 @@
                 merged.dashboardAvgExcludeCatIdsUpdatedAt = localExclTs;
               }
 
+              const localChat = Array.isArray(localCfg.chatHistory) ? localCfg.chatHistory : [];
+              const remoteChat = Array.isArray(remoteCfg.chatHistory) ? remoteCfg.chatHistory : [];
+              
+              const chatMap = new Map();
+              localChat.forEach(msg => {
+                if (msg && msg.id) chatMap.set(msg.id, msg);
+              });
+              remoteChat.forEach(msg => {
+                if (msg && msg.id) chatMap.set(msg.id, msg);
+              });
+
+              const mergedChat = Array.from(chatMap.values())
+                .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
+
+              merged.chatHistory = mergedChat;
+              
               const localChatTs = Number(localCfg.chatUpdatedAt) || 0;
               const remoteChatTs = Number(remoteCfg.chatUpdatedAt) || 0;
-              if (localChatTs >= remoteChatTs) {
-                merged.chatHistory = localCfg.chatHistory;
-                merged.chatSession = localCfg.chatSession;
-                merged.chatUpdatedAt = localChatTs;
-              } else {
-                merged.chatHistory = remoteCfg.chatHistory;
-                merged.chatSession = remoteCfg.chatSession;
-                merged.chatUpdatedAt = remoteChatTs;
-              }
+              merged.chatSession = (localChatTs >= remoteChatTs) ? localCfg.chatSession : remoteCfg.chatSession;
+              merged.chatUpdatedAt = Math.max(localChatTs, remoteChatTs);
+
 
 
               const mergedInitialBalances = {};
@@ -7280,6 +7290,10 @@
       const heroWalletsUpdatedAt = (raw && Number(raw.heroWalletsUpdatedAt)) || 0;
       const initialBalances = (raw && raw.initialBalances) ? raw.initialBalances : {};
 
+      const chatHistory = (raw && Array.isArray(raw.chatHistory)) ? raw.chatHistory : [];
+      const chatSession = (raw && raw.chatSession) ? raw.chatSession : null;
+      const chatUpdatedAt = (raw && Number(raw.chatUpdatedAt)) || 0;
+
       return {
         core,
         heroWallets,
@@ -7289,7 +7303,10 @@
         dashboardAvgExcludeCatIdsUpdatedAt,
         coreUpdatedAt,
         heroWalletsUpdatedAt,
-        initialBalances
+        initialBalances,
+        chatHistory,
+        chatSession,
+        chatUpdatedAt
       };
     }
     function getHeroWallets() {
