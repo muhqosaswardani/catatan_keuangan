@@ -6482,7 +6482,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.4)';
+      const version = ' (v2.5.5)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -17586,6 +17586,15 @@ PERTANYAAN_USER:
       if (document.getElementById('page-checklist')) renderChecklist();
       if (document.getElementById('page-tujuan')) renderGoals();
       if (document.getElementById('page-utang')) renderDebts();
+      
+      // Load synced chat history into memory
+      if (typeof initChatState === 'function') {
+        initChatState();
+      }
+      // Re-render chat UI if the user is currently viewing the chat page
+      if (typeof currentTab !== 'undefined' && currentTab === 'chat' && typeof renderChat === 'function') {
+        renderChat();
+      }
     }
 
     async function init() {
