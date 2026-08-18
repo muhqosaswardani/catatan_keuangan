@@ -4038,17 +4038,17 @@
       }
     }
 
-    /* Chat input bar */
+    /* Chat input bar — WhatsApp style */
     .chat-input-bar {
-      background: var(--surface);
-      border: 1.5px solid var(--line);
-      border-radius: var(--radius-m);
-      margin: 8px 0 4px;
-      padding: 8px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 6px 0 4px;
+      padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      box-shadow: var(--shadow);
+      gap: 6px;
+      box-shadow: none;
       flex-shrink: 0;
     }
 
@@ -4063,6 +4063,7 @@
       border-radius: var(--radius-s);
       font-size: 12.5px;
       color: var(--ink);
+      margin: 0 4px;
     }
 
     .chat-quote-banner .quote-content {
@@ -4094,6 +4095,7 @@
       font-size: 12px;
       color: var(--ink-soft);
       font-weight: 500;
+      margin: 0 4px;
     }
 
     .chat-clear-attachment {
@@ -4106,46 +4108,123 @@
       font-weight: 700;
     }
 
+    /* Main row: [input-field] [action-btn] */
     .chat-input-row {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      align-items: flex-end;
+      gap: 6px;
     }
 
-    .chat-btn-attach,
-    .chat-btn-send {
+    /* The rounded input field container (like WA) */
+    .chat-field-wrap {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: 24px;
+      padding: 4px 6px 4px 4px;
+      box-shadow: var(--shadow);
+    }
+
+    /* File/gallery button — left inside field */
+    .chat-btn-file {
       background: none;
       border: none;
-      color: var(--accent);
+      color: var(--ink-soft);
       cursor: pointer;
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s, color 0.2s;
+      flex-shrink: 0;
+      transition: color 0.15s;
     }
+    .chat-btn-file:hover { color: var(--accent); }
+    .chat-btn-file:active { transform: scale(0.92); }
 
-    .chat-btn-attach:hover,
-    .chat-btn-send:hover {
-      background: var(--surface-2);
-    }
-
-    .chat-input-row input[type="text"] {
+    /* Text input */
+    .chat-field-wrap input[type="text"] {
       flex: 1;
+      min-width: 0;
       border: none;
       background: transparent;
-      padding: 8px 4px;
+      padding: 7px 4px;
       font-size: 14px;
       color: var(--ink);
       outline: none;
+      font-family: inherit;
+    }
+    .chat-field-wrap input[type="text"]::placeholder {
+      color: var(--ink-soft);
+      opacity: 0.7;
     }
 
-    .chat-input-row input[type="text"]::placeholder {
+    /* Camera button — right inside field */
+    .chat-btn-camera {
+      background: none;
+      border: none;
       color: var(--ink-soft);
-      opacity: 0.8;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: color 0.15s;
     }
+    .chat-btn-camera:hover { color: var(--accent); }
+    .chat-btn-camera:active { transform: scale(0.92); }
+
+    /* Action button (VN / Send) — green circle outside field */
+    .chat-btn-action {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(15,118,110,0.35);
+      transition: transform 0.15s, background 0.2s;
+    }
+    .chat-btn-action:hover {
+      background: var(--accent-dark);
+    }
+    .chat-btn-action:active {
+      transform: scale(0.92);
+    }
+    .chat-btn-action svg {
+      transition: transform 0.2s ease;
+    }
+
+    /* VN recording animation */
+    .chat-btn-action.recording {
+      animation: vnPulse 1s ease-in-out infinite;
+      background: #ef4444;
+      box-shadow: 0 0 0 0 rgba(239,68,68,0.5);
+    }
+    @keyframes vnPulse {
+      0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+      70% { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
+      100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    }
+
+    /* Hide send icon, show mic icon by default */
+    .chat-btn-action .icon-send { display: none; }
+    .chat-btn-action .icon-mic { display: flex; }
+    .chat-btn-action.is-send .icon-send { display: flex; }
+    .chat-btn-action.is-send .icon-mic { display: none; }
   </style>
 </head>
 
@@ -4952,29 +5031,55 @@
         </div>
 
         <div class="chat-input-row">
-          <!-- File input (hidden) -->
-          <input type="file" id="chatFileInput" style="display:none;" accept="image/*"
+          <!-- Hidden file inputs -->
+          <input type="file" id="chatFileInput" style="display:none;" accept="image/*,application/pdf"
+            onchange="handleChatFileSelect(event)">
+          <input type="file" id="chatCameraInput" style="display:none;" accept="image/*" capture="environment"
             onchange="handleChatFileSelect(event)">
 
-          <button type="button" class="chat-btn-attach" onclick="document.getElementById('chatFileInput').click()"
-            title="Lampirkan foto struk/screenshot">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-          </button>
+          <!-- Rounded input field (WA style) -->
+          <div class="chat-field-wrap">
+            <!-- File/Gallery button (left) -->
+            <button type="button" class="chat-btn-file" onclick="document.getElementById('chatFileInput').click()"
+              title="Lampirkan file/foto">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
 
-          <input type="text" id="chatInputText" placeholder="Ketik pesan..." autocomplete="off"
-            onkeydown="if(event.key==='Enter') sendChatMessage()">
+            <!-- Text input -->
+            <input type="text" id="chatInputText" placeholder="Ketik pesan..." autocomplete="off"
+              onkeydown="if(event.key==='Enter') sendChatMessage()"
+              oninput="toggleChatActionBtn()">
 
-          <button type="button" class="chat-btn-send" onclick="sendChatMessage()" title="Kirim">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
+            <!-- Camera button (right inside field) -->
+            <button type="button" class="chat-btn-camera" onclick="document.getElementById('chatCameraInput').click()"
+              title="Buka kamera">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Action button: Mic (default) / Send (when typing) -->
+          <button type="button" class="chat-btn-action" id="chatActionBtn" onclick="handleChatAction()" title="Pesan suara">
+            <!-- Mic icon (default) -->
+            <span class="icon-mic">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </span>
+            <!-- Send icon (when typing) -->
+            <span class="icon-send">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </span>
           </button>
         </div>
       </div>
@@ -6377,7 +6482,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.3)';
+      const version = ' (v2.5.4)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14985,14 +15090,87 @@
         nameEl.textContent = `File: ${file.name}`;
         preview.style.display = 'flex';
       }
+      toggleChatActionBtn();
     }
 
     function clearChatAttachment() {
       chatSelectedFile = null;
       const preview = document.getElementById('chatAttachmentPreview');
       const input = document.getElementById('chatFileInput');
+      const cameraInput = document.getElementById('chatCameraInput');
       if (preview) preview.style.display = 'none';
       if (input) input.value = '';
+      if (cameraInput) cameraInput.value = '';
+      toggleChatActionBtn();
+    }
+
+    // Toggle action button: mic (empty) ↔ send (has text/file)
+    function toggleChatActionBtn() {
+      const input = document.getElementById('chatInputText');
+      const btn = document.getElementById('chatActionBtn');
+      if (!btn) return;
+      const hasContent = (input && input.value.trim().length > 0) || chatSelectedFile;
+      if (hasContent) {
+        btn.classList.add('is-send');
+        btn.title = 'Kirim';
+      } else {
+        btn.classList.remove('is-send');
+        btn.title = 'Pesan suara';
+      }
+    }
+
+    // Handle action button click (send or start VN)
+    let chatMediaRecorder = null;
+    let chatRecordedChunks = [];
+
+    function handleChatAction() {
+      const btn = document.getElementById('chatActionBtn');
+      if (!btn) return;
+
+      if (btn.classList.contains('is-send')) {
+        // Send mode → send message
+        sendChatMessage();
+        return;
+      }
+
+      // Mic mode → toggle voice recording
+      if (chatMediaRecorder && chatMediaRecorder.state === 'recording') {
+        // Stop recording
+        chatMediaRecorder.stop();
+        btn.classList.remove('recording');
+        return;
+      }
+
+      // Start recording
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          chatRecordedChunks = [];
+          chatMediaRecorder = new MediaRecorder(stream);
+          chatMediaRecorder.ondataavailable = e => {
+            if (e.data.size > 0) chatRecordedChunks.push(e.data);
+          };
+          chatMediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            btn.classList.remove('recording');
+            if (chatRecordedChunks.length === 0) return;
+            const blob = new Blob(chatRecordedChunks, { type: 'audio/webm' });
+            const file = new File([blob], 'voice_note.webm', { type: 'audio/webm' });
+            chatSelectedFile = file;
+            const preview = document.getElementById('chatAttachmentPreview');
+            const nameEl = document.getElementById('chatAttachmentName');
+            if (preview && nameEl) {
+              nameEl.textContent = 'Pesan suara (' + Math.round(blob.size / 1024) + ' KB)';
+              preview.style.display = 'flex';
+            }
+            toggleChatActionBtn();
+          };
+          chatMediaRecorder.start();
+          btn.classList.add('recording');
+        })
+        .catch(err => {
+          console.error('Mic access denied:', err);
+          showToast('Izin mikrofon ditolak. Aktifkan izin mikrofon di browser.');
+        });
     }
 
     // Send user message
