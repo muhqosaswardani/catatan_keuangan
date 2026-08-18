@@ -3944,6 +3944,24 @@
       scroll-behavior: smooth;
     }
 
+    .chat-date-header {
+      align-self: center;
+      background: var(--surface);
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 10px;
+      margin: 8px auto;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      box-shadow: var(--shadow);
+      pointer-events: none;
+      display: inline-block;
+      text-align: center;
+    }
+
     .chat-bubble {
       max-width: 80%;
       padding: 10px 14px;
@@ -6482,7 +6500,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.6)';
+      const version = ' (v2.5.7)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15033,13 +15051,43 @@
       setNavConfig(cfg);
     }
 
+    function getChatDateHeaderStr(timestamp) {
+      const msgDate = new Date(timestamp);
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+
+      const isSameDay = (d1, d2) =>
+        d1.getFullYear() === d2.getFullYear() &&
+        d1.getMonth() === d2.getMonth() &&
+        d1.getDate() === d2.getDate();
+
+      if (isSameDay(msgDate, today)) {
+        return 'Hari ini';
+      } else if (isSameDay(msgDate, yesterday)) {
+        return 'Kemarin';
+      } else {
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        return `${msgDate.getDate()} ${months[msgDate.getMonth()]} ${msgDate.getFullYear()}`;
+      }
+    }
+
     // Render chat UI
     function renderChat() {
       initChatState();
       const container = document.getElementById('chatMessages');
       if (!container) return;
 
-      container.innerHTML = chatHistory.map(msg => {
+      let html = '';
+      let lastDateStr = '';
+
+      chatHistory.forEach(msg => {
+        const dateStr = getChatDateHeaderStr(msg.timestamp || Date.now());
+        if (dateStr !== lastDateStr) {
+          html += `<div class="chat-date-header">${dateStr}</div>`;
+          lastDateStr = dateStr;
+        }
+
         const isUser = msg.sender === 'user';
         const alignClass = isUser ? 'user' : 'bot';
         let content = '';
@@ -15060,9 +15108,10 @@
         const txAttr = msg.txId ? ` data-tx-id="${msg.txId}"` : '';
         const txClass = msg.txId ? ' chat-tx-bubble' : '';
 
-        return `<div class="chat-bubble ${alignClass}${txClass}"${txAttr} onclick="handleChatBubbleClick(this)">${content}</div>`;
-      }).join('');
+        html += `<div class="chat-bubble ${alignClass}${txClass}"${txAttr} onclick="handleChatBubbleClick(this)">${content}</div>`;
+      });
 
+      container.innerHTML = html;
       container.scrollTop = container.scrollHeight;
     }
 
