@@ -352,10 +352,13 @@ async function verifyOtpViaChat(
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
+  // Dynamically set CORS headers based on request origin and allow credentials
+  const requestOrigin = req.headers.get("origin") || "*";
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": requestOrigin,
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-web-chat",
+    "Access-Control-Allow-Credentials": "true",
     "Content-Type": "application/json"
   };
 
