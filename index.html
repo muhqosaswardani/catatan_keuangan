@@ -6664,7 +6664,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.3)';
+      const version = ' (v2.6.4)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15179,6 +15179,23 @@
             chatHistory = [];
           }
         }
+      }
+
+      // Bersihkan & perbaiki riwayat chat jika terkorupsi
+      if (Array.isArray(chatHistory)) {
+        chatHistory = chatHistory.filter(msg => {
+          if (!msg || typeof msg !== 'object') return false;
+          if (msg.sender !== 'user' && msg.sender !== 'bot') return false;
+          if (msg.text !== undefined && msg.text !== null) {
+            msg.text = String(msg.text);
+          } else {
+            msg.text = '';
+          }
+          msg.timestamp = Number(msg.timestamp) || Date.now();
+          return true;
+        });
+      } else {
+        chatHistory = [];
       }
 
       if (chatHistory.length === 0) {
