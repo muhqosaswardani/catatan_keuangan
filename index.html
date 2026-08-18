@@ -5233,8 +5233,7 @@
           <span class="dot"></span>
           <span class="dot"></span>
           <span class="dot"></span>
-          <span style="margin-left: 8px; font-size: 12px; color: var(--ink-soft); font-weight: 500;">Asisten sedang
-            mengetik...</span>
+          <span style="margin-left: 8px; font-size: 12px; color: var(--ink-soft); font-weight: 500;">Sedang diproses...</span>
         </div>
       </div>
 
@@ -6710,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.6)';
+      const version = ' (v2.6.7)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
