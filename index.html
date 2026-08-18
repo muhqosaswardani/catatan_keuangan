@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.1)';
+      const version = ' (v2.7.2)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15240,10 +15240,14 @@
           // Koreksi isClarify untuk pesan-pesan lama di riwayat chat agar sesuai aturan
           if (msg.sender === 'bot') {
             const lowerText = (msg.text || '').toLowerCase();
-            if (lowerText.includes('tren keuangan') || lowerText.includes('arus kas') || lowerText.includes('sisa dompet:') || lowerText.includes('bagaimana tren')) {
+            const isCancellationOrCompletion = lowerText.includes('dibatalkan') || lowerText.includes('berhasil disimpan') || lowerText.includes('selesai') || lowerText.includes('sukses');
+            
+            if (isCancellationOrCompletion) {
               msg.isClarify = false;
-            } else if (lowerText.includes('mode koreksi') || lowerText.includes('pilih dompet') || lowerText.includes('pilihan kategori') || lowerText.includes('ketik nomornya') || lowerText.includes('mau hapus data')) {
+            } else if (lowerText.includes('mode koreksi saldo') || lowerText.includes('pilih dompet') || lowerText.includes('pilihan kategori') || lowerText.includes('ketik nomornya') || lowerText.includes('mau hapus data')) {
               msg.isClarify = true;
+            } else if (lowerText.includes('tren keuangan') || lowerText.includes('arus kas') || lowerText.includes('sisa dompet:') || lowerText.includes('bagaimana tren')) {
+              msg.isClarify = false;
             }
           }
           return true;
