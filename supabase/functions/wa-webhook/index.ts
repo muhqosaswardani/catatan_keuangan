@@ -17,7 +17,7 @@ import {
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
-import { sendWhatsAppMessage, markAsRead, withTypingIndicator, chatContext } from "./whatsapp.ts";
+import { sendWhatsAppMessage, markAsRead, withTypingIndicator, chatContext, ChatContextMessage } from "./whatsapp.ts";
 
 // ============================================================
 // ENV VARS (diset di Supabase Edge Function Secrets)
@@ -275,7 +275,7 @@ Deno.serve(async (req: Request) => {
         contextId: webPayload.contextId || null
       };
 
-      const responseMessages: string[] = [];
+      const responseMessages: ChatContextMessage[] = [];
 
       try {
         await chatContext.run({ isWebChat: true, messages: responseMessages }, async () => {

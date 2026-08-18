@@ -1,6 +1,11 @@
+export interface ChatContextMessage {
+  text: string;
+  messageId: string;
+}
+
 export interface ChatContextStore {
   isWebChat: boolean;
-  messages: string[];
+  messages: ChatContextMessage[];
 }
 
 // Simple global context (safe: each Edge Function invocation is isolated)
@@ -27,8 +32,9 @@ export async function sendWhatsAppMessage(
 ): Promise<string> {
   const store = chatContext.getStore();
   if (store && store.isWebChat) {
-    store.messages.push(body);
-    return "msg_web_" + Math.random().toString(36).slice(2, 9);
+    const msgId = "msg_web_" + Math.random().toString(36).slice(2, 9);
+    store.messages.push({ text: body, messageId: msgId });
+    return msgId;
   }
 
   const payload: Record<string, unknown> = {

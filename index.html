@@ -4057,6 +4057,54 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
+    /* WhatsApp-style quote inside message bubbles */
+    .chat-bubble-quote {
+      background: var(--surface-2);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      line-height: 1.4;
+      display: block;
+      border-left: 4px solid var(--line);
+      opacity: 0.95;
+      text-align: left;
+    }
+    
+    .chat-bubble-quote.quote-border-green {
+      border-left-color: var(--accent) !important;
+      background: rgba(38, 166, 154, 0.08);
+    }
+    
+    .chat-bubble-quote.quote-border-orange {
+      border-left-color: #e67e22 !important;
+      background: rgba(230, 126, 34, 0.08);
+    }
+
+    .chat-bubble.user .chat-bubble-quote {
+      background: rgba(0, 0, 0, 0.06);
+    }
+    
+    .quote-sender {
+      font-weight: 700;
+      font-size: 10px;
+      margin-bottom: 2px;
+      color: var(--ink-soft);
+    }
+    
+    .chat-bubble.user .quote-sender {
+      color: var(--ink);
+    }
+
+    .quote-text {
+      color: var(--ink-soft);
+      font-style: italic;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
     .chat-bubble .time {
       font-size: 9.5px;
       color: var(--ink-soft);
@@ -6556,7 +6604,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.8)';
+      const version = ' (v2.5.9)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15149,6 +15197,27 @@
         const alignClass = isUser ? 'user' : 'bot';
         let content = '';
 
+        // Render WhatsApp-style quote box if message has replyTo metadata
+        if (msg.replyTo) {
+          const quoteText = escapeHtml(msg.replyTo.text || '');
+          const truncatedQuote = quoteText.length > 80 ? quoteText.substring(0, 80) + '...' : quoteText;
+          const senderLabel = msg.replyTo.sender === 'user' ? 'Anda' : 'Catatan Keuangan Bot';
+          
+          let borderClass = 'quote-border-gray';
+          if (msg.replyTo.isTx) {
+            borderClass = 'quote-border-green';
+          } else if (msg.replyTo.isClarify) {
+            borderClass = 'quote-border-orange';
+          }
+
+          content += `
+            <div class="chat-bubble-quote ${borderClass}">
+              <div class="quote-sender">${senderLabel}</div>
+              <div class="quote-text">${truncatedQuote}</div>
+            </div>
+          `;
+        }
+
         if (msg.image) {
           content += `<img src="${msg.image}" alt="Attachment">`;
         }
@@ -15349,9 +15418,38 @@
 
       if (!text && !file) return;
 
+      // Capture reply context before clearing it
+      let replyTo = null;
+      let contextId = null;
+
+      if (chatPendingReplyToTxId) {
+        const matchedMsg = chatHistory.find(m => m.txId === chatPendingReplyToTxId);
+        if (matchedMsg) {
+          contextId = matchedMsg.id;
+          replyTo = {
+            text: matchedMsg.text,
+            sender: matchedMsg.sender,
+            isTx: true,
+            isClarify: false
+          };
+        }
+      } else if (chatPendingReplyToMsgId) {
+        const matchedMsg = chatHistory.find(m => m.id === chatPendingReplyToMsgId);
+        if (matchedMsg) {
+          contextId = chatPendingReplyToMsgId;
+          replyTo = {
+            text: matchedMsg.text,
+            sender: matchedMsg.sender,
+            isTx: false,
+            isClarify: !!matchedMsg.isClarify || (matchedMsg.text && (matchedMsg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(matchedMsg.text)))
+          };
+        }
+      }
+
       // Clear inputs immediately for smooth UI response
       input.value = '';
       clearChatAttachment();
+      cancelChatReply(); // Close quote banner and clear variables immediately!
 
       let imageBase64ForDisplay = null;
       let imageDataForServer = null;
@@ -15369,8 +15467,8 @@
         }
       }
 
-      // Append user bubble
-      appendChatBubble('user', text, Date.now(), imageBase64ForDisplay);
+      // Append user bubble with replyTo metadata
+      appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, null, replyTo);
 
       showChatTyping();
 
@@ -15379,7 +15477,8 @@
         const payload = {
           text: text,
           from: '6281226964679',
-          messageId: 'msg_web_' + uid()
+          messageId: 'msg_web_' + uid(),
+          contextId: contextId
         };
 
         if (imageDataForServer && imageMimeType) {
@@ -15411,8 +15510,10 @@
         const result = await response.json();
 
         if (result.success && result.messages && result.messages.length > 0) {
-          for (const msg of result.messages) {
-            appendChatBubble('bot', msg, Date.now());
+          for (const msgObj of result.messages) {
+            const botText = typeof msgObj === 'object' ? msgObj.text : msgObj;
+            const botMsgId = typeof msgObj === 'object' ? msgObj.messageId : null;
+            appendChatBubble('bot', botText, Date.now(), null, null, null, botMsgId);
           }
         } else if (result.error) {
           appendChatBubble('bot', 'Maaf, terjadi kesalahan: ' + result.error, Date.now());
@@ -15432,15 +15533,20 @@
       }
     }
 
-    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify) {
+    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo) {
+      const isBotClarify = !!isClarify || (sender === 'bot' && (
+        (text && (text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(text)))
+      ));
+
       chatHistory.push({
-        id: 'msg_' + uid(),
+        id: srvMsgId || ('msg_' + uid()),
         sender,
         text,
         timestamp,
         image: imageBase64 || null,
         txId: txId || null,
-        isClarify: !!isClarify
+        isClarify: isBotClarify,
+        replyTo: replyTo || null
       });
       localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
       saveChatStateToNavConfig();
