@@ -3943,6 +3943,33 @@
       background-size: 16px 16px;
       scroll-behavior: smooth;
     }
+    .chat-scroll-bottom-btn {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-l);
+      z-index: 10;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      opacity: 0.9;
+    }
+    .chat-scroll-bottom-btn:hover {
+      background: var(--surface-hover);
+      transform: scale(1.05);
+      opacity: 1;
+    }
+    .chat-scroll-bottom-btn:active {
+      transform: scale(0.95);
+    }
 
     .chat-date-header {
       align-self: center;
@@ -5235,6 +5262,12 @@
           <span class="dot"></span>
           <span style="margin-left: 8px; font-size: 12px; color: var(--ink-soft); font-weight: 500;">Sedang diproses...</span>
         </div>
+        <!-- Scroll to Bottom Button -->
+        <button type="button" id="chatScrollBottomBtn" class="chat-scroll-bottom-btn" style="display: none;" onclick="chatScrollToBottom()" title="Scroll ke bawah">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
       </div>
 
       <!-- Chat input bar -->
@@ -6709,7 +6742,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.7)';
+      const version = ' (v2.7.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15430,6 +15463,22 @@
           container.scrollTop = container.scrollHeight;
         }, 50);
       }
+      
+      // Perbarui visibilitas tombol scroll to bottom setelah render
+      const scrollBtn = document.getElementById('chatScrollBottomBtn');
+      if (scrollBtn) {
+        const isNearBottomAfter = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+        scrollBtn.style.display = isNearBottomAfter ? 'none' : 'flex';
+      }
+    }
+
+    function chatScrollToBottom() {
+      const container = document.getElementById('chatMessages');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+        const btn = document.getElementById('chatScrollBottomBtn');
+        if (btn) btn.style.display = 'none';
+      }
     }
 
     // Click on bubble -> activate reply context for transaction editing/deleting or message clarifying
@@ -18181,6 +18230,17 @@ PERTANYAAN_USER:
       const _observer = new MutationObserver(() => setupAmountKeypadAutoTrigger());
       _observer.observe(document.body, { childList: true, subtree: true });
 
+      // Chat messages scroll listener to toggle Scroll to Bottom button
+      const chatMessages = document.getElementById('chatMessages');
+      if (chatMessages) {
+        chatMessages.addEventListener('scroll', () => {
+          const btn = document.getElementById('chatScrollBottomBtn');
+          if (btn) {
+            const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 150;
+            btn.style.display = isNearBottom ? 'none' : 'flex';
+          }
+        });
+      }
     }
     init();
   </script>
