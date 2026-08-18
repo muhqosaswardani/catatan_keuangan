@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.9)';
+      const version = ' (v2.7.0)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15378,6 +15378,10 @@
           if (msg.txId) {
             actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Edit / Hapus</div>`;
           }
+        } else if (isClarify) {
+          txClass = ' chat-clarify-bubble';
+          badgeHtml = `<div class="chat-bubble-tag clarify-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Butuh Konfirmasi</div>`;
+          actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Membalas</div>`;
         } else if (!isUser) {
           txClass = ' chat-clickable-bot-bubble';
         }
@@ -15703,7 +15707,8 @@
             const botText = typeof msgObj === 'object' ? msgObj.text : msgObj;
             const botMsgId = typeof msgObj === 'object' ? msgObj.messageId : null;
             const botTxId = typeof msgObj === 'object' ? msgObj.txId : null;
-            appendChatBubble('bot', botText, Date.now(), null, botTxId, null, botMsgId);
+            const botIsClarify = typeof msgObj === 'object' ? !!msgObj.isClarify : false;
+            appendChatBubble('bot', botText, Date.now(), null, botTxId, botIsClarify, botMsgId);
           }
         } else if (result.error) {
           appendChatBubble('bot', 'Maaf, terjadi kesalahan: ' + result.error, Date.now());

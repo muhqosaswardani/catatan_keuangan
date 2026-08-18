@@ -18,6 +18,7 @@ import {
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
 import { sendWhatsAppMessage, markAsRead, withTypingIndicator, chatContext, ChatContextMessage } from "./whatsapp.ts";
+import { getV2Session } from "./v2_db.ts";
 
 // ============================================================
 // ENV VARS (diset di Supabase Edge Function Secrets)
@@ -317,6 +318,9 @@ Deno.serve(async (req: Request) => {
           await handleTextMessage(db, GEMINI_API_KEYS, msg);
         });
 
+        const { session: activeSession, wasTimedOut } = await getV2Session(db, msg.from);
+        const isSessionActive = !!(activeSession && !wasTimedOut);
+
         const mappedMessages = [];
         for (const rMsg of responseMessages) {
           const { data: mapping } = await db
@@ -328,7 +332,8 @@ Deno.serve(async (req: Request) => {
           mappedMessages.push({
             text: rMsg.text,
             messageId: rMsg.messageId,
-            txId: mapping?.transaction_id || null
+            txId: mapping?.transaction_id || null,
+            isClarify: isSessionActive
           });
         }
 
