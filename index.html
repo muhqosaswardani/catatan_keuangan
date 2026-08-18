@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.6)';
+      const version = ' (v2.7.7)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -8406,7 +8406,7 @@
       if (tab === 'tujuan') renderGoals();
       if (tab === 'utang') renderDebts();
       if (tab === 'settings') renderSettings();
-      if (tab === 'chat') renderChat();
+      if (tab === 'chat') renderChat(true);
     }
 
     /* opts.push = true: dipakai khusus untuk navigasi "drilldown" (mis. tap kategori di
@@ -15425,6 +15425,10 @@
       container.innerHTML = html;
       if (forceScroll || isInitialRender || isNearBottom) {
         container.scrollTop = container.scrollHeight;
+        // Jaga-jaga jika DOM belum ter-render sempurna saat pergantian tab
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 50);
       }
     }
 
