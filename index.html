@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.7.3)';
+      const version = ' (v2.7.4)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -18166,13 +18166,6 @@ PERTANYAAN_USER:
       const _observer = new MutationObserver(() => setupAmountKeypadAutoTrigger());
       _observer.observe(document.body, { childList: true, subtree: true });
 
-      // Auto-sync real-time tiap 3 detik agar perubahan dari HP langsung update di PC tanpa reload
-      setInterval(() => {
-        if (document.visibilityState === 'visible' && !isSyncingData && !isResettingData) {
-          syncAllWithSupabase(true);
-          activateDuePendingTransactions(); // jaga-jaga kalau tanggal berganti pas app dibiarkan terbuka
-        }
-      }, 3000);
     }
     init();
   </script>
