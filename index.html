@@ -6604,7 +6604,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.5.9)';
+      const version = ' (v2.6.0)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15231,7 +15231,16 @@
         content += `<div>${textHtml}</div>`;
         content += `<span class="time">${formatTime(msg.timestamp)}</span>`;
 
-        const isTx = !!msg.txId;
+        const isTx = !!msg.txId || (!isUser && (msg.text && (
+          msg.text.includes('Transaksi tercatat') || 
+          msg.text.includes('Transaksi diperbarui') || 
+          msg.text.includes('Transaksi berhasil diperbarui') || 
+          msg.text.includes('Transaksi dihapus') || 
+          msg.text.includes('Transfer berhasil') || 
+          msg.text.includes('Berhasil mencatat') || 
+          msg.text.includes('Berhasil menghapus') ||
+          /mencatat transaksi|menghapus transaksi|memperbarui transaksi/i.test(msg.text)
+        )));
         // Check both stored isClarify and match dynamically in case of unsaved/legacy messages
         const isClarify = !!msg.isClarify || (!isUser && (msg.text && (msg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(msg.text))));
 
@@ -15242,7 +15251,9 @@
         if (isTx) {
           txClass = ' chat-tx-bubble';
           badgeHtml = `<div class="chat-bubble-tag tx-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Transaksi</div>`;
-          actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Edit / Hapus</div>`;
+          if (msg.txId) {
+            actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Edit / Hapus</div>`;
+          }
         } else if (isClarify) {
           txClass = ' chat-clarify-bubble';
           badgeHtml = `<div class="chat-bubble-tag clarify-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Butuh Konfirmasi</div>`;
@@ -15513,7 +15524,8 @@
           for (const msgObj of result.messages) {
             const botText = typeof msgObj === 'object' ? msgObj.text : msgObj;
             const botMsgId = typeof msgObj === 'object' ? msgObj.messageId : null;
-            appendChatBubble('bot', botText, Date.now(), null, null, null, botMsgId);
+            const botTxId = typeof msgObj === 'object' ? msgObj.txId : null;
+            appendChatBubble('bot', botText, Date.now(), null, botTxId, null, botMsgId);
           }
         } else if (result.error) {
           appendChatBubble('bot', 'Maaf, terjadi kesalahan: ' + result.error, Date.now());

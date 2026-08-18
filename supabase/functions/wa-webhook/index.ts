@@ -317,7 +317,22 @@ Deno.serve(async (req: Request) => {
           await handleTextMessage(db, GEMINI_API_KEYS, msg);
         });
 
-        return new Response(JSON.stringify({ success: true, messages: responseMessages }), {
+        const mappedMessages = [];
+        for (const rMsg of responseMessages) {
+          const { data: mapping } = await db
+            .from("wa_message_transactions")
+            .select("transaction_id")
+            .eq("wa_message_id", rMsg.messageId)
+            .maybeSingle();
+
+          mappedMessages.push({
+            text: rMsg.text,
+            messageId: rMsg.messageId,
+            txId: mapping?.transaction_id || null
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, messages: mappedMessages }), {
           status: 200,
           headers: {
             "Content-Type": "application/json",
