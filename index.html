@@ -6709,7 +6709,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.6.8)';
+      const version = ' (v2.6.9)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15365,8 +15365,8 @@
           msgText.includes('Berhasil menghapus') ||
           /mencatat transaksi|menghapus transaksi|memperbarui transaksi/i.test(msgText)
         ));
-        // Check both stored isClarify and match dynamically in case of unsaved/legacy messages
-        const isClarify = !!msg.isClarify || (!isUser && (msgText.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(msgText)));
+        // isClarify hanya dari flag server — JANGAN deteksi dari teks
+        const isClarify = !!msg.isClarify;
 
         let txClass = '';
         let badgeHtml = '';
@@ -15378,10 +15378,6 @@
           if (msg.txId) {
             actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Edit / Hapus</div>`;
           }
-        } else if (isClarify) {
-          txClass = ' chat-clarify-bubble';
-          badgeHtml = `<div class="chat-bubble-tag clarify-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Butuh Konfirmasi</div>`;
-          actionHintHtml = `<div class="chat-bubble-action-hint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ketuk untuk Membalas</div>`;
         } else if (!isUser) {
           txClass = ' chat-clickable-bot-bubble';
         }
@@ -15615,7 +15611,7 @@
             text: matchedMsg.text,
             sender: matchedMsg.sender,
             isTx: !!chatPendingReplyToTxId || !!matchedMsg.txId,
-            isClarify: !chatPendingReplyToTxId && (!!matchedMsg.isClarify || (matchedMsg.text && (matchedMsg.text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(matchedMsg.text))))
+            isClarify: !chatPendingReplyToTxId && !!matchedMsg.isClarify
           };
         } else {
           contextId = chatPendingReplyToMsgId;
@@ -15728,9 +15724,8 @@
     }
 
     function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo) {
-      const isBotClarify = !!isClarify || (sender === 'bot' && (
-        (text && (text.includes('?') || /pilih|nomor|pilihan|berapa|perjelas|sebutkan|tidak valid|kurang jelas/i.test(text)))
-      ));
+      // isBotClarify hanya dari parameter yang dikirim server — JANGAN deteksi dari teks
+      const isBotClarify = !!isClarify;
 
       chatHistory.push({
         id: srvMsgId || ('msg_' + uid()),

@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Prototype Alur — KaslyAI Multi-User</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F7F6; --surface:#FFFFFF; --surface-2:#EEF2F1; --ink:#152524; --ink-soft:#5B6A68;
+    --line:#E3E9E7; --accent:#0F766E; --accent-dark:#0B5951; --accent-soft:#DCF1EE;
+    --income:#1E8F5A; --income-soft:#E3F5EB; --expense:#C4453B; --expense-soft:#FBE7E5;
+    --warn:#B7791F; --warn-soft:#FCF0DC; --info:#2F6FED; --info-dark:#1E4FB8; --info-soft:#E7EEFE;
+    --wa:var(--accent-dark); --wa-dark:#083F3A;
+    --radius-l:20px; --radius-m:14px; --radius-s:10px;
+    --shadow:0 1px 2px rgba(21,37,36,0.04), 0 8px 24px -12px rgba(21,37,36,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;height:100dvh;overflow:hidden;display:flex;flex-direction:column;}
+  h1,h2,h3,.num{font-family:'Sora',sans-serif;}
+  .app{max-width:560px;margin:0 auto;position:relative;background:var(--bg);flex:1 1 auto;min-height:0;width:100%;overflow:hidden;}
+  .screen{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 18px 24px;animation:fadein .22s ease;}
+  .screen.active{display:flex;flex-direction:column;}
+  .screen:has(.screen-footer){overflow:hidden;}
+  .screen-main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:2px;}
+  .screen:has(.screen-footer) .screen-main{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .screen-footer{flex:0 0 auto;padding-top:16px;}
+
+  /* ===== kategori (ikon + warna custom, gaya sama dengan app utama) ===== */
+  .type-toggle{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;gap:4px;margin-bottom:14px;}
+  .type-toggle button{flex:1;border:none;background:transparent;padding:10px;border-radius:9px;font-weight:700;font-size:13.5px;color:var(--ink-soft);cursor:pointer;font-family:inherit;}
+  .type-toggle button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .type-toggle button.active[data-type="income"]{color:var(--income);}
+  .type-toggle button.active[data-type="expense"]{color:var(--expense);}
+  .cat-icon-box{display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .cat-manage-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:9px 10px;margin-bottom:8px;}
+  .cat-manage-row .l{display:flex;align-items:center;gap:10px;min-width:0;}
+  .cat-manage-row .l span.name{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cat-manage-actions{flex-shrink:0;}
+  .cat-add-form{border-top:1px solid var(--line);padding-top:12px;margin-top:4px;}
+  .cat-add-row{display:flex;gap:8px;align-items:center;}
+  .cat-add-row input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:14px;font-family:inherit;color:var(--ink);background:var(--surface);}
+  .cat-add-row input:focus{outline:none;border-color:var(--accent);}
+  .cat-icon-trigger{width:44px;height:44px;border-radius:12px;border:none;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .color-swatch-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .color-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;box-shadow:0 0 0 1px rgba(21,37,36,.08) inset;}
+  .color-swatch.selected{border-color:var(--ink);}
+  .icon-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;max-height:44vh;overflow-y:auto;}
+  .icon-grid-btn{aspect-ratio:1;border-radius:12px;border:2px solid transparent;background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);}
+  .icon-grid-btn.selected{border-color:var(--accent);background:var(--surface);}
+  .btn-sm{padding:10px 14px;font-size:13px;flex-shrink:0;}
+  .empty-note{font-size:12.5px;color:var(--ink-soft);padding:8px 2px 14px;}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  /* dev banner: menandai ini prototype, bukan produk final */
+  .dev-topbar{position:sticky;top:0;z-index:500;}
+  .dev-topbar.hidden{display:none;}
+  .dev-banner{position:relative;padding-right:34px;}
+  .dev-hide-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.14);border:none;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .dev-hide-btn:active{background:rgba(255,255,255,.28);}
+  .dev-show-fab{position:fixed;top:10px;right:10px;z-index:501;background:var(--ink);color:#fff;border:none;border-radius:100px;padding:8px 13px;font-size:11px;font-weight:700;display:none;align-items:center;gap:6px;cursor:pointer;box-shadow:0 6px 18px -4px rgba(0,0,0,.35);}
+  .dev-show-fab.show{display:inline-flex;}
+
+  .devpanel.hidden{display:none;}
+  .devpanel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .devpanel-hide-btn{background:rgba(255,255,255,.14);border:none;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .devpanel-hide-btn:active{background:rgba(255,255,255,.28);}
+  .devpanel-show-fab{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:401;background:var(--ink);color:#fff;border:none;border-radius:100px;padding:10px 16px;font-size:12px;font-weight:700;display:none;align-items:center;gap:6px;cursor:pointer;box-shadow:0 8px 22px -4px rgba(0,0,0,.4);}
+  .devpanel-show-fab.show{display:inline-flex;}
+
+  /* screen kategori: header & toggle tetap di atas, tombol "Mulai Catat" terkunci di bawah,
+     hanya daftar kategori yang scroll */
+  #screen-kategori{height:100%;overflow:hidden;padding-bottom:16px;}
+  #screen-kategori .screen-main{flex:1 1 auto;min-height:0;justify-content:flex-start;overflow:hidden;}
+  #screen-promo .screen-main{justify-content:flex-start;}
+  #screen-kategori #catManageList{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:2px;margin-bottom:0;}
+  #screen-kategori .type-toggle,#screen-kategori .cat-add-form{flex:0 0 auto;}
+  #screen-kategori .screen-footer{flex:0 0 auto;}
+  .dev-banner{background:var(--ink);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:6px 10px;letter-spacing:.02em;}
+  .dev-banner b{color:var(--accent-soft);}
+  .dev-quicknav{display:flex;align-items:center;gap:8px;background:#0B1A19;padding:7px 10px;border-top:1px solid rgba(255,255,255,.08);}
+  .dev-quicknav-label{flex:0 0 auto;font-size:9.5px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;}
+  .dev-quicknav-scroll{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .dev-quicknav-scroll::-webkit-scrollbar{display:none;}
+  .dev-quicknav-scroll button{flex:0 0 auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:11px;font-weight:700;padding:7px 12px;border-radius:100px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .dev-quicknav-scroll button:active{background:rgba(255,255,255,.28);}
+  .dev-quicknav-scroll button.grp{background:rgba(15,118,110,.35);border-color:rgba(15,118,110,.6);}
+  .dev-drag-handle{display:flex;justify-content:center;padding:3px 0 1px;touch-action:none;cursor:grab;}
+  .dev-drag-handle::before{content:"";width:34px;height:4px;border-radius:100px;background:rgba(255,255,255,.3);}
+  @media (max-width:380px){
+    .dev-banner{font-size:10px;padding:5px 30px 5px 8px;line-height:1.35;}
+    .dev-quicknav{padding:6px 8px;}
+    .dev-quicknav-label{font-size:8.5px;}
+    .dev-quicknav-scroll button{font-size:10px;padding:6px 10px;}
+  }
+  /* link tombol eksternal (mis. buka AI Studio) di dalam panduan */
+  .link-btn{display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;text-decoration:none;color:var(--ink);margin-bottom:8px;}
+  .link-btn .ic{width:32px;height:32px;border-radius:9px;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .link-btn .tx{min-width:0;flex:1;}
+  .link-btn .tx .t{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .link-btn .tx .u{font-size:11px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .link-btn .go{flex-shrink:0;color:var(--ink-soft);}
+
+  /* ===== komponen umum (disamakan dgn index asli) ===== */
+  .card{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:16px;}
+  .btn{border:none;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:13px 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s ease, opacity .15s ease;}
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent-dark);}
+  .btn-secondary{background:var(--surface-2);color:var(--ink);}
+  .btn-outline{background:transparent;color:var(--accent);border:1.5px solid var(--accent);}
+  .btn-ghost{background:var(--surface-2);color:var(--ink);}
+  .btn-danger{background:var(--expense-soft);color:var(--expense);}
+  .btn-wa{background:var(--wa);color:#fff;}
+  .btn-wa:hover{background:var(--wa-dark);}
+  .btn:disabled{opacity:.4;cursor:default;}
+  .btn-block{width:100%;}
+  .btn-sm{padding:8px 12px;font-size:12.5px;border-radius:9px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:15px;
+    font-family:inherit;color:var(--ink);background:var(--surface);
+  }
+  .field input:focus{outline:none;border-color:var(--accent);}
+  .field.invalid input{border-color:var(--expense);}
+  .field .err{font-size:11.5px;color:var(--expense);margin-top:4px;display:none;font-weight:600;}
+  .field.invalid .err{display:block;}
+  .field .hint{font-size:11.5px;color:var(--ink-soft);margin-top:5px;}
+  .amount-input{position:relative;}
+  .amount-input .prefix{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-weight:700;font-size:15px;}
+  .amount-input input{padding-left:40px;font-weight:700;}
+
+  /* Modal (sama dgn index asli) */
+  body.modal-lock{overflow:hidden;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,25,24,.5);z-index:320;display:none;align-items:flex-end;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);width:100%;max-width:560px;border-radius:22px 22px 0 0;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:slideup .22s ease;}
+  .modal-body{padding:16px 16px calc(20px + env(safe-area-inset-bottom));overflow-y:auto;flex:1 1 auto;min-height:0;}
+  @keyframes slideup{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;padding:16px 16px 12px;}
+  .modal-head h3{font-size:17px;margin:0;font-weight:700;}
+  .modal-close{background:var(--surface-2);border:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);}
+
+  /* varian modal ngambang di tengah (bukan bottom-sheet) — dipakai utk Syarat & Kebijakan */
+  .modal-overlay.modal-center{align-items:center;padding:24px;}
+  .modal-overlay.modal-center .modal{border-radius:20px;width:100%;max-width:440px;max-height:78vh;animation:popcenter .18s ease;}
+  @keyframes popcenter{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:900;
+    opacity:0;pointer-events:none;transition:all .25s ease;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* ===== checkbox gaya WA ("ceklis" agree) ===== */
+  .wa-check-row{display:flex;align-items:flex-start;gap:10px;cursor:default;padding:12px 4px;user-select:none;}
+  .wa-checkbox-wrap{display:flex;align-items:flex-start;cursor:pointer;flex-shrink:0;}
+  .wa-checkbox{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);flex-shrink:0;margin-top:1px;
+    display:flex;align-items:center;justify-content:center;background:var(--surface);transition:background .15s,border-color .15s;}
+  .wa-checkbox svg{opacity:0;transform:scale(.5);transition:opacity .15s,transform .15s;}
+  .wa-check-row input{display:none;}
+  .wa-check-row input:checked + .wa-checkbox{background:var(--accent);border-color:var(--accent);}
+  .wa-check-row input:checked + .wa-checkbox svg{opacity:1;transform:scale(1);}
+  .wa-check-row .txt{font-size:13px;line-height:1.5;color:var(--ink-soft);font-weight:500;}
+  .wa-check-row .txt a{color:var(--accent);font-weight:700;text-decoration:none;}
+
+  /* ===== brand / hero ===== */
+  .brand-row{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+  .brand-mark{width:52px;height:52px;border-radius:16px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:0;flex-shrink:0;}
+  .brand-title{font-family:'Inter',sans-serif;font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
+  .brand-title .brand-ai{font-family:'Sora',sans-serif;font-weight:800;color:var(--accent);letter-spacing:0;}
+  .promo-hero{background:linear-gradient(135deg,var(--accent) 0%, var(--accent-dark) 100%);border-radius:var(--radius-l);padding:26px 20px;color:#fff;box-shadow:var(--shadow);margin-bottom:18px;position:relative;overflow:hidden;}
+  .promo-hero::after{content:"";position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%);}
+  .promo-hero h1{font-size:24px;margin:0 0 8px;line-height:1.25;position:relative;z-index:2;}
+  .promo-hero p{margin:0 0 18px;font-size:13.5px;opacity:.9;line-height:1.55;position:relative;z-index:2;}
+  .eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:6px;}
+
+  .feat-row{display:flex;gap:12px;align-items:flex-start;padding:12px 2px;}
+  .feat-row .ic{width:38px;height:38px;border-radius:11px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .feat-row .t{font-weight:700;font-size:14px;}
+  .feat-row .d{font-size:12.5px;color:var(--ink-soft);margin-top:2px;line-height:1.5;}
+
+  /* step progress dots (verifikasi/onboarding) */
+  .step-dots{display:flex;gap:6px;justify-content:center;margin:0 0 14px;}
+  .step-dots span{width:8px;height:8px;border-radius:50%;background:var(--line);transition:.2s;}
+  .step-dots span.active{background:var(--accent);width:22px;border-radius:5px;}
+
+  .code-box{background:var(--surface-2);border:1.5px dashed var(--line);border-radius:var(--radius-m);padding:16px;text-align:center;margin:14px 0;}
+  .code-box .lbl{font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+  .code-box .code{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;letter-spacing:.08em;color:var(--accent-dark);margin-top:4px;}
+
+  .status-pill{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:100px;}
+  .status-pill.wait{background:var(--warn-soft);color:var(--warn);}
+  .status-pill.ok{background:var(--income-soft);color:var(--income);}
+  .spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(0,0,0,.15);border-top-color:currentColor;animation:sp .8s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+
+  .wallet-field{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius-m);padding:13px;margin-bottom:10px;}
+  .wallet-field-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .wallet-field-head b{font-size:13px;}
+  .wallet-remove{background:none;border:none;color:var(--expense);font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px;}
+
+  .topbar-back{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  .icon-btn{width:36px;height:36px;border-radius:11px;background:var(--surface-2);border:none;display:flex;align-items:center;justify-content:center;color:var(--ink);cursor:pointer;flex-shrink:0;}
+  .topbar-back h2{font-size:17px;margin:0;}
+
+  /* ===== placeholder "app existing" (blank, sengaja kosong) ===== */
+  #screen-app-blank{padding:0;height:100%;background:#fff;position:relative;}
+  .devpanel{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);width:calc(100% - 28px);max-width:530px;
+    background:var(--ink);color:#fff;border-radius:16px;padding:12px 14px;z-index:400;box-shadow:0 10px 30px -6px rgba(0,0,0,.4);}
+  .devpanel .t{font-size:11px;font-weight:700;color:var(--accent-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+  .devpanel-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .devpanel button{flex:1;min-width:140px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:9px;padding:9px 8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .devpanel button:active{background:rgba(255,255,255,.22);}
+  .blank-note{position:absolute;top:16px;left:16px;right:16px;text-align:center;color:var(--ink-soft);font-size:12.5px;font-weight:600;}
+  .blank-center{position:absolute;top:44%;left:0;right:0;text-align:center;color:var(--line);}
+
+  /* trial badge on blank screen */
+  .trial-topbar{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:5;}
+  .trial-topbar .app-name{font-weight:700;font-size:14px;}
+  .trial-chip{font-size:11px;font-weight:700;padding:5px 10px;border-radius:100px;}
+  .trial-chip.active{background:var(--accent-soft);color:var(--accent-dark);}
+  .trial-chip.habis{background:var(--expense-soft);color:var(--expense);}
+  .trial-chip.paid{background:var(--income-soft);color:var(--income);}
+
+  /* token input inside modal */
+  .token-input{text-transform:uppercase;letter-spacing:.06em;font-weight:700;text-align:center;font-size:17px;}
+
+  .apikey-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600;}
+  .apikey-row button{background:none;border:none;color:var(--expense);font-weight:700;cursor:pointer;font-size:12px;}
+  svg{display:block;}
+
+  /* ===== mockup "screenshot" WA & Web buat slide onboarding ===== */
+  .intro-visual{border-radius:var(--radius-m);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px;}
+  .wa-mock{background:#E7DFD3;}
+  .wa-mock-head{background:#075E54;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+  .wa-mock-head .avatar{width:32px;height:32px;border-radius:50%;background:#0B5951;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;}
+  .wa-mock-head .name{font-size:13px;font-weight:700;line-height:1.3;}
+  .wa-mock-head .sub{font-size:10.5px;opacity:.8;}
+  .wa-mock-body{padding:14px 12px;display:flex;flex-direction:column;gap:8px;min-height:150px;}
+  .wa-bub{max-width:80%;padding:8px 10px;border-radius:10px;font-size:12px;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.08);}
+  .wa-bub.in{background:#fff;align-self:flex-start;border-top-left-radius:2px;color:#152524;}
+  .wa-bub.out{background:#DCF8C6;align-self:flex-end;border-top-right-radius:2px;color:#152524;}
+  .wa-bub .tm{display:block;text-align:right;font-size:9px;color:#8a978f;margin-top:3px;}
+  .wa-bub.receipt{display:flex;gap:8px;align-items:center;}
+  .wa-bub.receipt .thumb{width:32px;height:32px;border-radius:6px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent-dark);flex-shrink:0;}
+  .wa-bub b{color:var(--accent-dark);}
+
+  .browser-mock{background:var(--surface);}
+  .browser-mock-bar{background:#EDEFEE;padding:9px 12px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--line);}
+  .browser-mock-bar .dot{width:8px;height:8px;border-radius:50%;background:#D7DBD9;}
+  .browser-mock-bar .url{flex:1;background:#fff;border-radius:100px;padding:4px 10px;font-size:10px;color:var(--ink-soft);margin-left:6px;border:1px solid var(--line);}
+  .browser-mock-body{padding:14px;}
+  .dash-card-row{display:flex;gap:8px;margin-bottom:10px;}
+  .dash-stat{flex:1;background:var(--surface-2);border-radius:10px;padding:9px 10px;}
+  .dash-stat .l{font-size:9.5px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+  .dash-stat .v{font-size:14px;font-weight:800;margin-top:2px;font-family:'Sora',sans-serif;}
+  .dash-stat.income .v{color:var(--income);}
+  .dash-stat.expense .v{color:var(--expense);}
+  .dash-bar-wrap{display:flex;align-items:flex-end;gap:5px;height:44px;margin-top:2px;}
+  .dash-bar{flex:1;background:var(--accent);opacity:.3;border-radius:3px 3px 0 0;}
+  .dash-bar.hi{opacity:.9;}
+  .dash-tx{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.5px;}
+  .dash-tx:last-child{border-bottom:none;}
+  .dash-tx .cat{display:flex;align-items:center;gap:8px;}
+  .dash-tx .ic{width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+  .dash-tx .amt.plus{color:var(--income);font-weight:700;}
+  .dash-tx .amt.minus{color:var(--expense);font-weight:700;}
+
+  /* ===== slide "soal AI pakai apa" (pilihan gratis vs API key sendiri) ===== */
+  .intro-badge-free{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:100px;background:var(--income-soft);color:var(--income);white-space:nowrap;}
+  .intro-badge-own{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:100px;background:var(--info-soft);color:var(--info-dark);white-space:nowrap;}
+  .aikey-opt{border:1.5px solid var(--line);border-radius:var(--radius-m);padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,background .15s;background:var(--surface);}
+  .aikey-opt.selected{border-color:var(--accent);background:var(--accent-soft);}
+  .aikey-opt-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px;}
+  .aikey-opt-head b{font-size:13.5px;}
+  .aikey-opt .d{font-size:12px;color:var(--ink-soft);line-height:1.55;}
+  .aikey-radio{width:19px;height:19px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .aikey-radio .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);opacity:0;transition:opacity .15s;}
+  .aikey-opt.selected .aikey-radio{border-color:var(--accent);}
+  .aikey-opt.selected .aikey-radio .dot{opacity:1;}
+  .aikey-own-input{margin-top:11px;display:none;}
+  .aikey-opt.selected .aikey-own-input{display:block;}
+  .aikey-guide-link{display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:9px 10px;font-size:12.5px;font-weight:600;color:var(--ink);margin-top:10px;cursor:pointer;}
+  .aikey-guide-link .ic{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .aikey-guide-link .label{flex:1;min-width:0;line-height:1.4;color:var(--ink-soft);font-weight:500;}
+  .aikey-guide-link .label b{color:var(--ink);font-weight:700;}
+  .aikey-guide-link .chev{flex-shrink:0;color:var(--ink-soft);}
+
+  /* ===== halaman panduan step-by-step ambil API key (pakai FOTO asli, bukan svg) ===== */
+  .guide-step{margin-bottom:22px;}
+  .guide-step-head{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .guide-num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Sora',sans-serif;}
+  .guide-step-head h4{margin:0;font-size:14.5px;}
+  .guide-step p{font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;}
+  .photo-slot{width:100%;border-radius:var(--radius-m);border:1.5px dashed var(--line);background:var(--surface-2);overflow:hidden;position:relative;}
+  .photo-slot img{width:100%;display:block;}
+  .photo-slot .ph-empty{padding:32px 14px;text-align:center;color:var(--ink-soft);}
+  .photo-slot .ph-empty svg{margin:0 auto 8px;color:var(--line);}
+  .photo-slot .ph-empty .lbl{font-size:12px;font-weight:600;}
+  .photo-slot .ph-empty .fname{font-family:monospace;font-size:11px;background:var(--surface);padding:2px 8px;border-radius:6px;margin-top:7px;display:inline-block;color:var(--ink-soft);border:1px solid var(--line);}
+</style>
+</head>
+<body>
+
+<div class="dev-topbar" id="devTopbar">
+  <div class="dev-drag-handle" id="devDragHandle" aria-label="Geser untuk sembunyikan"></div>
+  <div class="dev-banner">🧪 <b>PROTOTYPE</b> — Alur Pendaftaran, Verifikasi WA, Trial &amp; Token (PRD Multi-User) — bukan aplikasi final
+    <button class="dev-hide-btn" onclick="toggleDevBanner(false)" aria-label="Sembunyikan">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="dev-quicknav">
+    <span class="dev-quicknav-label">Lompat</span>
+    <div class="dev-quicknav-scroll">
+      <button onclick="goto('screen-promo')">Promo</button>
+      <button onclick="goto('screen-daftar')">Daftar</button>
+      <button onclick="if(!state.verifCode) state.verifCode=generateVerifCode(); goto('screen-verifikasi')">Verifikasi WA</button>
+      <button class="grp" onclick="state.introIdx=0;renderIntro();goto('screen-intro')">Intro·AI</button>
+      <button class="grp" onclick="state.introIdx=1;renderIntro();goto('screen-intro')">Intro·WA</button>
+      <button class="grp" onclick="state.introIdx=2;renderIntro();goto('screen-intro')">Intro·Web</button>
+      <button class="grp" onclick="state.introIdx=3;renderIntro();goto('screen-intro')">Intro·API Key</button>
+      <button onclick="goto('screen-api-guide')">Panduan API Key</button>
+      <button onclick="renderWallets();goto('screen-dompet')">Dompet Awal</button>
+      <button onclick="initCategories();setCatManageType('expense');goto('screen-kategori')">Kategori</button>
+      <button onclick="goto('screen-app-blank')">App / Trial</button>
+    </div>
+  </div>
+</div>
+
+<button class="dev-show-fab" id="devShowFab" onclick="toggleDevBanner(true)">🧪 Tampilkan Info Prototype</button>
+
+<div class="app" id="app">
+
+  <!-- ======================================================
+       1) HALAMAN PROMOSI (Fase 2)
+  ======================================================= -->
+  <div class="screen active" id="screen-promo">
+    <div class="brand-row">
+      <div class="brand-mark">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <div class="brand-title">Kasly<span class="brand-ai">AI</span></div>
+    </div>
+    <div class="promo-hero">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.85;margin-bottom:6px;">Catatan Keuangan</div>
+      <h1>Catat keuangan, cukup dari WhatsApp &amp; HP kamu</h1>
+      <p>Coba gratis 7 hari fitur AI pencatat otomatis &amp; asisten WhatsApp. Fitur dasar catat transaksi tetap gratis selamanya.</p>
+      <button class="btn btn-primary btn-block" onclick="goto('screen-daftar')">Coba Aplikasinya, Gratis</button>
+    </div>
+
+    <div class="screen-main">
+      <div class="card" style="margin-bottom:0;">
+        <div class="feat-row">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v9l7 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg></div>
+          <div><div class="t">Trial 7 hari fitur AI</div><div class="d">Kirim foto struk / chat, otomatis tercatat rapi.</div></div>
+        </div>
+        <div class="feat-row">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+          <div><div class="t">Terhubung ke WhatsApp</div><div class="d">Login cukup pakai nomor WA, tanpa akun Google/password.</div></div>
+        </div>
+        <div class="feat-row">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div><div class="t">Fitur dasar gratis selamanya</div><div class="d">Catat transaksi manual tidak pernah kena limit waktu.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-footer">
+      <button class="btn btn-wa btn-block" onclick="openWaAdmin('lifetime')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Chat Admin (Tanya-tanya / Beli Lifetime)
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ======================================================
+       2) DAFTAR (nama + WA + ceklis privacy policy)
+  ======================================================= -->
+  <div class="screen" id="screen-daftar">
+    <div class="topbar-back">
+      <button class="icon-btn" onclick="goto('screen-promo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Daftar Akun</h2>
+    </div>
+
+    <div class="screen-main">
+      <div class="field" id="fieldNama">
+        <label>Nama Lengkap</label>
+        <input type="text" id="inpNama" placeholder="Contoh: Budi Santoso" oninput="clearErr('fieldNama')">
+        <div class="err">Nama wajib diisi.</div>
+      </div>
+      <div class="field" id="fieldWa">
+        <label>Nomor WhatsApp Aktif</label>
+        <input type="tel" id="inpWa" placeholder="Contoh: 081234567890" oninput="clearErr('fieldWa')">
+        <div class="err">Masukkan nomor WhatsApp yang valid.</div>
+      </div>
+
+      <div class="wa-check-row" id="agreeRow">
+        <label class="wa-checkbox-wrap" onclick="handleAgreeRowClick()">
+          <input type="checkbox" id="chkAgree" tabindex="-1">
+          <span class="wa-checkbox"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </label>
+        <span class="txt">Saya setuju dengan <a onclick="openModal('modalSyarat')">Syarat &amp; Ketentuan</a> dan <a onclick="openModal('modalKebijakan')">Kebijakan Privasi</a> KaslyAI.</span>
+      </div>
+    </div>
+
+    <div class="screen-footer">
+      <button class="btn btn-primary btn-block" id="btnLanjutDaftar" disabled onclick="submitDaftar()">Lanjutkan &amp; Verifikasi via WhatsApp</button>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       3) VERIFIKASI WA
+  ======================================================= -->
+  <div class="screen" id="screen-verifikasi">
+    <div class="topbar-back" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="icon-btn" onclick="goto('screen-daftar')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <h2>Verifikasi WhatsApp</h2>
+      </div>
+      <button class="icon-btn" onclick="openModal('modalInfoVerif')" aria-label="Info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="screen-main">
+      <div class="card" style="text-align:center;padding:30px 20px;">
+        <div style="width:54px;height:54px;border-radius:50%;background:var(--wa);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 style="margin:0 0 6px;font-size:15.5px;">Kirim Pesan yang Sudah Terisi</h3>
+        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 20px;">Tinggal tap kirim, enggak perlu ketik apa-apa.</p>
+
+        <button class="btn btn-wa btn-block" id="btnVerifWa" onclick="simulateOpenWa()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          Verifikasi via WhatsApp
+        </button>
+
+        <div style="margin-top:16px;" id="verifStatusWrap">
+          <span class="status-pill wait" id="verifStatusPill"><span class="spin"></span> Menunggu dikirim…</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen-footer">
+      <button class="btn btn-primary btn-block" id="btnLanjutVerif" style="display:none;" onclick="lanjutDariVerifikasi()">Lanjut</button>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       4) PENJELASAN / ONBOARDING (carousel ringkas)
+  ======================================================= -->
+  <div class="screen" id="screen-intro">
+    <div class="screen-main">
+      <div id="introSlides"></div>
+    </div>
+    <div class="screen-footer">
+      <div class="step-dots"><span></span><span></span><span></span><span></span></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="introBack()" id="introBackBtn" style="flex:0 0 auto;">Kembali</button>
+        <button class="btn btn-primary btn-block" onclick="introNext()" id="introNextBtn">Lanjut</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       4b) PANDUAN AMBIL API KEY GEMINI (step-by-step, pakai foto asli)
+  ======================================================= -->
+  <div class="screen" id="screen-api-guide">
+    <div class="topbar-back">
+      <button class="icon-btn" onclick="goto('screen-intro'); renderIntro();"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Cara Ambil API Key Gemini</h2>
+    </div>
+    <p style="color:var(--ink-soft);font-size:13.5px;margin:-8px 0 16px;">Gratis dari Google, cukup pakai akun Google biasa — nggak sampai 5 menit. Ikuti langkah-langkah ini:</p>
+
+    <div class="guide-step">
+      <div class="guide-step-head"><span class="guide-num">1</span><h4>Buka Google AI Studio</h4></div>
+      <p>Buka <a href="https://aistudio.google.com/app/u/8/api-keys" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+      <div class="photo-slot">
+        <img src="guide-step-1.jpg" alt="Screenshot langkah 1: buka Google AI Studio" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <div class="ph-empty" style="display:none;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.3" stroke="currentColor" stroke-width="1.5"/></svg>
+          <div class="lbl">Ganti dengan screenshot asli kamu</div>
+          <span class="fname">guide-step-1.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-step-head"><span class="guide-num">2</span><h4>Klik "Get API key"</h4></div>
+      <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> (biasanya di pojok kiri atas / menu samping).</p>
+      <div class="photo-slot">
+        <img src="guide-step-2.jpg" alt="Screenshot langkah 2: klik Get API key" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <div class="ph-empty" style="display:none;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.3" stroke="currentColor" stroke-width="1.5"/></svg>
+          <div class="lbl">Ganti dengan screenshot asli kamu</div>
+          <span class="fname">guide-step-2.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-step-head"><span class="guide-num">3</span><h4>Buat API Key Baru</h4></div>
+      <p>Klik <b>Create API key</b>, lalu pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis.</p>
+      <div class="photo-slot">
+        <img src="guide-step-3.jpg" alt="Screenshot langkah 3: create API key" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <div class="ph-empty" style="display:none;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.3" stroke="currentColor" stroke-width="1.5"/></svg>
+          <div class="lbl">Ganti dengan screenshot asli kamu</div>
+          <span class="fname">guide-step-3.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="guide-step-head"><span class="guide-num">4</span><h4>Salin API Key-nya</h4></div>
+      <p>API key otomatis muncul dalam bentuk deretan huruf &amp; angka. Klik ikon salin (copy) di sampingnya.</p>
+      <div class="photo-slot">
+        <img src="guide-step-4.jpg" alt="Screenshot langkah 4: salin API key" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <div class="ph-empty" style="display:none;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.3" stroke="currentColor" stroke-width="1.5"/></svg>
+          <div class="lbl">Ganti dengan screenshot asli kamu</div>
+          <span class="fname">guide-step-4.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="guide-step" style="margin-bottom:8px;">
+      <div class="guide-step-head"><span class="guide-num">5</span><h4>Tempel di Sini</h4></div>
+      <p>Balik ke halaman sebelumnya, tempel API key tadi ke kolom <b>"API Key Gemini Sendiri"</b>, lalu lanjutkan pendaftaran.</p>
+      <div class="photo-slot">
+        <img src="guide-step-5.jpg" alt="Screenshot langkah 5: tempel API key" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+        <div class="ph-empty" style="display:none;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.3" stroke="currentColor" stroke-width="1.5"/></svg>
+          <div class="lbl">Ganti dengan screenshot asli kamu</div>
+          <span class="fname">guide-step-5.jpg</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--accent-soft);box-shadow:none;margin-bottom:16px;">
+      <div style="font-size:12.5px;color:var(--accent-dark);line-height:1.6;"><b>Aman kok.</b> API key ini dikunci rapat, cuma dipakai buat manggil AI Gemini atas nama akunmu sendiri, dan gak ada satu pun pihak lain (termasuk admin kami) yang bisa lihat isinya. Bisa dihapus / diganti kapan saja lewat menu Setting.</div>
+      <div style="margin-top:8px;"><a onclick="openModal('modalApiKeyDetail')" style="font-size:12.5px;font-weight:700;color:var(--accent-dark);text-decoration:underline;text-underline-offset:2px;cursor:pointer;">Lihat selengkapnya</a></div>
+    </div>
+
+    <button class="btn btn-primary btn-block" onclick="goto('screen-intro'); renderIntro();">Sudah Punya, Lanjutkan Pendaftaran</button>
+  </div>
+
+  <!-- ======================================================
+       5) SETUP DOMPET AWAL
+  ======================================================= -->
+  <div class="screen" id="screen-dompet">
+    <div class="topbar-back">
+      <h2>Saldo Awal Dompet</h2>
+    </div>
+
+    <div class="screen-main">
+      <p style="color:var(--ink-soft);font-size:13.5px;margin:-8px 0 16px;">Catat dulu saldo awal di masing-masing dompet kamu sekarang. Ini jadi titik awal semua catatan keuangan kamu.</p>
+      <div id="onbWalletsList"></div>
+      <button type="button" class="btn btn-ghost btn-block" onclick="addWalletField()" style="margin:6px 0 4px; border:1px dashed var(--line);">+ Tambah Dompet</button>
+    </div>
+
+    <div class="screen-footer">
+      <button class="btn btn-primary btn-block" onclick="initCategories();setCatManageType('expense');goto('screen-kategori');">Lanjut ke Kategori</button>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       5b) SETUP KATEGORI AWAL (income & outcome)
+  ======================================================= -->
+  <div class="screen" id="screen-kategori">
+    <div class="topbar-back" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="icon-btn" onclick="goto('screen-dompet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <h2>Kategori Transaksi</h2>
+      </div>
+      <button class="icon-btn" onclick="openModal('modalInfoKategori')" aria-label="Info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="screen-main">
+      <div class="type-toggle">
+        <button type="button" data-type="expense" class="active" onclick="setCatManageType('expense')">Pengeluaran</button>
+        <button type="button" data-type="income" onclick="setCatManageType('income')">Pemasukan</button>
+      </div>
+      <div id="catManageList"></div>
+      <div class="cat-add-form">
+        <div class="cat-add-row">
+          <button type="button" class="cat-icon-trigger" id="catManageIconTrigger" onclick="openCatIconPicker()"></button>
+          <input type="text" id="catManageNewName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryFromManager();}">
+        </div>
+        <button class="btn btn-primary btn-block btn-sm" style="margin-top:8px;" onclick="addCategoryFromManager()">+ Tambah Kategori</button>
+      </div>
+    </div>
+
+    <div class="screen-footer">
+      <button class="btn btn-primary btn-block" onclick="finishOnboardingDemo()">Mulai Catat</button>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: INFO KATEGORI ============ -->
+  <div class="modal-overlay" id="modalInfoKategori">
+    <div class="modal">
+      <div class="modal-head"><h3>Soal Kategori</h3><button class="modal-close" onclick="closeModal('modalInfoKategori')">&times;</button></div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;">Ini kategori bawaan untuk mulai. Semuanya — termasuk yang bawaan — bisa dihapus atau diedit (nama, ikon, warna) kapan saja, sekarang maupun nanti lewat menu Setting.</p>
+        <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:0;">Tap kotak ikon di kiri nama kategori untuk ganti ikon &amp; warnanya.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: PILIH ICON KATEGORI ============ -->
+  <div class="modal-overlay" id="modalIconPicker">
+    <div class="modal">
+      <div class="modal-head"><h3>Pilih Icon Kategori</h3><button class="modal-close" onclick="closeCatIconPicker()">&times;</button></div>
+      <div class="modal-body">
+        <div class="icon-grid" id="iconPickerGrid"></div>
+        <div class="color-swatch-row" id="iconPickerColorRow"></div>
+        <button type="button" class="btn btn-primary btn-block" style="margin-top:16px;" onclick="closeCatIconPicker()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       6) "APP EXISTING" — sengaja dibuat kosong/blank
+  ======================================================= -->
+  <div class="screen" id="screen-app-blank">
+    <div class="trial-topbar">
+      <div class="app-name">KaslyAI</div>
+      <span class="trial-chip active" id="trialChip">Trial aktif · <span id="trialDaysLeft">7</span> hari lagi</span>
+    </div>
+    <div class="blank-note">↓ Di sinilah index.html final kamu (Beranda, Laporan, dst) nanti dirender ↓</div>
+    <div class="blank-center">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style="margin:0 auto;"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.5"/></svg>
+    </div>
+
+    <div class="devpanel" id="devPanel">
+      <div class="devpanel-head">
+        <div class="t" style="margin-bottom:0;">⚙️ Panel Uji Coba Prototype</div>
+        <button class="devpanel-hide-btn" onclick="toggleDevPanel(false)" aria-label="Sembunyikan">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="devpanel-row">
+        <button onclick="simulateTrialHabis()">Simulasikan Trial Habis</button>
+        <button onclick="openModal('modalApiKey')">Buka Setting API Key AI</button>
+        <button onclick="resetPrototype()">Ulangi dari Awal</button>
+      </div>
+    </div>
+
+    <button class="devpanel-show-fab" id="devPanelShowFab" onclick="toggleDevPanel(true)">⚙️ Tampilkan Panel Uji Coba</button>
+  </div>
+
+</div><!-- /.app -->
+
+<!-- ==================== MODAL: TRIAL HABIS ==================== -->
+<div class="modal-overlay modal-center" id="modalTrialHabis">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Masa Trial Sudah Habis</h3>
+      <button class="modal-close" onclick="closeModal('modalTrialHabis')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--warn-soft);color:var(--warn);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg>
+        </div>
+        <div style="font-weight:700;font-size:15px;">Fitur AI &amp; WhatsApp terkunci</div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.55;">
+          Tenang, catatan transaksi manual kamu tetap bisa dipakai penuh &amp; gratis selamanya. Untuk buka lagi fitur AI, masukkan kode token di bawah, atau hubungi admin.
+        </div>
+      </div>
+
+      <div class="field" id="fieldToken">
+        <label>Kode Akses / Token</label>
+        <input type="text" class="token-input" id="inpToken" maxlength="10" oninput="clearErr('fieldToken')">
+        <div class="err">Kode tidak valid / sudah pernah dipakai.</div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="submitToken()" style="margin-bottom:10px;">Aktifkan dengan Token</button>
+      <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Hubungi Admin untuk Beli Token
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: API KEY GEMINI (setting user) ==================== -->
+<div class="modal-overlay modal-center" id="modalApiKey">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>API Key Gemini Saya</h3>
+      <button class="modal-close" onclick="closeModal('modalApiKey')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:var(--ink-soft);margin-top:0;">Tambahkan API key Gemini milik kamu sendiri (opsional, boleh lebih dari satu). Kalau tidak ada, sistem otomatis pakai API key bersama dari admin.</p>
+      <div id="userKeyList"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <input type="text" id="inpUserKey" placeholder="Tempel API key…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;font-family:inherit;">
+        <button class="btn btn-primary btn-sm" onclick="addUserKey()">Tambah</button>
+      </div>
+      <div class="aikey-guide-link" onclick="closeModal('modalApiKey');goto('screen-api-guide')">
+        <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>
+        <span class="label">Belum punya? <b>Lihat cara ambilnya (gratis)</b></span>
+        <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: INFO AI / API KEY ==================== -->
+<div class="modal-overlay" id="modalInfoAiKey">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Soal Limit AI</h3>
+      <button class="modal-close" onclick="closeModal('modalInfoAiKey')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;"><b style="color:var(--ink);">AI Gratis (bawaan)</b> — pakai API key Gemini milik KaslyAI, dipakai bareng-bareng semua pengguna. Karena dipakai rame-rame, kuotanya kebagi habis kalau lagi banyak yang pakai bersamaan.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;"><b style="color:var(--ink);">API Key Sendiri</b> — kamu bisa tambah API key Gemini milik akun Google kamu, boleh lebih dari satu. Tiap API key Gemini gratis dari Google punya jatah kuota masing-masing, jadi <b>makin banyak akun Google berbeda yang kamu buatkan API key-nya, makin besar total limit AI yang kamu punya</b> — dan enggak berebut sama pengguna lain.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:0;">Bisa gonta-ganti pilihan ini kapan saja lewat menu Setting di dalam aplikasi.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: INFO VERIFIKASI WA ==================== -->
+<div class="modal-overlay" id="modalInfoVerif">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Cara Kerja Verifikasi</h3>
+      <button class="modal-close" onclick="closeModal('modalInfoVerif')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;">Tombol "Verifikasi via WhatsApp" otomatis membuka chat ke nomor resmi KaslyAI, <b>+62 812-2696-4679</b>, dengan pesan yang sudah terisi kode unik kamu di dalamnya — tinggal tap kirim, tanpa perlu mengetik apa pun.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;">Sistem mencocokkan 3 hal sekaligus: kode unik dalam pesan, nomor yang kamu daftarkan di web, dan nomor pengirim pesan WhatsApp-nya.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:0;">Kalau buka lagi dari device/browser yang sama nanti, biasanya langsung dikenali tanpa verifikasi ulang.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: DETAIL API KEY & KEAMANAN ==================== -->
+<div class="modal-overlay modal-center" id="modalApiKeyDetail">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Apa Itu API Key &amp; Kenapa Aman?</h3>
+      <button class="modal-close" onclick="closeModal('modalApiKeyDetail')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;"><b style="color:var(--ink);">Apa itu API key?</b> API key itu semacam kunci akses pribadi dari akun Google kamu, khusus buat "memanggil" layanan AI Gemini. Ibarat kunci rumah — cuma bisa dipakai buat masuk ke jatah AI di akun Google kamu sendiri, bukan buat hal lain di akun itu.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;"><b style="color:var(--ink);">Gimana cara kerjanya?</b> Waktu kamu kirim foto struk atau chat ke asisten WhatsApp KaslyAI, sistem kami pakai API key itu di belakang layar buat minta AI Gemini baca dan catat transaksinya. Semua otomatis — kamu enggak perlu buka atau ketik API key itu lagi setelah ditambahkan.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;"><b style="color:var(--ink);">Beda sama limit chat Gemini biasa.</b> Jatah/limit API key ini terpisah total dari limit chat yang kamu pakai di app atau web Gemini biasa. Jadi sesering apa pun kamu ngobrol di Gemini langsung, itu enggak mengurangi jatah API key ini — dan sebaliknya, pemakaian lewat KaslyAI juga enggak mengurangi limit chat Gemini kamu.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;"><b style="color:var(--ink);">Kenapa dibilang aman?</b> Begitu ditempel, API key kamu langsung dikunci rapat di server dan enggak pernah ditampilkan utuh ke siapa pun — termasuk tim KaslyAI sendiri. Sistem cuma bisa "memakainya" buat manggil AI, bukan "melihat" isinya.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:0;"><b style="color:var(--ink);">Kontrol tetap di tangan kamu.</b> Bisa dihapus atau diganti kapan saja lewat menu Setting. Kalau dihapus, sistem otomatis balik pakai AI Gratis bersama supaya fitur AI-nya tetap jalan.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: SYARAT & KETENTUAN (draft prototype) ==================== -->
+<div class="modal-overlay modal-center" id="modalSyarat">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Syarat &amp; Ketentuan</h3>
+      <button class="modal-close" onclick="closeModal('modalSyarat')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:9px;padding:8px 11px;margin-bottom:14px;">📝 Draft prototype — isi final menyusul, belum berlaku secara hukum.</div>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;margin-top:0;"><b style="color:var(--ink);">1. Layanan.</b> KaslyAI menyediakan aplikasi pencatatan transaksi pribadi, termasuk fitur asisten pencatatan otomatis lewat WhatsApp yang didukung AI Gemini.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">2. Akun &amp; Verifikasi.</b> Pendaftaran memakai nomor WhatsApp aktif sebagai identitas login. Kamu bertanggung jawab menjaga keamanan nomor tersebut.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">3. Trial &amp; Berlangganan.</b> Fitur AI &amp; asisten WhatsApp tersedia gratis selama masa trial; setelah trial habis, fitur ini memerlukan token/lisensi berbayar. Fitur catat transaksi manual tetap gratis tanpa batas waktu.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">4. API Key Sendiri.</b> Jika kamu menambahkan API key Gemini milik sendiri, penggunaannya menjadi tanggung jawab dan mengikuti kebijakan kuota dari Google.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;margin-bottom:0;"><b style="color:var(--ink);">5. Perubahan Layanan.</b> Ketentuan ini dapat diperbarui sewaktu-waktu; perubahan penting akan diinfokan lewat WhatsApp.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: KEBIJAKAN PRIVASI (draft prototype) ==================== -->
+<div class="modal-overlay modal-center" id="modalKebijakan">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Kebijakan Privasi</h3>
+      <button class="modal-close" onclick="closeModal('modalKebijakan')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:9px;padding:8px 11px;margin-bottom:14px;">📝 Draft prototype — isi final menyusul, belum berlaku secara hukum.</div>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;margin-top:0;"><b style="color:var(--ink);">1. Data yang Dikumpulkan.</b> Nama, nomor WhatsApp, data transaksi keuangan yang kamu catat, dan (opsional) API key Gemini milik kamu sendiri.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">2. Penggunaan Data.</b> Data dipakai untuk menjalankan fitur pencatatan, verifikasi identitas via WhatsApp, dan memproses transaksi lewat AI Gemini atas nama akunmu.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">3. Penyimpanan.</b> Data disimpan di server KaslyAI dan tidak dijual atau dibagikan ke pihak ketiga di luar penyedia layanan yang dibutuhkan (mis. Google Gemini untuk fitur AI).</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;"><b style="color:var(--ink);">4. Kontrol Kamu.</b> API key pribadi dan riwayat transaksi bisa dihapus kapan saja lewat menu Setting di aplikasi.</p>
+      <p style="font-size:13px;color:var(--ink-soft);line-height:1.65;margin-bottom:0;"><b style="color:var(--ink);">5. Kontak.</b> Pertanyaan seputar privasi bisa dikirim lewat tombol Chat Admin di halaman utama.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================
+   STATE PROTOTYPE (semua di memori, tanpa backend)
+===================================================== */
+const BRAND_NAME = 'KaslyAI';
+let state = {
+  nama: '', wa: '', agree: false,
+  verifCode: '',
+  wallets: [{nama:'Dompet Utama', saldo:''}],
+  categories: [], // diisi initCategories() saat load — {id, name, type, icon, color}
+  trialActive: true, unlocked: false,
+  introIdx: 0,
+  aiChoice: 'free', apiKeyOwnInput: ''
+};
+
+/* setiap slide = fungsi yang mengembalikan HTML mockup + teks penjelasan */
+const introSlides = [
+() => `
+  <div class="card" style="padding:20px 18px 24px;">
+    <div class="intro-visual wa-mock">
+      <div class="wa-mock-head">
+        <div class="avatar">KA</div>
+        <div><div class="name">KaslyAI</div><div class="sub">Catatan Keuangan • online</div></div>
+      </div>
+      <div class="wa-mock-body">
+        <div class="wa-bub out receipt">
+          <div class="thumb"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+          <div>Foto struk Indomaret.jpg<span class="tm">09:14</span></div>
+        </div>
+        <div class="wa-bub in">✅ Tercatat otomatis!<br><b>Belanja — Rp45.000</b><br>Kategori: Groceries • Dompet Utama<span class="tm">09:14</span></div>
+      </div>
+    </div>
+    <h2 style="font-size:18px;margin:0 0 8px;text-align:center;">Fitur AI Pencatat Otomatis</h2>
+    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;text-align:center;">Kirim foto struk atau ngobrol via chat — transaksi otomatis tercatat rapi. Gratis dicoba 7 hari pertama.</p>
+  </div>`,
+
+() => `
+  <div class="card" style="padding:20px 18px 24px;">
+    <div class="intro-visual wa-mock">
+      <div class="wa-mock-head">
+        <div class="avatar">KA</div>
+        <div><div class="name">KaslyAI ✓</div><div class="sub">Nomor resmi terverifikasi</div></div>
+      </div>
+      <div class="wa-mock-body">
+        <div class="wa-bub out">keluar 20rb parkir tadi siang<span class="tm">13:02</span></div>
+        <div class="wa-bub in">✅ Dicatat: <b>Pengeluaran Rp20.000</b> — Transport<span class="tm">13:02</span></div>
+        <div class="wa-bub out">saldo dompet utama berapa?<span class="tm">13:03</span></div>
+        <div class="wa-bub in">Saldo Dompet Utama sekarang: <b>Rp1.240.000</b><span class="tm">13:03</span></div>
+      </div>
+    </div>
+    <h2 style="font-size:18px;margin:0 0 8px;text-align:center;">Asisten Lewat WhatsApp</h2>
+    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;text-align:center;">Setelah nomor WA kamu terverifikasi, kirim pesan ke WA resmi "KaslyAI" kapan saja — catat & tanya-tanya soal keuangan langsung dari chat.</p>
+  </div>`,
+
+() => `
+  <div class="card" style="padding:20px 18px 24px;">
+    <div class="intro-visual browser-mock">
+      <div class="browser-mock-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">catatankeuangan.app</span></div>
+      <div class="browser-mock-body">
+        <div class="dash-card-row">
+          <div class="dash-stat income"><div class="l">Pemasukan</div><div class="v">Rp3,2jt</div></div>
+          <div class="dash-stat expense"><div class="l">Pengeluaran</div><div class="v">Rp1,8jt</div></div>
+        </div>
+        <div class="dash-bar-wrap">
+          <div class="dash-bar" style="height:35%"></div><div class="dash-bar hi" style="height:70%"></div><div class="dash-bar" style="height:45%"></div><div class="dash-bar hi" style="height:85%"></div><div class="dash-bar" style="height:30%"></div><div class="dash-bar hi" style="height:60%"></div><div class="dash-bar" style="height:40%"></div>
+        </div>
+        <div style="margin-top:10px;">
+          <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--expense-soft);">🍔</span>Makan Siang</div><span class="amt minus">-Rp32.000</span></div>
+          <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--income-soft);">💼</span>Gaji Bulanan</div><span class="amt plus">+Rp3.200.000</span></div>
+          <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--expense-soft);">⛽</span>Bensin</div><span class="amt minus">-Rp50.000</span></div>
+        </div>
+      </div>
+    </div>
+    <h2 style="font-size:18px;margin:0 0 8px;text-align:center;">Fitur Dasar Gratis Selamanya</h2>
+    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;text-align:center;">Walau trial AI habis, catat transaksi manual, laporan, dan anggaran tetap bisa dipakai penuh lewat web tanpa batas waktu.</p>
+  </div>`,
+
+() => `
+  <div class="card" style="padding:20px 18px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+      <div>
+        <div style="font-size:30px;line-height:1;margin-bottom:6px;">🔑</div>
+        <h2 style="font-size:17px;margin:0;">Soal AI-nya, Mau Pakai Apa?</h2>
+      </div>
+      <button class="icon-btn" onclick="openModal('modalInfoAiKey')" aria-label="Info" style="flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="aikey-opt ${state.aiChoice==='free'?'selected':''}" data-aikey="free" onclick="selectAiOption('free')">
+      <div class="aikey-opt-head">
+        <div style="display:flex;align-items:center;gap:8px;"><span class="aikey-radio"><span class="dot"></span></span><b>AI Gratis (bawaan)</b></div>
+        <span class="intro-badge-free">Default</span>
+      </div>
+      <div class="d">Kuota <b>dibagi bareng semua pengguna</b> — bisa lebih cepat habis kalau lagi rame.</div>
+    </div>
+
+    <div class="aikey-opt ${state.aiChoice==='own'?'selected':''}" data-aikey="own" onclick="selectAiOption('own')">
+      <div class="aikey-opt-head">
+        <div style="display:flex;align-items:center;gap:8px;"><span class="aikey-radio"><span class="dot"></span></span><b>API Key Gemini Sendiri</b></div>
+        <span class="intro-badge-own">Kuota Lega</span>
+      </div>
+      <div class="d">Makin banyak akun Google &amp; API key yang kamu tambah, <b>makin besar total limit AI kamu</b>.</div>
+      <div class="aikey-own-input">
+        <div id="ownKeyListSlide"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;" onclick="event.stopPropagation();">
+          <input type="text" id="inpOwnKeySlide" placeholder="Tempel API key Gemini…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;font-size:13.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addOwnKeySlide();}">
+          <button class="btn btn-primary btn-sm" type="button" onclick="addOwnKeySlide()">+ Tambah</button>
+        </div>
+        <div class="aikey-guide-link" onclick="event.stopPropagation();goto('screen-api-guide')">
+          <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>
+          <span class="label">Belum punya? <b>Lihat cara ambilnya (gratis)</b></span>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>`
+];
+
+
+function goto(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+function alertToast(msg){ toast(msg); }
+function toggleDevBanner(show){
+  document.getElementById('devTopbar').classList.toggle('hidden', !show);
+  document.getElementById('devShowFab').classList.toggle('show', !show);
+}
+/* geser (swipe) ke atas pada handle untuk menyembunyikan banner prototype, selain tombol X */
+(function initDevBannerSwipe(){
+  const handle = document.getElementById('devDragHandle');
+  if(!handle) return;
+  let startY = null;
+  handle.addEventListener('touchstart', e=>{ startY = e.touches[0].clientY; }, {passive:true});
+  handle.addEventListener('touchmove', e=>{
+    if(startY===null) return;
+    if(startY - e.touches[0].clientY > 24){ toggleDevBanner(false); startY = null; }
+  }, {passive:true});
+  handle.addEventListener('touchend', ()=>{ startY = null; });
+})();
+function toggleDevPanel(show){
+  document.getElementById('devPanel').classList.toggle('hidden', !show);
+  document.getElementById('devPanelShowFab').classList.toggle('show', !show);
+}
+function clearErr(fieldId){ document.getElementById(fieldId).classList.remove('invalid'); }
+function markErr(fieldId){ document.getElementById(fieldId).classList.add('invalid'); }
+
+/* ---------- Step 2: Daftar ---------- */
+function toggleAgree(){
+  state.agree = document.getElementById('chkAgree').checked;
+  document.getElementById('btnLanjutDaftar').disabled = !state.agree;
+}
+function handleAgreeRowClick(){
+  const chk = document.getElementById('chkAgree');
+  chk.checked = !chk.checked;
+  toggleAgree();
+}
+function submitDaftar(){
+  const nama = document.getElementById('inpNama').value.trim();
+  const wa = document.getElementById('inpWa').value.trim();
+  let ok = true;
+  if(!nama){ markErr('fieldNama'); ok=false; } else clearErr('fieldNama');
+  if(!/^[0-9+]{9,15}$/.test(wa)){ markErr('fieldWa'); ok=false; } else clearErr('fieldWa');
+  if(!state.agree){ toast('Centang dulu persetujuan Syarat & Kebijakan Privasi ya.'); ok=false; }
+  if(!ok) return;
+  state.nama = nama; state.wa = wa;
+  state.verifCode = generateVerifCode();
+  document.getElementById('verifStatusPill').outerHTML = '<span class="status-pill wait" id="verifStatusPill"><span class="spin"></span> Menunggu dikirim…</span>';
+  document.getElementById('btnVerifWa').style.display = 'flex';
+  document.getElementById('btnLanjutVerif').style.display = 'none';
+  goto('screen-verifikasi');
+}
+
+/* kode unik verifikasi: 20 karakter kombinasi huruf besar/kecil + angka, auto-terisi di pesan WA */
+function generateVerifCode(){
+  const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  return Array.from({length:20}, ()=> charset[Math.floor(Math.random()*charset.length)]).join('');
+}
+
+/* ---------- Step 3: Verifikasi WA ---------- */
+function simulateOpenWa(){
+  if(!state.verifCode) state.verifCode = generateVerifCode();
+  const text = encodeURIComponent(`Verifikasi ${BRAND_NAME}\nKode: ${state.verifCode}`);
+  window.open(`https://wa.me/6281226964679?text=${text}`, '_blank');
+  document.getElementById('verifStatusPill').innerHTML = '<span class="spin"></span> Menunggu konfirmasi…';
+  setTimeout(()=>{
+    document.getElementById('verifStatusPill').outerHTML = '<span class="status-pill ok" id="verifStatusPill">✓ Nomor WA terverifikasi</span>';
+    toast('Verifikasi berhasil! Akun aktif.');
+    document.getElementById('btnVerifWa').style.display = 'none';
+    document.getElementById('btnLanjutVerif').style.display = 'flex';
+  }, 1600);
+}
+function lanjutDariVerifikasi(){ state.introIdx=0; renderIntro(); goto('screen-intro'); }
+
+
+/* ---------- Step 4: Intro/Onboarding carousel ---------- */
+function renderIntro(){
+  document.getElementById('introSlides').innerHTML = introSlides[state.introIdx]();
+  document.querySelectorAll('#screen-intro .step-dots span').forEach((s,i)=>s.classList.toggle('active', i===state.introIdx));
+  document.getElementById('introBackBtn').style.visibility = state.introIdx===0 ? 'hidden' : 'visible';
+  document.getElementById('introNextBtn').textContent = state.introIdx===introSlides.length-1 ? 'Lanjut Isi Saldo Awal' : 'Lanjut';
+  renderUserKeys();
+}
+function selectAiOption(choice){
+  state.aiChoice = choice;
+  document.querySelectorAll('.aikey-opt').forEach(el=>el.classList.toggle('selected', el.dataset.aikey===choice));
+  if(choice==='own'){ setTimeout(()=>document.getElementById('inpOwnKeySlide')?.focus(), 50); }
+}
+function addOwnKeySlide(){
+  const inp = document.getElementById('inpOwnKeySlide');
+  const v = inp.value.trim();
+  if(!v) return;
+  userKeys.push(v);
+  inp.value='';
+  renderUserKeys();
+  toast('API key ditambahkan • total ' + userKeys.length + ' key.');
+}
+function introNext(){
+  if(state.introIdx < introSlides.length-1){ state.introIdx++; renderIntro(); }
+  else {
+    if(state.aiChoice==='own' && userKeys.length===0){ toast('Belum ada API key ditambahkan — sementara pakai AI gratis dulu.'); }
+    renderWallets(); goto('screen-dompet');
+  }
+}
+function introBack(){ if(state.introIdx>0){ state.introIdx--; renderIntro(); } }
+
+/* ---------- Step 5: Dompet awal ---------- */
+function renderWallets(){
+  const wrap = document.getElementById('onbWalletsList');
+  wrap.innerHTML = state.wallets.map((w,i)=>`
+    <div class="wallet-field">
+      <div class="wallet-field-head">
+        <b>Dompet ${i+1}</b>
+        ${state.wallets.length>1 ? `<button class="wallet-remove" onclick="removeWalletField(${i})">Hapus</button>` : ''}
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <input type="text" placeholder="Nama dompet (mis: Rekening BCA)" value="${w.nama}" oninput="state.wallets[${i}].nama=this.value">
+      </div>
+      <div class="field amount-input" style="margin-bottom:0;">
+        <span class="prefix">Rp</span>
+        <input type="number" placeholder="0" value="${w.saldo}" oninput="state.wallets[${i}].saldo=this.value">
+      </div>
+    </div>`).join('');
+}
+function addWalletField(){ state.wallets.push({nama:'', saldo:''}); renderWallets(); }
+function removeWalletField(i){ state.wallets.splice(i,1); renderWallets(); }
+
+/* ---------- Step 5b: Kategori awal (ikon + warna custom, gaya sama dgn app utama) ---------- */
+const CATEGORY_ICONS = {
+  food:      { label:'Makan',       path:'<path d="M8 2v7a2 2 0 0 0 4 0V2M8 2v20M8 5v4M16 2v8a3 3 0 0 1-3 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' },
+  cookie:    { label:'Jajan',       path:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.1"/><circle cx="8" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/><circle cx="10" cy="15" r="1.2" fill="currentColor"/><circle cx="16" cy="14" r="1.1" fill="currentColor"/>' },
+  coffee:    { label:'Kopi',        path:'<path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+  cart:      { label:'Sembako',     path:'<circle cx="9" cy="20" r="1.5" fill="currentColor"/><circle cx="18" cy="20" r="1.5" fill="currentColor"/><path d="M1 2h3.5l2.6 12.3a2 2 0 0 0 2 1.7h9.8a2 2 0 0 0 2-1.6L22 6H6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+  bag:       { label:'Belanja',     path:'<path d="M6 8h12l1 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 8Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+  car:       { label:'Transport',   path:'<path d="M4 16V11l2-5h12l2 5v5" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M2 16h20v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="7" cy="16" r="1.6" fill="currentColor"/><circle cx="17" cy="16" r="1.6" fill="currentColor"/>' },
+  motorcycle:{ label:'Motor/Ojol',  path:'<path d="M5 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2.1"/><path d="M19 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2.1"/><path d="M12 16V9l4-4h3M5 13l4-5h4l3 5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+  fuel:      { label:'Bensin',      path:'<path d="M5 21V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 21h13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M15 9h1.5a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V9.5L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6h4v4H7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+  parking:   { label:'Parkir',      path:'<rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="2.1"/><path d="M9 17V7h4.5a3.5 3.5 0 0 1 0 7H9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' },
+  zap:       { label:'Listrik',     path:'<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+  water:     { label:'Air/Galon',   path:'<path d="M8 2h8v3H8Z" stroke="currentColor" stroke-width="2"/><path d="M6 5h12v3a2 2 0 0 1-2 2h-1.5v12h-5V10H8a2 2 0 0 1-2-2V5Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+  receipt:   { label:'Tagihan',     path:'<path d="M6 2h12v20l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V2Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' },
+  shirt:     { label:'Pakaian',     path:'<path d="M8 3 4 6l2 3 2-1v11a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V8l2 1 2-3-4-3-2 2h-4L8 3Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+  tv:        { label:'TV/Stream',   path:'<rect x="2" y="7" width="20" height="13" rx="2" stroke="currentColor" stroke-width="2.1"/><path d="M17 2l-5 5-5-5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+  ticket:    { label:'Bioskop',     path:'<path d="M2 9a3 3 0 0 1 0 6v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a3 3 0 0 1 0-6V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v4Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+  film:      { label:'Hiburan',     path:'<rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2.1"/><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4" stroke="currentColor" stroke-width="1.9"/>' },
+  music:     { label:'Musik',       path:'<path d="M9 18V4l11-2v14" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2.2"/><circle cx="17" cy="16" r="3" stroke="currentColor" stroke-width="2.2"/>' },
+  gamepad:   { label:'Game',        path:'<rect x="2" y="7" width="20" height="11" rx="5" stroke="currentColor" stroke-width="2.2"/><path d="M7 10v4M5 12h4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="16" cy="10.5" r="1.1" fill="currentColor"/><circle cx="18.5" cy="13" r="1.1" fill="currentColor"/>' },
+  book:      { label:'Pendidikan',  path:'<path d="M12 6c-2-1.3-5-2-8-2v14c3 0 6 .7 8 2 2-1.3 5-2 8-2V4c-3 0-6 .7-8 2Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 6v14" stroke="currentColor" stroke-width="2"/>' },
+  briefcase: { label:'Kerja/Gaji',  path:'<rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="2.2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2.2"/><path d="M3 12h18" stroke="currentColor" stroke-width="2"/>' },
+  gift:      { label:'Hadiah/Bonus',path:'<rect x="3" y="8" width="18" height="13" rx="1" stroke="currentColor" stroke-width="2.2"/><path d="M3 12h18M12 8v13" stroke="currentColor" stroke-width="2.1"/><path d="M12 8c-2 0-5-1-5-3.2A2.3 2.3 0 0 1 9.3 2.5C11.5 2.5 12 5.5 12 8Zm0 0c2 0 5-1 5-3.2A2.3 2.3 0 0 0 14.7 2.5C12.5 2.5 12 5.5 12 8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+  piggy:     { label:'Tabungan',    path:'<path d="M4 12a6 6 0 0 1 6-6h5.5a4.5 4.5 0 0 1 4.5 4.5V13l2 1.5-2 .8V17a1 1 0 0 1-1 1h-2v2h-3v-2h-2l-1 2H8l-.5-2A6 6 0 0 1 4 12Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="11" r="1" fill="currentColor"/>' },
+  trending:  { label:'Investasi',   path:'<path d="M3 17 9 11l4 4 8-8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' },
+  hospital:  { label:'Dokter/Klinik',path:'<path d="M3 21h18V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v15Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 8v6M9 11h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+  pill:      { label:'Obat',        path:'<path d="M10.5 4.5a5 5 0 0 1 7.1 7.1l-6 6a5 5 0 0 1-7.1-7.1l6-6Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M8.5 12.5l7-7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>' },
+  heart:     { label:'Kesehatan',   path:'<path d="M12 21s-7.5-4.6-10-9.3C.5 8.2 2.3 5 5.7 5c2 0 3.4 1.1 4.3 2.5C11 6.1 12.4 5 14.4 5c3.4 0 5.2 3.2 3.7 6.7C19.5 16.4 12 21 12 21Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+  tools:     { label:'Perbaikan',   path:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/>' },
+  home:      { label:'Rumah/Kos',   path:'<path d="M3 11 12 3l9 8" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>' },
+  paw:       { label:'Hewan',       path:'<circle cx="7" cy="8" r="2" fill="currentColor"/><circle cx="12" cy="5.5" r="2" fill="currentColor"/><circle cx="17" cy="8" r="2" fill="currentColor"/><path d="M8 15c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4.5-4 4.5S8 17.2 8 15Z" fill="currentColor"/>' },
+  dumbbell:  { label:'Olahraga',    path:'<path d="M4 9v6M2 10.5v3M20 9v6M22 10.5v3M6 12h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><rect x="6" y="8" width="3" height="8" rx="1" stroke="currentColor" stroke-width="2.2"/><rect x="15" y="8" width="3" height="8" rx="1" stroke="currentColor" stroke-width="2.2"/>' },
+  phone:     { label:'Pulsa/Hp',    path:'<rect x="6" y="2" width="12" height="20" rx="2" stroke="currentColor" stroke-width="2.2"/><path d="M10 18h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>' },
+  wifi:      { label:'Internet',    path:'<path d="M2 8.5a17 17 0 0 1 20 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5.5 12.5a11.5 11.5 0 0 1 13 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M9 16.3a6 6 0 0 1 6 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="19.5" r="1.3" fill="currentColor"/>' },
+  plane:     { label:'Travel',      path:'<path d="M10.5 14.5 4 17l1-3.5L10.5 12l-3-6 1.7-.5 4.6 5 5-1.7a1.6 1.6 0 0 1 2 2l-1.7 5-5 4.6-.5 1.7-6-3 2.5-1.5Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>' },
+  shield:    { label:'Asuransi',    path:'<path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+  users:     { label:'Sosial',      path:'<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2.1"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="17" cy="8" r="2.4" stroke="currentColor" stroke-width="2.1"/>' },
+  handheart: { label:'Sedekah',     path:'<path d="M12 6c-1.5-2-4-2.5-5.5-1A3.5 3.5 0 0 0 6 10l6 6 6-6a3.5 3.5 0 0 0-.5-5C16 3.5 13.5 4 12 6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M2 18h6l3 3 7-3h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' },
+  wallet:    { label:'Dompet',      path:'<path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 12h3v3h-3a1.5 1.5 0 0 1 0-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+  more:      { label:'Lainnya',     path:'<rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="2.1"/><circle cx="8" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="16" cy="12" r="1.2" fill="currentColor"/>' }
+};
+const CATEGORY_ICON_KEYS = Object.keys(CATEGORY_ICONS);
+const CATEGORY_COLOR_PALETTE = ['#0F766E','#C4453B','#B7791F','#8A6D3B','#1E8F5A','#5B6A68','#0B5951','#D97757','#3D5A80','#9B5DE5','#2563EB','#DB2777','#059669','#EA580C','#7C3AED','#4F46E5'];
+function iconSvgMarkup(key, size){
+  size = size || 18;
+  const def = CATEGORY_ICONS[key] || CATEGORY_ICONS.more;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">${def.path}</svg>`;
+}
+function categoryIconBoxHtml(cat, opts){
+  opts = opts || {};
+  const size = opts.size || 34, iconSize = opts.iconSize || Math.round(size*0.56), radius = opts.radius!=null?opts.radius:10;
+  const color = (cat && cat.color) || '#5B6A68';
+  const iconKey = (cat && cat.icon) || 'more';
+  return `<div class="cat-icon-box" style="width:${size}px;height:${size}px;border-radius:${radius}px;background:${color}22;color:${color};">${iconSvgMarkup(iconKey, iconSize)}</div>`;
+}
+function defaultIconForCategoryName(name){
+  const map = {'Makan':'food','Transport':'car','Belanja':'bag','Tagihan':'receipt','Hiburan':'film','Lainnya':'more','Penyesuaian Saldo':'wallet','Gaji':'briefcase','Bonus':'gift'};
+  return map[name] || 'more';
+}
+function categoryById(id){ return state.categories.find(c=>c.id===id); }
+let catIdCounter = 1;
+function initCategories(){
+  if(state.categories.length) return;
+  const presetExpense = ['Makan','Transport','Belanja','Tagihan','Hiburan','Lainnya','Penyesuaian Saldo'];
+  const presetIncome = ['Gaji','Bonus','Lainnya'];
+  let i = 0;
+  presetExpense.forEach(n=> state.categories.push({id:'cat_'+(catIdCounter++), name:n, type:'expense', icon:defaultIconForCategoryName(n), color:CATEGORY_COLOR_PALETTE[i++ % CATEGORY_COLOR_PALETTE.length]}));
+  presetIncome.forEach(n=> state.categories.push({id:'cat_'+(catIdCounter++), name:n, type:'income', icon:defaultIconForCategoryName(n), color:CATEGORY_COLOR_PALETTE[i++ % CATEGORY_COLOR_PALETTE.length]}));
+}
+
+let catManageType = 'expense';
+let catManagePickedIcon = 'more';
+let catManagePickedColor = CATEGORY_COLOR_PALETTE[0];
+let catEditingId = null;
+function setCatManageType(type){
+  catManageType = type;
+  document.querySelectorAll('#screen-kategori .type-toggle button').forEach(b=>b.classList.toggle('active', b.dataset.type===type));
+  resetCatManageAddForm();
+  renderCatManageList();
+}
+function resetCatManageAddForm(){
+  catManagePickedIcon = 'more';
+  catManagePickedColor = CATEGORY_COLOR_PALETTE[Math.floor(Math.random()*CATEGORY_COLOR_PALETTE.length)];
+  document.getElementById('catManageNewName').value = '';
+  updateCatManageIconTrigger();
+}
+function updateCatManageIconTrigger(){
+  const btn = document.getElementById('catManageIconTrigger');
+  if(!btn) return;
+  btn.style.background = catManagePickedColor + '22';
+  btn.style.color = catManagePickedColor;
+  btn.innerHTML = iconSvgMarkup(catManagePickedIcon, 22);
+}
+function renderCatManageColorSwatches(){
+  const row = document.getElementById('iconPickerColorRow');
+  if(!row) return;
+  const activeColor = catEditingId ? ((categoryById(catEditingId)||{}).color || catManagePickedColor) : catManagePickedColor;
+  row.innerHTML = CATEGORY_COLOR_PALETTE.map(c=>`<span class="color-swatch${c===activeColor?' selected':''}" style="background:${c}" onclick="selectCatManageColor('${c}')"></span>`).join('');
+}
+function selectCatManageColor(color){
+  if(catEditingId){
+    const cat = categoryById(catEditingId);
+    if(cat) cat.color = color;
+    renderCatManageList();
+  } else {
+    catManagePickedColor = color;
+    updateCatManageIconTrigger();
+  }
+  renderCatManageColorSwatches();
+}
+function renderIconPickerGrid(){
+  const grid = document.getElementById('iconPickerGrid');
+  const activeIcon = catEditingId ? (categoryById(catEditingId)||{}).icon : catManagePickedIcon;
+  grid.innerHTML = CATEGORY_ICON_KEYS.map(key=>`<button type="button" class="icon-grid-btn${key===activeIcon?' selected':''}" onclick="pickCatIcon('${key}')" aria-label="${CATEGORY_ICONS[key].label}">${iconSvgMarkup(key,24)}</button>`).join('');
+}
+function openCatIconPicker(editingId){
+  catEditingId = editingId || null;
+  renderIconPickerGrid();
+  renderCatManageColorSwatches();
+  openModal('modalIconPicker');
+}
+function pickCatIcon(key){
+  if(catEditingId){
+    const cat = categoryById(catEditingId);
+    if(cat) cat.icon = key;
+    renderCatManageList();
+  } else {
+    catManagePickedIcon = key;
+    updateCatManageIconTrigger();
+  }
+  renderIconPickerGrid();
+}
+function closeCatIconPicker(){
+  catEditingId = null;
+  closeModal('modalIconPicker');
+}
+function renderCatManageList(){
+  initCategories();
+  const cats = state.categories.filter(c=>c.type===catManageType);
+  const wrap = document.getElementById('catManageList');
+  if(!wrap) return;
+  if(cats.length===0){ wrap.innerHTML = '<div class="empty-note">Belum ada kategori.</div>'; return; }
+  wrap.innerHTML = cats.map(c=>`
+    <div class="cat-manage-row" data-id="${c.id}">
+      <div class="l">
+        <span onclick="openCatIconPicker('${c.id}')" style="cursor:pointer;">${categoryIconBoxHtml(c,{size:34,radius:9,iconSize:19})}</span>
+        <input type="text" class="name" value="${c.name}" oninput="renameCategory('${c.id}', this.value)" style="border:none;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 0;min-width:0;flex:1;">
+      </div>
+      <div class="cat-manage-actions">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCategoryManaged('${c.id}')">Hapus</button>
+      </div>
+    </div>`).join('');
+}
+function renameCategory(id, val){
+  const cat = categoryById(id);
+  if(cat) cat.name = val;
+}
+function deleteCategoryManaged(id){
+  state.categories = state.categories.filter(c=>c.id!==id);
+  renderCatManageList();
+}
+function addCategoryFromManager(){
+  const inp = document.getElementById('catManageNewName');
+  const name = inp.value.trim();
+  if(!name){ toast('Isi nama kategori dulu ya.'); return; }
+  state.categories.push({id:'cat_'+(catIdCounter++), name, type:catManageType, icon:catManagePickedIcon, color:catManagePickedColor});
+  resetCatManageAddForm();
+  renderCatManageList();
+}
+function finishOnboardingDemo(){
+  toast('Saldo awal tersimpan. Selamat mencatat! 🎉');
+  state.trialActive = true; state.unlocked = false;
+  document.getElementById('trialDaysLeft').textContent = trialDurasiHari;
+  setTrialChip('active');
+  setTimeout(()=>goto('screen-app-blank'), 500);
+}
+
+/* ---------- Step 6: blank app + trial habis + token ---------- */
+let trialDurasiHari = 7;
+function setTrialChip(mode){
+  const chip = document.getElementById('trialChip');
+  chip.className = 'trial-chip ' + (mode==='habis'?'habis':mode==='paid'?'paid':'active');
+  if(mode==='habis') chip.innerHTML = 'Trial habis · fitur AI terkunci';
+  else if(mode==='paid') chip.innerHTML = '✓ Lifetime aktif';
+  else chip.innerHTML = 'Trial aktif · <span id="trialDaysLeft">'+trialDurasiHari+'</span> hari lagi';
+}
+function simulateTrialHabis(){
+  state.trialActive = false;
+  setTrialChip('habis');
+  openModal('modalTrialHabis');
+}
+function submitToken(){
+  const val = document.getElementById('inpToken').value.trim().toUpperCase();
+  const validTokens = ['DEMO2026','ABC123XY','QWER7890'];
+  const usedTokens = ['USEDTOK1'];
+  if(usedTokens.includes(val)){
+    markErr('fieldToken');
+    document.querySelector('#fieldToken .err').textContent = 'Kode ini sudah pernah dipakai akun lain.';
+    return;
+  }
+  if(!validTokens.includes(val)){
+    markErr('fieldToken');
+    document.querySelector('#fieldToken .err').textContent = 'Kode tidak ditemukan / salah ketik.';
+    return;
+  }
+  clearErr('fieldToken');
+  closeModal('modalTrialHabis');
+  state.unlocked = true;
+  setTrialChip('paid');
+  toast('✓ Token valid! Fitur AI & WhatsApp aktif selamanya.');
+}
+function resetPrototype(){
+  document.getElementById('inpNama').value='';
+  document.getElementById('inpWa').value='';
+  document.getElementById('chkAgree').checked=false;
+  toggleAgree();
+  state.wallets=[{nama:'Dompet Utama', saldo:''}];
+  state.aiChoice='free'; state.apiKeyOwnInput=''; state.introIdx=0;
+  userKeys=[];
+  goto('screen-promo');
+}
+function openWaAdmin(context){
+  const messages = {
+    lifetime: 'Halo, saya mau tanya-tanya soal KaslyAI / berlangganan paket Lifetime. Boleh dibantu prosesnya?',
+    token: 'Halo, trial fitur AI saya di KaslyAI sudah habis. Saya mau beli token untuk aktifkan lagi fitur AI-nya.'
+  };
+  const text = messages[context] || messages.lifetime;
+  window.open('https://wa.me/6289626112023?text=' + encodeURIComponent(text), '_blank');
+}
+
+/* ---------- API key (user) ---------- */
+let userKeys = [];
+function renderUserKeys(){
+  const html = userKeys.length ? userKeys.map((k,i)=>`
+    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="event.stopPropagation();userKeys.splice(${i},1);renderUserKeys()">Hapus</button></div>
+  `).join('') + `<div style="font-size:11px;color:var(--ink-soft);padding:4px 2px 0;">${userKeys.length} API key aktif${userKeys.length>1?' — limit AI kamu digabung dari semuanya.':'.'}</div>`
+    : '<div style="font-size:12px;color:var(--ink-soft);padding:6px 0;">Belum ada API key ditambahkan.</div>';
+  ['userKeyList','ownKeyListSlide'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = html;
+  });
+}
+function addUserKey(){
+  const v = document.getElementById('inpUserKey').value.trim();
+  if(!v) return;
+  userKeys.push(v);
+  document.getElementById('inpUserKey').value='';
+  renderUserKeys();
+  toast('API key ditambahkan.');
+}
+function maskKey(k){ return k.length>8 ? k.slice(0,4)+'••••'+k.slice(-4) : k; }
+
+/* ---------- Modal helpers ---------- */
+function openModal(id){ document.getElementById(id).classList.add('open'); document.body.classList.add('modal-lock'); if(id==='modalApiKey') renderUserKeys(); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); document.body.classList.remove('modal-lock'); }
+
+/* init */
+initCategories();
+renderWallets();
+</script>
+</body>
+</html>

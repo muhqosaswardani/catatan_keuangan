@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Prototype Menu Baru, KaslyAI (Fase 2 PRD)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F7F6; --surface:#FFFFFF; --surface-2:#EEF2F1; --ink:#152524; --ink-soft:#5B6A68;
+    --line:#E3E9E7; --accent:#0F766E; --accent-dark:#0B5951; --accent-soft:#DCF1EE;
+    --income:#1E8F5A; --income-soft:#E3F5EB; --expense:#C4453B; --expense-soft:#FBE7E5;
+    --warn:#B7791F; --warn-soft:#FCF0DC; --info:#2F6FED; --info-dark:#1E4FB8; --info-soft:#E7EEFE;
+    --wa:var(--accent-dark); --wa-dark:#083F3A;
+    --radius-l:20px; --radius-m:14px; --radius-s:10px;
+    --shadow:0 1px 2px rgba(21,37,36,0.04), 0 8px 24px -12px rgba(21,37,36,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;height:100dvh;overflow:hidden;display:flex;flex-direction:column;}
+  h1,h2,h3{font-family:'Sora',sans-serif;}
+  svg{display:block;}
+  .app{max-width:560px;margin:0 auto;position:relative;background:var(--bg);flex:1 1 auto;min-height:0;width:100%;overflow:hidden;}
+  .screen{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 24px;animation:fadein .22s ease;flex-direction:column;}
+  .screen.active{display:flex;}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  /* dev banner */
+  .dev-topbar{position:sticky;top:0;z-index:500;}
+  .dev-topbar.hidden{display:none;}
+  .dev-banner{position:relative;padding-right:34px;background:var(--ink);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:6px 30px 6px 10px;letter-spacing:.02em;line-height:1.4;}
+  .dev-banner b{color:var(--accent-soft);}
+  .dev-hide-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.14);border:none;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .dev-hide-btn:active{background:rgba(255,255,255,.28);}
+  .dev-show-fab{position:fixed;top:10px;right:10px;z-index:501;background:var(--ink);color:#fff;border:none;border-radius:100px;padding:8px 13px;font-size:11px;font-weight:700;display:none;align-items:center;gap:6px;cursor:pointer;box-shadow:0 6px 18px -4px rgba(0,0,0,.35);}
+  .dev-show-fab.show{display:inline-flex;}
+  .dev-quicknav{display:flex;align-items:center;gap:8px;background:#0B1A19;padding:7px 10px;border-top:1px solid rgba(255,255,255,.08);}
+  .dev-quicknav-label{flex:0 0 auto;font-size:9.5px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;}
+  .dev-quicknav-scroll{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .dev-quicknav-scroll::-webkit-scrollbar{display:none;}
+  .dev-quicknav-scroll button{flex:0 0 auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:11px;font-weight:700;padding:7px 12px;border-radius:100px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .dev-quicknav-scroll button:active{background:rgba(255,255,255,.28);}
+  .dev-quicknav-scroll button.grp{background:rgba(15,118,110,.35);border-color:rgba(15,118,110,.6);}
+  @media (max-width:380px){
+    .dev-banner{font-size:10px;padding:5px 30px 5px 8px;}
+    .dev-quicknav{padding:6px 8px;}
+    .dev-quicknav-label{font-size:8.5px;}
+    .dev-quicknav-scroll button{font-size:10px;padding:6px 10px;}
+  }
+
+  /* ===== komponen umum (disamakan persis dengan index.html) ===== */
+  .card{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:16px;}
+  .btn{border:none;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:13px 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s ease, opacity .15s ease;}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.4;cursor:default;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent-dark);}
+  .btn-secondary{background:var(--surface-2);color:var(--ink);}
+  .btn-ghost{background:var(--surface-2);color:var(--ink);}
+  .btn-danger{background:var(--expense-soft);color:var(--expense);}
+  .btn-block{width:100%;}
+  .btn-sm{padding:9px 13px;font-size:12.5px;}
+
+  .field{margin-bottom:11px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field input,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--surface);}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
+
+  /* header layar full-screen (bukan tab bottom-nav, dibuka lewat App Shortcut) */
+  .fs-header{display:flex;align-items:center;gap:10px;padding:2px 2px 12px;flex:0 0 auto;}
+  .fs-back,.fs-home{width:36px;height:36px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);border:none;display:flex;align-items:center;justify-content:center;color:var(--ink);cursor:pointer;flex-shrink:0;}
+  .fs-back:active,.fs-home:active{transform:scale(.93);}
+  .fs-title-wrap{min-width:0;flex:1;}
+  .fs-title-wrap .eyebrow{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;}
+  .fs-title-wrap h1{font-size:18px;margin:1px 0 0;font-weight:800;}
+  .fs-avatar{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800;font-size:14px;font-family:'Sora',sans-serif;}
+  .shortcut-pill{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent-dark);font-size:10px;font-weight:800;padding:4px 9px 4px 7px;border-radius:100px;margin-top:2px;}
+
+  /* ================= CHAT (disalin dari page-chat index.html) ================= */
+  .chatfull-wrap{flex:1;min-height:0;display:flex;flex-direction:column;}
+  .chat-container-wrap{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--surface-2);border-radius:var(--radius-l);border:1.5px solid var(--line);position:relative;overflow:hidden;}
+  .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background-color:var(--surface-2);background-image:radial-gradient(var(--line) 1px, transparent 1px);background-size:16px 16px;scroll-behavior:smooth;}
+  .chat-date-header{align-self:center;background:var(--surface);color:var(--ink-soft);border:1px solid var(--line);font-size:11px;font-weight:700;padding:5px 12px;border-radius:10px;margin:8px auto;text-transform:uppercase;letter-spacing:.04em;box-shadow:var(--shadow);}
+  .chat-bubble{max-width:80%;padding:10px 14px;border-radius:var(--radius-m);font-size:13.5px;line-height:1.45;position:relative;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.06);white-space:pre-line;}
+  .chat-bubble.user{align-self:flex-end;background:var(--accent-soft);color:var(--ink);border-top-right-radius:4px;}
+  .chat-bubble.bot{align-self:flex-start;background:var(--surface);color:var(--ink);border-top-left-radius:4px;}
+  .chat-bubble.bot.chat-tx-bubble{cursor:pointer;border:1.5px solid var(--accent);border-left:4px solid var(--accent);}
+  .chat-bubble-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:4px;}
+  .chat-bubble-tag.tx-tag{color:var(--accent);}
+  .chat-bubble-action-hint{font-size:9.5px;color:var(--ink-soft);opacity:.6;margin-top:6px;display:flex;align-items:center;gap:3px;border-top:1px dashed var(--line);padding-top:4px;}
+  .chat-bubble .time{font-size:9.5px;color:var(--ink-soft);margin-top:4px;text-align:right;display:block;opacity:.8;}
+  .chat-typing-indicator{padding:8px 16px;background:var(--surface);border-top:1.5px solid var(--line);display:none;align-items:center;gap:4px;}
+  .chat-typing-indicator.show{display:flex;}
+  .chat-typing-indicator .dot{width:6px;height:6px;background:var(--ink-soft);border-radius:50%;animation:chatBounce 1.3s infinite ease-in-out;}
+  .chat-typing-indicator .dot:nth-child(2){animation-delay:-1.1s;}
+  .chat-typing-indicator .dot:nth-child(3){animation-delay:-0.9s;}
+  @keyframes chatBounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-4px);}}
+  .chat-input-bar{background:transparent;border:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .chat-input-row{display:flex;align-items:flex-end;gap:6px;}
+  .chat-field-wrap{flex:1;min-width:0;display:flex;align-items:center;gap:2px;background:var(--surface);border:1.5px solid var(--line);border-radius:24px;padding:4px 6px 4px 4px;box-shadow:var(--shadow);}
+  .chat-btn-file,.chat-btn-camera{background:none;border:none;color:var(--ink-soft);cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .chat-field-wrap input[type="text"]{flex:1;min-width:0;border:none;background:transparent;padding:7px 4px;font-size:14px;color:var(--ink);outline:none;font-family:inherit;}
+  .chat-field-wrap input[type="text"]::placeholder{color:var(--ink-soft);opacity:.7;}
+  .chat-btn-action{width:44px;height:44px;border-radius:50%;border:none;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(15,118,110,.35);}
+  .chat-btn-action:active{transform:scale(.92);}
+  .chat-btn-action .icon-send{display:none;}
+  .chat-btn-action .icon-mic{display:flex;}
+  .chat-btn-action.is-send .icon-send{display:flex;}
+  .chat-btn-action.is-send .icon-mic{display:none;}
+
+  /* ================= TRANSAKSI AI CEPAT ================= */
+  .txai-center{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:14px;width:100%;max-width:440px;margin:0 auto;}
+  .ai-text-wrap{position:relative;}
+  .ai-text-wrap textarea{padding-right:48px;min-height:230px;font-size:17px;line-height:1.6;resize:none;}
+  .ai-mic-btn{position:absolute;right:10px;bottom:10px;width:34px;height:34px;border-radius:50%;border:none;background:var(--surface);color:var(--ink-soft);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.15);cursor:pointer;}
+  .ai-choice-grid-camright{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;margin:2px 0 4px;}
+  .ai-choice-btn{border:1.5px dashed var(--line);border-radius:var(--radius-m);text-align:center;background:var(--surface);cursor:pointer;font-size:12.5px;font-weight:700;color:var(--ink-soft);}
+  .ai-choice-btn svg{display:block;margin:0 auto 8px;}
+  .ai-choice-btn:active{background:var(--surface-2);}
+  .ai-choice-grid-camright .ai-choice-btn-stack{grid-column:1;display:flex;flex-direction:column;justify-content:center;padding:10px 8px;font-size:12px;}
+  .ai-choice-grid-camright .ai-choice-btn-stack svg{width:19px;height:19px;margin-bottom:5px;}
+  .ai-choice-grid-camright .ai-choice-btn-cam{grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 8px;font-size:12.5px;}
+  .ai-choice-grid-camright .ai-choice-btn-cam svg{width:26px;height:26px;margin-bottom:6px;}
+  .file-thumb-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .file-thumb{position:relative;width:52px;height:52px;border-radius:8px;overflow:hidden;border:1px solid var(--line);flex-shrink:0;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--ink-soft);}
+  .file-thumb-x{position:absolute;top:1px;right:1px;width:16px;height:16px;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;line-height:1;cursor:pointer;}
+  .ai-loading{text-align:center;padding:40px 10px;margin:auto 0;}
+  .ai-loading .spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);margin:0 auto 16px;animation:aispin .8s linear infinite;}
+  @keyframes aispin{to{transform:rotate(360deg);}}
+  .ai-loading p{font-size:13.5px;color:var(--ink-soft);font-weight:600;margin:0 0 4px;}
+  .ai-loading .sub{font-size:12px;color:var(--ink-soft);font-weight:500;opacity:.8;}
+
+  .saved-check{width:64px;height:64px;border-radius:50%;background:var(--income-soft);color:var(--income);display:flex;align-items:center;justify-content:center;margin:18px auto 14px;}
+  .saved-check.warn{background:var(--warn-soft);color:var(--warn);}
+  .saved-title{text-align:center;font-size:18px;font-weight:800;margin:0 0 4px;}
+  .saved-sub{text-align:center;font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .tx-summary-card{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:14px;margin-bottom:14px;}
+  .tx-summary-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .tx-summary-row:last-child{border-bottom:none;}
+  .tx-summary-row .l{color:var(--ink-soft);}
+  .tx-summary-row .v{font-weight:700;text-align:right;}
+  .tx-summary-row .v.amt{color:var(--expense);font-family:'Sora',sans-serif;font-size:15px;}
+  .tx-summary-multi-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+  .tx-summary-multi-wrap .tx-summary-card{margin-bottom:0;}
+  .tx-summary-card-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .tx-summary-badge{width:20px;height:20px;border-radius:6px;background:var(--accent-soft);color:var(--accent-dark);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Sora',sans-serif;}
+  .tx-summary-card-head .cat-name{font-weight:800;font-size:13.5px;}
+  .tx-summary-card-actions{display:flex;gap:8px;margin-top:6px;padding-top:8px;border-top:1px dashed var(--line);}
+  .tx-summary-card-actions button{flex:1;background:none;border:none;font-family:inherit;font-weight:700;font-size:11.5px;color:var(--accent-dark);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;gap:4px;}
+  .tx-summary-card-actions button.danger{color:var(--expense);}
+  .tx-summary-total{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:var(--radius-m);padding:12px 14px;margin-bottom:14px;font-size:13px;font-weight:700;color:var(--ink-soft);}
+  .tx-summary-total .v{font-family:'Sora',sans-serif;font-size:16px;color:var(--expense);}
+  .saved-actions{display:flex;gap:10px;margin-bottom:14px;}
+  .saved-actions .btn{flex:1;}
+  .saved-hint{display:flex;gap:8px;align-items:flex-start;background:var(--surface-2);border-radius:var(--radius-m);padding:11px 13px;font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .saved-hint svg{flex-shrink:0;color:var(--accent);margin-top:1px;}
+
+  /* ================= NOTIFIKASI PWA (mockup) ================= */
+  .phone-status{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 14px;font-size:11px;color:var(--ink-soft);font-weight:700;}
+  .notif-card{background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:16px;box-shadow:0 6px 20px -6px rgba(21,37,36,.22);padding:12px 13px;margin-bottom:12px;}
+  .notif-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .notif-appicon{width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .notif-appname{font-size:11px;font-weight:800;color:var(--ink-soft);letter-spacing:.02em;flex:1;}
+  .notif-time{font-size:10.5px;color:var(--ink-soft);opacity:.75;}
+  .notif-title{font-size:13.5px;font-weight:800;margin-bottom:2px;}
+  .notif-body{font-size:12.5px;color:var(--ink-soft);line-height:1.5;white-space:pre-line;}
+  .notif-actions{display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--line);padding-top:9px;}
+  .notif-actions button{flex:1;background:none;border:none;font-family:inherit;font-weight:800;font-size:12px;color:var(--accent-dark);cursor:pointer;padding:4px;}
+  .notif-actions button.danger{color:var(--expense);}
+  .notif-group-label{font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin:14px 2px 8px;}
+  .notif-group-label:first-of-type{margin-top:0;}
+
+  /* ================= 2 SHORTCUT TERPISAH (mockup home screen) ================= */
+  .home-mock{background:linear-gradient(160deg,#DCE7E4,#C9D9D5);border-radius:26px;padding:26px 20px;position:relative;min-height:260px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);}
+  .home-icons-row{display:flex;gap:32px;}
+  .home-icon-item{text-align:center;cursor:pointer;background:none;border:none;font-family:inherit;padding:0;}
+  .home-icon-item:active .home-icon{transform:scale(.93);}
+  .home-icon{width:58px;height:58px;border-radius:16px;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -4px rgba(0,0,0,.3);transition:transform .12s ease;}
+  .home-icon-label{text-align:center;font-size:11px;font-weight:700;color:var(--ink);margin-top:7px;}
+  .shortcut-caption{text-align:center;font-size:12px;color:var(--ink-soft);margin-top:14px;line-height:1.6;}
+
+  .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:900;opacity:0;pointer-events:none;transition:all .25s ease;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="dev-topbar" id="devTopbar">
+  <div class="dev-banner"><b>PROTOTYPE TAMPILAN</b>, 3 menu baru sesuai PRD Migrasi Fase 2 (Chat Full-Screen, Transaksi AI Cepat, Notifikasi PWA). Murni visual, belum ada fungsi/backend.
+    <button class="dev-hide-btn" onclick="toggleDevBanner(false)" aria-label="Sembunyikan">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="dev-quicknav">
+    <span class="dev-quicknav-label">Lompat</span>
+    <div class="dev-quicknav-scroll">
+      <button onclick="goto('screen-shortcut')">Pintasan Home</button>
+      <button class="grp" onclick="goto('screen-chat-full')">Chat Full-Screen</button>
+      <button class="grp" onclick="goto('screen-txai-input')">Transaksi AI · Input</button>
+      <button class="grp" onclick="goto('screen-txai-loading')">Transaksi AI · Proses</button>
+      <button class="grp" onclick="goto('screen-txai-incomplete')">Transaksi AI · Data Kurang</button>
+      <button class="grp" onclick="goto('screen-txai-saved')">Transaksi AI · Tersimpan</button>
+      <button class="grp" onclick="goto('screen-txai-saved-multi')">Transaksi AI · Multi Kategori</button>
+      <button onclick="goto('screen-notif-pwa')">Notifikasi PWA</button>
+    </div>
+  </div>
+</div>
+<button class="dev-show-fab" id="devShowFab" onclick="toggleDevBanner(true)">Tampilkan Info Prototype</button>
+
+<div class="app" id="app">
+
+  <!-- ======================================================
+       0) MOCKUP: 2 SHORTCUT TERPISAH DI HOME SCREEN (klik langsung)
+  ======================================================= -->
+  <div class="screen active" id="screen-shortcut">
+    <div class="fs-header" style="padding-bottom:16px;">
+      <div class="fs-title-wrap">
+        <div class="eyebrow">Shortcut Home Screen</div>
+        <h1>2 Pintasan Terpisah</h1>
+      </div>
+    </div>
+    <div class="home-mock">
+      <div class="home-icons-row">
+        <button type="button" class="home-icon-item" onclick="goto('screen-chat-full')">
+          <div class="home-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-9 8.34 8.5 8.5 0 01-4.36-1.18L3 20l1.34-4.64A8.38 8.38 0 013 11.5a8.5 8.5 0 018.5-8.5h.5a8.38 8.38 0 018 8v.5z"/></svg>
+          </div>
+          <div class="home-icon-label">KaslyAI Chat</div>
+        </button>
+        <button type="button" class="home-icon-item" onclick="goto('screen-txai-input')">
+          <div class="home-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+          </div>
+          <div class="home-icon-label">Transaksi AI</div>
+        </button>
+      </div>
+    </div>
+    <p class="shortcut-caption">2 ikon pintasan terpisah di layar utama HP, bukan 1 ikon dengan pop up menu. Tinggal diketuk sekali, tidak perlu tekan lama: <b>KaslyAI Chat</b> langsung membuka layar chat full-screen, <b>Transaksi AI</b> langsung membuka input transaksi cepat.</p>
+  </div>
+
+  <!-- ======================================================
+       1) CHAT FULL-SCREEN (pintasan "KaslyAI Chat")
+       gaya bubble persis sama dengan page-chat di index.html,
+       bedanya dibuka standalone (tanpa bottom-nav), header
+       pakai tombol kembali dan tombol home ke aplikasi utama.
+  ======================================================= -->
+  <div class="screen" id="screen-chat-full" style="padding-bottom:12px;">
+    <div class="fs-header">
+      <div class="fs-avatar">K</div>
+      <div class="fs-title-wrap">
+        <h1 style="font-size:15.5px;">Chat Asisten KaslyAI</h1>
+      </div>
+      <button class="fs-home" onclick="toast('Contoh, tombol ini membuka aplikasi utama (index.html)')" aria-label="Buka aplikasi utama" title="Buka aplikasi utama">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V9.5"/></svg>
+      </button>
+    </div>
+
+    <div class="chatfull-wrap">
+      <div class="chat-container-wrap">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-date-header">Hari ini</div>
+
+          <div class="chat-bubble bot">Halo! Kirim foto struk, catat manual, atau tanya soal keuanganmu di sini.<span class="time">09.12</span></div>
+
+          <div class="chat-bubble user">beli kopi kenangan 25rb<span class="time">09.13</span></div>
+
+          <div class="chat-bubble bot chat-tx-bubble">
+            <div class="chat-bubble-tag tx-tag">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Transaksi Tercatat
+            </div>
+            Pengeluaran · Kopi Kenangan<br>Rp25.000 · Dompet Utama
+            <div class="chat-bubble-action-hint">Ketuk untuk edit / hapus</div>
+            <span class="time">09.13</span>
+          </div>
+
+          <div class="chat-bubble user">sisa saldo aku berapa?<span class="time">09.15</span></div>
+
+          <div class="chat-bubble bot"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:3px;"><path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5h-4a2 2 0 010-4h4Z"/></svg>Total saldo kamu: Rp1.250.000<br>Dompet Utama: Rp900.000<br>Dompet Tabungan: Rp350.000<span class="time">09.15</span></div>
+        </div>
+        <div class="chat-typing-indicator" id="chatTypingIndicator">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span style="margin-left:8px;font-size:12px;color:var(--ink-soft);font-weight:500;">Sedang diproses...</span>
+        </div>
+      </div>
+
+      <div class="chat-input-bar">
+        <div class="chat-input-row">
+          <div class="chat-field-wrap">
+            <button type="button" class="chat-btn-file" title="Lampirkan file/foto">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <input type="text" id="chatInputText" placeholder="Ketik pesan..." autocomplete="off" oninput="toggleChatActionBtn()" onkeydown="if(event.key==='Enter') sendDemoChat()">
+            <button type="button" class="chat-btn-camera" title="Buka kamera">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+          </div>
+          <button type="button" class="chat-btn-action" id="chatActionBtn" onclick="sendDemoChat()" title="Pesan suara">
+            <span class="icon-mic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+            <span class="icon-send"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       2) TRANSAKSI AI CEPAT, Input
+       beda dari "Transaksi via AI" di web (yang masih ada
+       daftar hasil + tombol "Simpan Semua"): di sini begitu
+       AI selesai baca, LANGSUNG tersimpan tanpa layar review.
+  ======================================================= -->
+  <div class="screen" id="screen-txai-input">
+    <div class="fs-header">
+      <div class="fs-title-wrap">
+        <h1>Transaksi AI Cepat</h1>
+      </div>
+      <button class="fs-home" onclick="toast('Contoh, tombol ini membuka aplikasi utama (index.html)')" aria-label="Buka aplikasi utama" title="Buka aplikasi utama">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V9.5"/></svg>
+      </button>
+    </div>
+
+    <div class="txai-center">
+      <div class="field" style="margin-bottom:0;">
+        <label>Teks Bebas (opsional)</label>
+        <div class="ai-text-wrap">
+          <textarea rows="6" placeholder="Tulis catatan transaksinya di sini">beli galon + token listrik 45rb</textarea>
+          <button type="button" class="ai-mic-btn" aria-label="Rekam suara">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3Z"/><path d="M19 11a7 7 0 01-14 0M12 18v3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-choice-grid-camright">
+        <div class="ai-choice-btn ai-choice-btn-stack">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="#5B6A68" stroke-width="1.6"/><path d="M3 16l5-5 4 4 3-3 6 6" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="9" r="1.4" fill="#5B6A68"/></svg>
+          Galeri
+        </div>
+        <div class="ai-choice-btn ai-choice-btn-stack">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 13h6M9 16h6" stroke="#5B6A68" stroke-width="1.6" stroke-linecap="round"/></svg>
+          File / PDF
+        </div>
+        <div class="ai-choice-btn ai-choice-btn-cam">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1Z" stroke="#5B6A68" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" stroke="#5B6A68" stroke-width="1.6"/></svg>
+          Kamera
+        </div>
+      </div>
+
+      <div class="file-thumb-row">
+        <div class="file-thumb">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B6A68" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>
+          <div class="file-thumb-x">&times;</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto;padding-top:16px;">
+      <button class="btn btn-primary btn-block" onclick="goto('screen-txai-loading'); startDemoProcessing();">Proses &amp; Simpan Otomatis</button>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       3) TRANSAKSI AI CEPAT, Proses
+  ======================================================= -->
+  <div class="screen" id="screen-txai-loading">
+    <div class="fs-header">
+      <div class="fs-title-wrap">
+        <div class="eyebrow">Transaksi AI Cepat</div>
+        <h1>Memproses</h1>
+      </div>
+    </div>
+    <div class="ai-loading">
+      <div class="spin"></div>
+      <p>Membaca &amp; menyimpan transaksi...</p>
+      <div class="sub">Tidak perlu menunggu konfirmasi, proses ini otomatis</div>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       3b) TRANSAKSI AI CEPAT, Data Tidak Lengkap
+       (contoh: foto struk terbaca tapi nominal belum jelas,
+       AI isi apa yang bisa dibaca, sisanya dilengkapi manual)
+  ======================================================= -->
+  <div class="screen" id="screen-txai-incomplete">
+    <div class="fs-header">
+      <div class="fs-title-wrap">
+        <div class="eyebrow">Transaksi AI Cepat</div>
+        <h1>Perlu Dilengkapi</h1>
+      </div>
+    </div>
+    <div class="saved-check warn">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    </div>
+    <div class="saved-title">Transaksi Butuh Dilengkapi</div>
+    <div class="saved-sub">Foto struk terbaca, tapi ada data yang belum jelas. AI sudah isi bagian yang terbaca, tinggal lengkapi sisanya.</div>
+
+    <div class="tx-summary-card">
+      <div class="tx-summary-row"><span class="l">Kategori</span><span class="v">Rumah Tangga</span></div>
+      <div class="tx-summary-row"><span class="l">Keterangan</span><span class="v">Galon + Token Listrik</span></div>
+      <div class="tx-summary-row"><span class="l">Dompet</span><span class="v">Dompet Utama</span></div>
+    </div>
+
+    <div class="field" style="margin-top:2px;">
+      <label>Nominal (belum terbaca AI)</label>
+      <input type="text" inputmode="numeric" placeholder="Ketik nominal, mis. 45000" style="border-color:var(--warn);">
+    </div>
+
+    <div style="flex:0 0 auto;padding-top:6px;">
+      <button class="btn btn-primary btn-block" onclick="goto('screen-txai-saved')">Simpan Transaksi</button>
+    </div>
+
+    <button class="btn btn-secondary btn-block" style="margin:10px 0 14px;" onclick="goto('screen-txai-input')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Catat Transaksi Lagi
+    </button>
+
+    <div class="saved-hint">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>
+      <span>Notifikasi "Transaksi butuh dilengkapi" juga dikirim ke luar aplikasi, lihat contohnya di menu "Notifikasi PWA".</span>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       4) TRANSAKSI AI CEPAT, Tersimpan Otomatis
+  ======================================================= -->
+  <div class="screen" id="screen-txai-saved">
+    <div class="fs-header">
+      <div class="fs-title-wrap">
+        <div class="eyebrow">Transaksi AI Cepat</div>
+        <h1>Selesai</h1>
+      </div>
+    </div>
+    <div class="saved-check">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+    </div>
+    <div class="saved-title">Tersimpan Otomatis</div>
+    <div class="saved-sub">Transaksi berikut sudah langsung tercatat, tanpa perlu kamu konfirmasi dulu.</div>
+
+    <div class="tx-summary-card">
+      <div class="tx-summary-row"><span class="l">Kategori</span><span class="v">Rumah Tangga</span></div>
+      <div class="tx-summary-row"><span class="l">Keterangan</span><span class="v">Galon + Token Listrik</span></div>
+      <div class="tx-summary-row"><span class="l">Dompet</span><span class="v">Dompet Utama</span></div>
+      <div class="tx-summary-row"><span class="l">Nominal</span><span class="v amt">- Rp45.000</span></div>
+    </div>
+
+    <div class="saved-actions">
+      <button class="btn btn-ghost" onclick="toast('Contoh, layar Edit belum aktif di prototype ini')">Edit</button>
+      <button class="btn btn-danger" onclick="toast('Contoh, aksi Hapus belum aktif di prototype ini')">Hapus</button>
+    </div>
+
+    <button class="btn btn-secondary btn-block" style="margin-bottom:14px;" onclick="goto('screen-txai-input')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Catat Transaksi Lagi
+    </button>
+
+    <div class="saved-hint">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>
+      <span>Notifikasi ringkasan transaksi ini juga sudah dikirim ke luar aplikasi, lihat contohnya di menu "Notifikasi PWA".</span>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       4b) TRANSAKSI AI CEPAT, Tersimpan Otomatis (varian LEBIH
+       DARI 2 KATEGORI, mis. dari 1 struk belanja campuran)
+  ======================================================= -->
+  <div class="screen" id="screen-txai-saved-multi">
+    <div class="fs-header">
+      <div class="fs-title-wrap">
+        <div class="eyebrow">Transaksi AI Cepat</div>
+        <h1>Selesai, Multi Kategori</h1>
+      </div>
+    </div>
+    <div class="saved-check">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+    </div>
+    <div class="saved-title">3 Transaksi Tersimpan Otomatis</div>
+    <div class="saved-sub">AI mendeteksi 3 kategori berbeda dari catatan/struk kamu. Semuanya langsung tercatat terpisah, tanpa perlu kamu konfirmasi dulu.</div>
+
+    <div class="tx-summary-multi-wrap">
+      <div class="tx-summary-card">
+        <div class="tx-summary-card-head">
+          <div class="tx-summary-badge">1</div>
+          <span class="cat-name">Rumah Tangga</span>
+        </div>
+        <div class="tx-summary-row"><span class="l">Keterangan</span><span class="v">Galon</span></div>
+        <div class="tx-summary-row"><span class="l">Dompet</span><span class="v">Dompet Utama</span></div>
+        <div class="tx-summary-row"><span class="l">Nominal</span><span class="v amt">- Rp18.000</span></div>
+        <div class="tx-summary-card-actions">
+          <button onclick="toast('Contoh, layar Edit belum aktif di prototype ini')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            Edit
+          </button>
+          <button class="danger" onclick="toast('Contoh, aksi Hapus belum aktif di prototype ini')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+            Hapus
+          </button>
+        </div>
+      </div>
+
+      <div class="tx-summary-card">
+        <div class="tx-summary-card-head">
+          <div class="tx-summary-badge">2</div>
+          <span class="cat-name">Transportasi</span>
+        </div>
+        <div class="tx-summary-row"><span class="l">Keterangan</span><span class="v">Bensin</span></div>
+        <div class="tx-summary-row"><span class="l">Dompet</span><span class="v">Dompet Utama</span></div>
+        <div class="tx-summary-row"><span class="l">Nominal</span><span class="v amt">- Rp50.000</span></div>
+        <div class="tx-summary-card-actions">
+          <button onclick="toast('Contoh, layar Edit belum aktif di prototype ini')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            Edit
+          </button>
+          <button class="danger" onclick="toast('Contoh, aksi Hapus belum aktif di prototype ini')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+            Hapus
+          </button>
+        </div>
+      </div>
+
+      <div class="tx-summary-card">
+        <div class="tx-summary-card-head">
+          <div class="tx-summary-badge">3</div>
+          <span class="cat-name">Makanan &amp; Minuman</span>
+        </div>
+        <div class="tx-summary-row"><span class="l">Keterangan</span><span class="v">Kopi Kenangan</span></div>
+        <div class="tx-summary-row"><span class="l">Dompet</span><span class="v">Dompet Utama</span></div>
+        <div class="tx-summary-row"><span class="l">Nominal</span><span class="v amt">- Rp25.000</span></div>
+        <div class="tx-summary-card-actions">
+          <button onclick="toast('Contoh, layar Edit belum aktif di prototype ini')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            Edit
+          </button>
+          <button class="danger" onclick="toast('Contoh, aksi Hapus belum aktif di prototype ini')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+            Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tx-summary-total">
+      <span>Total 3 Transaksi</span>
+      <span class="v">- Rp93.000</span>
+    </div>
+
+    <button class="btn btn-secondary btn-block" style="margin-bottom:14px;" onclick="goto('screen-txai-input')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Catat Transaksi Lagi
+    </button>
+
+    <div class="saved-hint">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/></svg>
+      <span>Setiap kategori dikirim sebagai notifikasi ringkasan terpisah, lihat contohnya di menu "Notifikasi PWA".</span>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       5) NOTIFIKASI PWA (mockup 3 varian)
+  ======================================================= -->
+  <div class="screen" id="screen-notif-pwa">
+    <div class="fs-header">
+      <button class="fs-back" onclick="goto('screen-shortcut')" aria-label="Kembali">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="fs-title-wrap">
+        <div class="eyebrow">Preview di HP Pengguna</div>
+        <h1>Notifikasi PWA</h1>
+      </div>
+    </div>
+    <div class="phone-status"><span>09.16</span><span>Selasa, 18 Agu</span></div>
+
+    <div class="notif-group-label">Transaksi baru dari WA / Transaksi AI Cepat</div>
+    <div class="notif-card">
+      <div class="notif-top">
+        <div class="notif-appicon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="#fff" stroke-width="2"/></svg></div>
+        <span class="notif-appname">KASLYAI</span>
+        <span class="notif-time">baru saja</span>
+      </div>
+      <div class="notif-title">Transaksi baru tercatat</div>
+      <div class="notif-body">Pengeluaran · Galon + Token Listrik&#10;Rp45.000 · Dompet Utama</div>
+      <div class="notif-actions">
+        <button onclick="toast('Contoh, membuka layar edit')">Edit</button>
+        <button class="danger" onclick="toast('Contoh, transaksi terhapus, undo tersedia saat app dibuka lagi')">Hapus</button>
+      </div>
+    </div>
+
+    <div class="notif-group-label">Data tidak lengkap (butuh dilengkapi)</div>
+    <div class="notif-card">
+      <div class="notif-top">
+        <div class="notif-appicon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="#fff" stroke-width="2"/></svg></div>
+        <span class="notif-appname">KASLYAI</span>
+        <span class="notif-time">2 mnt lalu</span>
+      </div>
+      <div class="notif-title">Transaksi butuh dilengkapi</div>
+      <div class="notif-body">Foto struk terbaca, tapi nominalnya belum jelas. Ketuk untuk lengkapi datanya.</div>
+      <div class="notif-actions">
+        <button onclick="toast('Contoh, membuka layar edit dengan data AI terisi')">Lengkapi</button>
+      </div>
+    </div>
+
+    <div class="notif-group-label">Jawaban pertanyaan umum (mis. cek saldo)</div>
+    <div class="notif-card">
+      <div class="notif-top">
+        <div class="notif-appicon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="#fff" stroke-width="2"/></svg></div>
+        <span class="notif-appname">KASLYAI</span>
+        <span class="notif-time">5 mnt lalu</span>
+      </div>
+      <div class="notif-title">Jawaban dari Asisten KaslyAI</div>
+      <div class="notif-body">Saldo kamu: Rp1.250.000</div>
+    </div>
+
+    <p style="font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:6px;line-height:1.6;">Ketiga notifikasi ini muncul saat toggle "Balasan Otomatis WA" milik pengguna sedang <b>OFF</b>. Kalau ON, balasan tetap lewat chat WA seperti biasa.</p>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function goto(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function toggleDevBanner(show){
+  document.getElementById('devTopbar').classList.toggle('hidden', !show);
+  document.getElementById('devShowFab').classList.toggle('show', !show);
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ---- demo interaktif ringan untuk layar Chat Full-Screen ---- */
+function toggleChatActionBtn(){
+  const input = document.getElementById('chatInputText');
+  const btn = document.getElementById('chatActionBtn');
+  if(!btn) return;
+  if(input && input.value.trim().length > 0){ btn.classList.add('is-send'); }
+  else { btn.classList.remove('is-send'); }
+}
+function sendDemoChat(){
+  const input = document.getElementById('chatInputText');
+  const wrap = document.getElementById('chatMessages');
+  const typing = document.getElementById('chatTypingIndicator');
+  if(!input || !input.value.trim()) return;
+  const text = input.value.trim();
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + '.' + now.getMinutes().toString().padStart(2,'0');
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble user';
+  bubble.innerHTML = text.replace(/</g,'&lt;') + '<span class="time">'+time+'</span>';
+  wrap.appendChild(bubble);
+  input.value = '';
+  toggleChatActionBtn();
+  wrap.scrollTop = wrap.scrollHeight;
+  typing.classList.add('show');
+  setTimeout(()=>{
+    typing.classList.remove('show');
+    const reply = document.createElement('div');
+    reply.className = 'chat-bubble bot';
+    reply.innerHTML = 'Contoh balasan, logic AI belum aktif di prototype tampilan ini.<span class="time">'+time+'</span>';
+    wrap.appendChild(reply);
+    wrap.scrollTop = wrap.scrollHeight;
+  }, 1000);
+}
+
+/* ---- demo alur Transaksi AI Cepat: input -> proses -> tersimpan ---- */
+function startDemoProcessing(){
+  clearTimeout(window._txaiTimer);
+  window._txaiTimer = setTimeout(()=>{ goto('screen-txai-saved'); }, 1600);
+}
+</script>
+</body>
+</html>

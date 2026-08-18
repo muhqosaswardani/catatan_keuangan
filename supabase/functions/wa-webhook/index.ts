@@ -294,7 +294,7 @@ Deno.serve(async (req: Request) => {
               .from("wa_message_transactions")
               .select("transaction_id")
               .eq("wa_message_id", msg.contextId)
-              .single();
+              .maybeSingle();
 
             if (mapping?.transaction_id) {
               await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id);
@@ -305,7 +305,7 @@ Deno.serve(async (req: Request) => {
               .from("wa_pending_transactions")
               .select("id")
               .eq("wa_question_message_id", msg.contextId)
-              .single();
+              .maybeSingle();
 
             if (pending?.id) {
               await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id);

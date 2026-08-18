@@ -222,6 +222,9 @@ export async function handleV2Message(
   }
 
   // 3. ROUTER INTENT VERSI 2 - Teks bebas (checklist -> transfer -> utang-piutang)
+  // Jika ada contextId (reply ke pesan/transaksi), skip intent parsing - biarkan index.ts menangani
+  if (msg.contextId) return false;
+
   if (msg.type === "text") {
     // 3.1. Cek: apakah pesan murni cek saldo tanpa tanya "?" (Bypass Gemini)
     const isPureCekSaldo = /^(cek saldo|saldo|berapa saldo|total saldo)/i.test(text.trim()) && !text.includes("?");

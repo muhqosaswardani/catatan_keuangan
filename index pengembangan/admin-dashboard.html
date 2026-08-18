@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>Dashboard Admin — KaslyAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F7F6; --surface:#FFFFFF; --surface-2:#EEF2F1; --ink:#152524; --ink-soft:#5B6A68;
+    --line:#E3E9E7; --accent:#0F766E; --accent-dark:#0B5951; --accent-soft:#DCF1EE;
+    --income:#1E8F5A; --income-soft:#E3F5EB; --expense:#C4453B; --expense-soft:#FBE7E5;
+    --warn:#B7791F; --warn-soft:#FCF0DC; --info:#2F6FED; --info-dark:#1E4FB8; --info-soft:#E7EEFE;
+    --radius-l:20px; --radius-m:14px; --radius-s:10px;
+    --shadow:0 1px 2px rgba(21,37,36,0.04), 0 8px 24px -12px rgba(21,37,36,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;}
+  h1,h2,h3{font-family:'Sora',sans-serif;}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 18px 60px;}
+  svg{display:block;}
+
+  /* dev banner — file ini terpisah dari prototype multi-user, sengaja tanpa login */
+  .dev-banner{background:var(--ink);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:8px 14px;letter-spacing:.02em;}
+  .dev-banner b{color:var(--accent-soft);}
+
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 20px;}
+  .page-head h1{font-size:20px;margin:0;}
+  .page-head .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;font-family:'Inter',sans-serif;font-weight:500;}
+  .brand-mark{width:40px;height:40px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;}
+
+  .card{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:16px;}
+  .btn{border:none;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:13px 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s ease, opacity .15s ease;}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn:disabled:active{transform:none;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-secondary{background:var(--surface-2);color:var(--ink);}
+  .btn-ghost{background:var(--surface-2);color:var(--ink);}
+  .btn-block{width:100%;}
+  .btn-sm{padding:8px 12px;font-size:12.5px;border-radius:9px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--surface);}
+  .field input:focus{outline:none;border-color:var(--accent);}
+
+  .admin-tabs{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;gap:4px;margin-bottom:18px;}
+  .admin-tabs button{flex:1;border:none;background:transparent;padding:10px;border-radius:9px;font-weight:700;font-size:13px;color:var(--ink-soft);cursor:pointer;font-family:inherit;}
+  .admin-tabs button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .admin-panel{display:none;}
+  .admin-panel.active{display:block;}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .stat{background:var(--surface);border-radius:var(--radius-m);padding:12px;box-shadow:var(--shadow);}
+  .stat .t{font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+  .stat .v{font-size:19px;font-weight:800;margin-top:4px;font-family:'Sora',sans-serif;}
+
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:10px 13px;margin-bottom:12px;}
+  .search-bar input{flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:14px;}
+
+  .user-row{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:12px 13px;margin-bottom:8px;}
+  .user-row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .user-row-top b{font-size:14px;}
+  .user-row .wa-num{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+  .user-row .meta{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
+  .status-tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap;}
+  .status-tag.trial{background:var(--accent-soft);color:var(--accent-dark);}
+  .status-tag.habis{background:var(--expense-soft);color:var(--expense);}
+  .status-tag.paid{background:var(--income-soft);color:var(--income);}
+  .user-row-actions{display:flex;gap:8px;margin-top:10px;}
+  .user-row-actions .btn{flex:1;}
+
+  .token-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border-radius:12px;padding:11px 13px;box-shadow:var(--shadow);margin-bottom:8px;}
+  .token-row .code{font-family:'Sora',sans-serif;font-weight:800;letter-spacing:.04em;font-size:14.5px;}
+  .token-row .meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+
+  .apikey-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600;}
+  .apikey-row button{background:none;border:none;color:var(--expense);font-weight:700;cursor:pointer;font-size:12px;}
+
+  /* toggle switch gaya iOS — dipakai untuk kontrol "Balasan Otomatis WA" per user */
+  .toggle-switch{width:42px;height:24px;border-radius:100px;background:var(--surface-2);border:1.5px solid var(--line);position:relative;cursor:pointer;flex-shrink:0;transition:background .18s ease,border-color .18s ease;}
+  .toggle-switch .knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s ease;}
+  .toggle-switch.on{background:var(--accent);border-color:var(--accent);}
+  .toggle-switch.on .knob{left:20px;}
+  .wa-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
+  .wa-toggle-row .l{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .wa-toggle-row .l small{display:block;font-size:10.5px;font-weight:500;color:var(--ink-soft);opacity:.8;margin-top:1px;}
+  .wa-toggle-row .state-label{font-size:10.5px;font-weight:800;margin-right:8px;}
+  .wa-toggle-row .state-label.on{color:var(--accent-dark);}
+  .wa-toggle-row .state-label.off{color:var(--ink-soft);}
+
+  .section-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:900;
+    opacity:0;pointer-events:none;transition:all .25s ease;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* modal konfirmasi kustom (ganti dialog bawaan browser) */
+  .modal-overlay{position:fixed;inset:0;background:rgba(10,20,19,.45);display:none;align-items:center;justify-content:center;padding:24px;z-index:1000;}
+  .modal-overlay.open{display:flex;}
+  .modal-overlay .modal{background:var(--surface);width:100%;max-width:400px;border-radius:20px;box-shadow:var(--shadow);animation:popcenter .18s ease;}
+  @keyframes popcenter{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
+  .modal-confirm-body{padding:22px 20px 20px;}
+  .modal-confirm-title{font-size:16px;font-weight:800;font-family:'Sora',sans-serif;margin-bottom:8px;}
+  .modal-confirm-msg{font-size:13.5px;line-height:1.55;color:var(--ink-soft);margin-bottom:20px;}
+  .modal-confirm-actions{display:flex;gap:10px;}
+  .modal-confirm-actions .btn{flex:1;}
+</style>
+</head>
+<body>
+
+<div class="dev-banner">🧪 <b>PROTOTYPE</b> — Dashboard Admin (halaman terpisah, akses lewat link langsung — tanpa login). Update: tambah toggle "Balasan Otomatis WA" per pengguna di tab Pengguna.</div>
+
+<div class="wrap">
+
+  <div class="page-head">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <h1>Dashboard Admin</h1>
+        <div class="sub">KaslyAI · Catatan Keuangan</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-tabs">
+    <button class="active" data-atab="pengguna" onclick="switchAdminTab('pengguna')">Pengguna</button>
+    <button data-atab="token" onclick="switchAdminTab('token')">Kode Token</button>
+    <button data-atab="pengaturan" onclick="switchAdminTab('pengaturan')">Pengaturan</button>
+  </div>
+
+  <!-- Tab: Pengguna -->
+  <div class="admin-panel active" id="adminPengguna">
+    <div class="stat-grid">
+      <div class="stat"><div class="t">Total Pengguna</div><div class="v" id="statTotal">0</div></div>
+      <div class="stat"><div class="t">Trial Aktif</div><div class="v" id="statTrial">0</div></div>
+      <div class="stat"><div class="t">Trial Habis</div><div class="v" id="statHabis">0</div></div>
+      <div class="stat"><div class="t">Sudah Bayar</div><div class="v" id="statPaid">0</div></div>
+    </div>
+    <div class="search-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Cari nama / nomor WA…" oninput="renderUsers(this.value)">
+    </div>
+    <div id="userList"></div>
+  </div>
+
+  <!-- Tab: Kode Token -->
+  <div class="admin-panel" id="adminToken">
+    <button class="btn btn-primary btn-block" onclick="generateToken()" style="margin-bottom:14px;">+ Generate Kode Token Baru</button>
+    <div id="tokenList"></div>
+  </div>
+
+  <!-- Tab: Pengaturan -->
+  <div class="admin-panel" id="adminPengaturan">
+    <div class="card" style="margin-bottom:14px;">
+      <div class="section-title">Lama Masa Trial</div>
+      <div class="field" style="margin-bottom:8px;">
+        <label>Durasi trial (hari) — saat ini berlaku <b id="trialDurasiLabel">7</b> hari</label>
+        <input type="number" id="inpTrialDurasi" value="7" min="1">
+      </div>
+      <button class="btn btn-secondary btn-block btn-sm" onclick="saveTrialDurasi()">Simpan Durasi Trial</button>
+    </div>
+    <div class="card">
+      <div class="section-title">API Key Gemini Bersama</div>
+      <div id="sharedKeyList"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" id="inpSharedKey" placeholder="Tempel API Key baru…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
+        <button class="btn btn-primary btn-sm" onclick="addSharedKey()">Tambah</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <div class="section-title">API Key Pribadi (Admin)</div>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;">Khusus buat kebutuhan AI kamu sendiri sebagai admin — chat AI di dashboard, testing di web, dan asisten WhatsApp admin. Urutan pemakaian: <b style="color:var(--ink);">API key pribadi dipakai duluan</b>, kalau kuotanya habis baru otomatis pindah pakai API Key Bersama di atas.</p>
+      <div id="personalKeyList"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" id="inpPersonalKey" placeholder="Tempel API Key pribadi…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
+        <button class="btn btn-primary btn-sm" onclick="addPersonalKey()">Tambah</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modalConfirm">
+  <div class="modal">
+    <div class="modal-confirm-body">
+      <div class="modal-confirm-title" id="confirmTitle">Konfirmasi</div>
+      <div class="modal-confirm-msg" id="confirmMsg"></div>
+      <div class="modal-confirm-actions">
+        <button class="btn btn-secondary" onclick="closeConfirm()">Batal</button>
+        <button class="btn btn-primary" id="btnConfirmOk">Oke</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   DASHBOARD ADMIN — halaman terpisah, dummy data
+   Tidak ada layar login: siapa pun yang punya link ini
+   langsung masuk (sesuai keputusan produk: link tidak disebar publik).
+===================================================== */
+let adminUsers = [
+  {nama:'Muhamad Qosas', wa:'0812xxxxxx74', status:'paid', daftar:'12 Jun 2026', aktif:'Hari ini', token:'ABC123XY', waReply:true},
+  {nama:'Siti Rahma', wa:'0813xxxxxx02', status:'trial', daftar:'10 Agu 2026', aktif:'2 jam lalu', token:'-', waReply:true},
+  {nama:'Andi Wijaya', wa:'0857xxxxxx45', status:'habis', daftar:'01 Agu 2026', aktif:'3 hari lalu', token:'-', waReply:false},
+  {nama:'Dewi Lestari', wa:'0898xxxxxx19', status:'trial', daftar:'14 Agu 2026', aktif:'Baru saja', token:'-', waReply:true},
+];
+let adminTokens = [
+  {code:'DEMO2026', used:false, by:null},
+  {code:'ABC123XY', used:true, by:'Muhamad Qosas'},
+  {code:'QWER7890', used:false, by:null},
+  {code:'USEDTOK1', used:true, by:'(demo) pengguna lama'},
+];
+let sharedKeys = ['AIzaSyDEMO-SharedKey-0001'];
+let personalKeys = ['AIzaSyDEMO-PersonalKey-0001'];
+let trialDurasiHari = 7;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function maskKey(k){ return k.length>8 ? k.slice(0,4)+'••••'+k.slice(-4) : k; }
+
+let _confirmCallback = null;
+function customConfirm(message, callback, title){
+  document.getElementById('confirmTitle').textContent = title || 'Konfirmasi';
+  document.getElementById('confirmMsg').textContent = message;
+  _confirmCallback = callback;
+  document.getElementById('modalConfirm').classList.add('open');
+}
+function closeConfirm(){
+  document.getElementById('modalConfirm').classList.remove('open');
+  _confirmCallback = null;
+}
+document.getElementById('btnConfirmOk').onclick = function(){
+  const cb = _confirmCallback;
+  closeConfirm();
+  if(cb) cb();
+};
+
+function switchAdminTab(tab){
+  document.querySelectorAll('.admin-tabs button').forEach(b=>b.classList.toggle('active', b.dataset.atab===tab));
+  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('admin' + tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+}
+function renderStats(){
+  document.getElementById('statTotal').textContent = adminUsers.length;
+  document.getElementById('statTrial').textContent = adminUsers.filter(u=>u.status==='trial').length;
+  document.getElementById('statHabis').textContent = adminUsers.filter(u=>u.status==='habis').length;
+  document.getElementById('statPaid').textContent = adminUsers.filter(u=>u.status==='paid').length;
+}
+function statusLabel(s){ return s==='paid'?'Sudah Bayar':s==='trial'?'Trial Aktif':'Trial Habis'; }
+function renderUsers(filter){
+  filter = (filter||'').toLowerCase();
+  const wrap = document.getElementById('userList');
+  const list = adminUsers.filter(u => u.nama.toLowerCase().includes(filter) || u.wa.includes(filter));
+  wrap.innerHTML = list.map(u=>`
+    <div class="user-row">
+      <div class="user-row-top">
+        <div><b>${u.nama}</b><div class="wa-num">${u.wa}</div></div>
+        <span class="status-tag ${u.status}">${statusLabel(u.status)}</span>
+      </div>
+      <div class="meta">Daftar: ${u.daftar} · Aktif terakhir: ${u.aktif}${u.token!=='-' ? ' · Token: '+u.token : ''}</div>
+      <div class="user-row-actions">
+        <button class="btn btn-secondary btn-sm" ${u.token!=='-' ? 'disabled' : `onclick="confirmSendToken('${u.nama}')"`}>${u.token!=='-' ? 'Token Terkirim' : 'Kirim Token'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="confirmResetWa('${u.nama}')">Reset WA</button>
+      </div>
+      <div class="wa-toggle-row">
+        <div class="l">Balasan Otomatis WA</div>
+        <div style="display:flex;align-items:center;">
+          <span class="state-label ${u.waReply?'on':'off'}">${u.waReply?'ON':'OFF'}</span>
+          <div class="toggle-switch ${u.waReply?'on':''}" onclick="toggleWaReply('${u.nama}')"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Tidak ada pengguna cocok.</div>';
+}
+function confirmSendToken(nama){
+  const free = adminTokens.find(t=>!t.used);
+  if(!free){ toast('Stok token habis — generate token baru dulu.'); return; }
+  customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, ()=>{
+    free.used = true; free.by = nama;
+    const u = adminUsers.find(x=>x.nama===nama);
+    if(u) u.token = free.code;
+    renderTokens();
+    renderUsers(document.querySelector('.search-bar input').value);
+    toast(`Token ${free.code} dikirim ke ${nama}.`);
+  }, 'Kirim Token');
+}
+function toggleWaReply(nama){
+  const u = adminUsers.find(x=>x.nama===nama);
+  if(!u) return;
+  u.waReply = !u.waReply;
+  renderUsers(document.querySelector('.search-bar input').value);
+  toast(`Balasan Otomatis WA untuk ${nama} di-set ${u.waReply ? 'ON' : 'OFF'} (tampilan saja, belum tersambung ke sistem).`);
+}
+function confirmResetWa(nama){
+  customConfirm(`Reset sambungan nomor WA untuk ${nama}? Pengguna harus verifikasi ulang.`, ()=>{
+    toast(`Sambungan WA ${nama} direset.`);
+  }, 'Reset WA');
+}
+function renderTokens(){
+  document.getElementById('tokenList').innerHTML = adminTokens.map(t=>`
+    <div class="token-row">
+      <div><div class="code">${t.code}</div><div class="meta">${t.used ? 'Dipakai oleh '+t.by : 'Belum dipakai'}</div></div>
+      <span class="status-tag ${t.used?'habis':'trial'}">${t.used?'Terpakai':'Tersedia'}</span>
+    </div>`).join('');
+  renderStats();
+}
+function generateToken(){
+  const code = Array.from({length:8},()=> 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
+  adminTokens.unshift({code, used:false, by:null});
+  renderTokens();
+  toast('Token baru dibuat: ' + code);
+}
+function saveTrialDurasi(){
+  trialDurasiHari = parseInt(document.getElementById('inpTrialDurasi').value)||7;
+  document.getElementById('trialDurasiLabel').textContent = trialDurasiHari;
+  toast('Durasi trial default diperbarui: ' + trialDurasiHari + ' hari.');
+}
+function renderSharedKeys(){
+  document.getElementById('sharedKeyList').innerHTML = sharedKeys.length ? sharedKeys.map((k,i)=>`
+    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="sharedKeys.splice(${i},1);renderSharedKeys()">Hapus</button></div>
+  `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key bersama.</div>';
+}
+function addSharedKey(){
+  const v = document.getElementById('inpSharedKey').value.trim();
+  if(!v) return;
+  sharedKeys.push(v);
+  document.getElementById('inpSharedKey').value='';
+  renderSharedKeys();
+  toast('API key bersama ditambahkan.');
+}
+function renderPersonalKeys(){
+  document.getElementById('personalKeyList').innerHTML = personalKeys.length ? personalKeys.map((k,i)=>`
+    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="personalKeys.splice(${i},1);renderPersonalKeys()">Hapus</button></div>
+  `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key pribadi — sementara pakai API Key Bersama.</div>';
+}
+function addPersonalKey(){
+  const v = document.getElementById('inpPersonalKey').value.trim();
+  if(!v) return;
+  personalKeys.push(v);
+  document.getElementById('inpPersonalKey').value='';
+  renderPersonalKeys();
+  toast('API key pribadi ditambahkan.');
+}
+
+/* init */
+renderUsers('');
+renderTokens();
+renderSharedKeys();
+renderPersonalKeys();
+</script>
+</body>
+</html>
