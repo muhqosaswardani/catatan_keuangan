@@ -526,14 +526,7 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        try {
-          const waMessage = `Halo *${nama}*!\n\nTerima kasih telah mendaftar di *KaslyAI*.\n\nBerikut adalah kode OTP verifikasi pendaftaran Anda:\n\n*${otpCode}*\n\nSilakan balas chat ini dengan mengirimkan kode OTP di atas untuk mengaktifkan akun Anda.`;
-          await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, waMessage);
-        } catch (waErr) {
-          console.error("Gagal mengirim WhatsApp message:", waErr);
-        }
-
-        return new Response(JSON.stringify({ success: true, message: "Kode verifikasi telah dikirim ke WhatsApp Anda.", code: otpCode }), {
+        return new Response(JSON.stringify({ success: true, message: "Silakan verifikasi pendaftaran Anda dengan mengirimkan kode OTP via WhatsApp.", code: otpCode }), {
           status: 200,
           headers: corsHeaders,
         });
