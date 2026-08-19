@@ -8877,7 +8877,6 @@
           type: c.type,
           icon: c.icon,
           color: c.color,
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));
 
@@ -8888,7 +8887,6 @@
           deleted_ids: [],
           nav_config: { initialBalances: {} },
           onboarded: true,
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
 
@@ -9126,7 +9124,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.8.7)';
+      const version = ' (v2.8.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
