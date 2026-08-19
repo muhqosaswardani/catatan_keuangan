@@ -387,292 +387,316 @@ Deno.serve(async (req: Request) => {
     const isWebChat = req.headers.get("x-web-chat") === "true" || url.searchParams.get("web_chat") === "true";
 
     // ── ENDPOINTS REGISTRASI USER ────────────────────────────
-    if (url.pathname === "/start-registration") {
-      const db = getDb();
-      let payload: any;
+    if (url.pathname.endsWith("/start-registration")) {
       try {
-        payload = JSON.parse(rawBody);
-      } catch {
-        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
-
-      const { nomor_wa, nama, token } = payload;
-      if (!nomor_wa || !nama) {
-        return new Response(JSON.stringify({ error: "Nomor WA dan Nama wajib diisi." }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
-
-      const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
-
-      if (token) {
-        const { data: tokenData, error: tokenErr } = await db
-          .from("tokens")
-          .select("*")
-          .eq("code", token)
-          .eq("status", "available")
-          .maybeSingle();
-
-        if (tokenErr || !tokenData) {
-          return new Response(JSON.stringify({ error: "Token trial tidak valid atau sudah digunakan." }), {
+        const db = getDb();
+        let payload: any;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
             status: 400,
             headers: corsHeaders,
           });
         }
-      }
 
-      const { data: existingUser } = await db
-        .from("users")
-        .select("*")
-        .eq("nomor_wa", nomorWa)
-        .maybeSingle();
-
-      const otpCode = generateOtpCode();
-      const email = `${nomorWa}@kaslyai.local`;
-      let userId: string;
-      let passwordTemp: string;
-
-      if (existingUser && existingUser.status_verifikasi === "verified") {
-        userId = existingUser.id;
-        const { data: authUser, error: authGetErr } = await db.auth.admin.getUserById(userId);
-        if (authGetErr || !authUser?.user) {
-          return new Response(JSON.stringify({ error: "Gagal memproses data pengguna." }), {
-            status: 500,
+        const { nomor_wa, nama, token } = payload;
+        if (!nomor_wa || !nama) {
+          return new Response(JSON.stringify({ error: "Nomor WA dan Nama wajib diisi." }), {
+            status: 400,
             headers: corsHeaders,
           });
         }
-        passwordTemp = authUser.user.user_metadata?.password_temp;
-        if (!passwordTemp) {
-          passwordTemp = generateTempPassword();
-          await db.auth.admin.updateUserById(userId, {
-            password: passwordTemp,
-            user_metadata: { ...authUser.user.user_metadata, password_temp: passwordTemp }
-          });
-        }
-      } else if (existingUser && existingUser.status_verifikasi === "pending") {
-        userId = existingUser.id;
-        passwordTemp = generateTempPassword();
-        const { data: authUser } = await db.auth.admin.getUserById(userId);
-        const userMeta = authUser?.user?.user_metadata || {};
-        const { error: updateAuthErr } = await db.auth.admin.updateUserById(userId, {
-          password: passwordTemp,
-          user_metadata: { ...userMeta, password_temp: passwordTemp }
-        });
-        if (updateAuthErr) {
-          return new Response(JSON.stringify({ error: `Gagal memperbarui auth: ${updateAuthErr.message}` }), {
-            status: 500,
-            headers: corsHeaders,
-          });
-        }
+
+        const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+
         if (token) {
-          await db.from("users").update({ token_dipakai: token, trial_lama_hari: 30 }).eq("id", userId);
-        }
-      } else {
-        passwordTemp = generateTempPassword();
-        const { data: authData, error: authErr } = await db.auth.admin.createUser({
-          email,
-          password: passwordTemp,
-          email_confirm: true,
-          user_metadata: { nama, nomor_wa: nomorWa, password_temp: passwordTemp }
-        });
+          const { data: tokenData, error: tokenErr } = await db
+            .from("tokens")
+            .select("*")
+            .eq("code", token)
+            .eq("status", "available")
+            .maybeSingle();
 
-        if (authErr || !authData?.user) {
-          return new Response(JSON.stringify({ error: `Gagal membuat akun auth: ${authErr?.message}` }), {
-            status: 500,
-            headers: corsHeaders,
+          if (tokenErr || !tokenData) {
+            return new Response(JSON.stringify({ error: "Token trial tidak valid atau sudah digunakan." }), {
+              status: 400,
+              headers: corsHeaders,
+            });
+          }
+        }
+
+        const { data: existingUser } = await db
+          .from("users")
+          .select("*")
+          .eq("nomor_wa", nomorWa)
+          .maybeSingle();
+
+        const otpCode = generateOtpCode();
+        const email = `${nomorWa}@kaslyai.local`;
+        let userId: string;
+        let passwordTemp: string;
+
+        if (existingUser && existingUser.status_verifikasi === "verified") {
+          userId = existingUser.id;
+          const { data: authUser, error: authGetErr } = await db.auth.admin.getUserById(userId);
+          if (authGetErr || !authUser?.user) {
+            return new Response(JSON.stringify({ error: "Gagal memproses data pengguna." }), {
+              status: 500,
+              headers: corsHeaders,
+            });
+          }
+          passwordTemp = authUser.user.user_metadata?.password_temp;
+          if (!passwordTemp) {
+            passwordTemp = generateTempPassword();
+            await db.auth.admin.updateUserById(userId, {
+              password: passwordTemp,
+              user_metadata: { ...authUser.user.user_metadata, password_temp: passwordTemp }
+            });
+          }
+        } else if (existingUser && existingUser.status_verifikasi === "pending") {
+          userId = existingUser.id;
+          passwordTemp = generateTempPassword();
+          const { data: authUser } = await db.auth.admin.getUserById(userId);
+          const userMeta = authUser?.user?.user_metadata || {};
+          const { error: updateAuthErr } = await db.auth.admin.updateUserById(userId, {
+            password: passwordTemp,
+            user_metadata: { ...userMeta, password_temp: passwordTemp }
           });
+          if (updateAuthErr) {
+            return new Response(JSON.stringify({ error: `Gagal memperbarui auth: ${updateAuthErr.message}` }), {
+              status: 500,
+              headers: corsHeaders,
+            });
+          }
+          if (token) {
+            await db.from("users").update({ token_dipakai: token, trial_lama_hari: 30 }).eq("id", userId);
+          }
+        } else {
+          passwordTemp = generateTempPassword();
+          const { data: authData, error: authErr } = await db.auth.admin.createUser({
+            email,
+            password: passwordTemp,
+            email_confirm: true,
+            user_metadata: { nama, nomor_wa: nomorWa, password_temp: passwordTemp }
+          });
+
+          if (authErr || !authData?.user) {
+            return new Response(JSON.stringify({ error: `Gagal membuat akun auth: ${authErr?.message}` }), {
+              status: 500,
+              headers: corsHeaders,
+            });
+          }
+
+          userId = authData.user.id;
+
+          const { error: profileErr } = await db.from("users").insert({
+            id: userId,
+            nama,
+            nomor_wa: nomorWa,
+            status_verifikasi: "pending",
+            trial_mulai_at: new Date().toISOString(),
+            trial_lama_hari: token ? 30 : 7,
+            token_dipakai: token || null,
+            sumber_ai: "gratis"
+          });
+
+          if (profileErr) {
+            await db.auth.admin.deleteUser(userId);
+            return new Response(JSON.stringify({ error: `Gagal membuat profil user: ${profileErr.message}` }), {
+              status: 500,
+              headers: corsHeaders,
+            });
+          }
         }
 
-        userId = authData.user.id;
-
-        const { error: profileErr } = await db.from("users").insert({
-          id: userId,
-          nama,
+        const { error: verifErr } = await db.from("verifikasi_wa").upsert({
+          kode: otpCode,
           nomor_wa: nomorWa,
-          status_verifikasi: "pending",
-          trial_mulai_at: new Date().toISOString(),
-          trial_lama_hari: token ? 30 : 7,
-          token_dipakai: token || null,
-          sumber_ai: "gratis"
+          password_temp: passwordTemp,
+          status: "pending",
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
         });
 
-        if (profileErr) {
-          await db.auth.admin.deleteUser(userId);
-          return new Response(JSON.stringify({ error: `Gagal membuat profil user: ${profileErr.message}` }), {
+        if (verifErr) {
+          return new Response(JSON.stringify({ error: `Gagal menyimpan verifikasi: ${verifErr.message}` }), {
             status: 500,
             headers: corsHeaders,
           });
         }
-      }
 
-      const { error: verifErr } = await db.from("verifikasi_wa").upsert({
-        kode: otpCode,
-        nomor_wa: nomorWa,
-        password_temp: passwordTemp,
-        status: "pending",
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
-      });
+        try {
+          const waMessage = `Halo *${nama}*!\n\nTerima kasih telah mendaftar di *KaslyAI*.\n\nBerikut adalah kode OTP verifikasi pendaftaran Anda:\n\n*${otpCode}*\n\nSilakan balas chat ini dengan mengirimkan kode OTP di atas untuk mengaktifkan akun Anda.`;
+          await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, waMessage);
+        } catch (waErr) {
+          console.error("Gagal mengirim WhatsApp message:", waErr);
+        }
 
-      if (verifErr) {
-        return new Response(JSON.stringify({ error: `Gagal menyimpan verifikasi: ${verifErr.message}` }), {
+        return new Response(JSON.stringify({ success: true, message: "Kode verifikasi telah dikirim ke WhatsApp Anda.", code: otpCode }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      } catch (err) {
+        console.error("Error in start-registration:", err);
+        return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
           status: 500,
           headers: corsHeaders,
         });
       }
-
-      try {
-        const waMessage = `Halo *${nama}*!\n\nTerima kasih telah mendaftar di *KaslyAI*.\n\nBerikut adalah kode OTP verifikasi pendaftaran Anda:\n\n*${otpCode}*\n\nSilakan balas chat ini dengan mengirimkan kode OTP di atas untuk mengaktifkan akun Anda.`;
-        await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, waMessage);
-      } catch (waErr) {
-        console.error("Gagal mengirim WhatsApp message:", waErr);
-      }
-
-      return new Response(JSON.stringify({ success: true, message: "Kode verifikasi telah dikirim ke WhatsApp Anda.", code: otpCode }), {
-        status: 200,
-        headers: corsHeaders,
-      });
     }
 
-    if (url.pathname === "/check-verification") {
-      const db = getDb();
-      let payload: any;
+    if (url.pathname.endsWith("/check-verification")) {
       try {
-        payload = JSON.parse(rawBody);
-      } catch {
-        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
+        const db = getDb();
+        let payload: any;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
 
-      const { nomor_wa } = payload;
-      if (!nomor_wa) {
-        return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
+        const { nomor_wa } = payload;
+        if (!nomor_wa) {
+          return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
 
-      const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+        const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
 
-      const { data: user, error } = await db
-        .from("users")
-        .select("status_verifikasi")
-        .eq("nomor_wa", nomorWa)
-        .maybeSingle();
+        const { data: user, error } = await db
+          .from("users")
+          .select("status_verifikasi")
+          .eq("nomor_wa", nomorWa)
+          .maybeSingle();
 
-      if (error || !user) {
-        return new Response(JSON.stringify({ verified: false }), {
+        if (error || !user) {
+          return new Response(JSON.stringify({ verified: false }), {
+            status: 200,
+            headers: corsHeaders,
+          });
+        }
+
+        return new Response(JSON.stringify({ verified: user.status_verifikasi === "verified" }), {
           status: 200,
           headers: corsHeaders,
         });
+      } catch (err) {
+        console.error("Error in check-verification:", err);
+        return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
+          status: 500,
+          headers: corsHeaders,
+        });
       }
-
-      return new Response(JSON.stringify({ verified: user.status_verifikasi === "verified" }), {
-        status: 200,
-        headers: corsHeaders,
-      });
     }
 
-    if (url.pathname === "/complete-verification") {
-      const db = getDb();
-      let payload: any;
+    if (url.pathname.endsWith("/complete-verification")) {
       try {
-        payload = JSON.parse(rawBody);
-      } catch {
-        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
+        const db = getDb();
+        let payload: any;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
 
-      const { nomor_wa, kode } = payload;
-      if (!nomor_wa || !kode) {
-        return new Response(JSON.stringify({ error: "Nomor WA dan kode OTP wajib diisi." }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
+        const { nomor_wa, kode } = payload;
+        if (!nomor_wa || !kode) {
+          return new Response(JSON.stringify({ error: "Nomor WA dan kode OTP wajib diisi." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
 
-      const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
-      const otpCode = kode.trim().toUpperCase();
+        const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+        const otpCode = kode.trim().toUpperCase();
 
-      const { data: verif, error: verifErr } = await db
-        .from("verifikasi_wa")
-        .select("*")
-        .eq("nomor_wa", nomorWa)
-        .eq("kode", otpCode)
-        .eq("status", "pending")
-        .maybeSingle();
+        const { data: verif, error: verifErr } = await db
+          .from("verifikasi_wa")
+          .select("*")
+          .eq("nomor_wa", nomorWa)
+          .eq("kode", otpCode)
+          .eq("status", "pending")
+          .maybeSingle();
 
-      if (verifErr || !verif) {
-        return new Response(JSON.stringify({ error: "Kode verifikasi tidak cocok atau sudah kadaluwarsa." }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
+        if (verifErr || !verif) {
+          return new Response(JSON.stringify({ error: "Kode verifikasi tidak cocok atau sudah kadaluwarsa." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
 
-      if (new Date(verif.expires_at) < new Date()) {
-        return new Response(JSON.stringify({ error: "Kode verifikasi sudah kadaluwarsa." }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
+        if (new Date(verif.expires_at) < new Date()) {
+          return new Response(JSON.stringify({ error: "Kode verifikasi sudah kadaluwarsa." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
 
-      const { data: user } = await db
-        .from("users")
-        .select("*")
-        .eq("nomor_wa", nomorWa)
-        .maybeSingle();
+        const { data: user } = await db
+          .from("users")
+          .select("*")
+          .eq("nomor_wa", nomorWa)
+          .maybeSingle();
 
-      if (!user) {
-        return new Response(JSON.stringify({ error: "Profil user tidak ditemukan." }), {
-          status: 404,
-          headers: corsHeaders,
-        });
-      }
+        if (!user) {
+          return new Response(JSON.stringify({ error: "Profil user tidak ditemukan." }), {
+            status: 404,
+            headers: corsHeaders,
+          });
+        }
 
-      if (user.token_dipakai) {
+        if (user.token_dipakai) {
+          await db
+            .from("tokens")
+            .update({
+              status: "used",
+              used_by: nomorWa,
+              used_at: new Date().toISOString()
+            })
+            .eq("code", user.token_dipakai);
+        }
+
         await db
-          .from("tokens")
-          .update({
-            status: "used",
-            used_by: nomorWa,
-            used_at: new Date().toISOString()
-          })
-          .eq("code", user.token_dipakai);
+          .from("users")
+          .update({ status_verifikasi: "verified" })
+          .eq("id", user.id);
+
+        await db.from("verifikasi_wa").delete().eq("kode", otpCode);
+
+        await initializeUserData(db, user.id);
+
+        try {
+          const confirmationMsg = `Akun KaslyAI Anda telah aktif!\n\nSelamat datang di KaslyAI, asisten keuangan pribadi Anda.\n\nBerikut password sementara Anda:\n*${verif.password_temp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut.`;
+          await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg);
+        } catch (waErr) {
+          console.error("Gagal mengirim pesan konfirmasi:", waErr);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Verifikasi berhasil. Silakan login.",
+          email: `${nomorWa}@kaslyai.local`,
+          password: verif.password_temp
+        }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      } catch (err) {
+        console.error("Error in complete-verification:", err);
+        return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
+          status: 500,
+          headers: corsHeaders,
+        });
       }
-
-      await db
-        .from("users")
-        .update({ status_verifikasi: "verified" })
-        .eq("id", user.id);
-
-      await db.from("verifikasi_wa").delete().eq("kode", otpCode);
-
-      await initializeUserData(db, user.id);
-
-      try {
-        const confirmationMsg = `Akun KaslyAI Anda telah aktif!\n\nSelamat datang di KaslyAI, asisten keuangan pribadi Anda.\n\nBerikut password sementara Anda:\n*${verif.password_temp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut.`;
-        await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg);
-      } catch (waErr) {
-        console.error("Gagal mengirim pesan konfirmasi:", waErr);
-      }
-
-      return new Response(JSON.stringify({
-        success: true,
-        message: "Verifikasi berhasil. Silakan login.",
-        email: `${nomorWa}@kaslyai.local`,
-        password: verif.password_temp
-      }), {
-        status: 200,
-        headers: corsHeaders,
-      });
     }
 
     if (isWebChat) {
