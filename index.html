@@ -9124,7 +9124,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.8.8)';
+      const version = ' (v2.8.9)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -20588,9 +20588,22 @@ PERTANYAAN_USER:
 
             // Load user profile & settings to check onboarding status
             const { data: profile } = await supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle();
+            
+            if (!profile) {
+              // Stale or deleted user session! Force sign out and redirect to promo screen!
+              await supabaseClient.auth.signOut();
+              localStorage.removeItem('catatan_keuangan_access_code');
+              Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+              
+              const authOb = document.getElementById('auth-onboarding');
+              if (authOb) authOb.classList.add('open');
+              gotoScreen('screen-promo');
+              return; // Halt loading dashboard
+            }
+
             const { data: settings } = await supabaseClient.from('user_settings').select('*').eq('user_id', currentUserId).maybeSingle();
 
-            const isAdmin = profile && profile.nomor_wa === '6289626112023';
+            const isAdmin = profile.nomor_wa === '6289626112023';
             const isOnboarded = (settings && settings.onboarded) || isAdmin;
 
             if (isOnboarded) {
