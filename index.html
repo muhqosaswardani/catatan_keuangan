@@ -5661,7 +5661,7 @@
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
             </div>
             <h3 style="margin:0 0 6px;font-size:15.5px;">Kirim Kode Verifikasi</h3>
-            <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 20px;">Kirim pesan berisi kode OTP ke WhatsApp KaslyAI, atau tunggu beberapa saat setelah Anda mengirimkannya.</p>
+            <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 20px;">Kirim pesan berisi kode OTP ke WhatsApp KaslyAI, dan tunggu beberapa saat setelah Anda mengirimkannya.</p>
 
             <div class="code-box">
               <div class="lbl">KODE OTP ANDA</div>
@@ -8143,6 +8143,9 @@
       btn.disabled = true;
       btn.textContent = 'Memproses...';
 
+      // Open a blank tab synchronously to bypass pop-up blockers
+      const newTab = window.open('about:blank', '_blank');
+
       try {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/start-registration`, {
           method: 'POST',
@@ -8151,6 +8154,7 @@
         });
         const data = await res.json();
         if (!res.ok || data.error) {
+          if (newTab) newTab.close();
           showToast(data.error || 'Gagal memulai pendaftaran.');
           btn.disabled = false;
           btn.textContent = originalText;
@@ -8169,13 +8173,17 @@
 
         gotoScreen('screen-verifikasi');
         
-        // Open WhatsApp link immediately in desktop/phone
-        openWaVerification();
+        // Redirect the blank tab to WhatsApp
+        if (newTab) {
+          const text = encodeURIComponent(`Verifikasi ${BRAND_NAME}\nKode: ${data.code}`);
+          newTab.location.href = `https://wa.me/${WA_BOT_NUMBER}?text=${text}`;
+        }
 
         // Start polling check-verification
         startVerificationPolling();
 
       } catch (err) {
+        if (newTab) newTab.close();
         console.error(err);
         showToast('Gagal terhubung ke server.');
         btn.disabled = false;
@@ -9104,7 +9112,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.8.4)';
+      const version = ' (v2.8.5)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
