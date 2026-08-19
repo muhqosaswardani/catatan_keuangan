@@ -5747,7 +5747,7 @@
         <div class="screen-main">
           <p style="color:var(--ink-soft);font-size:13.5px;margin:-8px 0 16px;text-align:left;">Catat dulu saldo awal di masing-masing dompet kamu sekarang. Ini jadi titik awal semua catatan keuangan kamu.</p>
           <div id="onbWalletsList"></div>
-          <button type="button" class="btn btn-ghost btn-block" onclick="addWalletField()" style="margin:6px 0 4px; border:1px dashed var(--line);">+ Tambah Dompet</button>
+          <button type="button" class="btn btn-ghost btn-block" onclick="addWalletFieldOnb()" style="margin:6px 0 4px; border:1px dashed var(--line);">+ Tambah Dompet</button>
         </div>
 
         <div class="screen-footer">
@@ -8273,18 +8273,28 @@
         
         // Load settings to check if they are already onboarded in the database!
         const { data: profile } = await supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle();
-        if (profile && profile.status_verifikasi === 'verified') {
-          // Check if default wallet exists in the DB
-          const { data: wallets } = await supabaseClient.from('wallets').select('*').eq('user_id', currentUserId);
-          if (wallets && wallets.length > 0) {
-            // Already fully set up! Directly skip to dashboard!
-            localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
-            document.getElementById('auth-onboarding').classList.remove('open');
-            // Re-run init to start dashboard sync
-            init();
-            return;
-          }
+        const { data: settings } = await supabaseClient.from('user_settings').select('*').eq('user_id', currentUserId).maybeSingle();
+        
+        const isAdmin = profile && profile.nomor_wa === '6289626112023';
+        const isOnboarded = (settings && settings.onboarded) || isAdmin;
+
+        if (isOnboarded) {
+          // Already fully set up! Directly skip to dashboard!
+          localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
+          localStorage.setItem(LS_KEYS.onboarded, '1');
+          document.getElementById('auth-onboarding').classList.remove('open');
+          // Re-run init to start dashboard sync
+          init();
+          return;
         }
+
+        // New user or needs onboarding! Clear any legacy cached local storage data from previous sessions
+        Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+        localStorage.removeItem('catatan_keuangan_access_code');
+        localStorage.removeItem(LS_KEYS.onboarded);
+        userKeys = [];
+        onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
+        onboardingCategories = [];
 
         // Proceed to intro screens
         onboardingState.introIdx = 0;
@@ -8877,6 +8887,7 @@
           access_code: 'wa_' + currentUserId,
           deleted_ids: [],
           nav_config: { initialBalances: {} },
+          onboarded: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
@@ -8900,6 +8911,9 @@
 
         const { error: settingsErr } = await supabaseClient.from('user_settings').insert(settings);
         if (settingsErr) throw settingsErr;
+
+        // Save Gemini API Keys to DB if user added them
+        await saveKeysToDb();
 
         // Update local settings & hide overlay
         localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
@@ -9112,7 +9126,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.8.5)';
+      const version = ' (v2.8.6)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16884,6 +16898,7 @@
     }
     function closeCatIconPicker() {
       catEditingId = null;
+      catEditingIdOnb = null;
       closeModal('modalIconPicker'); /* pop 1 layer -> balik ke modalCategories yang masih terbuka di bawahnya */
     }
     let catDragActive = false;
@@ -20572,9 +20587,32 @@ PERTANYAAN_USER:
           const { data: { session } } = await supabaseClient.auth.getSession();
           if (session && session.user) {
             currentUserId = session.user.id;
-            const authOb = document.getElementById('auth-onboarding');
-            if (authOb) authOb.classList.remove('open');
-            checkTrialStatus();
+
+            // Load user profile & settings to check onboarding status
+            const { data: profile } = await supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle();
+            const { data: settings } = await supabaseClient.from('user_settings').select('*').eq('user_id', currentUserId).maybeSingle();
+
+            const isAdmin = profile && profile.nomor_wa === '6289626112023';
+            const isOnboarded = (settings && settings.onboarded) || isAdmin;
+
+            if (isOnboarded) {
+              const authOb = document.getElementById('auth-onboarding');
+              if (authOb) authOb.classList.remove('open');
+              localStorage.setItem(LS_KEYS.onboarded, '1');
+              checkTrialStatus();
+            } else {
+              // Not onboarded yet! Show onboarding intro wizard
+              const authOb = document.getElementById('auth-onboarding');
+              if (authOb) authOb.classList.add('open');
+              
+              userKeys = [];
+              onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
+              onboardingCategories = [];
+              onboardingState.introIdx = 0;
+              renderIntro();
+              gotoScreen('screen-intro');
+              return; // Halt loading dashboard
+            }
           } else {
             const authOb = document.getElementById('auth-onboarding');
             if (authOb) authOb.classList.add('open');
