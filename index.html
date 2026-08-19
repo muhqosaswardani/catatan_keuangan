@@ -8845,7 +8845,7 @@
             name: name,
             balance: balance,
             is_primary: i === 0,
-            order: i,
+            sort_order: i,
             created_at: new Date(Date.now() + i).toISOString(),
             updated_at: new Date().toISOString()
           });
@@ -9126,7 +9126,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.8.6)';
+      const version = ' (v2.8.7)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
