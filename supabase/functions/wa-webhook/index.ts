@@ -619,28 +619,6 @@ Deno.serve(async (req: Request) => {
         const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
         const otpCode = kode.trim().toUpperCase();
 
-        const { data: verif, error: verifErr } = await db
-          .from("verifikasi_wa")
-          .select("*")
-          .eq("nomor_wa", nomorWa)
-          .eq("kode", otpCode)
-          .eq("status", "pending")
-          .maybeSingle();
-
-        if (verifErr || !verif) {
-          return new Response(JSON.stringify({ error: "Kode verifikasi tidak cocok atau sudah kadaluwarsa." }), {
-            status: 400,
-            headers: corsHeaders,
-          });
-        }
-
-        if (new Date(verif.expires_at) < new Date()) {
-          return new Response(JSON.stringify({ error: "Kode verifikasi sudah kadaluwarsa." }), {
-            status: 400,
-            headers: corsHeaders,
-          });
-        }
-
         const { data: user } = await db
           .from("users")
           .select("*")
@@ -654,38 +632,77 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        if (user.token_dipakai) {
+        let passwordTemp = "";
+
+        if (user.status_verifikasi === "verified") {
+          // If already verified via WhatsApp chat, fetch password_temp from auth user metadata
+          const { data: authUser, error: authGetErr } = await db.auth.admin.getUserById(user.id);
+          if (authGetErr || !authUser?.user) {
+            return new Response(JSON.stringify({ error: "Gagal memproses data pengguna." }), {
+              status: 500,
+              headers: corsHeaders,
+            });
+          }
+          passwordTemp = authUser.user.user_metadata?.password_temp || "";
+        } else {
+          // Verify using verifikasi_wa table
+          const { data: verif, error: verifErr } = await db
+            .from("verifikasi_wa")
+            .select("*")
+            .eq("nomor_wa", nomorWa)
+            .eq("kode", otpCode)
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (verifErr || !verif) {
+            return new Response(JSON.stringify({ error: "Kode verifikasi tidak cocok atau sudah kadaluwarsa." }), {
+              status: 400,
+              headers: corsHeaders,
+            });
+          }
+
+          if (new Date(verif.expires_at) < new Date()) {
+            return new Response(JSON.stringify({ error: "Kode verifikasi sudah kadaluwarsa." }), {
+              status: 400,
+              headers: corsHeaders,
+            });
+          }
+
+          passwordTemp = verif.password_temp;
+
+          if (user.token_dipakai) {
+            await db
+              .from("tokens")
+              .update({
+                status: "used",
+                used_by: nomorWa,
+                used_at: new Date().toISOString()
+              })
+              .eq("code", user.token_dipakai);
+          }
+
           await db
-            .from("tokens")
-            .update({
-              status: "used",
-              used_by: nomorWa,
-              used_at: new Date().toISOString()
-            })
-            .eq("code", user.token_dipakai);
-        }
+            .from("users")
+            .update({ status_verifikasi: "verified" })
+            .eq("id", user.id);
 
-        await db
-          .from("users")
-          .update({ status_verifikasi: "verified" })
-          .eq("id", user.id);
+          await db.from("verifikasi_wa").delete().eq("kode", otpCode);
 
-        await db.from("verifikasi_wa").delete().eq("kode", otpCode);
+          await initializeUserData(db, user.id);
 
-        await initializeUserData(db, user.id);
-
-        try {
-          const confirmationMsg = `Akun KaslyAI Anda telah aktif!\n\nSelamat datang di KaslyAI, asisten keuangan pribadi Anda.\n\nBerikut password sementara Anda:\n*${verif.password_temp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut.`;
-          await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg);
-        } catch (waErr) {
-          console.error("Gagal mengirim pesan konfirmasi:", waErr);
+          try {
+            const confirmationMsg = `Akun KaslyAI Anda telah aktif!\n\nSelamat datang di KaslyAI, asisten keuangan pribadi Anda.\n\nBerikut password sementara Anda:\n*${passwordTemp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut.`;
+            await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg);
+          } catch (waErr) {
+            console.error("Gagal mengirim pesan konfirmasi:", waErr);
+          }
         }
 
         return new Response(JSON.stringify({
           success: true,
           message: "Verifikasi berhasil. Silakan login.",
           email: `${nomorWa}@kaslyai.local`,
-          password: verif.password_temp
+          password: passwordTemp
         }), {
           status: 200,
           headers: corsHeaders,
