@@ -880,9 +880,19 @@ Deno.serve(async (req: Request) => {
       );
 
       if (!userId) {
-        // Unverified user. Check if they sent a 20-character verification OTP.
-        const potentialCode = (msg.text ?? "").trim().toUpperCase();
-        if (potentialCode.length === 20 && /^[A-Z0-9]{20}$/.test(potentialCode)) {
+        // Unverified user. Check if they sent the verification OTP (directly or in the template message).
+        const cleanText = (msg.text ?? "").trim().toUpperCase();
+        let potentialCode = "";
+        if (cleanText.length === 20 && /^[A-Z0-9]{20}$/.test(cleanText)) {
+          potentialCode = cleanText;
+        } else {
+          const match = cleanText.match(/[A-Z0-9]{20}/);
+          if (match) {
+            potentialCode = match[0];
+          }
+        }
+
+        if (potentialCode) {
           const verified = await verifyOtpViaChat(db, msg.from, potentialCode, msg.messageId);
           if (verified) {
             continue;

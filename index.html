@@ -8190,7 +8190,21 @@
 
     function startVerificationPolling() {
       if (onboardingState.pollingInterval) clearInterval(onboardingState.pollingInterval);
+      let attempts = 0;
+      const maxAttempts = 100; // 5 menit (100 * 3 detik)
       onboardingState.pollingInterval = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(onboardingState.pollingInterval);
+          onboardingState.pollingInterval = null;
+          
+          const pill = document.getElementById('verifStatusWrap');
+          if (pill) {
+            pill.innerHTML = `<span class="status-pill err" id="verifStatusPill">✗ Waktu verifikasi habis</span>`;
+          }
+          showToast('Batas waktu verifikasi habis. Silakan coba lagi.');
+          return;
+        }
         try {
           const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/check-verification`, {
             method: 'POST',
@@ -9090,7 +9104,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.8.1)';
+      const version = ' (v2.8.2)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
