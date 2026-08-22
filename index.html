@@ -5645,7 +5645,7 @@
         <div class="screen-main">
           <div class="field" id="fieldNama">
             <label>Nama Lengkap</label>
-            <input type="text" id="inpNama" placeholder="Masukkan nama lengkap" oninput="clearErr('fieldNama')">
+            <input type="text" id="inpNama" placeholder="Masukkan nama" oninput="clearErr('fieldNama')">
             <div class="err">Nama wajib diisi.</div>
           </div>
           <div class="field" id="fieldWa">
@@ -9150,7 +9150,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.5)';
+      const version = ' (v2.9.6)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
