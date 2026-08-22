@@ -5645,12 +5645,12 @@
         <div class="screen-main">
           <div class="field" id="fieldNama">
             <label>Nama Lengkap</label>
-            <input type="text" id="inpNama" placeholder="Contoh: Budi Santoso" oninput="clearErr('fieldNama')">
+            <input type="text" id="inpNama" placeholder="Masukkan nama lengkap" oninput="clearErr('fieldNama')">
             <div class="err">Nama wajib diisi.</div>
           </div>
           <div class="field" id="fieldWa">
             <label>Nomor WhatsApp Aktif</label>
-            <input type="tel" id="inpWa" placeholder="Contoh: 081234567890" oninput="clearErr('fieldWa')">
+            <input type="tel" id="inpWa" placeholder="Masukkan nomor WhatsApp" oninput="clearErr('fieldWa')">
             <div class="err">Masukkan nomor WhatsApp yang valid.</div>
           </div>
           <div class="field" id="fieldTokenTrial">
@@ -9150,7 +9150,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.4)';
+      const version = ' (v2.9.5)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
