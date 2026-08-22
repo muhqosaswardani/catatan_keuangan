@@ -3096,6 +3096,17 @@
       box-shadow: 0 1px 3px rgba(21, 37, 36, .05);
     }
 
+    /* Override a later .cat-manage-row rule (display:flex + justify-content:space-between)
+       that was forcing wmr-top and wmr-balance-box onto the same row, pushing the
+       Saldo box off-screen. Higher specificity (two classes) wins regardless of source order. */
+    .wallet-manage-row.cat-manage-row {
+      display: block;
+      align-items: unset;
+      justify-content: unset;
+      padding: 13px;
+      text-align: left;
+    }
+
     .wallet-manage-row .wmr-top {
       display: flex;
       align-items: center;
@@ -9139,7 +9150,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.3)';
+      const version = ' (v2.9.4)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
