@@ -9139,7 +9139,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.0)';
+      const version = ' (v2.9.1)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -9281,6 +9281,15 @@
       });
     }
 
+    // Cari baris berdasarkan access_code ATAU user_id — supaya data lama (pre-migrasi multi-user,
+    // masih pakai access_code lama tapi user_id sudah benar) tetap ketemu & ke-sync, bukan dianggap hilang.
+    function scopeToOwner(query, code) {
+      if (currentUserId) {
+        return query.or(`access_code.eq.${code},user_id.eq.${currentUserId}`);
+      }
+      return query.eq('access_code', code);
+    }
+
     async function syncAllWithSupabase(silent = true) {
       // Hard block: never run sync while a full data reset is in progress
       if (isResettingData) return;
@@ -9301,7 +9310,7 @@
       try {
         // A. Check if another device has triggered a full reset via reset_at signal in user_settings,
         // and also fetch deleted_ids to prevent deleted items from restoring.
-        const { data: remChkSettings } = await supabaseClient.from('user_settings').select('*').eq('access_code', code).maybeSingle();
+        const { data: remChkSettings } = await scopeToOwner(supabaseClient.from('user_settings').select('*'), code).maybeSingle();
         if (remChkSettings && remChkSettings.reset_at) {
           const serverResetAt = new Date(remChkSettings.reset_at).getTime();
           const localLastResetAt = Number(localStorage.getItem('last_reset_at') || 0);
@@ -9329,7 +9338,7 @@
         const deletedSet = new Set(mergedDeleted);
 
         // 1. Transactions (Synced first!)
-        const { data: remTx } = await supabaseClient.from('transactions').select('*').eq('access_code', code);
+        const { data: remTx } = await scopeToOwner(supabaseClient.from('transactions').select('*'), code);
         if (remTx) {
           const remoteIds = new Set(remTx.map(r => String(r.id)));
           const localTxsFiltered = getTransactions().filter(t => {
@@ -9350,7 +9359,7 @@
           const merged = mergeEntities(localTxsFiltered, mapped);
           setTransactionsLocalOnly(merged);
           const pushRecs = merged.map(t => ({
-            id: t.id, access_code: code, wallet_id: t.walletId, category_id: t.categoryId, category: t.category,
+            id: t.id, access_code: code, user_id: currentUserId, wallet_id: t.walletId, category_id: t.categoryId, category: t.category,
             type: t.type, amount: t.amount, date: t.date, note: t.note, to_wallet_id: t.toWalletId,
             exclude_from_report: !!t.excludeFromReport,
             updated_at: new Date(t.updatedAt || Date.now()).toISOString()
@@ -9359,32 +9368,32 @@
         }
 
         // 2. Categories
-        const { data: remCats } = await supabaseClient.from('categories').select('*').eq('access_code', code);
+        const { data: remCats } = await scopeToOwner(supabaseClient.from('categories').select('*'), code);
         if (remCats) {
           const filtered = remCats.filter(r => !deletedSet.has(String(r.id)));
           const mapped = filtered.map(r => ({ id: r.id, name: r.name, type: r.type, icon: r.icon, color: r.color, updatedAt: parseSafeDate(r.updated_at) }));
           const merged = mergeCategories(getCategories(), mapped);
           setCategoriesLocalOnly(merged);
-          const pushRecs = merged.map(c => ({ id: c.id, access_code: code, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
+          const pushRecs = merged.map(c => ({ id: c.id, access_code: code, user_id: currentUserId, name: c.name, type: c.type, icon: c.icon, color: c.color, updated_at: new Date(c.updatedAt || Date.now()).toISOString() }));
           if (pushRecs.length > 0) {
             await supabaseClient.from('categories').upsert(pushRecs);
           }
         }
 
         // 3. Budgets
-        const { data: remBudgets } = await supabaseClient.from('budgets').select('*').eq('access_code', code);
+        const { data: remBudgets } = await scopeToOwner(supabaseClient.from('budgets').select('*'), code);
         if (remBudgets) {
           const filtered = remBudgets.filter(r => !deletedSet.has(String(r.id)));
           const mapped = filtered.map(r => ({ id: r.id, categoryId: r.category_id, month: r.month, limit: Number(r.limit_amount) || 0, updatedAt: parseSafeDate(r.updated_at) }));
           const local = getBudgets().map(b => ({ ...b, id: b.id || (b.categoryId + '_' + b.month) }));
           const merged = mergeEntities(local, mapped);
           setBudgetsLocalOnly(merged);
-          const pushRecs = merged.map(b => ({ id: b.id || (b.categoryId + '_' + b.month), access_code: code, category_id: b.categoryId, month: b.month, limit_amount: b.limit, updated_at: new Date(b.updatedAt || Date.now()).toISOString() }));
+          const pushRecs = merged.map(b => ({ id: b.id || (b.categoryId + '_' + b.month), access_code: code, user_id: currentUserId, category_id: b.categoryId, month: b.month, limit_amount: b.limit, updated_at: new Date(b.updatedAt || Date.now()).toISOString() }));
           if (pushRecs.length > 0) await supabaseClient.from('budgets').upsert(pushRecs);
         }
 
         // 4. Savings Goals (Tujuan)
-        const { data: remGoals } = await supabaseClient.from('savings_goals').select('*').eq('access_code', code);
+        const { data: remGoals } = await scopeToOwner(supabaseClient.from('savings_goals').select('*'), code);
         if (remGoals) {
           const filtered = remGoals.filter(r => !deletedSet.has(String(r.id)));
           const mapped = filtered.map(r => ({
@@ -9394,14 +9403,14 @@
           const merged = mergeEntities(getGoals(), mapped);
           setGoalsLocalOnly(merged);
           const pushRecs = merged.map(g => ({
-            id: g.id, access_code: code, name: g.name, target_amount: g.targetAmount,
+            id: g.id, access_code: code, user_id: currentUserId, name: g.name, target_amount: g.targetAmount,
             wallet_id: g.walletId, target_date: g.targetDate, updated_at: new Date(g.updatedAt || Date.now()).toISOString()
           }));
           if (pushRecs.length > 0) await supabaseClient.from('savings_goals').upsert(pushRecs);
         }
 
         // 5. Debts (debt_entries)
-        const { data: remDebts } = await supabaseClient.from('debt_entries').select('*').eq('access_code', code);
+        const { data: remDebts } = await scopeToOwner(supabaseClient.from('debt_entries').select('*'), code);
         if (remDebts) {
           const filtered = remDebts.filter(r => !deletedSet.has(String(r.id)));
           const mapped = filtered.map(r => ({
@@ -9413,7 +9422,7 @@
           const merged = mergeEntities(getDebts(), mapped);
           setDebtsLocalOnly(merged);
           const pushRecs2 = merged.map(d => ({
-            id: d.id, access_code: code, person_name: d.personName, type: d.type,
+            id: d.id, access_code: code, user_id: currentUserId, person_name: d.personName, type: d.type,
             amount: d.amount, date: d.date, note: d.note || '', due_date: d.dueDate || null,
             status: d.status || 'belum', payoff_wallet_id: d.payoffWalletId || null,
             payoff_date: d.payoffDate || null, updated_at: new Date(d.updatedAt || Date.now()).toISOString()
@@ -9422,7 +9431,7 @@
         }
 
         // 6. Recurring items (recurring_items)
-        const { data: remRec } = await supabaseClient.from('recurring_items').select('*').eq('access_code', code);
+        const { data: remRec } = await scopeToOwner(supabaseClient.from('recurring_items').select('*'), code);
         if (remRec) {
           const filtered = remRec.filter(r => !deletedSet.has(String(r.id)));
           const mapped = filtered.map(r => ({
@@ -9435,7 +9444,7 @@
           const merged = mergeEntities(getRecurring(), mapped);
           setRecurringLocalOnly(merged);
           const pushRecs3 = merged.map(r => ({
-            id: r.id, access_code: code, name: r.name, type: r.type, amount: r.amount,
+            id: r.id, access_code: code, user_id: currentUserId, name: r.name, type: r.type, amount: r.amount,
             wallet_id: r.walletId, category_id: r.categoryId || null,
             day_of_month: r.dayOfMonth, active: r.active !== false,
             last_confirmed_date: r.lastConfirmedDate || null,
@@ -9445,7 +9454,7 @@
         }
 
         // 7. Wallets (Synced after transactions!)
-        const { data: remWallets } = await supabaseClient.from('wallets').select('*').eq('access_code', code);
+        const { data: remWallets } = await scopeToOwner(supabaseClient.from('wallets').select('*'), code);
         if (remWallets) {
           const filtered = remWallets.filter(r => !deletedSet.has(String(r.id)));
           const mapped = filtered.map(r => ({
@@ -9468,6 +9477,7 @@
           const pushRecs = finalWallets.map(w => ({
             id: w.id,
             access_code: code,
+            user_id: currentUserId,
             name: w.name,
             balance: w.balance,
             is_primary: !!w.isPrimary,
@@ -9599,6 +9609,7 @@
 
           await supabaseClient.from('user_settings').upsert({
             access_code: code,
+            user_id: currentUserId,
             sheets_web_app_url: (getSettings().sheetsWebAppUrl || ''),
             nav_config: (typeof getNavConfig === 'function' ? getNavConfig() : { core: [] }),
             shortcut_overrides: getShortcutMeta(),
@@ -9998,6 +10009,7 @@
         const code = getAccessCode();
         supabaseClient.from('user_settings').upsert({
           access_code: code,
+          user_id: currentUserId,
           nav_config: cfg,
           updated_at: new Date().toISOString()
         }).then(() => { console.log('Dashboard avg category setting synced'); }).catch(e => { console.warn('Dashboard avg sync error:', e); });
@@ -10012,6 +10024,7 @@
         const code = getAccessCode();
         supabaseClient.from('user_settings').upsert({
           access_code: code,
+          user_id: currentUserId,
           nav_config: cfg,
           updated_at: new Date().toISOString()
         }).then(() => { console.log('Dashboard avg exclude setting synced'); }).catch(e => { console.warn('Dashboard avg exclude sync error:', e); });
@@ -16289,6 +16302,7 @@
         const code = getAccessCode();
         supabaseClient.from('user_settings').upsert({
           access_code: code,
+          user_id: currentUserId,
           nav_config: cfg,
           updated_at: new Date().toISOString()
         }).then(() => { console.log('Hero wallet setting synced'); }).catch(e => { console.warn('Hero wallet sync error:', e); });
@@ -16790,20 +16804,22 @@
       if (supabaseClient && navigator.onLine && code) {
         try {
           showToast('Menghapus data di server...');
-          // Step 1: Delete all user data tables
+          // Step 1: Delete all user data tables (scoped by access_code OR user_id, so legacy
+          // pre-migration rows tied to this account via user_id get wiped too, not left orphaned)
           await Promise.all([
-            supabaseClient.from('wallets').delete().eq('access_code', code),
-            supabaseClient.from('transactions').delete().eq('access_code', code),
-            supabaseClient.from('categories').delete().eq('access_code', code),
-            supabaseClient.from('budgets').delete().eq('access_code', code),
-            supabaseClient.from('savings_goals').delete().eq('access_code', code),
-            supabaseClient.from('debt_entries').delete().eq('access_code', code),
-            supabaseClient.from('recurring_items').delete().eq('access_code', code),
-            supabaseClient.from('user_settings').delete().eq('access_code', code)
+            scopeToOwner(supabaseClient.from('wallets').delete(), code),
+            scopeToOwner(supabaseClient.from('transactions').delete(), code),
+            scopeToOwner(supabaseClient.from('categories').delete(), code),
+            scopeToOwner(supabaseClient.from('budgets').delete(), code),
+            scopeToOwner(supabaseClient.from('savings_goals').delete(), code),
+            scopeToOwner(supabaseClient.from('debt_entries').delete(), code),
+            scopeToOwner(supabaseClient.from('recurring_items').delete(), code),
+            scopeToOwner(supabaseClient.from('user_settings').delete(), code)
           ]);
           // Step 2: Write a reset_at SIGNAL so all other devices on this access code detect the reset within 3 seconds
           await supabaseClient.from('user_settings').upsert({
             access_code: code,
+            user_id: currentUserId,
             reset_at: resetAt,
             updated_at: resetAt
           });
