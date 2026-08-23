@@ -9569,7 +9569,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.22)';
+      const version = ' (v2.9.23)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15496,7 +15496,7 @@
       const debts = getDebts().filter(d => d.status !== 'lunas').slice().sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
       if (debts.length === 0) {
         const hasHistory = getDebts().some(d => d.status === 'lunas');
-        wrap.innerHTML = `<div class="empty-note" style="padding:14px 0;">Belum ada utang piutang aktif.${hasHistory ? ' <a href="#" onclick="event.preventDefault();openDebtHistory()">Lihat riwayat lunas</a>' : ''}</div>`;
+        wrap.innerHTML = `<div class="empty-note" style="padding:24px 14px;text-align:center;">Belum ada utang piutang aktif.${hasHistory ? '<br><a href="#" onclick="event.preventDefault();openDebtHistory()" style="color:var(--accent);font-weight:600;text-decoration:none;">Lihat riwayat lunas</a>' : ''}</div>`;
         return;
       }
       wrap.innerHTML = debts.map(d => {
