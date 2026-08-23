@@ -3031,15 +3031,15 @@
     .settings-row-card {
       display: block;
       width: 100%;
-      padding: 15px 18px;
+      padding: 11px 16px;
       border: 1.5px solid var(--line);
       background: var(--surface);
-      border-radius: 14px;
+      border-radius: 12px;
       text-align: left;
       cursor: pointer;
       transition: background .15s, box-shadow .15s;
       box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
-      margin-bottom: 10px;
+      margin-bottom: 6px;
       font-family: inherit;
     }
 
@@ -3073,9 +3073,9 @@
     }
 
     .settings-row-card .sr-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
       background: var(--surface-2);
       display: flex;
       align-items: center;
@@ -9798,7 +9798,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.43)';
+      const version = ' (v2.9.44)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
