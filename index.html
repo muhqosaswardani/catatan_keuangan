@@ -9259,6 +9259,12 @@
     // Log Out
     async function logoutUser() {
       if (!supabaseClient) return;
+      const confirmed = await showConfirmModal({
+        title: 'Log Out',
+        text: 'Yakin mau keluar dari akun ini?',
+        actionText: 'Ya, Log Out'
+      });
+      if (!confirmed) return;
       await supabaseClient.auth.signOut();
       // BUGFIX (v2.9.10): dulu cuma access_code yang dihapus, data (wallets/transactions/
       // budgets/dll) masih nyangkut di localStorage dan bisa kebawa/ke-merge ke akun lain
@@ -9568,7 +9574,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.25)';
+      const version = ' (v2.9.26)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
