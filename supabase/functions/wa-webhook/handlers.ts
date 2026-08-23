@@ -18,8 +18,42 @@ import {
   cleanClarifiedNote,
   parseClarificationReply,
   matchHistoryAmountWithAi,
+  transcribeAudioToText,
 } from "./gemini.ts";
 import { sendWhatsAppMessage, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
+import { processV2Query } from "./v2_query.ts";
+
+// Regex sama persis dengan yang dipakai untuk pesan teks di v2_router.ts —
+// dipusatkan di sini supaya alur audio (voice note) & teks konsisten.
+const CEK_SALDO_REGEX = /^(cek saldo|saldo|berapa saldo|total saldo)/i;
+
+// Setelah voice note ditranskrip, jalankan pengecekan intent QUERY yang sama
+// dengan pesan teks (cek saldo langsung / pertanyaan bebas pakai "?") SEBELUM
+// dianggap sebagai instruksi transaksi. Return true kalau sudah ditangani.
+async function handleAudioTranscriptAsQueryIfApplicable(
+  db: SupabaseClient,
+  apiKeys: string[],
+  transcript: string,
+  waChatId: string,
+  replyToMsgId: string,
+  userId: string,
+): Promise<boolean> {
+  const trimmed = transcript.trim();
+  if (!trimmed) return false;
+
+  if (CEK_SALDO_REGEX.test(trimmed) && !trimmed.includes("?")) {
+    await handleCekSaldo(db, waChatId, replyToMsgId, userId);
+    return true;
+  }
+
+  if (trimmed.includes("?")) {
+    const reply = await processV2Query(db, apiKeys, userId, trimmed);
+    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, replyToMsgId);
+    return true;
+  }
+
+  return false;
+}
 
 // ============================================================
 // KONFIGURASI TETAP
@@ -856,29 +890,75 @@ export async function handleMediaBatch(
     .join(" ")
     .trim();
 
-  const parts: GeminiPart[] = [];
+  // Batch berisi HANYA voice note (tanpa foto): transkrip dulu, lalu cek apakah
+  // ini query ("cek saldo", pertanyaan pakai "?", dll) SEBELUM dianggap transaksi.
+  // Ini menyamakan perlakuan voice note dengan pesan teks biasa.
+  const hasImage = mediaItems.some((m) => m.kind === "image");
+  const audioItems = mediaItems.filter((m) => m.kind === "audio");
+  const audioOnly = !hasImage && audioItems.length > 0;
+  const audioTranscripts: string[] = [];
 
-  // Download semua media di memori saja; tidak pernah ditulis ke Storage/disk.
-  for (const item of mediaItems) {
-    try {
-      const { data, mimeType } = await downloadWhatsAppMedia(
-        item.mediaId,
-        WA_ACCESS_TOKEN,
-      );
-      const base64 = safeBytesToBase64(data);
-      if (item.kind === "audio") {
-        parts.push({
-          text: "Lampiran berikut adalah voice note. Pahami audionya langsung dan ekstrak transaksi dalam panggilan ini; jangan membuat tahap transkripsi terpisah.",
-        });
+  if (audioOnly) {
+    for (const item of audioItems) {
+      try {
+        const { data, mimeType } = await downloadWhatsAppMedia(
+          item.mediaId,
+          WA_ACCESS_TOKEN,
+        );
+        const base64 = safeBytesToBase64(data);
+        const t = await transcribeAudioToText(apiKeys, base64, mimeType);
+        if (t) audioTranscripts.push(t);
+      } catch (e) {
+        console.error(`Gagal transkrip audio ${item.mediaId}:`, e);
       }
-      parts.push({ inlineData: { data: base64, mimeType } });
-    } catch (e) {
-      console.error(`Gagal download media ${item.mediaId}:`, e);
+    }
+
+    const transcriptCombined = [captions, ...audioTranscripts].filter(Boolean).join(" ").trim();
+    if (transcriptCombined) {
+      const handled = await handleAudioTranscriptAsQueryIfApplicable(
+        db,
+        apiKeys,
+        transcriptCombined,
+        waChatId,
+        firstMsgId,
+        userId,
+      );
+      if (handled) return;
     }
   }
 
-  if (captions) {
-    parts.push({ text: `TEKS_BEBAS_DARI_USER: ${captions}` });
+  const parts: GeminiPart[] = [];
+  const audioAlreadyTranscribed = audioOnly && audioTranscripts.length > 0;
+
+  if (audioAlreadyTranscribed) {
+    // Sudah ditranskrip & sudah lolos cek query di atas — pakai transkrip +
+    // caption (kalau ada) sebagai satu teks, tidak perlu kirim ulang audio
+    // mentah ke Gemini untuk ekstraksi transaksi.
+    const combined = [captions, ...audioTranscripts].filter(Boolean).join(" ").trim();
+    parts.push({ text: `TEKS_BEBAS_DARI_USER: ${combined}` });
+  } else {
+    // Download semua media di memori saja; tidak pernah ditulis ke Storage/disk.
+    for (const item of mediaItems) {
+      try {
+        const { data, mimeType } = await downloadWhatsAppMedia(
+          item.mediaId,
+          WA_ACCESS_TOKEN,
+        );
+        const base64 = safeBytesToBase64(data);
+        if (item.kind === "audio") {
+          parts.push({
+            text: "Lampiran berikut adalah voice note. Pahami audionya langsung dan ekstrak transaksi dalam panggilan ini; jangan membuat tahap transkripsi terpisah.",
+          });
+        }
+        parts.push({ inlineData: { data: base64, mimeType } });
+      } catch (e) {
+        console.error(`Gagal download media ${item.mediaId}:`, e);
+      }
+    }
+
+    if (captions) {
+      parts.push({ text: `TEKS_BEBAS_DARI_USER: ${captions}` });
+    }
   }
 
   if (!parts.length) {
@@ -1879,10 +1959,39 @@ export async function handleWebChatImage(
     .map((c) => c.name);
   const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
 
-  const parts: GeminiPart[] = [
-    { inlineData: { data: imageBlobBase64, mimeType: imageMimeType } }
-  ];
-  if (msg.text) {
+  // Web chat mengirim voice note lewat field "image" yang sama (browser cuma tahu
+  // "file"), jadi audio harus dideteksi lewat mimeType di sini. Perlakuan disamakan
+  // persis dengan voice note di WA bot: transkrip dulu, cek query ("cek saldo",
+  // pertanyaan pakai "?") SEBELUM dianggap transaksi.
+  const isAudio = imageMimeType.startsWith("audio/");
+  let effectiveText = msg.text || "";
+
+  if (isAudio) {
+    let transcript = "";
+    try {
+      transcript = await transcribeAudioToText(apiKeys, imageBlobBase64, imageMimeType);
+    } catch (e) {
+      console.error("Gagal transkrip audio web chat:", e);
+    }
+    const combined = [msg.text, transcript].filter(Boolean).join(" ").trim();
+    if (combined) {
+      const handled = await handleAudioTranscriptAsQueryIfApplicable(
+        db,
+        apiKeys,
+        combined,
+        msg.from,
+        msg.messageId,
+        userId,
+      );
+      if (handled) return;
+    }
+    effectiveText = combined;
+  }
+
+  const parts: GeminiPart[] = isAudio
+    ? [{ text: `TEKS_BEBAS_DARI_USER: ${effectiveText}` }]
+    : [{ inlineData: { data: imageBlobBase64, mimeType: imageMimeType } }];
+  if (!isAudio && msg.text) {
     parts.push({ text: `TEKS_BEBAS_DARI_USER: ${msg.text}` });
   }
 
@@ -1917,7 +2026,7 @@ export async function handleWebChatImage(
     return;
   }
 
-  const mentionedWalletName = findMentionedWallet(msg.text || "", wallets);
+  const mentionedWalletName = findMentionedWallet(effectiveText, wallets);
   await processParsedItems(db, apiKeys, items, cats, wallets, msg.from, msg.messageId, mentionedWalletName, true, userId);
 }
 

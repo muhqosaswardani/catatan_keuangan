@@ -371,6 +371,33 @@ export async function parseTransactions(
 }
 
 // ============================================================
+// Transkripsi audio (voice note) ke teks polos.
+// Dipakai SEBELUM parseTransactions supaya voice note melewati alur
+// klasifikasi intent yang sama seperti pesan teks (cek saldo, query "?",
+// checklist, transfer, dll) — bukan langsung dianggap transaksi.
+// ============================================================
+
+export async function transcribeAudioToText(
+  apiKeys: string[],
+  base64Audio: string,
+  mimeType: string,
+): Promise<string> {
+  const promptText =
+    `Dengarkan rekaman suara (voice note) berikut dan transkripsikan PERSIS apa yang diucapkan ` +
+    `ke dalam teks Bahasa Indonesia apa adanya (tanpa menambah/mengurangi makna, tanpa tanda kutip, ` +
+    `tanpa penjelasan tambahan). Keluarkan HANYA teks transkripnya saja.`;
+
+  const parts: GeminiPart[] = [
+    { text: promptText },
+    { inlineData: { data: base64Audio, mimeType } },
+  ];
+
+  const data = await callGeminiRaw(apiKeys, parts, 0.1);
+  const text = extractGeminiText(data);
+  return text.trim().replace(/^["']|["']$/g, "");
+}
+
+// ============================================================
 // Panggil Gemini untuk parse edit instruction (reply-to-edit/delete)
 // ============================================================
 

@@ -5239,20 +5239,67 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--surface-2);
-      border-radius: 10px;
-      padding: 9px 12px;
+      gap: 10px;
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 13px;
       margin-bottom: 8px;
-      font-size: 12.5px;
+      box-shadow: 0 1px 3px rgba(21, 37, 36, .05);
+    }
+    .apikey-row span {
+      font-size: 13px;
       font-weight: 600;
+      color: var(--ink);
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
     }
     .apikey-row button {
-      background: none;
+      background: rgba(196, 69, 59, .1);
       border: none;
       color: var(--expense);
       font-weight: 700;
       cursor: pointer;
       font-size: 12px;
+      padding: 7px 12px;
+      border-radius: 9px;
+      flex-shrink: 0;
+      transition: opacity .15s ease, transform .1s ease;
+    }
+    .apikey-row button:active {
+      opacity: .7;
+      transform: scale(.96);
+    }
+    .apikey-add-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .apikey-add-row input {
+      width: auto;
+      flex: 1 1 auto;
+      min-width: 0;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 13px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--surface);
+    }
+    .apikey-add-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .apikey-add-row .btn {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      padding: 12px 14px;
+      font-size: 13.5px;
     }
     .type-toggle {
       display: flex;
@@ -7445,7 +7492,7 @@
           <div id="userKeyList"></div>
           <div class="field" style="margin-top:14px;">
             <label>Tambah API Key Gemini Baru</label>
-            <div style="display:flex;gap:8px;">
+            <div class="apikey-add-row">
               <input type="text" id="inpUserKey" placeholder="AIzaSy...">
               <button class="btn btn-primary" onclick="addUserKey()">+ Tambah</button>
             </div>
@@ -8821,7 +8868,7 @@
           <div class="d">Jaminan lancar tanpa berebut kuota. 100% gratis dari Google AI Studio.</div>
           <div class="aikey-own-input" onclick="event.stopPropagation()">
             <div id="ownKeyListSlide" style="margin-bottom:8px;"></div>
-            <div style="display:flex;gap:8px;">
+            <div class="apikey-add-row">
               <input type="text" id="inpOwnKeySlide" placeholder="Masukkan API Key Gemini...">
               <button type="button" class="btn btn-primary" onclick="addOwnKeySlide()">+ Tambah</button>
             </div>
@@ -9579,7 +9626,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.28)';
+      const version = ' (v2.9.29)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
