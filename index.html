@@ -5607,8 +5607,7 @@
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.85;margin-bottom:6px;">Catatan Keuangan</div>
           <h1>Catat keuangan, cukup dari WhatsApp &amp; HP kamu</h1>
           <p>Coba gratis 7 hari fitur AI pencatat otomatis &amp; asisten WhatsApp. Fitur dasar catat transaksi tetap gratis selamanya.</p>
-          <button class="btn btn-primary btn-block" onclick="gotoScreen('screen-daftar')">Coba Aplikasinya, Gratis</button>
-          <div style="text-align:center;margin-top:10px;font-size:12.5px;">Sudah punya akun? <a onclick="gotoScreen('screen-masuk')" style="font-weight:600;cursor:pointer;">Masuk</a></div>
+          <button class="btn btn-primary btn-block" onclick="gotoScreen('screen-masuk')">Coba Gratis Sekarang</button>
         </div>
 
         <div class="screen-main" style="justify-content: flex-start;">
@@ -5669,8 +5668,8 @@
       <!-- 2) DAFTAR -->
       <div class="screen" id="screen-daftar">
         <div class="topbar-back">
-          <button class="icon-btn" onclick="gotoScreen('screen-promo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <h2>Daftar / Masuk Akun</h2>
+          <button class="icon-btn" onclick="gotoScreen('screen-masuk')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <h2>Daftar Akun</h2>
         </div>
 
         <div class="screen-main">
@@ -5683,6 +5682,11 @@
             <label>Nomor WhatsApp Aktif</label>
             <input type="tel" id="inpWa" placeholder="Masukkan nomor WhatsApp" oninput="clearErr('fieldWa')">
             <div class="err">Masukkan nomor WhatsApp yang valid.</div>
+          </div>
+          <div class="field" id="fieldDaftarPassword">
+            <label>Buat Kata Sandi</label>
+            <input type="password" id="inpDaftarPassword" placeholder="Minimal 8 karakter" oninput="clearErr('fieldDaftarPassword')">
+            <div class="err">Kata sandi minimal 8 karakter.</div>
           </div>
           <div class="field" id="fieldTokenTrial">
             <label>Token Aktivasi / Token Trial (Opsional)</label>
@@ -8188,6 +8192,7 @@
     let onboardingState = {
       nama: '',
       wa: '',
+      password: '',
       token: '',
       verifCode: '',
       pollingInterval: null,
@@ -8233,11 +8238,13 @@
     async function submitDaftar() {
       const nama = document.getElementById('inpNama').value.trim();
       const wa = document.getElementById('inpWa').value.trim();
+      const password = document.getElementById('inpDaftarPassword').value;
       const token = document.getElementById('inpTokenTrial').value.trim().toUpperCase();
 
       let ok = true;
       if (!nama) { markErr('fieldNama'); ok = false; } else { clearErr('fieldNama'); }
       if (!/^[0-9+]{9,15}$/.test(wa)) { markErr('fieldWa'); ok = false; } else { clearErr('fieldWa'); }
+      if (!password || password.length < 8) { markErr('fieldDaftarPassword'); ok = false; } else { clearErr('fieldDaftarPassword'); }
       if (!document.getElementById('chkAgree').checked) {
         showToast('Centang persetujuan Syarat & Kebijakan Privasi ya.');
         ok = false;
@@ -8246,6 +8253,7 @@
 
       onboardingState.nama = nama;
       onboardingState.wa = wa;
+      onboardingState.password = password;
       onboardingState.token = token;
       onboardingState.verifMode = 'daftar';
 
@@ -8262,7 +8270,7 @@
         const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/start-registration`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nomor_wa: wa, nama: nama, token: token || null })
+          body: JSON.stringify({ nomor_wa: wa, nama: nama, password: password, token: token || null })
         });
         const data = await res.json();
         if (!res.ok || data.error) {
@@ -8335,7 +8343,7 @@
           const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/check-verification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nomor_wa: onboardingState.wa })
+            body: JSON.stringify({ nomor_wa: onboardingState.wa, mode: onboardingState.verifMode })
           });
           const data = await res.json();
           if (data && data.verified) {
@@ -8363,7 +8371,41 @@
         onboardingState.pollingInterval = null;
       }
 
-      // Ambil setup token untuk layar "Buat Kata Sandi" (kode WA sudah diverifikasi sebelumnya)
+      // Alur Daftar: password sudah dibuat sejak awal, langsung sign in & lanjut onboarding.
+      if (onboardingState.verifMode === 'daftar') {
+        try {
+          const email = `${normalizeWaNumber(onboardingState.wa)}@kaslyai.local`;
+          const loginRes = await supabaseClient.auth.signInWithPassword({
+            email,
+            password: onboardingState.password
+          });
+
+          if (loginRes.error) {
+            showToast(`Login gagal: ${loginRes.error.message}`);
+            return;
+          }
+
+          currentUserId = loginRes.data.user.id;
+
+          // User baru — bersihkan cache lokal lama & mulai onboarding dari awal
+          Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+          localStorage.removeItem('catatan_keuangan_access_code');
+          localStorage.removeItem(LS_KEYS.onboarded);
+          userKeys = [];
+          onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
+          onboardingCategories = [];
+
+          onboardingState.introIdx = 0;
+          renderIntro();
+          gotoScreen('screen-intro');
+        } catch (err) {
+          console.error(err);
+          showToast('Gagal memproses verifikasi.');
+        }
+        return;
+      }
+
+      // Alur Lupa Kata Sandi: ambil setup token untuk layar "Buat Kata Sandi"
       try {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/complete-verification`, {
           method: 'POST',
@@ -8433,25 +8475,11 @@
 
         currentUserId = loginRes.data.user.id;
 
-        if (onboardingState.verifMode === 'reset') {
-          // User lama (lupa kata sandi) — langsung ke dashboard, tanpa onboarding ulang
-          document.getElementById('auth-onboarding').classList.remove('open');
-          showToast('Kata sandi baru berhasil dibuat.');
-          init();
-          return;
-        }
-
-        // Alur Daftar (user baru) — lanjut ke onboarding lengkap
-        Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
-        localStorage.removeItem('catatan_keuangan_access_code');
-        localStorage.removeItem(LS_KEYS.onboarded);
-        userKeys = [];
-        onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
-        onboardingCategories = [];
-
-        onboardingState.introIdx = 0;
-        renderIntro();
-        gotoScreen('screen-intro');
+        // Layar ini sekarang cuma dipakai untuk alur Lupa Kata Sandi — user lama,
+        // langsung ke dashboard tanpa onboarding ulang.
+        document.getElementById('auth-onboarding').classList.remove('open');
+        showToast('Kata sandi baru berhasil dibuat.');
+        init();
 
       } catch (err) {
         console.error(err);
@@ -9376,7 +9404,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.7)';
+      const version = ' (v2.9.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {

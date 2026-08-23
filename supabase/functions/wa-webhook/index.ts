@@ -362,13 +362,16 @@ async function verifyOtpViaChat(
 
   await db.from("verifikasi_wa").delete().eq("kode", otpCode);
 
-  // Password TIDAK pernah dibuat otomatis dan TIDAK pernah dikirim via WA.
-  // User akan membuat kata sandinya sendiri di aplikasi web menggunakan setup token ini.
-  await issuePasswordSetupToken(db, user.id);
-
-  const confirmationMsg = isNewRegistration
-    ? `Verifikasi berhasil! Akun KaslyAI Anda telah aktif.\n\nSilakan kembali ke aplikasi web KaslyAI untuk membuat kata sandi Anda sendiri.`
-    : `Verifikasi berhasil! Silakan kembali ke aplikasi web KaslyAI untuk membuat kata sandi baru Anda.`;
+  let confirmationMsg: string;
+  if (isNewRegistration) {
+    // Password sudah dibuat sendiri oleh user sejak form Daftar — tidak perlu setup token lagi.
+    confirmationMsg = `Verifikasi berhasil! Akun KaslyAI Anda telah aktif.\n\nSilakan login di aplikasi web KaslyAI menggunakan nomor WhatsApp dan kata sandi yang tadi Anda buat.`;
+  } else {
+    // Alur Lupa Kata Sandi: user belum kirim kata sandi baru manapun, jadi terbitkan setup token
+    // supaya mereka bisa membuat kata sandi baru di aplikasi.
+    await issuePasswordSetupToken(db, user.id);
+    confirmationMsg = `Verifikasi berhasil! Silakan kembali ke aplikasi web KaslyAI untuk membuat kata sandi baru Anda.`;
+  }
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg, replyToMsgId);
 
   return true;
@@ -429,9 +432,16 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        const { nomor_wa, nama, token } = payload;
-        if (!nomor_wa || !nama) {
-          return new Response(JSON.stringify({ error: "Nomor WA dan Nama wajib diisi." }), {
+        const { nomor_wa, nama, password, token } = payload;
+        if (!nomor_wa || !nama || !password) {
+          return new Response(JSON.stringify({ error: "Nomor WA, Nama, dan Kata Sandi wajib diisi." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        if (typeof password !== "string" || password.length < 8) {
+          return new Response(JSON.stringify({ error: "Kata sandi minimal 8 karakter." }), {
             status: 400,
             headers: corsHeaders,
           });
@@ -474,19 +484,11 @@ Deno.serve(async (req: Request) => {
         const otpCode = generateOtpCode();
         const email = `${nomorWa}@kaslyai.local`;
         let userId: string;
-        // passwordTemp di sini HANYA placeholder internal untuk memenuhi requirement Supabase Auth
-        // (createUser/updateUserById butuh sebuah password). User TIDAK PERNAH melihat/memakai ini —
-        // kata sandi asli dibuat sendiri oleh user lewat alur "Buat Kata Sandi" setelah verifikasi WA.
-        let passwordTemp: string;
 
         if (existingUser && existingUser.status_verifikasi === "pending") {
           userId = existingUser.id;
-          passwordTemp = generateTempPassword();
-          const { data: authUser } = await db.auth.admin.getUserById(userId);
-          const userMeta = authUser?.user?.user_metadata || {};
           const { error: updateAuthErr } = await db.auth.admin.updateUserById(userId, {
-            password: passwordTemp,
-            user_metadata: { ...userMeta, password_temp: passwordTemp }
+            password
           });
           if (updateAuthErr) {
             return new Response(JSON.stringify({ error: `Gagal memperbarui auth: ${updateAuthErr.message}` }), {
@@ -498,12 +500,11 @@ Deno.serve(async (req: Request) => {
             await db.from("users").update({ token_dipakai: token, trial_lama_hari: 30 }).eq("id", userId);
           }
         } else {
-          passwordTemp = generateTempPassword();
           const { data: authData, error: authErr } = await db.auth.admin.createUser({
             email,
-            password: passwordTemp,
+            password,
             email_confirm: true,
-            user_metadata: { nama, nomor_wa: nomorWa, password_temp: passwordTemp }
+            user_metadata: { nama, nomor_wa: nomorWa }
           });
 
           if (authErr || !authData?.user) {
@@ -538,7 +539,7 @@ Deno.serve(async (req: Request) => {
         const { error: verifErr } = await db.from("verifikasi_wa").upsert({
           kode: otpCode,
           nomor_wa: nomorWa,
-          password_temp: passwordTemp,
+          password_temp: generateTempPassword(), // placeholder, kolom NOT NULL, tidak dipakai untuk auth (password asli sudah diset dari form Daftar)
           status: "pending",
           created_at: new Date().toISOString(),
           expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
@@ -577,7 +578,7 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        const { nomor_wa } = payload;
+        const { nomor_wa, mode } = payload;
         if (!nomor_wa) {
           return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
             status: 400,
@@ -600,15 +601,19 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        // Untuk user baru, status_verifikasi baru jadi 'verified' setelah kode WA diproses.
-        // Untuk alur Lupa Kata Sandi, status_verifikasi sudah 'verified' dari sebelumnya, jadi
-        // yang jadi penanda "kode WA baru saja dikonfirmasi" adalah setup token yang masih fresh
-        // (diterbitkan oleh verifyOtpViaChat pada saat itu juga).
-        const hasFreshSetupToken = !!user.password_setup_token &&
-          !!user.password_setup_expires_at &&
-          new Date(user.password_setup_expires_at) > new Date();
-
-        const verified = user.status_verifikasi === "verified" && hasFreshSetupToken;
+        let verified: boolean;
+        if (mode === "reset") {
+          // Untuk alur Lupa Kata Sandi, status_verifikasi sudah 'verified' dari sebelumnya, jadi
+          // yang jadi penanda "kode WA baru saja dikonfirmasi" adalah setup token yang masih fresh
+          // (diterbitkan oleh verifyOtpViaChat pada saat itu juga).
+          const hasFreshSetupToken = !!user.password_setup_token &&
+            !!user.password_setup_expires_at &&
+            new Date(user.password_setup_expires_at) > new Date();
+          verified = user.status_verifikasi === "verified" && hasFreshSetupToken;
+        } else {
+          // Alur Daftar: status_verifikasi baru jadi 'verified' persis pada saat kode WA diproses.
+          verified = user.status_verifikasi === "verified";
+        }
 
         return new Response(JSON.stringify({ verified }), {
           status: 200,
