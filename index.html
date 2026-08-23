@@ -6949,6 +6949,34 @@
             <div class="err">Pilih kategori</div>
             <div class="quick-chip-row" id="txCategoryQuickRow"></div>
           </div>
+          <div class="field" id="txDebtBlock" style="display:none;">
+            <label>Utang Piutang</label>
+            <div class="type-toggle" style="margin-bottom:10px;">
+              <button type="button" data-mode="new" class="active" onclick="setTxDebtMode('new')">Catatan Baru</button>
+              <button type="button" data-mode="payoff" onclick="setTxDebtMode('payoff')">Bayar/Cicil</button>
+            </div>
+            <div id="txDebtNewWrap">
+              <div class="field" id="txDebtPersonNameField" style="margin-bottom:0;">
+                <label>Nama Orang</label>
+                <input type="text" id="txDebtPersonName" placeholder="" list="debtPersonNamesList"
+                  autocomplete="off" autocorrect="off" spellcheck="false">
+                <div class="err">Nama orang wajib diisi</div>
+              </div>
+            </div>
+            <div id="txDebtPayoffWrap" style="display:none;">
+              <div class="field" id="txDebtPayoffField" style="margin-bottom:0;">
+                <label>Catatan Utang/Piutang</label>
+                <button type="button" class="picker-btn" id="txDebtPayoffBtn" onclick="openTxDebtPayoffPicker()">
+                  <span id="txDebtPayoffLabel" class="ph">Pilih catatan</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <div class="err">Pilih catatan yang mau dibayar</div>
+              </div>
+            </div>
+          </div>
           <div class="field">
             <label>Jumlah</label>
             <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="txAmount" inputmode="decimal"
@@ -9541,7 +9569,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.17)';
+      const version = ' (v2.9.18)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10033,22 +10061,6 @@
           let txsUpdated = false;
           const newTxs = [...currentTxs];
 
-          // Find or create "Utang Piutang" category
-          let cat = getCategories().find(c => c.name === 'Utang Piutang');
-          if (!cat) {
-            const catId = 'cat_' + uid();
-            const newCat = {
-              id: catId,
-              name: 'Utang Piutang',
-              type: 'expense',
-              icon: 'users',
-              color: '#3b82f6',
-              updatedAt: Date.now()
-            };
-            setCategories([...getCategories(), newCat]);
-            cat = newCat;
-          }
-
           for (const d of currentDebts) {
             if (d.status === 'belum' || d.status === 'active') {
               const txId = 'tx_debt_' + d.id;
@@ -10061,6 +10073,7 @@
                   const txType = isUtang ? 'income' : 'expense';
                   const typeLabel = isUtang ? 'Utang Baru ke' : 'Piutang Baru ke';
                   const txNote = `${typeLabel} ${d.personName}: ${d.note || ''}`.trim();
+                  const cat = getOrCreateDebtCategory(txType);
                   newTxs.push({
                     id: txId,
                     walletId: wId,
@@ -10541,6 +10554,38 @@
       }
 
       localStorage.setItem('wallets_redesign_migrated', '1');
+    }
+
+    function migrateDebtSchemaLegacyWa() {
+      if (localStorage.getItem('debt_schema_wa_migrated')) return;
+
+      const debts = getDebts();
+      let changed = false;
+
+      const updated = debts.map(d => {
+        // Entri lama dari WhatsApp bot: ada person_name (snake_case) tapi personName kosong -> perlu dinormalisasi
+        if (d.person_name && !d.personName) {
+          changed = true;
+          const nd = { ...d };
+          nd.personName = d.person_name;
+          delete nd.person_name;
+          if (nd.type === 'i_owe') nd.type = 'utang';
+          else if (nd.type === 'owed_to_me') nd.type = 'piutang';
+          if (nd.status === 'active') nd.status = 'belum';
+          else if (nd.status !== 'lunas' && nd.status !== 'belum') nd.status = 'belum';
+          if (nd.payoff_wallet_id !== undefined) { nd.payoffWalletId = nd.payoff_wallet_id; delete nd.payoff_wallet_id; }
+          if (nd.payoff_date !== undefined) { nd.payoffDate = nd.payoff_date; delete nd.payoff_date; }
+          nd.updatedAt = Date.now();
+          return nd;
+        }
+        return d;
+      });
+
+      if (changed) {
+        setDebts(updated); // ikut ke-push ulang ke Supabase dgn skema & nama yang sudah benar
+      }
+
+      localStorage.setItem('debt_schema_wa_migrated', '1');
     }
 
     /* =========================================================
@@ -13036,6 +13081,8 @@
        ========================================================= */
     let currentTxType = 'expense';
     let txWalletValue = null, txCategoryValue = null;
+    let txDebtMode = 'new'; // 'new' | 'payoff' — dipakai saat kategori dipilih = "Utang Piutang"
+    let txDebtPayoffId = null; // id catatan debts yang dipilih di mode "Bayar/Cicil"
 
     function chooseAddTransaction() {
       closeModalUI('modalAddChoice');
@@ -14670,8 +14717,65 @@
       updateTxCategoryLabel();
       renderTxCategoryQuickChips();
       renderTxAmountQuickChips();
+      txDebtMode = 'new';
+      txDebtPayoffId = null;
+      document.getElementById('txDebtPersonName').value = '';
+      updateTxDebtBlockVisibility();
       clearInvalid('modalTransaction');
       if (opts && opts.skipOpen) { openModalUI('modalTransaction'); } else { openModal('modalTransaction'); }
+    }
+
+    // Tampil/sembunyi blok Utang Piutang di form Tambah Transaksi, tergantung kategori yang dipilih
+    function updateTxDebtBlockVisibility() {
+      const cat = categoryById(txCategoryValue);
+      const isDebtCategory = !!(cat && cat.name === 'Utang Piutang');
+      const block = document.getElementById('txDebtBlock');
+      if (block) block.style.display = isDebtCategory ? '' : 'none';
+      if (isDebtCategory) {
+        populateDebtPersonDatalist();
+        setTxDebtMode(txDebtMode || 'new');
+      }
+    }
+
+    function setTxDebtMode(mode) {
+      txDebtMode = mode;
+      document.querySelectorAll('#txDebtBlock .type-toggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+      document.getElementById('txDebtNewWrap').style.display = mode === 'new' ? '' : 'none';
+      document.getElementById('txDebtPayoffWrap').style.display = mode === 'payoff' ? '' : 'none';
+      if (mode === 'payoff') {
+        txDebtPayoffId = null;
+        updateTxDebtPayoffLabel();
+      }
+    }
+
+    // Kandidat catatan utang/piutang aktif yang bisa dibayar/dicicil, difilter sesuai arah transaksi:
+    // Pengeluaran -> hanya catatan 'utang' (melunasi utang sendiri = uang keluar)
+    // Pemasukan -> hanya catatan 'piutang' (menerima pelunasan dari orang lain = uang masuk)
+    function getTxDebtPayoffCandidates() {
+      const wantType = currentTxType === 'income' ? 'piutang' : 'utang';
+      return getDebts().filter(d => d.status !== 'lunas' && d.type === wantType);
+    }
+
+    function openTxDebtPayoffPicker() {
+      const candidates = getTxDebtPayoffCandidates();
+      const options = candidates.map(d => ({
+        value: d.id,
+        label: `${d.personName} — ${formatRupiah(d.amount)}${d.note ? ' (' + d.note + ')' : ''}`
+      }));
+      openPicker('Pilih Catatan Utang/Piutang', options, txDebtPayoffId, v => { txDebtPayoffId = v; updateTxDebtPayoffLabel(); });
+    }
+
+    function updateTxDebtPayoffLabel() {
+      const d = getDebts().find(x => x.id === txDebtPayoffId);
+      const el = document.getElementById('txDebtPayoffLabel');
+      if (!el) return;
+      if (d) {
+        el.textContent = `${d.personName} — Sisa ${formatRupiah(d.amount)}`;
+        el.classList.remove('ph');
+      } else {
+        el.textContent = 'Pilih catatan';
+        el.classList.add('ph');
+      }
     }
 
     function updateTxWalletLabel() {
@@ -14727,6 +14831,7 @@
             txCategoryValue = row.dataset.id;
             updateTxCategoryLabel();
             renderTxCategoryQuickChips();
+            updateTxDebtBlockVisibility();
             closeModal('modalPicker');
           });
         });
@@ -14743,6 +14848,7 @@
       txCategoryValue = newCat.id;
       updateTxCategoryLabel();
       renderTxCategoryQuickChips();
+      updateTxDebtBlockVisibility();
       showToast('Kategori "' + name + '" ditambahkan');
       closeModal('modalPicker');
     }
@@ -14753,6 +14859,7 @@
       if (refreshCats) { populateTxCategoryOptions(); updateTxCategoryLabel(); }
       renderTxCategoryQuickChips();
       renderTxAmountQuickChips();
+      updateTxDebtBlockVisibility();
     }
 
     function populateTxCategoryOptions() {
@@ -14772,17 +14879,38 @@
       const date = document.getElementById('txDate').value || todayStr();
       const note = document.getElementById('txNote').value.trim();
       const excludeFromReport = document.getElementById('txExcludeFromReport').checked;
+      const cat = categoryById(categoryId);
+      const txId = document.getElementById('txId').value;
+      // Trigger Utang Piutang dari form Tambah Transaksi biasa: hanya berlaku utk transaksi BARU
+      // (edit transaksi lama yg kebetulan berkategori Utang Piutang tetap diperlakukan sbg edit biasa)
+      const isNewDebtTx = !!(cat && cat.name === 'Utang Piutang') && !txId;
+
       let valid = true;
       if (!walletId) { document.getElementById('txWalletField').classList.add('invalid'); valid = false; }
       if (!categoryId) { document.getElementById('txCategoryField').classList.add('invalid'); valid = false; }
       if (!(amount > 0)) { document.getElementById('txAmount').closest('.field').classList.add('invalid'); valid = false; }
+      if (isNewDebtTx) {
+        if (txDebtMode === 'new') {
+          if (!document.getElementById('txDebtPersonName').value.trim()) {
+            document.getElementById('txDebtPersonNameField').classList.add('invalid'); valid = false;
+          }
+        } else {
+          if (!txDebtPayoffId) {
+            document.getElementById('txDebtPayoffField').classList.add('invalid'); valid = false;
+          }
+        }
+      }
       if (!valid) { showToast('Lengkapi form terlebih dahulu'); return; }
 
-      const cat = categoryById(categoryId);
-      const txId = document.getElementById('txId').value;
       const payload = { walletId, categoryId, category: cat ? cat.name : '', type: currentTxType, amount, date, note, toWalletId: null, excludeFromReport };
 
-      if (txId) {
+      if (isNewDebtTx) {
+        if (txDebtMode === 'new') {
+          submitTxDebtNewFromTransactionForm(payload);
+        } else {
+          submitTxDebtPayoffFromTransactionForm(payload);
+        }
+      } else if (txId) {
         editTransaction(txId, payload);
         showToast('Transaksi diperbarui');
       } else {
@@ -14791,6 +14919,104 @@
       }
       closeModal('modalTransaction');
       refreshAllViews();
+    }
+
+    // Mode "Catatan Baru": setara submitDebtForm, tapi dipicu dari modal Tambah Transaksi
+    // (pakai dompet/tanggal/jumlah/catatan dari form transaksi, bukan field terpisah)
+    function submitTxDebtNewFromTransactionForm(payload) {
+      const personName = document.getElementById('txDebtPersonName').value.trim();
+      // Pemasukan + Utang Piutang = Utang baru (menerima pinjaman -> uang masuk)
+      // Pengeluaran + Utang Piutang = Piutang baru (memberi pinjaman -> uang keluar)
+      const debtType = payload.type === 'income' ? 'utang' : 'piutang';
+      const typeLabel = debtType === 'utang' ? 'Utang Baru ke' : 'Piutang Baru ke';
+      const txNote = payload.note ? `${typeLabel} ${personName}: ${payload.note}` : `${typeLabel} ${personName}`;
+
+      const debtId = uid();
+      const txRecord = {
+        id: 'tx_debt_' + debtId,
+        walletId: payload.walletId,
+        categoryId: payload.categoryId,
+        category: 'Utang Piutang',
+        type: payload.type,
+        amount: payload.amount,
+        date: payload.date,
+        note: txNote,
+        updatedAt: Date.now()
+      };
+      setTransactions([...getTransactions(), txRecord]);
+
+      const debts = getDebts();
+      debts.push({
+        id: debtId, personName, type: debtType, amount: payload.amount, date: payload.date,
+        note: payload.note || '', dueDate: '', status: 'belum', updatedAt: Date.now()
+      });
+      setDebts(debts);
+
+      recalculateWalletBalances();
+      syncAllWithSupabase(true);
+      showToast('Catatan ' + (debtType === 'utang' ? 'utang' : 'piutang') + ' baru tersimpan');
+    }
+
+    // Mode "Bayar/Cicil": setara executeChatDebtPayment, mendukung pelunasan sebagian/cicilan
+    // (bukan cuma lunas penuh seperti submitDebtPayoff), dipicu dari modal Tambah Transaksi
+    function submitTxDebtPayoffFromTransactionForm(payload) {
+      const debts = getDebts();
+      const dbEntry = debts.find(d => d.id === txDebtPayoffId);
+      if (!dbEntry) { showToast('Catatan utang/piutang tidak ditemukan'); return; }
+
+      const payAmount = payload.amount;
+      const currentAmt = Number(dbEntry.amount) || 0;
+      const diff = currentAmt - payAmount;
+      let noteLabel, toastMsg;
+
+      if (diff <= 0) {
+        const txIdForPayoff = uid();
+        dbEntry.status = 'lunas';
+        dbEntry.payoffWalletId = payload.walletId;
+        dbEntry.payoffDate = payload.date;
+        dbEntry.payoffTxId = txIdForPayoff;
+        dbEntry.amount = 0;
+        dbEntry.updatedAt = Date.now();
+        noteLabel = dbEntry.type === 'utang' ? `Pelunasan utang ke ${dbEntry.personName}` : `Pelunasan piutang dari ${dbEntry.personName}`;
+        toastMsg = 'Ditandai lunas & tercatat di transaksi';
+
+        if (diff < 0) {
+          const overpay = Math.abs(diff);
+          const reverseType = dbEntry.type === 'utang' ? 'piutang' : 'utang';
+          debts.push({
+            id: uid(), personName: dbEntry.personName, type: reverseType, amount: overpay,
+            date: payload.date, note: `Kelebihan pembayaran untuk "${dbEntry.note || ''}"`,
+            dueDate: '', status: 'belum', updatedAt: Date.now()
+          });
+          toastMsg += `. Kelebihan ${formatRupiah(overpay)} dicatat sebagai catatan baru arah sebaliknya`;
+        }
+
+        setDebts(debts);
+
+        const txRecord = {
+          id: txIdForPayoff, walletId: payload.walletId, categoryId: payload.categoryId, category: 'Utang Piutang',
+          type: payload.type, amount: payAmount, date: payload.date,
+          note: payload.note ? `${noteLabel}: ${payload.note}` : noteLabel, updatedAt: Date.now()
+        };
+        setTransactions([...getTransactions(), txRecord]);
+      } else {
+        dbEntry.amount = diff;
+        dbEntry.updatedAt = Date.now();
+        noteLabel = dbEntry.type === 'utang' ? `Cicilan utang ke ${dbEntry.personName}` : `Cicilan piutang dari ${dbEntry.personName}`;
+        toastMsg = 'Cicilan tersimpan. Sisa: ' + formatRupiah(diff);
+        setDebts(debts);
+
+        const txRecord = {
+          id: uid(), walletId: payload.walletId, categoryId: payload.categoryId, category: 'Utang Piutang',
+          type: payload.type, amount: payAmount, date: payload.date,
+          note: payload.note ? `${noteLabel}: ${payload.note}` : noteLabel, updatedAt: Date.now()
+        };
+        setTransactions([...getTransactions(), txRecord]);
+      }
+
+      recalculateWalletBalances();
+      syncAllWithSupabase(true);
+      showToast(toastMsg);
     }
 
     async function deleteCurrentTransaction() {
@@ -15424,26 +15650,13 @@
       const id = document.getElementById('debtId').value || uid();
       const debts = getDebts();
 
-      // Find or create "Utang Piutang" category
-      let cat = getCategories().find(c => c.name === 'Utang Piutang');
-      if (!cat) {
-        const catId = 'cat_' + uid();
-        const newCat = {
-          id: catId,
-          name: 'Utang Piutang',
-          type: 'expense',
-          icon: 'users',
-          color: '#3b82f6',
-          updatedAt: Date.now()
-        };
-        setCategories([...getCategories(), newCat]);
-        cat = newCat;
-      }
-
       // Determine transaction type
       const txType = currentDebtFormType === 'utang' ? 'income' : 'expense';
       const typeLabel = currentDebtFormType === 'utang' ? 'Utang Baru ke' : 'Piutang Baru ke';
       const txNote = `${typeLabel} ${personName}: ${note}`.trim();
+
+      // Find or create "Utang Piutang" category, difilter by type (expense/income) - fix bug lama yg selalu ambil kategori pertama tanpa peduli type
+      const cat = getOrCreateDebtCategory(txType);
 
       // Create/update transaction record
       const txId = 'tx_debt_' + id;
@@ -18371,7 +18584,7 @@
         chatPendingReplyToTxId = txId;
         chatPendingReplyToMsgId = msgId || null;
         if (banner && bannerContent) {
-          const nameStr = tx ? (tx.note || 'Transaksi') : (debt ? `Utang ${debt.person_name}` : 'Transaksi');
+          const nameStr = tx ? (tx.note || 'Transaksi') : (debt ? `Utang ${debt.personName}` : 'Transaksi');
           const amtStr = tx ? formatRupiah(tx.amount) : (debt ? formatRupiah(debt.amount) : '');
           const detailsStr = amtStr ? ` (${amtStr})` : '';
           bannerContent.innerHTML = `Membalas transaksi: <strong>${nameStr}${detailsStr}</strong>`;
@@ -19264,7 +19477,8 @@ Keluarkan JSON dengan schema:
       const isPayment = !!intentDebt.is_payment;
       const amount = intentDebt.amount;
       const note = intentDebt.note || "";
-      const type = intentDebt.type; // "i_owe" atau "owed_to_me"
+      // Skema kanonik lokal (samain dgn Tab Utang Piutang): 'utang' | 'piutang', bukan 'i_owe'/'owed_to_me'
+      const debtType = intentDebt.type === 'i_owe' ? 'utang' : (intentDebt.type === 'owed_to_me' ? 'piutang' : null);
 
       if (!personName) {
         appendChatBubble('bot', `Mohon sebutkan nama orang terkait utang/piutang tersebut.`, Date.now());
@@ -19279,7 +19493,7 @@ Keluarkan JSON dengan schema:
       const debts = getDebts();
 
       if (isPayment) {
-        const activeEntries = debts.filter(d => d.person_name.toLowerCase() === personName.toLowerCase() && d.status === "active");
+        const activeEntries = debts.filter(d => d.personName && d.personName.toLowerCase() === personName.toLowerCase() && d.status !== "lunas");
         if (activeEntries.length === 0) {
           appendChatBubble('bot', `Tidak ditemukan catatan utang/piutang aktif untuk nama "${personName}".`, Date.now());
           return true;
@@ -19288,7 +19502,7 @@ Keluarkan JSON dengan schema:
         if (activeEntries.length > 1) {
           let optionsText = `Ada lebih dari satu catatan utang/piutang aktif untuk "${personName}". Pilih transaksi mana yang mau dilunasi/dicicil:\n\n`;
           activeEntries.forEach((c, idx) => {
-            const typeLabel = c.type === 'i_owe' ? 'Saya Utang ke Dia' : 'Dia Utang ke Saya';
+            const typeLabel = c.type === 'utang' ? 'Saya Utang ke Dia' : 'Dia Utang ke Saya';
             optionsText += `${idx + 1}. ${typeLabel}: ${formatRupiah(c.amount)} (${c.note || 'tanpa catatan'})\n`;
           });
 
@@ -19308,7 +19522,7 @@ Keluarkan JSON dengan schema:
         await executeChatDebtPayment(activeEntries[0], amount, note);
         return true;
       } else {
-        if (!type) {
+        if (!debtType) {
           appendChatBubble('bot', `Mohon perjelas: Kamu meminjam uang (utang) atau memberikan pinjaman (piutang)?`, Date.now());
           return true;
         }
@@ -19317,12 +19531,12 @@ Keluarkan JSON dengan schema:
         debts.push({
           id: debtId,
           access_code: getAccessCode(),
-          person_name: personName,
-          type: type,
+          personName: personName,
+          type: debtType,
           amount: amount,
           date: todayStr(),
           note: note,
-          status: "active",
+          status: "belum",
           createdAt: Date.now(),
           updatedAt: Date.now()
         });
@@ -19333,7 +19547,7 @@ Keluarkan JSON dengan schema:
         const wallets = getWallets();
         const primaryW = wallets.find(w => w.isPrimary) || wallets[0];
 
-        const txType = type === 'i_owe' ? 'income' : 'expense';
+        const txType = debtType === 'utang' ? 'income' : 'expense';
         const catId = matchCategoryByName("Utang Piutang", txType);
 
         const newTx = {
@@ -19345,7 +19559,7 @@ Keluarkan JSON dengan schema:
           type: txType,
           amount: amount,
           date: todayStr(),
-          note: type === 'i_owe' ? `Utang baru ke ${personName}: ${note}` : `Piutang baru ke ${personName}: ${note}`,
+          note: debtType === 'utang' ? `Utang baru ke ${personName}: ${note}` : `Piutang baru ke ${personName}: ${note}`,
           source: "whatsapp",
           createdAt: Date.now(),
           updatedAt: Date.now()
@@ -19357,7 +19571,7 @@ Keluarkan JSON dengan schema:
         refreshAllViews();
         syncAllWithSupabase(true);
 
-        const label = type === 'i_owe' ? `Berhasil mencatat *utang baru* ke *${personName}*` : `Berhasil mencatat *piutang baru* ke *${personName}*`;
+        const label = debtType === 'utang' ? `Berhasil mencatat *utang baru* ke *${personName}*` : `Berhasil mencatat *piutang baru* ke *${personName}*`;
         appendChatBubble('bot', `${label} sebesar *${formatRupiah(amount)}*! ✓`, Date.now(), null, debtId);
         return true;
       }
@@ -19377,25 +19591,25 @@ Keluarkan JSON dengan schema:
 
       if (diff <= 0) {
         dbEntry.status = "lunas";
-        dbEntry.payoff_wallet_id = primaryW?.id || 'wallet_utama';
-        dbEntry.payoff_date = todayStr();
+        dbEntry.payoffWalletId = primaryW?.id || 'wallet_utama';
+        dbEntry.payoffDate = todayStr();
         dbEntry.amount = 0;
         dbEntry.updatedAt = Date.now();
 
-        resultMsg = `Berhasil melunasi utang/piutang ke *${entry.person_name}*! ✓`;
+        resultMsg = `Berhasil melunasi utang/piutang ke *${entry.personName}*! ✓`;
 
         if (diff < 0) {
           const overpay = Math.abs(diff);
-          const reverseType = entry.type === "i_owe" ? "owed_to_me" : "i_owe";
+          const reverseType = entry.type === "utang" ? "piutang" : "utang";
           debts.push({
             id: 'debt_' + uid(),
             access_code: getAccessCode(),
-            person_name: entry.person_name,
+            personName: entry.personName,
             type: reverseType,
             amount: overpay,
             date: todayStr(),
             note: `Kelebihan pembayaran untuk "${entry.note || ''}"`,
-            status: "active",
+            status: "belum",
             createdAt: Date.now(),
             updatedAt: Date.now()
           });
@@ -19404,12 +19618,12 @@ Keluarkan JSON dengan schema:
       } else {
         dbEntry.amount = diff;
         dbEntry.updatedAt = Date.now();
-        resultMsg = `Berhasil membayar cicilan utang/piutang ke *${entry.person_name}* sebesar *${formatRupiah(payAmount)}*. Sisa utang saat ini: *${formatRupiah(diff)}*. ✓`;
+        resultMsg = `Berhasil membayar cicilan utang/piutang ke *${entry.personName}* sebesar *${formatRupiah(payAmount)}*. Sisa utang saat ini: *${formatRupiah(diff)}*. ✓`;
       }
 
       setDebtsLocalOnly(debts);
 
-      const txType = entry.type === 'i_owe' ? 'expense' : 'income';
+      const txType = entry.type === 'utang' ? 'expense' : 'income';
       const catId = matchCategoryByName("Utang Piutang", txType);
       const txs = getTransactions();
       const txId = 'tx_' + uid();
@@ -19422,7 +19636,7 @@ Keluarkan JSON dengan schema:
         type: txType,
         amount: payAmount,
         date: todayStr(),
-        note: entry.type === 'i_owe' ? `Cicilan utang ke ${entry.person_name}: ${note}` : `Pelunasan piutang dari ${entry.person_name}: ${note}`,
+        note: entry.type === 'utang' ? `Cicilan utang ke ${entry.personName}: ${note}` : `Pelunasan piutang dari ${entry.personName}: ${note}`,
         source: "whatsapp",
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -20485,14 +20699,14 @@ Keluarkan JSON dengan schema:
             setDebtsLocalOnly(updatedDebts);
 
             const txs = getTransactions();
-            const updatedTxs = txs.filter(t => !t.note.includes(debtData.person_name) || t.category !== "Utang Piutang");
+            const updatedTxs = txs.filter(t => !t.note.includes(debtData.personName) || t.category !== "Utang Piutang");
             setTransactionsLocalOnly(updatedTxs);
 
             recalculateWalletBalances();
             refreshAllViews();
             syncAllWithSupabase(true);
 
-            appendChatBubble('bot', `Catatan utang ${debtData.person_name} sebesar ${formatRupiah(debtData.amount)} berhasil dihapus.`, Date.now());
+            appendChatBubble('bot', `Catatan utang ${debtData.personName} sebesar ${formatRupiah(debtData.amount)} berhasil dihapus.`, Date.now());
           } else {
             appendChatBubble('bot', `Catatan utang tidak ditemukan atau sudah dihapus.`, Date.now());
           }
@@ -20582,21 +20796,21 @@ Keluarkan JSON dengan schema:
             if (personMatch) {
               const personName = personMatch[1];
               const debts = getDebts();
-              const personDebts = debts.filter(d => d.person_name.toLowerCase() === personName.toLowerCase());
+              const personDebts = debts.filter(d => d.personName && d.personName.toLowerCase() === personName.toLowerCase());
 
               if (personDebts.length > 0) {
-                const payoffEntry = personDebts.find(d => d.status === "lunas" && d.payoff_date === txData.date);
+                const payoffEntry = personDebts.find(d => d.status === "lunas" && d.payoffDate === txData.date);
                 if (payoffEntry) {
-                  payoffEntry.status = "active";
-                  payoffEntry.payoff_wallet_id = null;
-                  payoffEntry.payoff_date = null;
+                  payoffEntry.status = "belum";
+                  payoffEntry.payoffWalletId = null;
+                  payoffEntry.payoffDate = null;
                   payoffEntry.updatedAt = Date.now();
 
-                  const reverseType = payoffEntry.type === "i_owe" ? "owed_to_me" : "i_owe";
-                  const idx = debts.findIndex(d => d.person_name.toLowerCase() === personName.toLowerCase() && d.type === reverseType && d.status === "active" && d.date === txData.date && d.note.includes("Kelebihan pembayaran"));
+                  const reverseType = payoffEntry.type === "utang" ? "piutang" : "utang";
+                  const idx = debts.findIndex(d => d.personName && d.personName.toLowerCase() === personName.toLowerCase() && d.type === reverseType && d.status !== "lunas" && d.date === txData.date && (d.note || '').includes("Kelebihan pembayaran"));
                   if (idx >= 0) debts.splice(idx, 1);
                 } else {
-                  const activeEntry = personDebts.find(d => d.status === "active");
+                  const activeEntry = personDebts.find(d => d.status !== "lunas");
                   if (activeEntry) {
                     activeEntry.amount = (Number(activeEntry.amount) || 0) + (Number(txData.amount) || 0);
                     activeEntry.updatedAt = Date.now();
@@ -20774,13 +20988,13 @@ Keluarkan JSON dengan schema:
         };
       });
 
-      const activeDebts = debtEntries.filter(d => d.status === "active");
+      const activeDebts = debtEntries.filter(d => d.status !== "lunas");
       const debtSummaryMap = {};
       for (const d of activeDebts) {
-        const person = d.person_name;
+        const person = d.personName;
         debtSummaryMap[person] = debtSummaryMap[person] || { I_owe: 0, owes_me: 0 };
         const amt = Number(d.amount) || 0;
-        if (d.type === "i_owe") {
+        if (d.type === "utang") {
           debtSummaryMap[person].I_owe += amt;
         } else {
           debtSummaryMap[person].owes_me += amt;
@@ -20794,10 +21008,10 @@ Keluarkan JSON dengan schema:
       }));
 
       const totalUtang = activeDebts
-        .filter(d => d.type === "i_owe")
+        .filter(d => d.type === "utang")
         .reduce((s, d) => s + (Number(d.amount) || 0), 0);
       const totalPiutang = activeDebts
-        .filter(d => d.type === "owed_to_me")
+        .filter(d => d.type === "piutang")
         .reduce((s, d) => s + (Number(d.amount) || 0), 0);
 
       const checklistList = recurringItems.map(item => {
@@ -21138,6 +21352,9 @@ PERTANYAAN_USER:
 
       // Run wallets redesign schema migration one-time
       migrateWalletsSchema();
+
+      // Run debts schema unification migration one-time (skema lama WA -> skema kanonik Tab UI)
+      migrateDebtSchemaLegacyWa();
 
       // 3. Jika setelah sync Supabase data lokal MASIH kosong (link/access_code baru), baru buatkan data bawaan
       if (getCategories().length === 0 || getWallets().length === 0) {
