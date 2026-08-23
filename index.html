@@ -9636,7 +9636,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.40)';
+      const version = ' (v2.9.41)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21449,6 +21449,18 @@ PERTANYAAN_USER:
         console.warn('Hotfix initialBalances error:', e);
       }
 
+      // Render data lokal tersimpan secara instan SEBELUM cek auth/network,
+      // biar pas reload (native pull-to-refresh) layar langsung keisi data
+      // lama dulu (bukan "—" kosong) sambil auth check & sync jalan di
+      // belakang. Kalau ternyata belum login, layar ini akan ketutup overlay
+      // login oleh alur di bawah — jadi aman untuk kasus itu juga.
+      getAccessCode();
+      navInit();
+      renderBottomNav();
+      document.getElementById('trDate') && (document.getElementById('trDate').value = todayStr());
+      setCatManageType('expense');
+      switchTabUI(currentTab);
+
       // Enforce Supabase Auth session check
       if (supabaseClient) {
         try {
@@ -21528,16 +21540,8 @@ PERTANYAAN_USER:
         document.head.appendChild(link);
       }
 
-      getAccessCode();
-      navInit();
-      renderBottomNav();
-      document.getElementById('trDate') && (document.getElementById('trDate').value = todayStr());
-      setCatManageType('expense');
-
-      // 1. LANGSUNG render data lokal tersimpan secara instan di frame 1 (0ms render tanpa glitch Rp 0)
-      switchTabUI(currentTab);
-
-      // 2. DAHULUKAN narik data terbaru dari Supabase di background
+      // Narik data terbaru dari Supabase di background — akan replace tampilan
+      // data lokal (yang sudah tampil duluan di atas) begitu data baru siap
       await syncAllWithSupabase(true);
 
       // Run wallets redesign schema migration one-time
