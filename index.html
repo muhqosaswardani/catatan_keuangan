@@ -3970,7 +3970,7 @@
     #page-chat {
       display: none;
       flex-direction: column;
-      height: calc(100dvh - 78px - env(safe-area-inset-bottom));
+      height: calc(100dvh - 78px - env(safe-area-inset-bottom) - var(--chat-topbar-h, 0px));
       padding: 0 14px;
       overflow: hidden;
     }
@@ -3981,7 +3981,7 @@
 
     @media (min-width:900px) {
       #page-chat {
-        height: calc(100vh - 48px);
+        height: calc(100vh - 48px - var(--chat-topbar-h, 0px));
         padding: 26px 0 0;
         max-width: 720px;
         margin: 0 auto;
@@ -9626,7 +9626,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.33)';
+      const version = ' (v2.9.34)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11410,6 +11410,9 @@
       if (fabEl) fabEl.style.display = tab === 'chat' ? 'none' : '';
       if (fabHint) fabHint.style.display = tab === 'chat' ? 'none' : '';
       if (tab === 'chat') {
+        const trialTopbarEl = document.getElementById('trialTopbar');
+        const th = (trialTopbarEl && trialTopbarEl.offsetHeight) || 0;
+        document.documentElement.style.setProperty('--chat-topbar-h', th + 'px');
         document.body.style.overflow = 'hidden';
         document.body.style.position = 'fixed';
         document.body.style.top = '0';
