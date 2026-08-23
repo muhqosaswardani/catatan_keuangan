@@ -5417,7 +5417,7 @@
       justify-content: flex-start;
       overflow: hidden;
     }
-    #screen-kategori #catManageList {
+    #screen-kategori #catManageListOnb {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
@@ -5924,11 +5924,11 @@
             <button type="button" id="btnToggleCatExpense" class="active" onclick="setCatManageTypeOnb('expense')">Pengeluaran</button>
             <button type="button" id="btnToggleCatIncome" onclick="setCatManageTypeOnb('income')">Pemasukan</button>
           </div>
-          <div id="catManageList"></div>
+          <div id="catManageListOnb"></div>
           <div class="cat-add-form">
             <div class="cat-add-row">
-              <button type="button" class="cat-icon-trigger" id="catManageIconTrigger" onclick="openCatIconPickerOnb()"></button>
-              <input type="text" id="catManageNewName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryFromManagerOnb();}">
+              <button type="button" class="cat-icon-trigger" id="catManageIconTriggerOnb" onclick="openCatIconPickerOnb()"></button>
+              <input type="text" id="catManageNewNameOnb" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryFromManagerOnb();}">
             </div>
             <button class="btn btn-primary btn-block btn-sm" style="margin-top:8px;" onclick="addCategoryFromManagerOnb()">+ Tambah Kategori</button>
           </div>
@@ -9000,13 +9000,13 @@
     function resetCatManageAddFormOnb() {
       catManagePickedIconOnb = 'more';
       catManagePickedColorOnb = PRESET_COLOR_PALETTE[Math.floor(Math.random() * PRESET_COLOR_PALETTE.length)];
-      const nameInp = document.getElementById('catManageNewName');
+      const nameInp = document.getElementById('catManageNewNameOnb');
       if (nameInp) nameInp.value = '';
       updateCatManageIconTriggerOnb();
     }
 
     function updateCatManageIconTriggerOnb() {
-      const btn = document.getElementById('catManageIconTrigger');
+      const btn = document.getElementById('catManageIconTriggerOnb');
       if (!btn) return;
       btn.style.background = catManagePickedColorOnb + '22';
       btn.style.color = catManagePickedColorOnb;
@@ -9016,7 +9016,7 @@
     function renderCatManageListOnb() {
       initCategoriesOnb();
       const cats = onboardingCategories.filter(c => c.type === catManageTypeOnb);
-      const wrap = document.getElementById('catManageList');
+      const wrap = document.getElementById('catManageListOnb');
       if (!wrap) return;
       if (cats.length === 0) {
         wrap.innerHTML = '<div class="empty-note">Belum ada kategori.</div>';
@@ -9046,7 +9046,7 @@
     }
 
     function addCategoryFromManagerOnb() {
-      const inp = document.getElementById('catManageNewName');
+      const inp = document.getElementById('catManageNewNameOnb');
       if (!inp) return;
       const name = inp.value.trim();
       if (!name) { showToast('Isi nama kategori dulu ya.'); return; }
@@ -9521,7 +9521,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.15)';
+      const version = ' (v2.9.16)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
