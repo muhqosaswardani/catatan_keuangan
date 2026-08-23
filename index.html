@@ -9628,7 +9628,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.31)';
+      const version = ' (v2.9.32)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11414,11 +11414,13 @@
       if (tab === 'chat') {
         document.body.style.overflow = 'hidden';
         document.body.style.position = 'fixed';
+        document.body.style.top = '0';
         document.body.style.width = '100%';
         document.body.style.height = '100%';
       } else {
         document.body.style.overflow = '';
         document.body.style.position = '';
+        document.body.style.top = '';
         document.body.style.width = '';
         document.body.style.height = '';
       }
