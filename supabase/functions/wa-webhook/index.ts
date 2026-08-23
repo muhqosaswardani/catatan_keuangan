@@ -280,6 +280,24 @@ async function initializeUserData(db: any, userId: string) {
   });
 }
 
+function generateSetupToken(): string {
+  return crypto.randomUUID();
+}
+
+const PASSWORD_SETUP_TTL_MS = 15 * 60 * 1000; // 15 menit
+
+async function issuePasswordSetupToken(db: any, userId: string): Promise<string> {
+  const setupToken = generateSetupToken();
+  await db
+    .from("users")
+    .update({
+      password_setup_token: setupToken,
+      password_setup_expires_at: new Date(Date.now() + PASSWORD_SETUP_TTL_MS).toISOString(),
+    })
+    .eq("id", userId);
+  return setupToken;
+}
+
 async function verifyOtpViaChat(
   db: any,
   nomorWa: string,
@@ -303,9 +321,10 @@ async function verifyOtpViaChat(
       PHONE_NUMBER_ID,
       WA_ACCESS_TOKEN,
       nomorWa,
-      "Maaf, kode verifikasi tersebut sudah kedaluwarsa. Silakan lakukan pendaftaran ulang dari aplikasi web KaslyAI.",
+      "Maaf, kode verifikasi tersebut sudah kedaluwarsa. Silakan ulangi proses dari aplikasi web KaslyAI.",
       replyToMsgId
     );
+    await db.from("verifikasi_wa").delete().eq("kode", otpCode);
     return true;
   }
 
@@ -319,27 +338,37 @@ async function verifyOtpViaChat(
     return false;
   }
 
-  if (user.token_dipakai) {
-    await db
-      .from("tokens")
-      .update({
-        status: "used",
-        used_by: nomorWa,
-        used_at: new Date().toISOString()
-      })
-      .eq("code", user.token_dipakai);
-  }
+  const isNewRegistration = user.status_verifikasi !== "verified";
 
-  await db
-    .from("users")
-    .update({ status_verifikasi: "verified" })
-    .eq("id", user.id);
+  if (isNewRegistration) {
+    if (user.token_dipakai) {
+      await db
+        .from("tokens")
+        .update({
+          status: "used",
+          used_by: nomorWa,
+          used_at: new Date().toISOString()
+        })
+        .eq("code", user.token_dipakai);
+    }
+
+    await db
+      .from("users")
+      .update({ status_verifikasi: "verified" })
+      .eq("id", user.id);
+
+    await initializeUserData(db, user.id);
+  }
 
   await db.from("verifikasi_wa").delete().eq("kode", otpCode);
 
-  await initializeUserData(db, user.id);
+  // Password TIDAK pernah dibuat otomatis dan TIDAK pernah dikirim via WA.
+  // User akan membuat kata sandinya sendiri di aplikasi web menggunakan setup token ini.
+  await issuePasswordSetupToken(db, user.id);
 
-  const confirmationMsg = `Pendaftaran berhasil! Akun KaslyAI Anda telah aktif.\n\nBerikut password sementara Anda:\n*${verif.password_temp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut. Segera ganti password demi keamanan.`;
+  const confirmationMsg = isNewRegistration
+    ? `Verifikasi berhasil! Akun KaslyAI Anda telah aktif.\n\nSilakan kembali ke aplikasi web KaslyAI untuk membuat kata sandi Anda sendiri.`
+    : `Verifikasi berhasil! Silakan kembali ke aplikasi web KaslyAI untuk membuat kata sandi baru Anda.`;
   await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg, replyToMsgId);
 
   return true;
@@ -432,29 +461,25 @@ Deno.serve(async (req: Request) => {
           .eq("nomor_wa", nomorWa)
           .maybeSingle();
 
+        if (existingUser && existingUser.status_verifikasi === "verified") {
+          return new Response(JSON.stringify({
+            error: "Nomor WhatsApp ini sudah terdaftar. Silakan masuk memakai kata sandi Anda.",
+            code: "ALREADY_REGISTERED",
+          }), {
+            status: 409,
+            headers: corsHeaders,
+          });
+        }
+
         const otpCode = generateOtpCode();
         const email = `${nomorWa}@kaslyai.local`;
         let userId: string;
+        // passwordTemp di sini HANYA placeholder internal untuk memenuhi requirement Supabase Auth
+        // (createUser/updateUserById butuh sebuah password). User TIDAK PERNAH melihat/memakai ini —
+        // kata sandi asli dibuat sendiri oleh user lewat alur "Buat Kata Sandi" setelah verifikasi WA.
         let passwordTemp: string;
 
-        if (existingUser && existingUser.status_verifikasi === "verified") {
-          userId = existingUser.id;
-          const { data: authUser, error: authGetErr } = await db.auth.admin.getUserById(userId);
-          if (authGetErr || !authUser?.user) {
-            return new Response(JSON.stringify({ error: "Gagal memproses data pengguna." }), {
-              status: 500,
-              headers: corsHeaders,
-            });
-          }
-          passwordTemp = authUser.user.user_metadata?.password_temp;
-          if (!passwordTemp) {
-            passwordTemp = generateTempPassword();
-            await db.auth.admin.updateUserById(userId, {
-              password: passwordTemp,
-              user_metadata: { ...authUser.user.user_metadata, password_temp: passwordTemp }
-            });
-          }
-        } else if (existingUser && existingUser.status_verifikasi === "pending") {
+        if (existingUser && existingUser.status_verifikasi === "pending") {
           userId = existingUser.id;
           passwordTemp = generateTempPassword();
           const { data: authUser } = await db.auth.admin.getUserById(userId);
@@ -564,7 +589,7 @@ Deno.serve(async (req: Request) => {
 
         const { data: user, error } = await db
           .from("users")
-          .select("status_verifikasi")
+          .select("status_verifikasi, password_setup_token, password_setup_expires_at")
           .eq("nomor_wa", nomorWa)
           .maybeSingle();
 
@@ -575,7 +600,17 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        return new Response(JSON.stringify({ verified: user.status_verifikasi === "verified" }), {
+        // Untuk user baru, status_verifikasi baru jadi 'verified' setelah kode WA diproses.
+        // Untuk alur Lupa Kata Sandi, status_verifikasi sudah 'verified' dari sebelumnya, jadi
+        // yang jadi penanda "kode WA baru saja dikonfirmasi" adalah setup token yang masih fresh
+        // (diterbitkan oleh verifyOtpViaChat pada saat itu juga).
+        const hasFreshSetupToken = !!user.password_setup_token &&
+          !!user.password_setup_expires_at &&
+          new Date(user.password_setup_expires_at) > new Date();
+
+        const verified = user.status_verifikasi === "verified" && hasFreshSetupToken;
+
+        return new Response(JSON.stringify({ verified }), {
           status: 200,
           headers: corsHeaders,
         });
@@ -601,16 +636,163 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        const { nomor_wa, kode } = payload;
-        if (!nomor_wa || !kode) {
-          return new Response(JSON.stringify({ error: "Nomor WA dan kode OTP wajib diisi." }), {
+        const { nomor_wa } = payload;
+        if (!nomor_wa) {
+          return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
             status: 400,
             headers: corsHeaders,
           });
         }
 
         const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
-        const otpCode = kode.trim().toUpperCase();
+
+        // Verifikasi kode WA yang sesungguhnya (kode+nomor+pengirim) sudah terjadi lewat
+        // pesan WhatsApp masuk (lihat verifyOtpViaChat), yang juga menerbitkan setup token
+        // kata sandi. Endpoint ini hanya boleh dipanggil SETELAH check-verification bilang
+        // sudah verified, dan tugasnya cuma menyerahkan setup token itu ke frontend.
+        const { data: user } = await db
+          .from("users")
+          .select("*")
+          .eq("nomor_wa", nomorWa)
+          .maybeSingle();
+
+        if (!user) {
+          return new Response(JSON.stringify({ error: "Profil user tidak ditemukan." }), {
+            status: 404,
+            headers: corsHeaders,
+          });
+        }
+
+        if (user.status_verifikasi !== "verified") {
+          return new Response(JSON.stringify({ error: "Verifikasi WhatsApp belum selesai. Silakan kirim kode OTP terlebih dahulu." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        if (!user.password_setup_token || !user.password_setup_expires_at || new Date(user.password_setup_expires_at) < new Date()) {
+          return new Response(JSON.stringify({ error: "Sesi pembuatan kata sandi sudah kedaluwarsa. Silakan ulangi verifikasi WhatsApp." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Verifikasi berhasil. Silakan buat kata sandi Anda.",
+          email: `${nomorWa}@kaslyai.local`,
+          setupToken: user.password_setup_token
+        }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      } catch (err) {
+        console.error("Error in complete-verification:", err);
+        return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
+    }
+
+    // ── LUPA KATA SANDI: minta kode verifikasi WA ulang untuk user yang sudah terdaftar ──
+    if (url.pathname.endsWith("/request-password-reset")) {
+      try {
+        const db = getDb();
+        let payload: any;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        const { nomor_wa } = payload;
+        if (!nomor_wa) {
+          return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+
+        const { data: user } = await db
+          .from("users")
+          .select("*")
+          .eq("nomor_wa", nomorWa)
+          .maybeSingle();
+
+        if (!user || user.status_verifikasi !== "verified") {
+          return new Response(JSON.stringify({ error: "Nomor WhatsApp ini belum terdaftar. Silakan daftar akun baru." }), {
+            status: 404,
+            headers: corsHeaders,
+          });
+        }
+
+        const otpCode = generateOtpCode();
+
+        const { error: verifErr } = await db.from("verifikasi_wa").upsert({
+          kode: otpCode,
+          nomor_wa: nomorWa,
+          password_temp: generateTempPassword(), // placeholder, kolom NOT NULL, tidak dipakai untuk auth
+          status: "pending",
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+        });
+
+        if (verifErr) {
+          return new Response(JSON.stringify({ error: `Gagal menyimpan verifikasi: ${verifErr.message}` }), {
+            status: 500,
+            headers: corsHeaders,
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, message: "Silakan verifikasi ulang lewat WhatsApp untuk membuat kata sandi baru.", code: otpCode }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      } catch (err) {
+        console.error("Error in request-password-reset:", err);
+        return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
+    }
+
+    // ── SET PASSWORD: user membuat kata sandinya sendiri (dipakai di alur Daftar & Lupa Sandi) ──
+    if (url.pathname.endsWith("/set-password")) {
+      try {
+        const db = getDb();
+        let payload: any;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        const { nomor_wa, setup_token, password } = payload;
+        if (!nomor_wa || !setup_token || !password) {
+          return new Response(JSON.stringify({ error: "Data tidak lengkap." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        if (typeof password !== "string" || password.length < 8) {
+          return new Response(JSON.stringify({ error: "Kata sandi minimal 8 karakter." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
 
         const { data: user } = await db
           .from("users")
@@ -625,83 +807,41 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        let passwordTemp = "";
-
-        if (user.status_verifikasi === "verified") {
-          // If already verified via WhatsApp chat, fetch password_temp from auth user metadata
-          const { data: authUser, error: authGetErr } = await db.auth.admin.getUserById(user.id);
-          if (authGetErr || !authUser?.user) {
-            return new Response(JSON.stringify({ error: "Gagal memproses data pengguna." }), {
-              status: 500,
-              headers: corsHeaders,
-            });
-          }
-          passwordTemp = authUser.user.user_metadata?.password_temp || "";
-        } else {
-          // Verify using verifikasi_wa table
-          const { data: verif, error: verifErr } = await db
-            .from("verifikasi_wa")
-            .select("*")
-            .eq("nomor_wa", nomorWa)
-            .eq("kode", otpCode)
-            .eq("status", "pending")
-            .maybeSingle();
-
-          if (verifErr || !verif) {
-            return new Response(JSON.stringify({ error: "Kode verifikasi tidak cocok atau sudah kadaluwarsa." }), {
-              status: 400,
-              headers: corsHeaders,
-            });
-          }
-
-          if (new Date(verif.expires_at) < new Date()) {
-            return new Response(JSON.stringify({ error: "Kode verifikasi sudah kadaluwarsa." }), {
-              status: 400,
-              headers: corsHeaders,
-            });
-          }
-
-          passwordTemp = verif.password_temp;
-
-          if (user.token_dipakai) {
-            await db
-              .from("tokens")
-              .update({
-                status: "used",
-                used_by: nomorWa,
-                used_at: new Date().toISOString()
-              })
-              .eq("code", user.token_dipakai);
-          }
-
-          await db
-            .from("users")
-            .update({ status_verifikasi: "verified" })
-            .eq("id", user.id);
-
-          await db.from("verifikasi_wa").delete().eq("kode", otpCode);
-
-          await initializeUserData(db, user.id);
-
-          try {
-            const confirmationMsg = `Akun KaslyAI Anda telah aktif!\n\nSelamat datang di KaslyAI, asisten keuangan pribadi Anda.\n\nBerikut password sementara Anda:\n*${passwordTemp}*\n\nSilakan login di aplikasi KaslyAI menggunakan nomor WhatsApp Anda dan password sementara tersebut.`;
-            await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, nomorWa, confirmationMsg);
-          } catch (waErr) {
-            console.error("Gagal mengirim pesan konfirmasi:", waErr);
-          }
+        if (
+          !user.password_setup_token ||
+          user.password_setup_token !== setup_token ||
+          !user.password_setup_expires_at ||
+          new Date(user.password_setup_expires_at) < new Date()
+        ) {
+          return new Response(JSON.stringify({ error: "Sesi pembuatan kata sandi tidak valid atau sudah kedaluwarsa. Silakan ulangi verifikasi WhatsApp." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
         }
+
+        const { error: updateErr } = await db.auth.admin.updateUserById(user.id, { password });
+        if (updateErr) {
+          return new Response(JSON.stringify({ error: `Gagal menyimpan kata sandi: ${updateErr.message}` }), {
+            status: 500,
+            headers: corsHeaders,
+          });
+        }
+
+        await db
+          .from("users")
+          .update({ password_setup_token: null, password_setup_expires_at: null })
+          .eq("id", user.id);
 
         return new Response(JSON.stringify({
           success: true,
-          message: "Verifikasi berhasil. Silakan login.",
-          email: `${nomorWa}@kaslyai.local`,
-          password: passwordTemp
+          message: "Kata sandi berhasil dibuat.",
+          email: `${nomorWa}@kaslyai.local`
         }), {
           status: 200,
           headers: corsHeaders,
         });
       } catch (err) {
-        console.error("Error in complete-verification:", err);
+        console.error("Error in set-password:", err);
         return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
           status: 500,
           headers: corsHeaders,
@@ -889,8 +1029,10 @@ Deno.serve(async (req: Request) => {
         () => {},
       );
 
-      if (!userId) {
-        // Unverified user. Check if they sent the verification OTP (directly or in the template message).
+      // Cek kode verifikasi WA (20 karakter) untuk SEMUA pengirim — bukan cuma yang belum
+      // terverifikasi. Ini dibutuhkan supaya alur "Lupa Kata Sandi" (nomor sudah verified,
+      // minta kode verifikasi ulang) juga bisa diproses lewat mekanisme yang sama persis.
+      {
         const cleanText = (msg.text ?? "").trim().toUpperCase();
         let potentialCode = "";
         if (cleanText.length === 20 && /^[A-Z0-9]{20}$/.test(cleanText)) {
@@ -908,7 +1050,9 @@ Deno.serve(async (req: Request) => {
             continue;
           }
         }
+      }
 
+      if (!userId) {
         // If not a verification code, send pendaftaran prompt
         const regPrompt = "Nomor WhatsApp Anda belum terdaftar di *KaslyAI*.\n\nSilakan lakukan pendaftaran terlebih dahulu melalui aplikasi web KaslyAI.";
         await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.from, regPrompt, msg.messageId);
