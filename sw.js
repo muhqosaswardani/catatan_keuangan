@@ -110,6 +110,16 @@ self.addEventListener('push', (event) => {
     actions: Array.isArray(payload.data?.actions) ? payload.data.actions : [],
     tag: payload.data?.tag || undefined,
     renotify: !!payload.data?.tag,
+    // Getar + requireInteraction: sinyal ke Android supaya notifikasi lebih
+    // mungkin muncul sebagai heads-up/mengambang (bukan cuma masuk bar atas).
+    // Catatan: tampilan mengambang akhirnya tetap ditentukan oleh setelan
+    // "importance"/"pop on screen" channel notifikasi Chrome untuk situs ini
+    // di sisi Android — kalau masih belum mengambang meski sudah ini,
+    // arahkan user ke: Setelan Android > Aplikasi > Chrome > Notifikasi >
+    // (nama situs KaslyAI) > pastikan levelnya "Urgent"/"Pop on screen".
+    vibrate: payload.data?.vibrate || [200, 100, 200],
+    requireInteraction: !!payload.data?.requireInteraction,
+    silent: false,
   };
 
   event.waitUntil(self.registration.showNotification(payload.title, options));

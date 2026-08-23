@@ -108,6 +108,44 @@
       overscroll-behavior-y: contain;
     }
 
+    /* Pull-to-refresh (custom, karena PWA mode standalone mematikan tarik-refresh
+       bawaan browser lewat overscroll-behavior-y: contain di atas) */
+    #ptrIndicator {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -56px);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: transform .15s ease, opacity .15s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #ptrIndicator svg {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+      transition: transform .05s linear;
+    }
+
+    #ptrIndicator.ptr-spin svg {
+      animation: ptr-rotate .7s linear infinite;
+    }
+
+    @keyframes ptr-rotate {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .page {
       display: none;
       padding: 14px 14px 22px;
@@ -5665,6 +5703,7 @@
     </div>
   </nav>
 
+  <div id="ptrIndicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></div>
   <div class="app" id="app">
     <!-- ============ MULTI-USER AUTH & ONBOARDING ============ -->
     <div id="auth-onboarding" class="auth-onboarding-container">
@@ -9638,7 +9677,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.37)';
+      const version = ' (v2.9.38)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21778,6 +21817,75 @@ PERTANYAAN_USER:
     window.addEventListener('appinstalled', () => {
       window.deferredInstallPrompt = null;
     });
+  </script>
+
+  <script>
+    // ====== Pull-to-refresh custom (perlu karena mode PWA standalone/installed
+    // mematikan gesture tarik-refresh bawaan Chrome — overscroll-behavior-y:
+    // contain di CSS di atas sengaja dipakai supaya body app sendiri tidak
+    // ikut ter-overscroll/bounce, tapi efek sampingnya menghilangkan tarik-refresh) ======
+    (function initPullToRefresh() {
+      const indicator = document.getElementById('ptrIndicator');
+      if (!indicator) return;
+
+      const THRESHOLD = 70; // px tarikan sebelum refresh ke-trigger
+      const MAX_PULL = 110;
+      let startY = 0;
+      let pulling = false;
+      let refreshing = false;
+
+      function scrollableTop() {
+        // Anggap "di paling atas" kalau baik window maupun elemen .page aktif sudah scrollTop 0
+        return window.scrollY <= 0 && document.documentElement.scrollTop <= 0 && document.body.scrollTop <= 0;
+      }
+
+      window.addEventListener('touchstart', (e) => {
+        if (refreshing) return;
+        if (!scrollableTop()) { pulling = false; return; }
+        if (e.touches.length !== 1) return;
+        startY = e.touches[0].clientY;
+        pulling = true;
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!pulling || refreshing) return;
+        if (!scrollableTop()) { pulling = false; indicator.style.opacity = '0'; indicator.style.transform = 'translate(-50%, -56px)'; return; }
+        const dy = e.touches[0].clientY - startY;
+        if (dy <= 0) return;
+        const pull = Math.min(dy * 0.5, MAX_PULL);
+        indicator.style.opacity = String(Math.min(pull / THRESHOLD, 1));
+        indicator.style.transform = `translate(-50%, ${-56 + pull}px)`;
+        indicator.classList.toggle('ptr-spin', pull >= THRESHOLD);
+      }, { passive: true });
+
+      window.addEventListener('touchend', async () => {
+        if (!pulling || refreshing) { pulling = false; return; }
+        pulling = false;
+        const pulledEnough = indicator.classList.contains('ptr-spin');
+        if (!pulledEnough) {
+          indicator.style.opacity = '0';
+          indicator.style.transform = 'translate(-50%, -56px)';
+          return;
+        }
+        refreshing = true;
+        indicator.style.transform = 'translate(-50%, 18px)';
+        indicator.style.opacity = '1';
+        try {
+          if (typeof syncAllWithSupabase === 'function') {
+            await syncAllWithSupabase(false);
+          } else {
+            location.reload();
+          }
+        } catch (e) {
+          console.warn('[ptr] refresh gagal:', e);
+        } finally {
+          indicator.classList.remove('ptr-spin');
+          indicator.style.opacity = '0';
+          indicator.style.transform = 'translate(-50%, -56px)';
+          refreshing = false;
+        }
+      }, { passive: true });
+    })();
   </script>
 </body>
 
