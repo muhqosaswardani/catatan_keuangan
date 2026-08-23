@@ -4010,6 +4010,56 @@
       display: flex;
     }
 
+    /* =========================================================
+       Fase 2 Bagian 2 — Transaksi AI Cepat (App Shortcut, full-screen)
+       ========================================================= */
+    .modal-overlay.modal-fullscreen {
+      align-items: stretch;
+      justify-content: stretch;
+    }
+    .modal-overlay.modal-fullscreen .modal {
+      max-width: none;
+      width: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0;
+    }
+    #txaiQuickThumbs .file-thumb {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-soft);
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    #txaiQuickThumbs .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    #txaiQuickThumbs .file-thumb-x {
+      position: absolute; top: 1px; right: 1px; width: 16px; height: 16px;
+      background: rgba(0,0,0,.6); color: #fff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; line-height: 1; cursor: pointer;
+    }
+    #txaiQuickMicBtn.recording { background: var(--expense-soft, #FBE7E5); color: var(--expense, #C4453B); }
+    @keyframes txaiSpin { to { transform: rotate(360deg); } }
+    .txai-tx-card {
+      background: var(--surface); border-radius: 14px; box-shadow: 0 1px 2px rgba(21,37,36,.04), 0 8px 24px -12px rgba(21,37,36,.18);
+      padding: 14px; margin-bottom: 10px;
+    }
+    .txai-tx-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+    .txai-tx-row:last-of-type { border-bottom: none; }
+    .txai-tx-row .l { color: var(--ink-soft); }
+    .txai-tx-row .v { font-weight: 700; }
+    .txai-tx-actions { display: flex; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+    .txai-tx-actions button { flex: 1; background: none; border: none; font-weight: 700; font-size: 12px; color: var(--accent-dark, var(--accent)); cursor: pointer; padding: 6px; }
+    .txai-tx-actions button.danger { color: var(--expense, #C4453B); }
+
     @media (min-width:900px) {
       #page-chat {
         height: calc(100vh - 48px - var(--chat-topbar-h, 0px));
@@ -8247,6 +8297,55 @@
       <img id="chatLightboxImage" class="chat-lightbox-content" src="" alt="Lightbox Preview" onclick="event.stopPropagation()">
     </div>
 
+    <!-- ============ MODAL FULLSCREEN: TRANSAKSI AI CEPAT (App Shortcut, Fase 2 Bagian 2) ============ -->
+    <div class="modal-overlay modal-fullscreen" id="modalTxaiQuick">
+      <div class="modal">
+        <div class="modal-body" id="txaiQuickBody">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <button type="button" onclick="closeTxaiQuickScreen()" aria-label="Tutup"
+              style="width:36px;height:36px;border-radius:50%;background:var(--surface-2);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div>
+              <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Pintasan</div>
+              <h1 style="font-size:18px;margin:1px 0 0;font-weight:800;">Transaksi AI Cepat</h1>
+            </div>
+          </div>
+
+          <!-- STEP: input -->
+          <div id="txaiQuickStepInput">
+            <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;">Ketik, foto struk, atau rekam suara — langsung tersimpan otomatis tanpa layar konfirmasi.</p>
+            <div class="field">
+              <textarea id="txaiQuickText" rows="5" placeholder="Cth: makan siang 25rb, parkir 2rb..."
+                style="min-height:160px;font-size:16px;" oninput="updateTxaiQuickProcessBtn()"></textarea>
+            </div>
+            <div id="txaiQuickThumbs" class="file-thumb-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
+            <input type="file" id="txaiQuickFileInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleTxaiQuickFiles(this.files)">
+            <input type="file" id="txaiQuickCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleTxaiQuickFiles(this.files)">
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+              <button type="button" class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('txaiQuickFileInput').click()">Galeri</button>
+              <button type="button" class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('txaiQuickCameraInput').click()">Kamera</button>
+              <button type="button" class="btn btn-secondary" id="txaiQuickMicBtn" style="flex:1;" onclick="toggleTxaiQuickVoiceRecording()">🎤 Rekam</button>
+            </div>
+            <div id="txaiQuickMicHint" style="display:none;font-size:11.5px;color:var(--ink-soft);text-align:center;margin:-6px 0 10px;"></div>
+            <button type="button" class="btn btn-primary btn-block" id="txaiQuickProcessBtn" onclick="processTxaiQuick()" disabled>Proses dengan AI</button>
+          </div>
+
+          <!-- STEP: loading -->
+          <div id="txaiQuickStepLoading" style="display:none;text-align:center;padding:60px 10px;">
+            <div style="width:36px;height:36px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);margin:0 auto 16px;animation:txaiSpin .8s linear infinite;"></div>
+            <p style="font-size:13.5px;color:var(--ink-soft);font-weight:600;">AI sedang membaca transaksimu...</p>
+          </div>
+
+          <!-- STEP: hasil (saved / incomplete / multi) -->
+          <div id="txaiQuickStepResult" style="display:none;">
+            <div id="txaiQuickResultBody"></div>
+            <button type="button" class="btn btn-secondary btn-block" style="margin-top:10px;" onclick="resetTxaiQuickScreen()">Catat Transaksi Lagi</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="toast" id="toast"></div>
   </div>
 
@@ -9798,7 +9897,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.44)';
+      const version = ' (v2.9.45)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10013,14 +10112,15 @@
           const mapped = filtered.map(r => ({
             id: r.id, walletId: r.wallet_id, categoryId: r.category_id, category: r.category,
             type: r.type, amount: Number(r.amount) || 0, date: r.date, note: r.note,
-            toWalletId: r.to_wallet_id, excludeFromReport: !!r.exclude_from_report, updatedAt: parseSafeDate(r.updated_at)
+            toWalletId: r.to_wallet_id, excludeFromReport: !!r.exclude_from_report,
+            isDraft: !!r.is_draft, updatedAt: parseSafeDate(r.updated_at)
           }));
           const merged = mergeEntities(localTxsFiltered, mapped);
           setTransactionsLocalOnly(merged);
           const pushRecs = merged.map(t => ({
             id: t.id, access_code: code, user_id: currentUserId, wallet_id: t.walletId, category_id: t.categoryId, category: t.category,
             type: t.type, amount: t.amount, date: t.date, note: t.note, to_wallet_id: t.toWalletId,
-            exclude_from_report: !!t.excludeFromReport,
+            exclude_from_report: !!t.excludeFromReport, is_draft: !!t.isDraft,
             updated_at: new Date(t.updatedAt || Date.now()).toISOString()
           }));
           if (pushRecs.length > 0) await supabaseClient.from('transactions').upsert(pushRecs);
@@ -21806,6 +21906,10 @@ PERTANYAAN_USER:
       refreshAllViews();
       switchTabUI(currentTab);
 
+      // Fase 2 Bagian 2: App Shortcuts & undo transaksi yang dihapus dari notifikasi
+      handleAppShortcutParam();
+      checkNotifDeletedUndo();
+
       window.addEventListener('online', () => syncAllWithSupabase(true));
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));
       window.addEventListener('focus', () => { syncAllWithSupabase(true); activateDuePendingTransactions(); });
@@ -21996,6 +22100,387 @@ PERTANYAAN_USER:
         console.error('[push] test gagal:', err);
         showToast('Gagal kirim notifikasi uji coba');
       }
+    }
+
+    /* =========================================================
+       Fase 2 Bagian 2 — App Shortcuts & Transaksi AI Cepat
+       Catatan keamanan: pemanggilan Gemini di sini SEMENTARA mengikuti
+       pola lama (langsung dari browser pakai GEMINI_API_KEYS), sama
+       seperti fitur "Transaksi AI" existing. Ini keputusan sadar, bukan
+       kelalaian — perbaikan (Edge Function proxy) menyusul terpisah.
+       ========================================================= */
+
+    // Jalur ini SENGAJA pakai state var terpisah dari aiCaptureFiles/aiVoiceAudioPart
+    // punya fitur "Transaksi AI" existing di web, supaya kedua fitur itu tidak saling
+    // ganggu state satu sama lain (fitur lama tidak boleh berubah sama sekali).
+    let txaiQuickFiles = [];
+    let txaiQuickAudioPart = null;
+    let txaiQuickMicRecording = false;
+    let txaiQuickMicRecorder = null;
+    let txaiQuickMicStream = null;
+    let txaiQuickMicChunks = [];
+
+    function openTxaiQuickScreen() {
+      resetTxaiQuickScreen();
+      openModal('modalTxaiQuick');
+    }
+    function closeTxaiQuickScreen() {
+      if (txaiQuickMicRecording) stopTxaiQuickVoiceRecording();
+      closeModal('modalTxaiQuick');
+    }
+    function resetTxaiQuickScreen() {
+      txaiQuickFiles = [];
+      txaiQuickAudioPart = null;
+      const ta = document.getElementById('txaiQuickText');
+      if (ta) ta.value = '';
+      renderTxaiQuickThumbs();
+      updateTxaiQuickProcessBtn();
+      document.getElementById('txaiQuickStepInput').style.display = 'block';
+      document.getElementById('txaiQuickStepLoading').style.display = 'none';
+      document.getElementById('txaiQuickStepResult').style.display = 'none';
+    }
+    function handleTxaiQuickFiles(fileList) {
+      const files = Array.from(fileList || []);
+      txaiQuickFiles = txaiQuickFiles.concat(files);
+      renderTxaiQuickThumbs();
+      updateTxaiQuickProcessBtn();
+    }
+    function removeTxaiQuickFile(idx) {
+      txaiQuickFiles.splice(idx, 1);
+      renderTxaiQuickThumbs();
+      updateTxaiQuickProcessBtn();
+    }
+    function renderTxaiQuickThumbs() {
+      const wrap = document.getElementById('txaiQuickThumbs');
+      if (!wrap) return;
+      wrap.innerHTML = txaiQuickFiles.map((f, i) => {
+        const isImg = f.type && f.type.startsWith('image/');
+        const url = isImg ? URL.createObjectURL(f) : '';
+        return '<div class="file-thumb">' +
+          (isImg ? '<img src="' + url + '">' : 'PDF') +
+          '<span class="file-thumb-x" onclick="removeTxaiQuickFile(' + i + ')">&times;</span></div>';
+      }).join('');
+    }
+    function updateTxaiQuickProcessBtn() {
+      const ta = document.getElementById('txaiQuickText');
+      const hasText = ta && ta.value.trim().length > 0;
+      const btn = document.getElementById('txaiQuickProcessBtn');
+      if (btn) btn.disabled = !(hasText || txaiQuickFiles.length > 0 || txaiQuickAudioPart);
+    }
+
+    async function toggleTxaiQuickVoiceRecording() {
+      if (txaiQuickMicRecording) { stopTxaiQuickVoiceRecording(); return; }
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        showToast('Mic butuh HTTPS. Buka halaman ini via link https:// (bukan file:// atau http://)');
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        showToast('Rekam suara tidak didukung browser ini');
+        return;
+      }
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+          showToast('Izin mikrofon ditolak. Buka Setelan situs di Chrome lalu izinkan Mikrofon');
+        } else if (err && err.name === 'NotFoundError') {
+          showToast('Mikrofon tidak ditemukan di perangkat ini');
+        } else {
+          showToast('Gagal akses mikrofon: ' + (err && err.message ? err.message : 'tidak diketahui'));
+        }
+        return;
+      }
+      txaiQuickMicStream = stream;
+      txaiQuickMicChunks = [];
+      const candidates = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/webm'];
+      let mimeType = '';
+      for (const c of candidates) { if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) { mimeType = c; break; } }
+      try {
+        txaiQuickMicRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      } catch (err) {
+        txaiQuickMicRecorder = new MediaRecorder(stream);
+      }
+      txaiQuickMicRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) txaiQuickMicChunks.push(e.data); };
+      txaiQuickMicRecorder.onstop = onTxaiQuickVoiceRecordingStopped;
+      txaiQuickMicRecorder.start();
+      txaiQuickMicRecording = true;
+      const btn = document.getElementById('txaiQuickMicBtn');
+      const hint = document.getElementById('txaiQuickMicHint');
+      if (btn) { btn.classList.add('recording'); btn.textContent = '⏹ Berhenti'; }
+      if (hint) { hint.style.display = 'block'; hint.textContent = 'Merekam… ketuk lagi untuk berhenti'; }
+    }
+    function stopTxaiQuickVoiceRecording() {
+      if (txaiQuickMicRecorder && txaiQuickMicRecorder.state !== 'inactive') {
+        try { txaiQuickMicRecorder.stop(); } catch (e) { }
+      }
+      if (txaiQuickMicStream) { txaiQuickMicStream.getTracks().forEach(t => t.stop()); txaiQuickMicStream = null; }
+      txaiQuickMicRecording = false;
+      const btn = document.getElementById('txaiQuickMicBtn');
+      if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤 Rekam'; }
+    }
+    function onTxaiQuickVoiceRecordingStopped() {
+      const hint = document.getElementById('txaiQuickMicHint');
+      if (txaiQuickMicChunks.length === 0) return;
+      const mimeType = (txaiQuickMicRecorder && txaiQuickMicRecorder.mimeType) || 'audio/webm';
+      const blob = new Blob(txaiQuickMicChunks, { type: mimeType });
+      txaiQuickMicChunks = [];
+      if (blob.size < 1000) { showToast('Rekaman terlalu pendek, coba lagi'); if (hint) hint.style.display = 'none'; return; }
+      if (hint) { hint.style.display = 'block'; hint.textContent = 'Memproses rekaman suara…'; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = String(reader.result).split(',')[1] || '';
+        txaiQuickAudioPart = { inlineData: { data: base64, mimeType: mimeType.split(';')[0] } };
+        if (hint) hint.style.display = 'none';
+        updateTxaiQuickProcessBtn();
+        processTxaiQuick(); // auto-proses begitu rekaman selesai
+      };
+      reader.onerror = () => { showToast('Gagal memproses rekaman suara'); if (hint) hint.style.display = 'none'; };
+      reader.readAsDataURL(blob);
+    }
+
+    // Skema & prompt sengaja dibuat mandiri (bukan reuse fungsi aiScanWithGemini punya
+    // fitur lama) supaya fitur "Transaksi AI" existing tetap 100% tidak tersentuh.
+    async function txaiQuickParseWithGemini() {
+      const key = getGeminiApiKey();
+      const ta = document.getElementById('txaiQuickText');
+      const freeText = (ta && ta.value || '').trim();
+      const promptText =
+        'Kamu adalah asisten pencatat transaksi keuangan. Baca input user (teks/foto struk/rekaman suara) ' +
+        'dan keluarkan array JSON transaksi. Field per transaksi: type ("income"/"expense"), amount (angka, 0 kalau ' +
+        'nominal tidak disebutkan/tidak jelas — JANGAN mengarang nominal), note (keterangan singkat, sudah dirapikan ' +
+        'tanpa kata pengisi), category (nama kategori paling cocok). Kalau dari satu input ada BEBERAPA transaksi ' +
+        'kategori/aktivitas berbeda (mis. struk belanja campuran, atau cerita voice note berisi beberapa aktivitas), ' +
+        'PECAH jadi beberapa objek transaksi terpisah, jangan digabung. Keluarkan HANYA array JSON, tanpa markdown, ' +
+        'tanpa penjelasan.';
+      const parts = [{ text: promptText }];
+      if (freeText) parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + freeText });
+      for (const f of txaiQuickFiles) { parts.push(await fileToGenerativePart(f)); }
+      if (txaiQuickAudioPart) { parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara berisi ucapan tentang transaksi. Dengarkan & perlakukan hasil transkrip persis seperti TEKS_BEBAS_DARI_USER.' }); parts.push(txaiQuickAudioPart); }
+      const schema = {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: {
+            type: { type: 'STRING', enum: ['income', 'expense'] },
+            amount: { type: 'NUMBER' },
+            note: { type: 'STRING' },
+            category: { type: 'STRING' }
+          },
+          required: ['type', 'amount', 'note', 'category']
+        }
+      };
+      const MAX_ATTEMPTS = 3;
+      let items = null, lastErr = null;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const data = await callGeminiRaw(key, parts, 0.15, schema);
+          const text = extractGeminiText(data);
+          const parsed = parseAiJson(text, 'array');
+          if (!Array.isArray(parsed)) throw new Error('Format respons AI tidak valid');
+          items = parsed;
+          break;
+        } catch (e) {
+          lastErr = e;
+          if (attempt < MAX_ATTEMPTS) continue;
+        }
+      }
+      if (!items) throw lastErr || new Error('Format respons AI tidak valid');
+      return items;
+    }
+
+    async function processTxaiQuick() {
+      if (txaiQuickFiles.length === 0 && !(document.getElementById('txaiQuickText').value || '').trim() && !txaiQuickAudioPart) return;
+      document.getElementById('txaiQuickStepInput').style.display = 'none';
+      document.getElementById('txaiQuickStepLoading').style.display = 'block';
+      try {
+        const items = await txaiQuickParseWithGemini();
+        const wallets = getWallets();
+        const wallet = wallets.find(w => w.isPrimary) || wallets[0];
+        const savedTxs = [];
+        const draftTxs = [];
+        for (const it of items) {
+          const type = it && it.type === 'income' ? 'income' : 'expense';
+          const amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
+          const note = ((it && it.note) || '').toString().slice(0, 80) || 'Transaksi';
+          const categoryId = matchCategoryByName(it && it.category, type);
+          const isDraft = amount <= 0;
+          const tx = {
+            date: todayStr(),
+            type,
+            amount,
+            note,
+            categoryId,
+            walletId: wallet ? wallet.id : null,
+            source: 'app',
+            isDraft
+          };
+          const saved = addTransaction(tx);
+          if (isDraft) draftTxs.push(saved); else savedTxs.push(saved);
+          // Kirim notifikasi PWA per transaksi (bukan digabung), sesuai PRD.
+          sendTxaiQuickNotification(saved, isDraft ? 'tx_incomplete' : 'tx_saved', wallet);
+        }
+        renderTxaiQuickResult(savedTxs, draftTxs);
+      } catch (err) {
+        console.error('[txaiQuick] gagal proses:', err);
+        showToast('Gagal memproses dengan AI: ' + (err && err.message ? err.message : 'coba lagi'));
+        document.getElementById('txaiQuickStepLoading').style.display = 'none';
+        document.getElementById('txaiQuickStepInput').style.display = 'block';
+      }
+    }
+
+    function renderTxaiQuickResult(savedTxs, draftTxs) {
+      document.getElementById('txaiQuickStepLoading').style.display = 'none';
+      document.getElementById('txaiQuickStepResult').style.display = 'block';
+      const all = [...savedTxs, ...draftTxs];
+      const total = savedTxs.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+      let html = '';
+      if (all.length > 1) {
+        html += '<div class="saved-title" style="text-align:center;font-size:18px;font-weight:800;margin:18px 0 4px;">' + all.length + ' Transaksi Diproses</div>';
+        html += '<div class="saved-sub" style="text-align:center;font-size:12.5px;color:var(--ink-soft);margin:0 0 14px;">AI mendeteksi ' + all.length + ' transaksi berbeda dari catatanmu — masing-masing tercatat terpisah.</div>';
+      } else {
+        html += '<div class="saved-title" style="text-align:center;font-size:18px;font-weight:800;margin:18px 0 4px;">' + (draftTxs.length ? 'Butuh Dilengkapi' : 'Tersimpan Otomatis') + '</div>';
+      }
+      all.forEach(t => {
+        const cats = getCategories();
+        const cat = cats.find(c => c.id === t.categoryId);
+        html += '<div class="txai-tx-card">' +
+          '<div class="txai-tx-row"><span class="l">Keterangan</span><span class="v">' + escAttr(t.note) + '</span></div>' +
+          '<div class="txai-tx-row"><span class="l">Kategori</span><span class="v">' + escAttr((cat && cat.name) || '-') + '</span></div>' +
+          (t.isDraft
+            ? '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v" style="color:var(--warn,#B7791F);">Belum jelas — perlu dilengkapi</span></div>'
+            : '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v">' + (t.type === 'income' ? '+ ' : '- ') + formatRupiah(t.amount) + '</span></div>') +
+          '<div class="txai-tx-actions">' +
+          '<button onclick="editTxaiQuickTx(\'' + t.id + '\')">' + (t.isDraft ? 'Lengkapi' : 'Edit') + '</button>' +
+          (t.isDraft ? '' : '<button class="danger" onclick="deleteTxaiQuickTx(\'' + t.id + '\')">Hapus</button>') +
+          '</div></div>';
+      });
+      if (savedTxs.length > 1) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:14px;padding:12px 14px;margin-bottom:4px;font-size:13px;font-weight:700;color:var(--ink-soft);">' +
+          '<span>Total ' + savedTxs.length + ' Transaksi</span><span style="color:var(--expense,#C4453B);">' + formatRupiah(Math.abs(total)) + '</span></div>';
+      }
+      document.getElementById('txaiQuickResultBody').innerHTML = html;
+    }
+
+    function editTxaiQuickTx(id) {
+      closeTxaiQuickScreen();
+      openTransactionModal(id); // fungsi edit transaksi yang sudah ada di app
+    }
+    function deleteTxaiQuickTx(id) {
+      deleteTransaction(id); // fungsi hapus transaksi yang sudah ada di app
+      showToast('Transaksi dihapus');
+      // Refresh kartu di layar hasil biar kartu yang dihapus hilang juga dari tampilan.
+      const card = event && event.target && event.target.closest('.txai-tx-card');
+      if (card) card.remove();
+    }
+
+    // Kirim notifikasi PWA untuk 1 transaksi (dipanggil per-item, tidak pernah digabung).
+    async function sendTxaiQuickNotification(tx, type, wallet) {
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        const cats = getCategories();
+        const cat = cats.find(c => c.id === tx.categoryId);
+        const catName = (cat && cat.name) || 'Lainnya';
+        const title = type === 'tx_incomplete' ? 'Transaksi butuh dilengkapi' : 'Transaksi baru tercatat';
+        const body = type === 'tx_incomplete'
+          ? (tx.note + ' — nominalnya belum jelas. Ketuk untuk lengkapi.')
+          : ((tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran') + ' · ' + tx.note + '\n' + formatRupiah(tx.amount) + ' · ' + ((wallet && wallet.name) || ''));
+        const editUrl = './?shortcut=edit-tx&id=' + encodeURIComponent(tx.id);
+        const actions = type === 'tx_incomplete'
+          ? [{ action: 'lengkapi', title: 'Lengkapi' }]
+          : [{ action: 'edit', title: 'Edit' }, { action: 'hapus', title: 'Hapus' }];
+        const actionUrls = type === 'tx_incomplete'
+          ? { lengkapi: editUrl }
+          : { edit: editUrl };
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token || SUPABASE_KEY}` },
+          body: JSON.stringify({
+            user_id: currentUserId,
+            title,
+            body,
+            data: {
+              url: editUrl,
+              type,
+              transaction_id: tx.id,
+              access_code: getAccessCode(),
+              wallet_id: tx.walletId,
+              actions,
+              actionUrls
+            }
+          })
+        });
+      } catch (err) {
+        console.warn('[txaiQuick] gagal kirim notifikasi:', err);
+      }
+    }
+
+    // Dipanggil dari init() saat app dibuka lewat App Shortcut (?shortcut=chat / ?shortcut=transaksi-ai
+    // / ?shortcut=edit-tx&id=...). Pintasan ini HANYA bisa dipicu lewat tekan-lama ikon PWA sesuai PRD,
+    // tidak ada entry point lain di dalam UI.
+    function handleAppShortcutParam() {
+      try {
+        const params = new URLSearchParams(location.search);
+        const shortcut = params.get('shortcut');
+        if (!shortcut) return;
+        if (shortcut === 'chat') {
+          switchTab('chat');
+        } else if (shortcut === 'transaksi-ai') {
+          openTxaiQuickScreen();
+        } else if (shortcut === 'edit-tx') {
+          const id = params.get('id');
+          if (id) openTransactionModal(id);
+        }
+        // Bersihkan query string biar shortcut tidak ke-trigger ulang tiap reload/kembali dari background.
+        const url = new URL(location.href);
+        url.searchParams.delete('shortcut');
+        url.searchParams.delete('id');
+        history.replaceState(history.state, '', url.toString());
+      } catch (e) {
+        console.warn('[shortcut] gagal proses parameter shortcut:', e);
+      }
+    }
+
+    // Undo untuk transaksi yang dihapus lewat tombol "Hapus" di notifikasi (dieksekusi oleh
+    // Service Worker tanpa membuka app). Snapshot transaksi yang dihapus disimpan sementara di
+    // kolom user_settings.last_notif_deleted; dicek & ditawarkan Undo saat app dibuka lagi.
+    async function checkNotifDeletedUndo() {
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        const { data: settings } = await supabaseClient.from('user_settings').select('last_notif_deleted').eq('user_id', currentUserId).maybeSingle();
+        const snap = settings && settings.last_notif_deleted;
+        if (!snap || !snap.tx) return;
+        // Window undo wajar: 24 jam sejak dihapus.
+        if (Date.now() - (snap.deletedAt || 0) > 24 * 60 * 60 * 1000) {
+          await supabaseClient.from('user_settings').update({ last_notif_deleted: null }).eq('user_id', currentUserId);
+          return;
+        }
+        showTxaiQuickUndoToast(snap.tx);
+      } catch (e) {
+        console.warn('[undo] gagal cek transaksi terhapus dari notifikasi:', e);
+      }
+    }
+    function showTxaiQuickUndoToast(txSnapshot) {
+      const bar = document.createElement('div');
+      bar.className = 'toast show';
+      bar.style.display = 'flex';
+      bar.style.gap = '10px';
+      bar.style.alignItems = 'center';
+      bar.innerHTML = 'Transaksi "' + escAttr(txSnapshot.note || '') + '" dihapus dari notifikasi. ' +
+        '<button style="background:none;border:none;color:#fff;text-decoration:underline;font-weight:700;cursor:pointer;">Batalkan</button>';
+      bar.querySelector('button').onclick = async () => {
+        addTransaction(Object.assign({}, txSnapshot, { id: undefined }));
+        if (currentUserId && supabaseClient) {
+          await supabaseClient.from('user_settings').update({ last_notif_deleted: null }).eq('user_id', currentUserId);
+        }
+        bar.remove();
+        showToast('Transaksi dikembalikan');
+        refreshAllViews();
+      };
+      document.body.appendChild(bar);
+      setTimeout(() => bar.remove(), 8000);
     }
   </script>
 

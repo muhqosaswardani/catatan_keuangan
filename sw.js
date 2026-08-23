@@ -132,11 +132,99 @@ self.addEventListener('push', (event) => {
 // Terima klik pada notifikasi (termasuk klik tombol aksi) dan arahkan ke URL
 // yang sesuai. Struktur routing umum disiapkan di sini; logic detail per
 // aksi (Edit/Hapus/Lengkapi) diisi penuh di Bagian 2 & 3 lewat payload.data.
+// Fase 2 Bagian 2: tombol "Hapus" di notifikasi transaksi harus menghapus transaksi
+// SAAT ITU JUGA tanpa membuka app (beda dari aksi lain yang menavigasi ke app).
+// Dilakukan langsung dari sini via REST Supabase (anon key publishable, aman ada di
+// service worker — sama seperti sudah ada di index.html), lalu recalculate saldo
+// dompet dari total transaksi yang tersisa (bukan cuma delta) biar tetap akurat.
+// Snapshot transaksi yang dihapus disimpan ke user_settings.last_notif_deleted supaya
+// index.html bisa menawarkan "Undo" saat app dibuka lagi.
+const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
+
+async function handleDeleteFromNotification(data) {
+  const { transaction_id: txId, access_code: accessCode } = data;
+  if (!txId || !accessCode) return;
+  const headers = {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  try {
+    // 1. Ambil dulu data transaksinya (buat snapshot Undo & buat tau wallet_id-nya)
+    const getRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}&access_code=eq.${encodeURIComponent(accessCode)}&select=*`,
+      { headers }
+    );
+    const rows = await getRes.json();
+    const tx = Array.isArray(rows) && rows[0];
+    if (!tx) return;
+
+    // 2. Hapus baris transaksinya
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}&access_code=eq.${encodeURIComponent(accessCode)}`,
+      { method: 'DELETE', headers }
+    );
+
+    // 3. Recalculate saldo dompet murni dari transaksi yang TERSISA (bukan +delta),
+    // biar tidak drift walau ada race condition dengan device lain.
+    if (tx.wallet_id) {
+      const txRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/transactions?access_code=eq.${encodeURIComponent(accessCode)}&or=(wallet_id.eq.${encodeURIComponent(tx.wallet_id)},to_wallet_id.eq.${encodeURIComponent(tx.wallet_id)})&select=type,amount,wallet_id,to_wallet_id`,
+        { headers }
+      );
+      const remaining = await txRes.json();
+      let balance = 0;
+      if (Array.isArray(remaining)) {
+        for (const r of remaining) {
+          if (r.type === 'transfer') {
+            if (r.wallet_id === tx.wallet_id) balance -= Number(r.amount) || 0;
+            if (r.to_wallet_id === tx.wallet_id) balance += Number(r.amount) || 0;
+          } else if (r.wallet_id === tx.wallet_id) {
+            balance += r.type === 'income' ? (Number(r.amount) || 0) : -(Number(r.amount) || 0);
+          }
+        }
+      }
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/wallets?id=eq.${encodeURIComponent(tx.wallet_id)}&access_code=eq.${encodeURIComponent(accessCode)}`,
+        { method: 'PATCH', headers, body: JSON.stringify({ balance, updated_at: new Date().toISOString() }) }
+      );
+    }
+
+    // 4. Simpan snapshot buat Undo di app (kolom last_notif_deleted di user_settings)
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/user_settings?access_code=eq.${encodeURIComponent(accessCode)}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          last_notif_deleted: { tx, deletedAt: Date.now() },
+          updated_at: new Date().toISOString(),
+        }),
+      }
+    );
+
+    // 5. Kasih tau user transaksinya sudah dihapus (notifikasi baru, ringkas)
+    self.registration.showNotification('Transaksi dihapus', {
+      body: (tx.note || 'Transaksi') + ' sudah dihapus dari catatan.',
+      icon: new URL('icons/icon-192.png', SCOPE_URL).href,
+      tag: 'txai-delete-confirm',
+    });
+  } catch (e) {
+    // Gagal diam-diam (mis. offline) — transaksinya tetap ada, user masih bisa hapus manual dari app.
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const data = event.notification.data || {};
   const action = event.action; // '' kalau klik body notifikasi (bukan tombol aksi)
+
+  if (action === 'hapus') {
+    event.waitUntil(handleDeleteFromNotification(data));
+    return;
+  }
 
   // targetUrl ditentukan oleh pengirim notifikasi lewat payload.data:
   // - data.url: URL relatif ke scope app yang mau dibuka
