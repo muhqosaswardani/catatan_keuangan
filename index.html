@@ -9569,7 +9569,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.18)';
+      const version = ' (v2.9.19)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10495,7 +10495,9 @@
       return added;
     }
 
+    // Return value: true kalau ada data yg berubah (dipakai caller utk tau perlu re-sync ke Supabase atau tidak)
     function seedIfEmpty() {
+      let didChange = false;
       if (getCategories().length === 0) {
         const presetExpense = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan'];
         const presetIncome = ['Gaji', 'Bonus'];
@@ -10505,8 +10507,9 @@
         presetIncome.forEach(n => cats.push({ id: 'cat_income_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'income', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++), updatedAt: 1 }));
         ensureSystemCategories(cats);
         setCategoriesLocalOnly(cats);
+        didChange = true;
       } else {
-        // Migrasi kategori lama
+        // Migrasi kategori lama + backfill kategori sistem (mis. "Utang Piutang" utk type income) utk user yg datanya sudah ada
         const cats = getCategories();
         let changed = false;
         cats.forEach((c, i) => {
@@ -10516,13 +10519,15 @@
           if (isSystemCategoryName(c.name) && !c._system) { c._system = true; changed = true; }
         });
         if (ensureSystemCategories(cats)) changed = true;
-        if (changed) setCategoriesLocalOnly(cats);
+        if (changed) { setCategoriesLocalOnly(cats); didChange = true; }
       }
       if (getWallets().length === 0) {
         setWalletsLocalOnly([
           { id: 'wallet_utama', name: 'Dompet Utama', balance: 0, isPrimary: true, order: 0, createdAt: Date.now(), updatedAt: 1 }
         ]);
+        didChange = true;
       }
+      return didChange;
     }
 
     function migrateWalletsSchema() {
@@ -21356,9 +21361,11 @@ PERTANYAAN_USER:
       // Run debts schema unification migration one-time (skema lama WA -> skema kanonik Tab UI)
       migrateDebtSchemaLegacyWa();
 
-      // 3. Jika setelah sync Supabase data lokal MASIH kosong (link/access_code baru), baru buatkan data bawaan
-      if (getCategories().length === 0 || getWallets().length === 0) {
-        seedIfEmpty();
+      // 3. Selalu jalankan seed/backfill (bukan cuma saat data lokal kosong) — ini juga yg menambahkan
+      // kategori sistem yg mungkin belum ada (mis. "Utang Piutang" utk type income) ke akun lama yg
+      // datanya sudah pernah ke-sync sebelumnya. seedIfEmpty() sendiri sudah aman dipanggil berulang
+      // (no-op kalau tidak ada yg berubah), dan hanya re-sync ke Supabase kalau memang ada perubahan.
+      if (seedIfEmpty()) {
         await syncAllWithSupabase(true);
       }
 
