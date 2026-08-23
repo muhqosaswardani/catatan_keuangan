@@ -9569,7 +9569,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.20)';
+      const version = ' (v2.9.21)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10591,6 +10591,49 @@
       }
 
       localStorage.setItem('debt_schema_wa_migrated', '1');
+    }
+
+    // Migrasi: gabungkan catatan utang/piutang AKTIF yang namanya sama tapi beda huruf besar/kecil
+    // (mis. "Dani" & "dani" ke-anggap orang beda gara2 exact string match) -- akibat dari bug yang
+    // sudah diperbaiki di sisi pembuatan catatan baru (app & WA), tapi data yg SUDAH terlanjur
+    // kebuat duplikat sebelum fix ini perlu digabung juga di sini.
+    function migrateDebtCaseInsensitiveDuplicates() {
+      if (localStorage.getItem('debt_case_dedup_migrated')) return;
+
+      const debts = getDebts();
+      const groups = {}; // key: type + '|' + lowercased name -> array of entries (yg statusnya belum lunas)
+      debts.forEach(d => {
+        if (!d.personName || d.status === 'lunas') return;
+        const key = d.type + '|' + d.personName.toLowerCase();
+        (groups[key] = groups[key] || []).push(d);
+      });
+
+      const idsToRemove = [];
+      let changed = false;
+      Object.values(groups).forEach(group => {
+        if (group.length < 2) return;
+        // Pertahankan entri yg paling lama dibuat (createdAt terkecil, fallback ke urutan asli di array)
+        group.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const keep = group[0];
+        for (let i = 1; i < group.length; i++) {
+          keep.amount = (Number(keep.amount) || 0) + (Number(group[i].amount) || 0);
+          idsToRemove.push(group[i].id);
+        }
+        keep.updatedAt = Date.now();
+        changed = true;
+      });
+
+      if (changed) {
+        const remaining = debts.filter(d => !idsToRemove.includes(d.id));
+        idsToRemove.forEach(id => recordDeletion(id));
+        if (supabaseClient && navigator.onLine && idsToRemove.length) {
+          const code = getAccessCode();
+          supabaseClient.from('debt_entries').delete().eq('access_code', code).in('id', idsToRemove).catch(err => console.warn('Supabase debt dedup delete err:', err));
+        }
+        setDebts(remaining);
+      }
+
+      localStorage.setItem('debt_case_dedup_migrated', '1');
     }
 
     /* =========================================================
@@ -14950,6 +14993,17 @@
       // Pemasukan + Utang Piutang = Utang baru (menerima pinjaman -> uang masuk)
       // Pengeluaran + Utang Piutang = Piutang baru (memberi pinjaman -> uang keluar)
       const debtType = payload.type === 'income' ? 'utang' : 'piutang';
+
+      // Cek dulu apakah nama ini (match case-insensitive, spy "dani" ketemu sama "Dani" yg udah ada)
+      // sudah punya catatan aktif dgn tipe yg sama. Kalau ada, TAMBAHKAN ke situ (pakai nama existing),
+      // bukan bikin orang baru cuma gara2 beda huruf besar/kecil.
+      const debts = getDebts();
+      const existingEntry = debts.find(d => d.personName && d.personName.toLowerCase() === personName.toLowerCase() && d.type === debtType && d.status !== 'lunas');
+      if (existingEntry) {
+        submitTxDebtTopUpFromTransactionForm(payload, debts, existingEntry);
+        return;
+      }
+
       const typeLabel = debtType === 'utang' ? 'Utang Baru ke' : 'Piutang Baru ke';
       const txNote = payload.note ? `${typeLabel} ${personName}: ${payload.note}` : `${typeLabel} ${personName}`;
 
@@ -14967,7 +15021,6 @@
       };
       setTransactions([...getTransactions(), txRecord]);
 
-      const debts = getDebts();
       debts.push({
         id: debtId, personName, type: debtType, amount: payload.amount, date: payload.date,
         note: payload.note || '', dueDate: '', status: 'belum', updatedAt: Date.now()
@@ -19579,20 +19632,35 @@ Keluarkan JSON dengan schema:
           return true;
         }
 
-        const debtId = 'debt_' + uid();
-        debts.push({
-          id: debtId,
-          access_code: getAccessCode(),
-          personName: personName,
-          type: debtType,
-          amount: amount,
-          date: todayStr(),
-          note: note,
-          status: "belum",
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        });
-        setDebtsLocalOnly(debts);
+        // Cek dulu apakah orang ini sudah punya catatan aktif dgn tipe yg sama (match case-insensitive,
+        // spy "dani" ketemu sama "Dani" yg udah ada, gak bikin orang baru cuma gara2 beda huruf besar/kecil).
+        // Kalau ketemu, TAMBAHKAN ke catatan itu (pakai nama asli/existing yg tersimpan), bukan bikin baru.
+        const existingEntry = debts.find(d => d.personName && d.personName.toLowerCase() === personName.toLowerCase() && d.type === debtType && d.status !== "lunas");
+
+        let debtId, displayName;
+        if (existingEntry) {
+          debtId = existingEntry.id;
+          displayName = existingEntry.personName;
+          existingEntry.amount = (Number(existingEntry.amount) || 0) + amount;
+          existingEntry.updatedAt = Date.now();
+          setDebtsLocalOnly(debts);
+        } else {
+          debtId = 'debt_' + uid();
+          displayName = personName;
+          debts.push({
+            id: debtId,
+            access_code: getAccessCode(),
+            personName: personName,
+            type: debtType,
+            amount: amount,
+            date: todayStr(),
+            note: note,
+            status: "belum",
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
+          setDebtsLocalOnly(debts);
+        }
 
         const txs = getTransactions();
         const txId = 'tx_' + uid();
@@ -19601,6 +19669,10 @@ Keluarkan JSON dengan schema:
 
         const txType = debtType === 'utang' ? 'income' : 'expense';
         const catId = matchCategoryByName("Utang Piutang", txType);
+
+        const noteLabel = existingEntry
+          ? (debtType === 'utang' ? `Tambah pinjaman ke ${displayName}` : `${displayName} pinjam lagi`)
+          : (debtType === 'utang' ? `Utang baru ke ${displayName}` : `Piutang baru ke ${displayName}`);
 
         const newTx = {
           id: txId,
@@ -19611,7 +19683,7 @@ Keluarkan JSON dengan schema:
           type: txType,
           amount: amount,
           date: todayStr(),
-          note: debtType === 'utang' ? `Utang baru ke ${personName}: ${note}` : `Piutang baru ke ${personName}: ${note}`,
+          note: note ? `${noteLabel}: ${note}` : noteLabel,
           source: "whatsapp",
           createdAt: Date.now(),
           updatedAt: Date.now()
@@ -19623,7 +19695,9 @@ Keluarkan JSON dengan schema:
         refreshAllViews();
         syncAllWithSupabase(true);
 
-        const label = debtType === 'utang' ? `Berhasil mencatat *utang baru* ke *${personName}*` : `Berhasil mencatat *piutang baru* ke *${personName}*`;
+        const label = existingEntry
+          ? `Berhasil menambah *${debtType === 'utang' ? 'utang' : 'piutang'}* ke *${displayName}*`
+          : (debtType === 'utang' ? `Berhasil mencatat *utang baru* ke *${displayName}*` : `Berhasil mencatat *piutang baru* ke *${displayName}*`);
         appendChatBubble('bot', `${label} sebesar *${formatRupiah(amount)}*! ✓`, Date.now(), null, debtId);
         return true;
       }
@@ -21407,6 +21481,9 @@ PERTANYAAN_USER:
 
       // Run debts schema unification migration one-time (skema lama WA -> skema kanonik Tab UI)
       migrateDebtSchemaLegacyWa();
+
+      // Run debts case-insensitive dedup migration one-time (gabungin "Dani" & "dani" jd 1 orang)
+      migrateDebtCaseInsensitiveDuplicates();
 
       // 3. Selalu jalankan seed/backfill (bukan cuma saat data lokal kosong) — ini juga yg menambahkan
       // kategori sistem yg mungkin belum ada (mis. "Utang Piutang" utk type income) ke akun lama yg
