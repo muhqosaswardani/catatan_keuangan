@@ -6398,6 +6398,7 @@
           <button type="button" class="settings-row-card" onclick="openModal('modalApiKey')">
             <div class="sr-title">API Key Gemini Saya <span class="sr-arrow">›</span></div>
           </button>
+          <!-- Auto-Reply Asisten WhatsApp: disembunyikan dari app, pengaturan ini cuma boleh dari dashboard admin
           <div class="settings-row-card" style="display:flex;justify-content:space-between;align-items:center;cursor:default;">
             <div class="sr-title" style="flex:1;">Auto-Reply Asisten WhatsApp</div>
             <label class="switch-ios">
@@ -6405,6 +6406,7 @@
               <span class="switch-ios-slider"></span>
             </label>
           </div>
+          -->
           <button type="button" class="settings-row-card danger" onclick="openResetConfirm()">
             <div class="sr-title">Reset Semua Data <span class="sr-arrow">›</span></div>
           </button>
@@ -9577,7 +9579,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.27)';
+      const version = ' (v2.9.28)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
