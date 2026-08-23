@@ -80,6 +80,7 @@
     body {
       margin: 0;
       padding: 0;
+      overscroll-behavior-y: contain;
     }
 
     body {
@@ -104,6 +105,7 @@
       position: relative;
       min-height: 100vh;
       background: var(--bg);
+      overscroll-behavior-y: contain;
     }
 
     .page {
@@ -9626,7 +9628,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.29)';
+      const version = ' (v2.9.30)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
