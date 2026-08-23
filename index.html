@@ -9628,7 +9628,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.30)';
+      const version = ' (v2.9.31)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11396,6 +11396,10 @@
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       const pageEl = document.getElementById('page-' + tab);
       if (pageEl) pageEl.classList.add('active');
+      // Fix: reset posisi scroll tiap ganti tab, biar gak kebawa scrollTop dari tab
+      // sebelumnya (yang bisa lebih panjang) — itu yang bikin muncul area kosong di
+      // atas header waktu buka tab yang kontennya lebih pendek (mis. Laporan).
+      window.scrollTo(0, 0);
       document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
       const bottomNavMore = document.querySelector('#bottomNav [data-tab="lainnya"]');
       if (bottomNavMore) {
