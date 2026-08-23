@@ -6908,8 +6908,7 @@
               onclick="openModal('modalShortcutManage');renderShortcutManageList();">Kelola</a>
           </div>
           <div class="qs-grid" id="quickShortcutGrid"></div>
-          <div class="empty-note" id="quickShortcutEmpty" style="display:none;">Belum ada shortcut. Catat beberapa
-            transaksi dulu, atau atur manual lewat "Kelola".</div>
+          <div class="empty-note" id="quickShortcutEmpty" style="display:none;">Belum ada shortcut.</div>
         </div>
       </div>
     </div>
@@ -9569,7 +9568,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.24)';
+      const version = ' (v2.9.25)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15200,7 +15199,6 @@
       if (goals.length === 0) {
         wrap.innerHTML = `<div class="card" style="text-align:center;padding:30px 18px;">
       <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Belum ada tujuan tabungan</div>
-      <div class="empty-note" style="padding:0;">Mau bikin satu? Progress-nya bakal ngikutin saldo dompet yang kamu pilih secara otomatis.</div>
     </div>`;
         return;
       }
@@ -17940,7 +17938,7 @@
       const wrap = document.getElementById('recurringManageList');
       const all = getRecurring();
       if (all.length === 0) {
-        wrap.innerHTML = '<div class="empty-note" style="padding:8px 0;font-size:13px;color:var(--ink-soft);">Belum ada item berulang. Tambahkan tagihan, cicilan, atau gaji rutin di bawah ini.</div>';
+        wrap.innerHTML = '<div class="empty-note" style="padding:8px 0;font-size:13px;color:var(--ink-soft);">Belum ada item berulang.</div>';
         return;
       }
       // Urutkan: perlu aksi (terlambat/jatuh tempo) dulu paling atas, baru belum bayar, baru yang sudah dibayar periode ini/akan datang & nonaktif di bawah.
