@@ -8032,6 +8032,30 @@
       deletedIds: 'fk_deleted_ids'
     };
 
+    const LS_LAST_USER_ID = 'catatan_keuangan_last_user_id';
+
+    // BUGFIX (v2.9.10): mencegah data lintas-akun ke-cache di device yang sama.
+    // Sebelumnya, login (submitMasuk) dan sesi Supabase Auth yang otomatis restore
+    // TIDAK membersihkan cache localStorage (fk_wallets/fk_transactions/fk_budgets/dll).
+    // Akibatnya kalau 2 akun berbeda pernah login di device/browser yang sama,
+    // transaksi & anggaran milik akun sebelumnya ikut ke-merge & tampil di akun baru
+    // (lihat scopeToOwner + mergeEntities di syncAllWithSupabase), padahal dompet
+    // biasanya "kelihatan benar" karena entri dompet punya ID yang unik per akun.
+    // Fungsi ini dipanggil setiap kali currentUserId di-set (login/daftar/restore sesi):
+    // kalau user yang login SEKARANG beda dari user terakhir yang tercatat di device ini,
+    // seluruh cache lokal langsung dibersihkan sebelum data akun baru di-render/sync.
+    function ensureLocalScopeForUser(userId) {
+      if (!userId) return;
+      let lastUserId = null;
+      try { lastUserId = localStorage.getItem(LS_LAST_USER_ID); } catch (e) {}
+      if (lastUserId && lastUserId !== userId) {
+        console.warn('Deteksi pergantian akun di device ini — membersihkan cache lokal supaya data tidak campur.');
+        Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+        localStorage.removeItem('catatan_keuangan_access_code');
+      }
+      try { localStorage.setItem(LS_LAST_USER_ID, userId); } catch (e) {}
+    }
+
     function getDeletedIds() {
       try {
         return JSON.parse(localStorage.getItem(LS_KEYS.deletedIds) || '[]');
@@ -8447,6 +8471,7 @@
           Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
           localStorage.removeItem('catatan_keuangan_access_code');
           localStorage.removeItem(LS_KEYS.onboarded);
+          try { localStorage.setItem(LS_LAST_USER_ID, currentUserId); } catch (e) {}
           userKeys = [];
           onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
           onboardingCategories = [];
@@ -8530,6 +8555,7 @@
         }
 
         currentUserId = loginRes.data.user.id;
+        ensureLocalScopeForUser(currentUserId);
 
         // Layar ini sekarang cuma dipakai untuk alur Lupa Kata Sandi — user lama,
         // langsung ke dashboard tanpa onboarding ulang.
@@ -8574,6 +8600,7 @@
         }
 
         currentUserId = data.user.id;
+        ensureLocalScopeForUser(currentUserId);
         document.getElementById('auth-onboarding').classList.remove('open');
         // Re-run init supaya status onboarding & sync dashboard dicek dengan benar
         init();
@@ -9148,7 +9175,12 @@
     async function logoutUser() {
       if (!supabaseClient) return;
       await supabaseClient.auth.signOut();
+      // BUGFIX (v2.9.10): dulu cuma access_code yang dihapus, data (wallets/transactions/
+      // budgets/dll) masih nyangkut di localStorage dan bisa kebawa/ke-merge ke akun lain
+      // yang login berikutnya di device yang sama.
+      Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
       localStorage.removeItem('catatan_keuangan_access_code');
+      localStorage.removeItem(LS_LAST_USER_ID);
       location.reload();
     }
 
@@ -9460,7 +9492,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.9)';
+      const version = ' (v2.9.10)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -20937,6 +20969,7 @@ PERTANYAAN_USER:
           const { data: { session } } = await supabaseClient.auth.getSession();
           if (session && session.user) {
             currentUserId = session.user.id;
+            ensureLocalScopeForUser(currentUserId);
 
             // Load user profile & settings to check onboarding status
             const { data: profile } = await supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle();
@@ -20945,6 +20978,7 @@ PERTANYAAN_USER:
               // Stale or deleted user session! Force sign out and redirect to promo screen!
               await supabaseClient.auth.signOut();
               localStorage.removeItem('catatan_keuangan_access_code');
+              localStorage.removeItem(LS_LAST_USER_ID);
               Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
               
               const authOb = document.getElementById('auth-onboarding');
