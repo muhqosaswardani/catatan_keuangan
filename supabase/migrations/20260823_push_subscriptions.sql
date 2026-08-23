@@ -1,20 +1,27 @@
 -- supabase/migrations/20260823_push_subscriptions.sql
 -- Fase 2 Bagian 1: Infrastruktur Notifikasi PWA (Web Push)
+--
+-- CATATAN: tabel ini ternyata sudah ada duluan di database (dibuat di luar
+-- migration ini, kemungkinan dari sesi kerja lain sebelum file ini ditulis)
+-- dengan kolom `p256dh`/`auth` (bukan `keys_p256dh`/`keys_auth`) dan sudah
+-- ada 1 RLS policy "Users manage own push subscriptions". Migration ini
+-- disamakan ke skema yang sudah live tsb (idempotent, aman dijalankan ulang).
 
--- 1. Tabel push_subscriptions: satu baris per device per user
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     endpoint TEXT NOT NULL UNIQUE,
-    keys_p256dh TEXT NOT NULL,
-    keys_auth TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
     user_agent TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS user_agent TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
 
--- 2. RLS: user hanya boleh akses baris miliknya sendiri (auth.uid())
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "push_subscriptions_select_own" ON public.push_subscriptions;
@@ -29,10 +36,5 @@ DROP POLICY IF EXISTS "push_subscriptions_delete_own" ON public.push_subscriptio
 CREATE POLICY "push_subscriptions_delete_own" ON public.push_subscriptions
     FOR DELETE USING (auth.uid() = user_id);
 
--- Tidak ada UPDATE policy: kalau device resubscribe (endpoint/keys berubah),
--- frontend hapus baris lama lalu insert baris baru, jadi tidak butuh UPDATE.
-
--- 3. Grant dasar ke authenticated (RLS di atas yang membatasi baris mana yang kelihatan)
 GRANT SELECT, INSERT, DELETE ON TABLE public.push_subscriptions TO authenticated;
--- service_role dipakai Edge Function internal (send-push-notification) untuk baca semua subscription
 GRANT ALL ON TABLE public.push_subscriptions TO service_role, postgres;

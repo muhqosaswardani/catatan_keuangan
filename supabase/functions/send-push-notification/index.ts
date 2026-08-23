@@ -58,7 +58,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: subs, error: fetchErr } = await supabase
     .from("push_subscriptions")
-    .select("id, endpoint, keys_p256dh, keys_auth")
+    .select("id, endpoint, p256dh, auth")
     .eq("user_id", user_id);
 
   if (fetchErr) {
@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
       webpush.sendNotification(
         {
           endpoint: sub.endpoint,
-          keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth },
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
         notificationPayload,
       ).then(() => sub).catch((err) => {
