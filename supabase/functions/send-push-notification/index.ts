@@ -37,22 +37,43 @@ interface SendPushBody {
 }
 
 Deno.serve(async (req: Request) => {
+  // CORS: fungsi ini dipanggil langsung dari browser (tombol "Kirim Notifikasi
+  // Uji Coba" di Pengaturan), jadi wajib jawab preflight OPTIONS + kasih header CORS.
+  const requestOrigin = req.headers.get("origin") || "*";
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": requestOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Credentials": "true",
+    "Content-Type": "application/json",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: corsHeaders,
+    });
   }
 
   let payload: SendPushBody;
   try {
     payload = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
 
   const { user_id, title, body, data } = payload;
   if (!user_id || !title || !body) {
     return new Response(
       JSON.stringify({ error: "user_id, title, dan body wajib diisi" }),
-      { status: 400 },
+      { status: 400, headers: corsHeaders },
     );
   }
 
@@ -63,13 +84,16 @@ Deno.serve(async (req: Request) => {
 
   if (fetchErr) {
     console.error("[send-push-notification] gagal ambil subscriptions:", fetchErr);
-    return new Response(JSON.stringify({ error: fetchErr.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: fetchErr.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 
   if (!subs || subs.length === 0) {
     return new Response(
       JSON.stringify({ sent: 0, failed: 0, message: "User tidak punya push subscription aktif" }),
-      { status: 200 },
+      { status: 200, headers: corsHeaders },
     );
   }
 
@@ -114,6 +138,6 @@ Deno.serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ sent, failed: subs.length - sent, cleaned: staleIds.length }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
+    { status: 200, headers: corsHeaders },
   );
 });
