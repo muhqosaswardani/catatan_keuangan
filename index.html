@@ -8230,7 +8230,7 @@
     function defaultIconForCategoryName(name) {
       const map = {
         'Makan': 'food', 'Transport': 'car', 'Belanja': 'bag', 'Tagihan': 'receipt', 'Hiburan': 'film',
-        'Lainnya': 'more', 'Penyesuaian Saldo': 'wallet', 'Gaji': 'briefcase', 'Bonus': 'gift'
+        'Lainnya': 'more', 'Penyesuaian Saldo': 'wallet', 'Utang Piutang': 'users', 'Gaji': 'briefcase', 'Bonus': 'gift'
       };
       return map[name] || 'more';
     }
@@ -8951,7 +8951,7 @@
     function defaultIconForCategoryNameOnb(name) {
       const map = {
         'Makan': 'food', 'Transport': 'car', 'Belanja': 'bag', 'Tagihan': 'receipt',
-        'Hiburan': 'film', 'Lainnya': 'more', 'Penyesuaian Saldo': 'wallet',
+        'Hiburan': 'film', 'Lainnya': 'more', 'Penyesuaian Saldo': 'wallet', 'Utang Piutang': 'users',
         'Gaji': 'briefcase', 'Bonus': 'gift'
       };
       return map[name] || 'more';
@@ -8959,8 +8959,8 @@
 
     function initCategoriesOnb() {
       if (onboardingCategories.length) return;
-      const presetExpense = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan', 'Lainnya', 'Penyesuaian Saldo'];
-      const presetIncome = ['Gaji', 'Bonus', 'Lainnya'];
+      const presetExpense = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan'];
+      const presetIncome = ['Gaji', 'Bonus'];
       let i = 0;
       presetExpense.forEach(n => {
         onboardingCategories.push({
@@ -8978,6 +8978,18 @@
           type: 'income',
           icon: defaultIconForCategoryNameOnb(n),
           color: PRESET_COLOR_PALETTE[i++ % PRESET_COLOR_PALETTE.length]
+        });
+      });
+      ['expense', 'income'].forEach(type => {
+        SYSTEM_CATEGORY_NAMES.forEach(n => {
+          onboardingCategories.push({
+            id: `wa_cat_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+            name: n,
+            type,
+            icon: defaultIconForCategoryNameOnb(n),
+            color: PRESET_COLOR_PALETTE[i++ % PRESET_COLOR_PALETTE.length],
+            _system: true
+          });
         });
       });
     }
@@ -9026,10 +9038,16 @@
         <div class="cat-manage-row" data-id="${c.id}">
           <div class="l">
             <span onclick="openCatIconPickerOnb('${c.id}')" style="cursor:pointer;">${categoryIconBoxHtmlOnb(c, { size: 34, radius: 9, iconSize: 19 })}</span>
-            <input type="text" class="name" value="${c.name}" oninput="renameCategoryOnb('${c.id}', this.value)" style="border:none;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 0;min-width:0;flex:1;">
+            ${isSystemCategory(c)
+              ? `<span class="name" style="font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 0;">${escAttr(c.name)}</span>`
+              : `<input type="text" class="name" value="${c.name}" oninput="renameCategoryOnb('${c.id}', this.value)" style="border:none;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 0;min-width:0;flex:1;">`
+            }
           </div>
           <div class="cat-manage-actions">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="deleteCategoryManagedOnb('${c.id}')">Hapus</button>
+            ${isSystemCategory(c)
+              ? `<span class="cat-system-badge" style="font-size:11.5px;color:var(--ink-soft);padding:4px 6px;">Bawaan</span>`
+              : `<button type="button" class="btn btn-ghost btn-sm" onclick="deleteCategoryManagedOnb('${c.id}')">Hapus</button>`
+            }
           </div>
         </div>
       `).join('');
@@ -9037,10 +9055,12 @@
 
     function renameCategoryOnb(id, val) {
       const cat = onboardingCategories.find(c => c.id === id);
-      if (cat) cat.name = val;
+      if (cat && !isSystemCategory(cat)) cat.name = val;
     }
 
     function deleteCategoryManagedOnb(id) {
+      const cat = onboardingCategories.find(c => c.id === id);
+      if (isSystemCategory(cat)) { showToast('Kategori bawaan ini tidak bisa dihapus.'); return; }
       onboardingCategories = onboardingCategories.filter(c => c.id !== id);
       renderCatManageListOnb();
     }
@@ -9521,7 +9541,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.16)';
+      const version = ' (v2.9.17)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10438,14 +10458,39 @@
     /* =========================================================
        SEED DATA
        ========================================================= */
+    // Kategori sistem: permanen, tidak bisa dihapus/direname, selalu ada untuk expense & income.
+    const SYSTEM_CATEGORY_NAMES = ['Penyesuaian Saldo', 'Utang Piutang', 'Lainnya'];
+    function isSystemCategoryName(name) { return SYSTEM_CATEGORY_NAMES.includes(name); }
+    function isSystemCategory(cat) { return !!cat && isSystemCategoryName(cat.name); }
+
+    function ensureSystemCategories(cats) {
+      let added = false;
+      ['expense', 'income'].forEach(type => {
+        SYSTEM_CATEGORY_NAMES.forEach(n => {
+          if (!cats.some(c => c.name === n && c.type === type)) {
+            cats.push({
+              id: 'cat_' + type + '_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+              name: n, type,
+              icon: defaultIconForCategoryName(n),
+              color: defaultColorForIndex(cats.length),
+              updatedAt: 1, _system: true
+            });
+            added = true;
+          }
+        });
+      });
+      return added;
+    }
+
     function seedIfEmpty() {
       if (getCategories().length === 0) {
-        const presetExpense = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan', 'Lainnya', 'Penyesuaian Saldo'];
-        const presetIncome = ['Gaji', 'Bonus', 'Lainnya'];
+        const presetExpense = ['Makan', 'Transport', 'Belanja', 'Tagihan', 'Hiburan'];
+        const presetIncome = ['Gaji', 'Bonus'];
         const cats = [];
         let i = 0;
         presetExpense.forEach(n => cats.push({ id: 'cat_expense_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'expense', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++), updatedAt: 1 }));
         presetIncome.forEach(n => cats.push({ id: 'cat_income_' + n.toLowerCase().replace(/[^a-z0-9]/g, '_'), name: n, type: 'income', icon: defaultIconForCategoryName(n), color: defaultColorForIndex(i++), updatedAt: 1 }));
+        ensureSystemCategories(cats);
         setCategoriesLocalOnly(cats);
       } else {
         // Migrasi kategori lama
@@ -10455,7 +10500,9 @@
           if (!c.icon) { c.icon = defaultIconForCategoryName(c.name); changed = true; }
           else if (c.icon === 'more' && defaultIconForCategoryName(c.name) !== 'more') { c.icon = defaultIconForCategoryName(c.name); changed = true; }
           if (!c.color) { c.color = defaultColorForIndex(i); changed = true; }
+          if (isSystemCategoryName(c.name) && !c._system) { c._system = true; changed = true; }
         });
+        if (ensureSystemCategories(cats)) changed = true;
         if (changed) setCategoriesLocalOnly(cats);
       }
       if (getWallets().length === 0) {
@@ -17331,7 +17378,10 @@
         <span>${escAttr(c.name)}</span>
       </div>
       <div class="cat-manage-actions">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteCategoryManaged('${c.id}')">Hapus</button>
+        ${isSystemCategory(c)
+          ? `<span class="cat-system-badge" style="font-size:11.5px;color:var(--ink-soft);padding:4px 6px;">Bawaan</span>`
+          : `<button type="button" class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteCategoryManaged('${c.id}')">Hapus</button>`
+        }
       </div>
     </div>`).join('');
 
@@ -17447,6 +17497,8 @@
       showToast('Kategori ditambahkan');
     }
     async function deleteCategoryManaged(id) {
+      const catToDelete = getCategories().find(c => c.id === id);
+      if (isSystemCategory(catToDelete)) { showToast('Kategori bawaan ini tidak bisa dihapus.'); return; }
       const confirmed = await showConfirmModal({
         title: 'Hapus Kategori',
         text: 'Hapus kategori ini? Transaksi lama tetap menyimpan nama kategori aslinya.',
