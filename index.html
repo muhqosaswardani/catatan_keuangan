@@ -9489,30 +9489,22 @@
       window.open('https://wa.me/6289626112023?text=' + encodeURIComponent(text), '_blank');
     }
 
-    // Access Code Generator & URL Manager (?akses=...)
+    // Access Code Generator (dulu juga baca ?akses=/ak_... untuk share-link lama).
+    // Fallback itu peninggalan era single-user sebelum migrasi ke Supabase Auth dan
+    // sudah dihapus: audit memastikan getAccessCode() di seluruh kode ini SELALU
+    // dipanggil setelah currentUserId terisi dari session Supabase Auth yang valid
+    // (lihat init(), submitVerifikasi, submitBuatSandi). Kalau titik ini tercapai
+    // tanpa currentUserId, itu bug di pemanggilnya — fail-safe: kembalikan null
+    // (query jadi no-op/kosong) daripada diam-diam pakai access code anonim yang
+    // bisa nyerempet data user lain.
     function getAccessCode() {
       if (currentUserId) {
         const code = 'wa_' + currentUserId;
         localStorage.setItem('catatan_keuangan_access_code', code);
         return code;
       }
-      const params = new URLSearchParams(window.location.search);
-      let code = params.get('akses') || params.get('access_code');
-      if (!code) {
-        code = localStorage.getItem('catatan_keuangan_access_code');
-      }
-      if (!code) {
-        code = 'ak_' + Math.random().toString(36).substring(2, 9);
-        localStorage.setItem('catatan_keuangan_access_code', code);
-      } else {
-        localStorage.setItem('catatan_keuangan_access_code', code);
-      }
-      if (!params.get('akses')) {
-        params.set('akses', code);
-        const newUrl = window.location.pathname + '?' + params.toString() + window.location.hash;
-        window.history.replaceState({ path: newUrl }, '', newUrl);
-      }
-      return code;
+      console.error('getAccessCode() dipanggil tanpa currentUserId — seharusnya tidak terjadi di alur normal.');
+      return null;
     }
 
     let isSyncingData = false;
@@ -9530,7 +9522,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.12)';
+      const version = ' (v2.9.13)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21055,7 +21047,20 @@ PERTANYAAN_USER:
             return; // Halt loading dashboard
           }
         } catch (e) {
-          console.warn('Error fetching Supabase session:', e);
+          // Fail-safe (bukan fail-open): error di titik ini artinya status login
+          // tidak bisa dipastikan valid. Daripada lanjut me-render dashboard tanpa
+          // currentUserId yang jelas (yang bisa jatuh ke fallback access_code lama),
+          // paksa treat sebagai "belum login" — sign out & balik ke layar Masuk.
+          console.warn('Error saat cek session Supabase, treat sebagai belum login:', e);
+          try { await supabaseClient.auth.signOut(); } catch (signOutErr) { /* abaikan, tetap lanjut redirect */ }
+          currentUserId = null;
+          localStorage.removeItem('catatan_keuangan_access_code');
+          localStorage.removeItem(LS_LAST_USER_ID);
+          Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+          const authOb = document.getElementById('auth-onboarding');
+          if (authOb) authOb.classList.add('open');
+          gotoScreen('screen-masuk');
+          return; // Halt loading dashboard
         }
       }
 
