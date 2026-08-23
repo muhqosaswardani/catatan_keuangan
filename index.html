@@ -6454,33 +6454,18 @@
       -->
 
         <div style="margin-top:14px;display:flex;flex-direction:column;gap:0;">
-          <!-- AKUN: nama, no WhatsApp, & menu ganti kata sandi -->
-          <div class="settings-row-card" style="cursor:default;">
+          <!-- AKUN: buka modal berisi nama, no WhatsApp, & ganti kata sandi -->
+          <button type="button" class="settings-row-card" onclick="openModal('modalAkun')">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg></span>
-              <div style="flex:1;min-width:0;">
-                <div class="sr-title" style="justify-content:flex-start;">Akun</div>
-                <div class="sr-sub" id="settAkunNama">Memuat…</div>
-                <div class="sr-sub" id="settAkunWa"></div>
-              </div>
-            </div>
-          </div>
-          <button type="button" class="settings-row-card" onclick="openGantiPasswordModal()">
-            <div class="sr-row">
-              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
-              <span class="sr-title">Ganti Kata Sandi <span class="sr-arrow">›</span></span>
+              <span class="sr-title">Akun <span class="sr-arrow">›</span></span>
             </div>
           </button>
-          <button type="button" class="settings-row-card" onclick="exportData()">
+          <!-- DATA: buka modal pilihan Export / Import -->
+          <button type="button" class="settings-row-card" onclick="openModal('modalData')">
             <div class="sr-row">
-              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M7 9l5 5 5-5"/><path d="M4 19h16"/></svg></span>
-              <span class="sr-title">Export Data <span class="sr-arrow">›</span></span>
-            </div>
-          </button>
-          <button type="button" class="settings-row-card" onclick="document.getElementById('importFileInput').click()">
-            <div class="sr-row">
-              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14V3"/><path d="M7 8l5-5 5 5"/><path d="M4 19h16"/></svg></span>
-              <span class="sr-title">Import Data <span class="sr-arrow">›</span></span>
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
+              <span class="sr-title">Data <span class="sr-arrow">›</span></span>
             </div>
           </button>
           <input type="file" id="importFileInput" accept="application/json" style="display:none"
@@ -7568,6 +7553,56 @@
           <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
             Hubungi Admin untuk Beli Token
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: AKUN ==================== -->
+    <div class="modal-overlay modal-center" id="modalAkun">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Akun</h3>
+          <button class="modal-close" onclick="closeModal('modalAkun')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Nama</label>
+            <div id="settAkunNama" style="font-size:14.5px;font-weight:600;color:var(--ink);padding:4px 0;">Memuat…</div>
+          </div>
+          <div class="field" style="margin-top:14px;">
+            <label>Nomor WhatsApp</label>
+            <div id="settAkunWa" style="font-size:14.5px;font-weight:600;color:var(--ink);padding:4px 0;"></div>
+          </div>
+          <button type="button" class="settings-row-card" style="margin-top:18px;" onclick="openGantiPasswordModal()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+              <span class="sr-title">Ganti Kata Sandi <span class="sr-arrow">›</span></span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: DATA (Export / Import) ==================== -->
+    <div class="modal-overlay modal-center" id="modalData">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Data</h3>
+          <button class="modal-close" onclick="closeModal('modalData')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <button type="button" class="settings-row-card" onclick="exportData()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M7 9l5 5 5-5"/><path d="M4 19h16"/></svg></span>
+              <span class="sr-title">Export Data <span class="sr-arrow">›</span></span>
+            </div>
+          </button>
+          <button type="button" class="settings-row-card" style="margin-top:8px;" onclick="document.getElementById('importFileInput').click()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14V3"/><path d="M7 8l5-5 5 5"/><path d="M4 19h16"/></svg></span>
+              <span class="sr-title">Import Data <span class="sr-arrow">›</span></span>
+            </div>
           </button>
         </div>
       </div>
@@ -9763,7 +9798,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.42)';
+      const version = ' (v2.9.43)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
