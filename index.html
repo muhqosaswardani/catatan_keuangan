@@ -5927,10 +5927,10 @@
           <div id="catManageList"></div>
           <div class="cat-add-form">
             <div class="cat-add-row">
-              <button type="button" class="cat-icon-trigger" id="catManageIconTrigger" onclick="openCatIconPicker()"></button>
-              <input type="text" id="catManageNewName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryFromManager();}">
+              <button type="button" class="cat-icon-trigger" id="catManageIconTrigger" onclick="openCatIconPickerOnb()"></button>
+              <input type="text" id="catManageNewName" placeholder="Nama kategori baru" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryFromManagerOnb();}">
             </div>
-            <button class="btn btn-primary btn-block btn-sm" style="margin-top:8px;" onclick="addCategoryFromManager()">+ Tambah Kategori</button>
+            <button class="btn btn-primary btn-block btn-sm" style="margin-top:8px;" onclick="addCategoryFromManagerOnb()">+ Tambah Kategori</button>
           </div>
         </div>
 
@@ -8874,7 +8874,7 @@
           </div>
           <div class="field amount-input" style="margin-bottom:0;">
             <span class="prefix">Rp</span>
-            <input type="number" placeholder="0" value="${w.saldo}" oninput="onboardingWallets[${i}].saldo=this.value">
+            <input type="text" inputmode="decimal" placeholder="0" value="${w.saldo ? String(w.saldo).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" autocomplete="off" autocorrect="off" spellcheck="false" oninput="formatThousandInput(this);onboardingWallets[${i}].saldo=parseRupiahInput(this.value)">
           </div>
         </div>
       `).join('');
@@ -9045,7 +9045,7 @@
       renderCatManageListOnb();
     }
 
-    function addCategoryFromManager() {
+    function addCategoryFromManagerOnb() {
       const inp = document.getElementById('catManageNewName');
       if (!inp) return;
       const name = inp.value.trim();
@@ -9263,12 +9263,11 @@
               access_code: 'wa_' + currentUserId,
               wallet_id: walletId,
               category_id: seedCatId,
+              category: seedCategory ? seedCategory.name : '',
               amount: balance,
               type: 'income',
               date: todayStr(),
-              description: 'Saldo Awal',
-              is_pending: false,
-              created_at: new Date(Date.now() + i).toISOString(),
+              note: 'Saldo Awal',
               updated_at: new Date().toISOString()
             });
           }
@@ -9522,7 +9521,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.13)';
+      const version = ' (v2.9.14)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
