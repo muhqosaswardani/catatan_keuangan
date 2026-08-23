@@ -9569,7 +9569,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.23)';
+      const version = ' (v2.9.24)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15447,7 +15447,6 @@
       const hasHistory = getTransactions().some(t => t.category === 'Utang Piutang');
       wrap.innerHTML = `<div class="card" style="text-align:center;padding:30px 18px;">
       <div style="font-weight:700;font-size:15px;margin-bottom:6px;">Belum ada catatan utang piutang aktif</div>
-      <div class="empty-note" style="padding:0;">Catat siapa yang berhutang ke kamu, atau kamu berhutang ke siapa.</div>
       ${hasHistory ? '<div style="margin-top:12px;"><button class="btn btn-ghost btn-sm" onclick="openDebtHistory()">Lihat Riwayat</button></div>' : ''}
     </div>`;
         return;
