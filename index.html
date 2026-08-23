@@ -9521,7 +9521,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.14)';
+      const version = ' (v2.9.15)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -20954,6 +20954,7 @@ PERTANYAAN_USER:
       renderHome();
       renderTransactions();
       renderBudget();
+      if (document.getElementById('catManageList')) renderCatManageList();
       if (document.getElementById('page-checklist')) renderChecklist();
       if (document.getElementById('page-tujuan')) renderGoals();
       if (document.getElementById('page-utang')) renderDebts();
