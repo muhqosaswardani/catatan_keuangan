@@ -6953,7 +6953,7 @@
             <label>Utang Piutang</label>
             <div class="type-toggle" style="margin-bottom:10px;">
               <button type="button" data-mode="new" class="active" onclick="setTxDebtMode('new')">Catatan Baru</button>
-              <button type="button" data-mode="payoff" onclick="setTxDebtMode('payoff')">Bayar/Cicil</button>
+              <button type="button" data-mode="payoff" onclick="setTxDebtMode('payoff')">Catatan Aktif</button>
             </div>
             <div id="txDebtNewWrap">
               <div class="field" id="txDebtPersonNameField" style="margin-bottom:0;">
@@ -9569,7 +9569,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.19)';
+      const version = ' (v2.9.20)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13087,7 +13087,7 @@
     let currentTxType = 'expense';
     let txWalletValue = null, txCategoryValue = null;
     let txDebtMode = 'new'; // 'new' | 'payoff' — dipakai saat kategori dipilih = "Utang Piutang"
-    let txDebtPayoffId = null; // id catatan debts yang dipilih di mode "Bayar/Cicil"
+    let txDebtPayoffId = null; // id catatan debts yang dipilih di mode "Catatan Aktif" (bayar/lunasin ATAU tambah pinjaman)
 
     function chooseAddTransaction() {
       closeModalUI('modalAddChoice');
@@ -14753,20 +14753,36 @@
       }
     }
 
-    // Kandidat catatan utang/piutang aktif yang bisa dibayar/dicicil, difilter sesuai arah transaksi:
-    // Pengeluaran -> hanya catatan 'utang' (melunasi utang sendiri = uang keluar)
-    // Pemasukan -> hanya catatan 'piutang' (menerima pelunasan dari orang lain = uang masuk)
+    // Catatan aktif yang jenis aksinya "mengurangi" sisa (bayar/lunasin), sesuai arah transaksi:
+    // Pengeluaran -> 'utang' (melunasi utang sendiri = uang keluar)
+    // Pemasukan -> 'piutang' (menerima pelunasan dari orang lain = uang masuk)
+    function getTxDebtDecreaseType() {
+      return currentTxType === 'income' ? 'piutang' : 'utang';
+    }
+    // Kebalikannya: jenis aksi "menambah" sisa (orang itu pinjam lagi / saya pinjam lagi), arah tetap sama:
+    // Pengeluaran -> 'piutang' (kasih pinjaman lagi ke orang yg sudah berutang = uang keluar)
+    // Pemasukan -> 'utang' (saya pinjam lagi ke orang itu = uang masuk)
+    function getTxDebtIncreaseType() {
+      return currentTxType === 'income' ? 'utang' : 'piutang';
+    }
+    // Kandidat catatan utang/piutang aktif buat dipilih di form Tambah Transaksi.
+    // Nampilin KEDUA tipe (utang & piutang) yg aktif, karena satu arah transaksi (Pengeluaran/Pemasukan)
+    // bisa berarti dua aksi berbeda tergantung tipe catatan yg dipilih: bayar/lunasin (mengurangi) atau
+    // nambah pinjaman ke catatan yg sudah ada (menambah) -- lihat getTxDebtDecreaseType/getTxDebtIncreaseType.
     function getTxDebtPayoffCandidates() {
-      const wantType = currentTxType === 'income' ? 'piutang' : 'utang';
-      return getDebts().filter(d => d.status !== 'lunas' && d.type === wantType);
+      return getDebts().filter(d => d.status !== 'lunas' && (d.type === getTxDebtDecreaseType() || d.type === getTxDebtIncreaseType()));
     }
 
     function openTxDebtPayoffPicker() {
+      const decreaseType = getTxDebtDecreaseType();
       const candidates = getTxDebtPayoffCandidates();
-      const options = candidates.map(d => ({
-        value: d.id,
-        label: `${d.personName} — ${formatRupiah(d.amount)}${d.note ? ' (' + d.note + ')' : ''}`
-      }));
+      const options = candidates.map(d => {
+        const actionLabel = d.type === decreaseType ? 'Bayar/Lunasin' : 'Tambah pinjaman';
+        return {
+          value: d.id,
+          label: `${d.personName} — ${formatRupiah(d.amount)} (${actionLabel})${d.note ? ' — ' + d.note : ''}`
+        };
+      });
       openPicker('Pilih Catatan Utang/Piutang', options, txDebtPayoffId, v => { txDebtPayoffId = v; updateTxDebtPayoffLabel(); });
     }
 
@@ -14775,7 +14791,8 @@
       const el = document.getElementById('txDebtPayoffLabel');
       if (!el) return;
       if (d) {
-        el.textContent = `${d.personName} — Sisa ${formatRupiah(d.amount)}`;
+        const actionLabel = d.type === getTxDebtDecreaseType() ? 'akan dibayar' : 'akan ditambah';
+        el.textContent = `${d.personName} — Sisa ${formatRupiah(d.amount)} (${actionLabel})`;
         el.classList.remove('ph');
       } else {
         el.textContent = 'Pilih catatan';
@@ -14962,12 +14979,19 @@
       showToast('Catatan ' + (debtType === 'utang' ? 'utang' : 'piutang') + ' baru tersimpan');
     }
 
-    // Mode "Bayar/Cicil": setara executeChatDebtPayment, mendukung pelunasan sebagian/cicilan
-    // (bukan cuma lunas penuh seperti submitDebtPayoff), dipicu dari modal Tambah Transaksi
+    // Mode "Catatan Aktif": pilih catatan utang/piutang yg sudah ada, lalu tentukan aksinya otomatis
+    // berdasarkan tipe catatan tsb dibanding arah transaksi (lihat getTxDebtDecreaseType/getTxDebtIncreaseType):
+    // - Tipe catatan = decreaseType -> bayar/cicil/lunasin (setara executeChatDebtPayment, sisa berkurang)
+    // - Tipe catatan = increaseType -> orang itu pinjam lagi / saya pinjam lagi (sisa bertambah)
     function submitTxDebtPayoffFromTransactionForm(payload) {
       const debts = getDebts();
       const dbEntry = debts.find(d => d.id === txDebtPayoffId);
       if (!dbEntry) { showToast('Catatan utang/piutang tidak ditemukan'); return; }
+
+      if (dbEntry.type === getTxDebtIncreaseType()) {
+        submitTxDebtTopUpFromTransactionForm(payload, debts, dbEntry);
+        return;
+      }
 
       const payAmount = payload.amount;
       const currentAmt = Number(dbEntry.amount) || 0;
@@ -15022,6 +15046,29 @@
       recalculateWalletBalances();
       syncAllWithSupabase(true);
       showToast(toastMsg);
+    }
+
+    // Sub-case dari mode "Catatan Aktif": orang yg sudah punya piutang aktif pinjam lagi (Pengeluaran),
+    // atau saya pinjam lagi ke orang yg sudah saya utangi (Pemasukan) -- sisa catatan BERTAMBAH,
+    // bukan berkurang, jadi terpisah dari alur bayar/cicil di atas.
+    function submitTxDebtTopUpFromTransactionForm(payload, debts, dbEntry) {
+      const addAmount = payload.amount;
+      dbEntry.amount = (Number(dbEntry.amount) || 0) + addAmount;
+      dbEntry.status = 'belum';
+      dbEntry.updatedAt = Date.now();
+      const noteLabel = dbEntry.type === 'utang' ? `Tambah pinjaman ke ${dbEntry.personName}` : `${dbEntry.personName} pinjam lagi`;
+      setDebts(debts);
+
+      const txRecord = {
+        id: uid(), walletId: payload.walletId, categoryId: payload.categoryId, category: 'Utang Piutang',
+        type: payload.type, amount: addAmount, date: payload.date,
+        note: payload.note ? `${noteLabel}: ${payload.note}` : noteLabel, updatedAt: Date.now()
+      };
+      setTransactions([...getTransactions(), txRecord]);
+
+      recalculateWalletBalances();
+      syncAllWithSupabase(true);
+      showToast('Tercatat. Sisa sekarang: ' + formatRupiah(dbEntry.amount));
     }
 
     async function deleteCurrentTransaction() {
