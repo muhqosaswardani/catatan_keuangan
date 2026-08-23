@@ -12,6 +12,7 @@ const APP_SHELL = [
   new URL('manifest.json', SCOPE_URL).href,
   new URL('icons/icon-192.png', SCOPE_URL).href,
   new URL('icons/icon-512.png', SCOPE_URL).href,
+  new URL('icons/icon-badge-96.png', SCOPE_URL).href,
 ];
 
 self.addEventListener('install', (event) => {
@@ -103,7 +104,10 @@ self.addEventListener('push', (event) => {
   const options = {
     body: payload.body,
     icon: new URL('icons/icon-192.png', SCOPE_URL).href,
-    badge: new URL('icons/icon-192.png', SCOPE_URL).href,
+    // badge WAJIB pakai versi monokrom (siluet putih alpha-only, background transparan) —
+    // Android me-mask badge jadi alpha-only, jadi kalau dikasih PNG berwarna solid (seperti
+    // icon-192 biasa yang backgroundnya opaque), hasilnya cuma kotak siluet polos tanpa bentuk.
+    badge: new URL('icons/icon-badge-96.png', SCOPE_URL).href,
     data: payload.data || {},
     // actions diisi kalau payload.data.actions ada (dipakai Bagian 2/3 untuk
     // tombol Edit/Hapus/Lengkapi langsung dari notifikasi)
