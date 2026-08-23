@@ -8296,7 +8296,7 @@
 
     function clearErr(fieldId) {
       const f = document.getElementById(fieldId);
-      if (f) f.classList.remove('has-error');
+      if (f) f.classList.remove('invalid');
     }
 
     function togglePasswordVisibility(inputId, btn) {
@@ -8310,9 +8310,18 @@
       btn.setAttribute('aria-label', isHidden ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
     }
 
-    function markErr(fieldId) {
+    function markErr(fieldId, message) {
       const f = document.getElementById(fieldId);
-      if (f) f.classList.add('has-error');
+      if (!f) return;
+      const errEl = f.querySelector('.err');
+      if (errEl) {
+        // Simpan teks default (bawaan HTML) sekali saja, supaya kalau field
+        // ini nanti di-markErr lagi tanpa pesan custom, teksnya balik ke default
+        // alih-alih nyangkut ke pesan custom terakhir (mis. dari respons server).
+        if (!errEl.dataset.defaultText) errEl.dataset.defaultText = errEl.textContent;
+        errEl.textContent = message || errEl.dataset.defaultText;
+      }
+      f.classList.add('invalid');
     }
 
     async function submitDaftar() {
@@ -8608,7 +8617,7 @@
         }
 
         if (!registered) {
-          showToast('Nomor WhatsApp ini belum terdaftar. Silakan daftar akun baru.');
+          markErr('fieldMasukWa', 'Nomor WhatsApp ini belum terdaftar. Silakan daftar akun baru.');
           return;
         }
 
@@ -8617,10 +8626,13 @@
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
-          const friendly = /invalid login credentials/i.test(error.message)
-            ? 'Kata sandi salah. Coba lagi atau pakai "Lupa kata sandi?".'
-            : error.message;
-          showToast(friendly);
+          if (/invalid login credentials/i.test(error.message)) {
+            markErr('fieldMasukPassword', 'Kata sandi salah. Coba lagi atau pakai "Lupa kata sandi?".');
+          } else {
+            // Error lain (server/rate-limit/dll) bukan salah satu field spesifik,
+            // jadi tetap pakai toast biar user tau ini bukan soal input mereka.
+            showToast(error.message);
+          }
           return;
         }
 
@@ -9518,7 +9530,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.11)';
+      const version = ' (v2.9.12)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
