@@ -6447,6 +6447,17 @@
           <button type="button" class="settings-row-card" onclick="openModal('modalApiKey')">
             <div class="sr-title">API Key Gemini Saya <span class="sr-arrow">›</span></div>
           </button>
+          <button type="button" class="settings-row-card" id="settNotifRow" onclick="handleNotificationRowClick()">
+            <div class="sr-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Notifikasi</span>
+              <span id="settNotifStatus" class="sr-arrow" style="font-size:13px;color:var(--text-muted,#8A9491);">Memeriksa…</span>
+            </div>
+          </button>
+          <!-- TESTING (Fase 2 Bagian 1) — hapus tombol ini setelah semua bagian Fase 2 selesai & stabil -->
+          <button type="button" class="settings-row-card" id="settNotifTestRow"
+            style="display:none;" onclick="sendTestNotification()">
+            <div class="sr-title">Kirim Notifikasi Uji Coba <span class="sr-arrow">›</span></div>
+          </button>
           <!-- Auto-Reply Asisten WhatsApp: disembunyikan dari app, pengaturan ini cuma boleh dari dashboard admin
           <div class="settings-row-card" style="display:flex;justify-content:space-between;align-items:center;cursor:default;">
             <div class="sr-title" style="flex:1;">Auto-Reply Asisten WhatsApp</div>
@@ -9317,6 +9328,7 @@
         actionText: 'Ya, Log Out'
       });
       if (!confirmed) return;
+      await unsubscribeCurrentDevicePush();
       await supabaseClient.auth.signOut();
       // BUGFIX (v2.9.10): dulu cuma access_code yang dihapus, data (wallets/transactions/
       // budgets/dll) masih nyangkut di localStorage dan bisa kebawa/ke-merge ke akun lain
@@ -9626,7 +9638,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.34)';
+      const version = ' (v2.9.35)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16932,6 +16944,7 @@
       if (settSheetsEl) settSheetsEl.value = s.sheetsWebAppUrl || '';
       loadUserKeys();
       loadWaAutoReplySettings();
+      updateNotificationSettingsUI();
     }
 
     function togglePw(inputId, btn) {
@@ -21576,6 +21589,173 @@ PERTANYAAN_USER:
       }
     }
     init();
+
+    /* =========================================================
+       Fase 2 Bagian 1 — Infrastruktur Notifikasi PWA (Web Push)
+       ========================================================= */
+    const VAPID_PUBLIC_KEY = 'BM_LVbHrtrBort_zSW9ZhVjyWK1SE5K_66INjBhFx1AQPxTYnQLhrSUbPfmv95EPIM62gFn2h9Lub9sEilp7cx8';
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+      return outputArray;
+    }
+
+    function pushNotifSupported() {
+      return 'serviceWorker' in navigator && 'PushManager' in window;
+    }
+
+    // Update tampilan row "Notifikasi" di menu Pengaturan sesuai status izin
+    // browser saat ini. Dipanggil tiap kali tab Pengaturan dibuka (renderSettings()).
+    async function updateNotificationSettingsUI() {
+      const statusEl = document.getElementById('settNotifStatus');
+      const testRow = document.getElementById('settNotifTestRow');
+      if (!statusEl) return;
+
+      if (!pushNotifSupported()) {
+        statusEl.textContent = 'Tidak didukung';
+        if (testRow) testRow.style.display = 'none';
+        return;
+      }
+
+      if (Notification.permission === 'denied') {
+        statusEl.textContent = 'Diblokir browser';
+        if (testRow) testRow.style.display = 'none';
+        return;
+      }
+
+      if (Notification.permission !== 'granted') {
+        statusEl.textContent = 'Nonaktif, klik untuk aktifkan';
+        if (testRow) testRow.style.display = 'none';
+        return;
+      }
+
+      // Izin browser granted — cek apakah device ini sudah punya subscription tersimpan
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        statusEl.textContent = sub ? 'Aktif' : 'Nonaktif, klik untuk aktifkan';
+        if (testRow) testRow.style.display = sub ? '' : 'none';
+      } catch (e) {
+        statusEl.textContent = 'Nonaktif, klik untuk aktifkan';
+        if (testRow) testRow.style.display = 'none';
+      }
+    }
+
+    // Klik row "Notifikasi": kalau belum aktif, mulai alur minta izin + subscribe.
+    // Kalau sudah aktif, tidak melakukan apa-apa selain nunjukin statusnya (tidak nge-nag).
+    async function handleNotificationRowClick() {
+      if (!pushNotifSupported()) {
+        showToast('Browser ini tidak mendukung notifikasi push');
+        return;
+      }
+      if (Notification.permission === 'denied') {
+        showToast('Notifikasi diblokir. Aktifkan lewat pengaturan browser/OS.');
+        return;
+      }
+      if (!currentUserId) {
+        showToast('Login dulu untuk aktifkan notifikasi');
+        return;
+      }
+
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+          // sudah aktif, tidak ada aksi lanjutan dari sini
+          return;
+        }
+        await subscribeToPush(reg);
+      } catch (err) {
+        console.error('[push] gagal subscribe:', err);
+        showToast('Gagal mengaktifkan notifikasi');
+      }
+    }
+
+    // Minta izin browser, generate push subscription, dan simpan ke Supabase.
+    async function subscribeToPush(reg) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        await updateNotificationSettingsUI();
+        return;
+      }
+
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+
+      const subJson = subscription.toJSON();
+      const { error } = await supabaseClient.from('push_subscriptions').insert({
+        user_id: currentUserId,
+        endpoint: subJson.endpoint,
+        keys_p256dh: subJson.keys.p256dh,
+        keys_auth: subJson.keys.auth,
+        user_agent: navigator.userAgent,
+      });
+
+      if (error) {
+        // Kalau endpoint sudah ada (device resubscribe dgn user beda / duplikat), abaikan
+        // error unique constraint dan anggap sukses.
+        if (!(error.code === '23505')) {
+          console.error('[push] gagal simpan subscription:', error);
+          showToast('Gagal menyimpan pengaturan notifikasi');
+          await subscription.unsubscribe().catch(() => {});
+          return;
+        }
+      }
+
+      showToast('Notifikasi diaktifkan');
+      await updateNotificationSettingsUI();
+    }
+
+    // Hapus subscription device ini dari database (dipanggil saat logout supaya
+    // device yang sama tidak terus terima notifikasi akun lama).
+    async function unsubscribeCurrentDevicePush() {
+      if (!pushNotifSupported() || !supabaseClient) return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (!sub) return;
+        const endpoint = sub.endpoint;
+        await supabaseClient.from('push_subscriptions').delete().eq('endpoint', endpoint);
+        await sub.unsubscribe();
+      } catch (e) {
+        console.error('[push] gagal unsubscribe saat logout:', e);
+      }
+    }
+
+    // TESTING (Fase 2 Bagian 1) — hapus fungsi & tombol pemanggilnya setelah
+    // semua bagian Fase 2 selesai & stabil.
+    async function sendTestNotification() {
+      if (!currentUserId) return;
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || SUPABASE_KEY}`,
+          },
+          body: JSON.stringify({
+            user_id: currentUserId,
+            title: 'KaslyAI — Uji Coba',
+            body: 'Kalau kamu lihat ini, notifikasi push sudah berfungsi 🎉',
+            data: { url: './?source=pwa' },
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Gagal kirim');
+        showToast(`Terkirim ke ${result.sent} device`);
+      } catch (err) {
+        console.error('[push] test gagal:', err);
+        showToast('Gagal kirim notifikasi uji coba');
+      }
+    }
   </script>
 
   <script>
