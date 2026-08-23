@@ -8585,17 +8585,42 @@
       btn.disabled = true;
       btn.textContent = 'Memproses...';
 
+      // finally-block memastikan tombol SELALU balik normal apa pun hasilnya —
+      // termasuk saat init() ternyata menemukan sesi basi dan mengembalikan
+      // user ke layar Masuk ini juga (dulu tombol nyangkut di 'Memproses...').
       try {
+        // 1) Cek dulu apakah nomor WA-nya beneran terdaftar, supaya pesan error
+        // bisa dibedakan dari "kata sandi salah" (Supabase Auth sengaja kasih
+        // pesan generik untuk keduanya demi keamanan).
+        let registered = true; // default optimis: kalau pengecekan gagal, lanjut ke signIn seperti biasa
+        try {
+          const checkRes = await fetch(`${SUPABASE_URL}/functions/v1/wa-webhook/check-account`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nomor_wa: wa })
+          });
+          const checkData = await checkRes.json();
+          if (checkRes.ok && typeof checkData.registered === 'boolean') {
+            registered = checkData.registered;
+          }
+        } catch (checkErr) {
+          console.warn('Gagal cek status akun, lanjut coba masuk langsung:', checkErr);
+        }
+
+        if (!registered) {
+          showToast('Nomor WhatsApp ini belum terdaftar. Silakan daftar akun baru.');
+          return;
+        }
+
+        // 2) Nomor terdaftar → lanjut coba masuk dengan kata sandi
         const email = `${normalizeWaNumber(wa)}@kaslyai.local`;
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) {
           const friendly = /invalid login credentials/i.test(error.message)
-            ? 'Nomor WhatsApp atau kata sandi salah.'
+            ? 'Kata sandi salah. Coba lagi atau pakai "Lupa kata sandi?".'
             : error.message;
           showToast(friendly);
-          btn.disabled = false;
-          btn.textContent = originalText;
           return;
         }
 
@@ -8603,11 +8628,12 @@
         ensureLocalScopeForUser(currentUserId);
         document.getElementById('auth-onboarding').classList.remove('open');
         // Re-run init supaya status onboarding & sync dashboard dicek dengan benar
-        init();
+        await init();
 
       } catch (err) {
         console.error(err);
         showToast('Gagal terhubung ke server.');
+      } finally {
         btn.disabled = false;
         btn.textContent = originalText;
       }
@@ -9492,7 +9518,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v2.9.10)';
+      const version = ' (v2.9.11)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {

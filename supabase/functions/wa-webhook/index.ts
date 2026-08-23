@@ -565,6 +565,52 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ── CEK APAKAH NOMOR WA SUDAH TERDAFTAR: dipanggil sebelum signInWithPassword di
+    // layar Masuk, supaya pesan error bisa dibedakan "belum terdaftar" vs "kata sandi salah". ──
+    if (url.pathname.endsWith("/check-account")) {
+      try {
+        const db = getDb();
+        let payload: any;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        const { nomor_wa } = payload;
+        if (!nomor_wa) {
+          return new Response(JSON.stringify({ error: "Nomor WA wajib diisi." }), {
+            status: 400,
+            headers: corsHeaders,
+          });
+        }
+
+        const nomorWa = nomor_wa.replace(/\D/g, "").replace(/^0/, "62");
+
+        const { data: user } = await db
+          .from("users")
+          .select("status_verifikasi")
+          .eq("nomor_wa", nomorWa)
+          .maybeSingle();
+
+        const registered = !!user && user.status_verifikasi === "verified";
+
+        return new Response(JSON.stringify({ registered }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      } catch (err) {
+        console.error("Error in check-account:", err);
+        return new Response(JSON.stringify({ error: `Server Error: ${(err as Error).message || err}` }), {
+          status: 500,
+          headers: corsHeaders,
+        });
+      }
+    }
+
     if (url.pathname.endsWith("/check-verification")) {
       try {
         const db = getDb();
