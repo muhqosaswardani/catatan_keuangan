@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.4)';
+      const version = ' (v3.3.5)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22538,12 +22538,14 @@ PERTANYAAN_USER:
         let body, data;
         if (testTx) {
           const editUrl = './?shortcut=edit-tx&id=' + encodeURIComponent(testTx.id);
-          body = 'Ketuk tombol "Edit" di bawah ini untuk pastikan app beneran masuk mode edit transaksi "' + (testTx.note || 'ini') + '" — bukan malah kehapus.';
+          body = 'Ketuk tombol "Edit" di bawah ini untuk pastikan app beneran masuk mode edit transaksi "' + (testTx.note || 'ini') + '".';
           data = {
             url: editUrl,
             type: 'test_edit_button',
             transaction_id: testTx.id,
-            actions: [{ action: 'edit', title: 'Edit' }, { action: 'delete', title: 'Hapus' }],
+            // Sementara cuma 1 tombol (Edit) — buat isolasi apakah masalahnya
+            // muncul karena ada tombol Hapus di sebelahnya atau bukan.
+            actions: [{ action: 'edit', title: 'Edit' }],
             actionUrls: { edit: editUrl },
             requireInteraction: true,
           };

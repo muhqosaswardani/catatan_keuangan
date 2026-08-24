@@ -4,7 +4,7 @@
 // Data transaksi sendiri sudah ditangani offline-first lewat localStorage di dalam index.html —
 // service worker ini hanya menjaga APLIKASINYA (bukan datanya) tetap bisa dibuka tanpa internet.
 
-const CACHE_VERSION = 'kaslyai-v3.3.0';
+const CACHE_VERSION = 'kaslyai-v3.3.4';
 const SCOPE_URL = new URL('./', self.location.href).href;
 const APP_SHELL = [
   SCOPE_URL,
@@ -187,6 +187,19 @@ self.addEventListener('notificationclick', (event) => {
 
   const data = event.notification.data || {};
   const action = event.action; // '' kalau klik body notifikasi (bukan tombol aksi)
+
+  // DEBUG SEMENTARA (khusus notif uji coba dari Pengaturan > Kirim Notifikasi Uji Coba):
+  // tampilkan notif baru yang isinya persis action string yang diterima SW, supaya
+  // kelihatan apakah browser beneran ngirim 'edit' saat tombol Edit ditekan, atau
+  // malah ngirim sesuatu yang lain. Tidak mempengaruhi alur asli (delete/edit tetap jalan
+  // seperti biasa di bawah), cuma nambah 1 notif info.
+  if (data.type === 'test_edit_button') {
+    self.registration.showNotification('DEBUG: notificationclick', {
+      body: 'event.action diterima = "' + action + '"',
+      icon: new URL('icons/icon-192.png', SCOPE_URL).href,
+      tag: 'txai-debug-action',
+    });
+  }
 
   if (action === 'hapus' || action === 'delete') {
     event.waitUntil(handleDeleteFromNotification(data));
