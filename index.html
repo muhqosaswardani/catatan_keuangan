@@ -6922,13 +6922,17 @@
     <!-- ============ PAGE: CHAT ============ -->
     <div class="page" id="page-chat">
       <div class="topbar" style="display:flex;align-items:center;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:12px;">
           <button type="button" class="icon-btn" id="chatBackBtn" style="display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:none;background:var(--card);color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);padding:0;" onclick="closeChatQuickMode()" title="Kembali ke Aplikasi">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <div>
-            <div class="eyebrow">Asisten AI</div>
-            <h1 style="margin:0;">Chat Asisten</h1>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="brand-mark" style="width:36px;height:36px;border-radius:11px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </div>
+            <h1 style="margin:0;font-size:22px;display:flex;align-items:center;gap:5px;letter-spacing:-.01em;">
+              <span>Chat</span> <span>Kasly</span><span class="brand-ai" style="color:#10b981;font-family:'Sora',sans-serif;font-weight:800;">AI</span>
+            </h1>
           </div>
         </div>
       </div>
@@ -10088,7 +10092,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.9)';
+      const version = ' (v3.3.0)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
