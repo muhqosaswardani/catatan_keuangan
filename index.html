@@ -4291,8 +4291,36 @@
       color: var(--ink-soft);
       margin-top: 4px;
       text-align: right;
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
       opacity: 0.8;
+    }
+
+    /* Status indikator pesan (mirip WhatsApp) */
+    .chat-msg-status {
+      font-size: 9px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .chat-msg-status.pending {
+      opacity: 0.7;
+      filter: grayscale(1);
+    }
+    .chat-msg-status.sent {
+      color: #0aab4e;
+      font-weight: 700;
+    }
+    .chat-msg-status.failed {
+      background: #e53e3e;
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 9px;
+      white-space: nowrap;
     }
 
     .chat-bubble img {
@@ -9999,7 +10027,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.1.9)';
+      const version = ' (v3.2.0)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -18950,6 +18978,29 @@
     let chatPendingReplyToTxId = null;
     let chatPendingReplyToMsgId = null;
     let chatSelectedFile = null;
+    let chatFlushingPending = false;
+
+    // ── Offline-queue helpers ─────────────────────────────────
+    function getChatPendingQueue() {
+      try { return JSON.parse(localStorage.getItem('fk_chat_pending') || '[]'); } catch(e) { return []; }
+    }
+    function saveChatPendingQueue(q) {
+      localStorage.setItem('fk_chat_pending', JSON.stringify(q));
+    }
+    function removePendingByMsgId(msgId) {
+      const q = getChatPendingQueue().filter(p => p.payload.messageId !== msgId);
+      saveChatPendingQueue(q);
+    }
+    // Mark a chatHistory bubble as delivered (remove ⌛ pending status)
+    function markBubbleDelivered(msgId) {
+      const msg = chatHistory.find(m => m.id === msgId);
+      if (msg) { msg.pending = false; localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory)); }
+    }
+    // Mark a chatHistory bubble as failed
+    function markBubbleFailed(msgId) {
+      const msg = chatHistory.find(m => m.id === msgId);
+      if (msg) { msg.failed = true; msg.pending = false; localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory)); }
+    }
 
     // Initialize chat
     function initChatState() {
@@ -19113,7 +19164,18 @@
           .replace(/`(.*?)`/g, '<code>$1</code>');
 
         content += `<div>${textHtml}</div>`;
-        content += `<span class="time">${formatTime(msg.timestamp)}</span>`;
+        // Pending / failed status indicator (like WhatsApp clock / retry)
+        let statusHtml = '';
+        if (isUser) {
+          if (msg.pending) {
+            statusHtml = `<span class="chat-msg-status pending" title="Menunggu koneksi…">⌛</span>`;
+          } else if (msg.failed) {
+            statusHtml = `<span class="chat-msg-status failed" title="Gagal — ketuk untuk coba ulang" onclick="retryChatMessage('${msg.id}',event)">⚠ Coba Ulang</span>`;
+          } else {
+            statusHtml = `<span class="chat-msg-status sent" title="Terkirim">✓</span>`;
+          }
+        }
+        content += `<span class="time">${formatTime(msg.timestamp)}${statusHtml}</span>`;
 
         const isTx = !!msg.txId || (!isUser && (
           msgText.includes('Transaksi tercatat') || 
@@ -19442,32 +19504,41 @@
         }
       }
 
-      // Append user bubble with replyTo metadata
-      appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, null, replyTo);
+      // Build message ID dulu sebelum append agar bisa track status
+      const msgId = 'msg_web_' + uid();
 
+      // Append user bubble langsung (status: pending ⌛)
+      appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, msgId, replyTo, true /* pending */);
+
+      // Build payload
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const payload = {
+        text: text,
+        from: (currentUserData && currentUserData.nomor_wa) || '6281226964679',
+        user_id: currentUserId,
+        messageId: msgId,
+        contextId: contextId
+      };
+
+      if (imageDataForServer && imageMimeType) {
+        payload.image = { data: imageDataForServer, mimeType: imageMimeType };
+      }
+
+      // Simpan ke antrian offline dulu
+      const pendingQueue = getChatPendingQueue();
+      pendingQueue.push({ payload, token: token || null, addedAt: Date.now(), replyTo });
+      saveChatPendingQueue(pendingQueue);
+
+      // Coba kirim sekarang
+      await dispatchChatPayload(msgId, payload, token);
+    }
+
+    // Kirim satu payload ke Edge Function dan update status bubble
+    async function dispatchChatPayload(msgId, payload, token) {
       showChatTyping();
-
       try {
-        // Build payload for Edge Function
-        const { data: sessionData } = await supabaseClient.auth.getSession();
-        const token = sessionData?.session?.access_token;
-
-        const payload = {
-          text: text,
-          from: (currentUserData && currentUserData.nomor_wa) || '6281226964679',
-          user_id: currentUserId,
-          messageId: 'msg_web_' + uid(),
-          contextId: contextId
-        };
-
-        if (imageDataForServer && imageMimeType) {
-          payload.image = {
-            data: imageDataForServer,
-            mimeType: imageMimeType
-          };
-        }
-
-        // Call Edge Function with x-web-chat header
         const edgeFnUrl = SUPABASE_URL + '/functions/v1/wa-webhook';
         const response = await fetch(edgeFnUrl, {
           method: 'POST',
@@ -19483,15 +19554,20 @@
           const errText = await response.text();
           console.error('Edge Function error:', response.status, errText);
           let userErr = 'Maaf, terjadi kesalahan server. Coba lagi ya.';
-          try {
-            const parsed = JSON.parse(errText);
-            if (parsed.error) userErr = 'Maaf: ' + parsed.error;
-          } catch(e) {}
+          try { const p = JSON.parse(errText); if (p.error) userErr = 'Maaf: ' + p.error; } catch(e) {}
+          // Server error bukan network error — hapus dari queue & tandai failed
+          removePendingByMsgId(msgId);
+          markBubbleFailed(msgId);
           appendChatBubble('bot', userErr, Date.now());
+          renderChat(false);
           return;
         }
 
         const result = await response.json();
+
+        // Sukses — hapus dari antrian, tandai terkirim
+        removePendingByMsgId(msgId);
+        markBubbleDelivered(msgId);
 
         if (result.success && result.messages && result.messages.length > 0) {
           for (const msgObj of result.messages) {
@@ -19507,19 +19583,69 @@
           appendChatBubble('bot', 'Pesan diterima, tapi tidak ada balasan dari server.', Date.now());
         }
 
+        renderChat(false);
         // Sync data after server-side changes
         await syncAllWithSupabase(true);
         refreshAllViews();
 
       } catch (err) {
-        console.error('sendChatMessage error:', err);
-        appendChatBubble('bot', 'Maaf, tidak bisa terhubung ke server. Periksa koneksi internet kamu.', Date.now());
+        // Network error — tetap di queue, bubble tetap ⌛
+        console.warn('sendChatMessage: network error, pesan masuk antrian:', err);
+        // Tidak hapus dari pending queue, cukup hide typing
+        // Bubble sudah ada & sudah berstatus pending
+        renderChat(false);
       } finally {
         hideChatTyping();
       }
     }
 
-    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo) {
+    // Retry manual saat user ketuk ⚠
+    async function retryChatMessage(msgId, event) {
+      if (event) { event.stopPropagation(); }
+      const q = getChatPendingQueue();
+      const item = q.find(p => p.payload.messageId === msgId);
+      if (!item) {
+        // Coba refresh token lalu kirim ulang dari history
+        const msg = chatHistory.find(m => m.id === msgId);
+        if (!msg) return;
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const payload = { text: msg.text, from: (currentUserData && currentUserData.nomor_wa) || '6281226964679', user_id: currentUserId, messageId: msgId, contextId: null };
+        const q2 = getChatPendingQueue();
+        q2.push({ payload, token: token || null, addedAt: Date.now() });
+        saveChatPendingQueue(q2);
+        markBubbleDelivered(msgId); // reset failed state
+        const msg2 = chatHistory.find(m => m.id === msgId); if (msg2) { msg2.failed = false; msg2.pending = true; }
+        renderChat(false);
+        await dispatchChatPayload(msgId, payload, token);
+        return;
+      }
+      // Reset ke pending
+      const msg3 = chatHistory.find(m => m.id === msgId); if (msg3) { msg3.failed = false; msg3.pending = true; }
+      renderChat(false);
+      const { data: sd } = await supabaseClient.auth.getSession();
+      await dispatchChatPayload(msgId, item.payload, sd?.session?.access_token || item.token);
+    }
+
+    // Flush semua pesan pending (dipanggil saat online kembali)
+    async function flushPendingChatMessages() {
+      if (chatFlushingPending) return;
+      const q = getChatPendingQueue();
+      if (q.length === 0) return;
+      chatFlushingPending = true;
+      console.log('[chat] Flush', q.length, 'pesan pending...');
+      try {
+        const { data: sd } = await supabaseClient.auth.getSession();
+        const freshToken = sd?.session?.access_token;
+        for (const item of q) {
+          await dispatchChatPayload(item.payload.messageId, item.payload, freshToken || item.token);
+        }
+      } finally {
+        chatFlushingPending = false;
+      }
+    }
+
+    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo, isPending) {
       // isBotClarify hanya dari parameter yang dikirim server — JANGAN deteksi dari teks
       const isBotClarify = !!isClarify;
 
@@ -19531,7 +19657,9 @@
         image: imageBase64 || null,
         txId: txId || null,
         isClarify: isBotClarify,
-        replyTo: replyTo || null
+        replyTo: replyTo || null,
+        pending: sender === 'user' ? !!isPending : false,
+        failed: false
       });
       localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
       saveChatStateToNavConfig();
@@ -21877,6 +22005,10 @@ PERTANYAAN_USER:
       if (typeof currentTab !== 'undefined' && currentTab === 'chat' && typeof renderChat === 'function') {
         renderChat();
       }
+      // Kirim pesan-pesan chat yang masih pending (dari sesi offline sebelumnya)
+      if (typeof flushPendingChatMessages === 'function') {
+        setTimeout(() => flushPendingChatMessages(), 1500);
+      }
     }
 
     async function init() {
@@ -22036,7 +22168,11 @@ PERTANYAAN_USER:
       handleAppShortcutParam();
       checkNotifDeletedUndo();
 
-      window.addEventListener('online', () => syncAllWithSupabase(true));
+      window.addEventListener('online', () => {
+        syncAllWithSupabase(true);
+        // Auto-flush antrian pesan Chat yang pending saat koneksi pulih
+        setTimeout(() => { if (typeof flushPendingChatMessages === 'function') flushPendingChatMessages(); }, 1000);
+      });
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));
       window.addEventListener('focus', () => { syncAllWithSupabase(true); activateDuePendingTransactions(); });
 
