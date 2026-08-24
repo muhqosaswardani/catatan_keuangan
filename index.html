@@ -10357,7 +10357,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.42)';
+      const version = ' (v3.3.43)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12326,6 +12326,12 @@
        ========================================================= */
     let openModalCount = 0;
     let modalZCounter = 400; /* harus selalu di atas .onb-overlay (z-index:300) supaya keypad tidak ketutup layar onboarding */
+    // Auto-tinggikan textarea sesuai isi kontennya (dipanggil saat modal dibuka & saat user mengetik).
+    function autoResizeTextarea(ta) {
+      if (!ta || typeof ta.scrollHeight !== 'number') return;
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    }
     function openModalUI(id) {
       const el = document.getElementById(id);
       const alreadyOpen = el.classList.contains('open');
