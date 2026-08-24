@@ -10322,11 +10322,14 @@
               const localIB = localCfg.initialBalances || {};
               const remoteIB = remoteCfg.initialBalances || {};
               const allIBKeys = new Set([...Object.keys(localIB), ...Object.keys(remoteIB)]);
+              const remoteNavTs = Number(remoteCfg.navConfigUpdatedAt || (remChkSettings.updated_at ? parseSafeDate(remChkSettings.updated_at) : 0)) || 0;
+              const localNavTs = Number(localCfg.navConfigUpdatedAt) || 0;
+
               for (const key of allIBKeys) {
                 const localVal = localIB[key];
                 const remoteVal = remoteIB[key];
-                if (localVal !== undefined && remoteVal !== undefined) {
-                  mergedInitialBalances[key] = (localVal !== 0) ? localVal : remoteVal;
+                if (remoteVal !== undefined && (remoteNavTs >= localNavTs || localVal === undefined || localVal === -1580233)) {
+                  mergedInitialBalances[key] = remoteVal;
                 } else {
                   mergedInitialBalances[key] = localVal !== undefined ? localVal : remoteVal;
                 }
@@ -10334,6 +10337,7 @@
               merged.initialBalances = mergedInitialBalances;
 
               setNavConfigLocalOnly(merged);
+              recalculateWalletBalances();
             }
             if (remChkSettings.sheets_web_app_url != null) {
               const curS = getSettings();
@@ -21769,22 +21773,25 @@ PERTANYAAN_USER:
     }
 
     async function init() {
-      // Hotfix: Correct corrupted initial balance for Dompet Utama (w_mssuo8zcgq0xlu)
+      // Hotfix: Correct corrupted initial balance for Dompet Utama
       try {
         const rawNav = localStorage.getItem('fk_navconfig') || 'null';
         if (rawNav !== 'null') {
           const cfg = JSON.parse(rawNav);
-          if (cfg && cfg.initialBalances && cfg.initialBalances['w_mssuo8zcgq0xlu'] === 4850000) {
-            cfg.initialBalances['w_mssuo8zcgq0xlu'] = -10000;
-            localStorage.setItem('fk_navconfig', JSON.stringify(cfg));
-
-            const rawWallets = localStorage.getItem('fk_wallets') || '[]';
-            const wallets = JSON.parse(rawWallets);
-            const w = wallets.find(x => x.id === 'w_mssuo8zcgq0xlu');
-            if (w) {
-              w.balance = 861697;
-              w.updatedAt = Date.now();
-              localStorage.setItem('fk_wallets', JSON.stringify(wallets));
+          if (cfg && cfg.initialBalances) {
+            let fixed = false;
+            if (cfg.initialBalances['w_mssuo8zcgq0xlu'] === 4850000) {
+              cfg.initialBalances['w_mssuo8zcgq0xlu'] = -10000;
+              fixed = true;
+            }
+            Object.keys(cfg.initialBalances).forEach(wId => {
+              if (cfg.initialBalances[wId] === -1580233) {
+                cfg.initialBalances[wId] = -1690600;
+                fixed = true;
+              }
+            });
+            if (fixed) {
+              localStorage.setItem('fk_navconfig', JSON.stringify(cfg));
             }
           }
         }
