@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
   const { data: subs, error: fetchErr } = await supabase
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")
-    .eq("user_id", user_id);
+    .or(`user_id.eq.${user_id},access_code.eq.wa_${user_id}`);
 
   if (fetchErr) {
     console.error("[send-push-notification] gagal ambil subscriptions:", fetchErr);

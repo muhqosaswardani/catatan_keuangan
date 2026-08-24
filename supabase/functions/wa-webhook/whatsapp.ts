@@ -147,14 +147,35 @@ export function sendTypingIndicator(
     });
 }
 
+export async function isWaAutoReplyEnabled(db: any, userId: string): Promise<boolean> {
+  if (!userId) return true;
+  try {
+    const { data: st } = await db.from("user_settings").select("wa_auto_reply").eq("user_id", userId).maybeSingle();
+    if (st && typeof st.wa_auto_reply === "boolean") {
+      return st.wa_auto_reply;
+    }
+  } catch {}
+  try {
+    const { data: u } = await db.from("users").select("balasan_otomatis_wa").eq("id", userId).maybeSingle();
+    if (u && typeof u.balasan_otomatis_wa === "boolean") {
+      return u.balasan_otomatis_wa;
+    }
+  } catch {}
+  return true;
+}
+
 export async function withTypingIndicator<T>(
   phoneNumberId: string,
   accessToken: string,
   messageId: string,
   fn: () => Promise<T>,
+  shouldTyping = true,
 ): Promise<T> {
+  if (!shouldTyping) {
+    return await fn();
+  }
+
   let active = true;
-  // Send immediate typing indicator
   sendTypingIndicator(phoneNumberId, accessToken, messageId).catch(() => {});
 
   const intervalId = setInterval(() => {
@@ -225,11 +246,7 @@ export async function sendUserResponse(
   replyToMessageId?: string,
   pushPayload?: { title: string; body: string; data?: Record<string, unknown> }
 ): Promise<string> {
-  let waAutoReply = true;
-  const { data: st } = await db.from("user_settings").select("wa_auto_reply").eq("user_id", userId).maybeSingle();
-  if (st && typeof st.wa_auto_reply === "boolean") {
-    waAutoReply = st.wa_auto_reply;
-  }
+  const waAutoReply = await isWaAutoReplyEnabled(db, userId);
 
   let aiLocked = false;
   const { data: usr } = await db.from("users").select("ai_locked").eq("id", userId).maybeSingle();
@@ -256,6 +273,7 @@ export async function sendUserResponse(
       await sendPushNotification(supabaseUrl, serviceRoleKey, userId, pushPayload.title, pushPayload.body, pushPayload.data);
     }
   } else {
+    // Balasan WA OFF -> Selalu kirim notifikasi PWA HP
     if (pushPayload) {
       await sendPushNotification(supabaseUrl, serviceRoleKey, userId, pushPayload.title, pushPayload.body, pushPayload.data);
     } else if (textReply) {

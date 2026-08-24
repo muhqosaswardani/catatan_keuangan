@@ -17,7 +17,7 @@ import {
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
-import { sendWhatsAppMessage, markAsRead, withTypingIndicator, chatContext, ChatContextMessage } from "./whatsapp.ts";
+import { sendWhatsAppMessage, markAsRead, withTypingIndicator, isWaAutoReplyEnabled, chatContext, ChatContextMessage } from "./whatsapp.ts";
 import { getV2Session } from "./v2_db.ts";
 
 // ============================================================
@@ -1128,6 +1128,8 @@ Deno.serve(async (req: Request) => {
           );
           if (error) throw new Error(`Gagal memasukkan media ke batch: ${error.message}`);
 
+          const waAutoReply = await isWaAutoReplyEnabled(db, userId);
+
           EdgeRuntime.waitUntil(
             withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
               try {
@@ -1136,30 +1138,36 @@ Deno.serve(async (req: Request) => {
               } catch (e) {
                 console.error("Error in background media batch processing:", e);
                 try {
-                  await sendWhatsAppMessage(
-                    PHONE_NUMBER_ID,
-                    WA_ACCESS_TOKEN,
-                    msg.from,
-                    "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
-                    msg.messageId,
-                  );
+                  if (waAutoReply) {
+                    await sendWhatsAppMessage(
+                      PHONE_NUMBER_ID,
+                      WA_ACCESS_TOKEN,
+                      msg.from,
+                      "Gagal baca foto/media, coba kirim ulang. Kalau masih gagal, bisa juga ketik manual atau kirim pesan suara.",
+                      msg.messageId,
+                    );
+                  }
                 } catch {}
               }
-            }),
+            }, waAutoReply),
           );
         } catch (e) {
           console.error("Error scheduling media:", e);
           try {
-            await sendWhatsAppMessage(
-              PHONE_NUMBER_ID,
-              WA_ACCESS_TOKEN,
-              msg.from,
-              "Maaf, gagal memproses media Anda.",
-              msg.messageId,
-            );
+            const waAutoReply = await isWaAutoReplyEnabled(db, userId);
+            if (waAutoReply) {
+              await sendWhatsAppMessage(
+                PHONE_NUMBER_ID,
+                WA_ACCESS_TOKEN,
+                msg.from,
+                "Maaf, gagal memproses media Anda.",
+                msg.messageId,
+              );
+            }
           } catch {}
         }
       } else {
+        const waAutoReply = await isWaAutoReplyEnabled(db, userId);
         await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
           try {
             if (Deno.env.get("WA_V2_ENABLED") === "true") {
@@ -1264,7 +1272,7 @@ Deno.serve(async (req: Request) => {
               );
             } catch {}
           }
-        });
+        }, waAutoReply);
       }
     }
 
