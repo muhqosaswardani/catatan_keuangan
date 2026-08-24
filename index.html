@@ -10144,7 +10144,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.17)';
+      const version = ' (v3.3.18)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19766,6 +19766,7 @@
           signal: controller.signal
         });
         clearTimeout(timeoutId);
+        hideChatTyping();
 
         if (!response.ok) {
           const errText = await response.text();
@@ -19780,11 +19781,11 @@
           return;
         }
 
-        const result = await response.json();
-
         // Sukses — hapus dari antrian, tandai terkirim
         removePendingByMsgId(msgId);
         markBubbleDelivered(msgId);
+
+        const result = await response.json();
 
         if (result.success && result.messages && result.messages.length > 0) {
           for (const msgObj of result.messages) {
@@ -19815,6 +19816,7 @@
 
       } catch (err) {
         clearTimeout(timeoutId);
+        hideChatTyping();
         console.warn('sendChatMessage: gagal kirim (timeout/network), simpan ke antrian offline:', err);
         const q = getChatPendingQueue();
         const existing = q.find(p => p.payload && p.payload.messageId === msgId);
@@ -19877,6 +19879,9 @@
     }
 
     function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo, isPending) {
+      if (sender === 'bot') {
+        hideChatTyping();
+      }
       // isBotClarify hanya dari parameter yang dikirim server — JANGAN deteksi dari teks
       const isBotClarify = !!isClarify;
 
