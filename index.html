@@ -20,6 +20,20 @@
   <meta name="apple-mobile-web-app-title" content="KaslyAI">
   <meta name="mobile-web-app-capable" content="yes">
 
+  <script>
+    (function() {
+      try {
+        var p = new URLSearchParams(window.location.search);
+        var s = p.get('shortcut');
+        if (s === 'chat') {
+          document.documentElement.classList.add('shortcut-chat-active');
+        } else if (s === 'transaksi-ai') {
+          document.documentElement.classList.add('shortcut-txai-active');
+        }
+      } catch(e) {}
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
@@ -4790,6 +4804,33 @@
       display: flex !important;
       flex-direction: column !important;
       box-sizing: border-box !important;
+    }
+    html.shortcut-chat-active #page-beranda,
+    html.shortcut-chat-active .bottom-nav,
+    html.shortcut-chat-active .side-nav,
+    html.shortcut-chat-active .fab,
+    html.shortcut-chat-active #fabDragHint,
+    html.shortcut-chat-active .top-bar-global {
+      display: none !important;
+    }
+    html.shortcut-chat-active #page-chat {
+      display: flex !important;
+      flex: 1 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100% !important;
+      height: 100dvh !important;
+      max-height: 100% !important;
+      padding-top: max(8px, env(safe-area-inset-top)) !important;
+      padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+      margin: 0 auto !important;
+    }
+    html.shortcut-txai-active #page-beranda {
+      display: none !important;
     }
     body.chat-quick-mode #page-chat {
       flex: 1 !important;
@@ -10146,7 +10187,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.19)';
+      const version = ' (v3.3.20)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22300,6 +22341,7 @@ PERTANYAAN_USER:
       // login oleh alur di bawah — jadi aman untuk kasus itu juga.
       getAccessCode();
       checkEarlyAppShortcut();
+      handleAppShortcutParam();
       navInit();
       renderBottomNav();
       document.getElementById('trDate') && (document.getElementById('trDate').value = todayStr());
@@ -23206,15 +23248,17 @@ PERTANYAAN_USER:
       }
       isChatQuickMode = true;
       document.body.classList.add('chat-quick-mode');
+      document.documentElement.classList.add('shortcut-chat-active');
       const btn = document.getElementById('chatBackBtn');
       if (btn) btn.style.display = 'inline-flex';
       switchTab('chat');
-      setTimeout(() => typeof chatScrollToBottom === 'function' && chatScrollToBottom(true), 100);
+      setTimeout(() => typeof chatScrollToBottom === 'function' && chatScrollToBottom(true), 50);
     }
 
     function closeChatQuickMode() {
       isChatQuickMode = false;
       document.body.classList.remove('chat-quick-mode');
+      document.documentElement.classList.remove('shortcut-chat-active');
       const btn = document.getElementById('chatBackBtn');
       if (btn) btn.style.display = 'none';
       switchTab(prevTabBeforeChatQuick || 'beranda');
@@ -23227,7 +23271,10 @@ PERTANYAAN_USER:
         if (shortcut === 'chat') {
           isChatQuickMode = true;
           document.body.classList.add('chat-quick-mode');
+          document.documentElement.classList.add('shortcut-chat-active');
           currentTab = 'chat';
+        } else if (shortcut === 'transaksi-ai') {
+          document.documentElement.classList.add('shortcut-txai-active');
         }
       } catch (e) {}
     }
