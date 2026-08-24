@@ -10191,6 +10191,18 @@
         // Re-run init to sync from scratch and show the dashboard
         await init();
 
+        // Fase 2 Bagian 1 addendum: langsung minta izin notifikasi begitu user
+        // baru selesai onboarding (first install), tanpa harus klik manual
+        // di Pengaturan > Notifikasi.
+        if (pushNotifSupported()) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            await subscribeToPush(reg, true);
+          } catch (e) {
+            console.warn('[push] gagal minta izin notif otomatis saat onboarding:', e);
+          }
+        }
+
       } catch (err) {
         console.error('Gagal menyelesaikan onboarding:', err);
         showToast(`Gagal menyimpan data: ${err.message || err}`);
@@ -10392,7 +10404,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.53)';
+      const version = ' (v3.3.54)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
