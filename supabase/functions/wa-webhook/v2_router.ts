@@ -5,7 +5,8 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendWhatsAppMessage, sendPushNotification, sendUserResponse } from "./whatsapp.ts";
 import { getV2Session, saveV2Session, clearV2Session } from "./v2_db.ts";
 import { processV2Query } from "./v2_query.ts";
-import { handleCekSaldo } from "./handlers.ts";
+import { handleCekSaldo, getCategories, getWallets, type SpeculativeParseResult } from "./handlers.ts";
+import { parseTransactions, annotateSlangNominalForAi, getTodayStr, type GeminiPart } from "./gemini.ts";
 import {
   parseV2Intent,
   handleV2ChecklistIntent,
@@ -254,6 +255,30 @@ export async function handleV2Message(
       await handleCekSaldo(db, msg.from, msg.messageId, userId);
       return true;
     }
+
+    // OPTIMISASI KECEPATAN: jalankan parseTransactions (jalur V1/handleTextMessage)
+    // secara PARALEL dengan klasifikasi intent V2 di bawah, bukan menunggu intent
+    // selesai dulu baru mulai. Kalau nanti pesan ini memang fallback ke V1 (intent
+    // "none"), handleTextMessage tinggal pakai hasil yang sudah siap - logic/hasil
+    // akhirnya tidak berubah sama sekali, cuma latensinya dipotong karena 2 panggilan
+    // Gemini yang independen jalan bersamaan, bukan bergantian.
+    (msg as { _speculativeTextParse?: Promise<SpeculativeParseResult | { error: Error }> })
+      ._speculativeTextParse = (async (): Promise<SpeculativeParseResult | { error: Error }> => {
+        try {
+          const [cats, wallets] = await Promise.all([
+            getCategories(db, userId),
+            getWallets(db, userId),
+          ]);
+          const expenseCats = cats.filter((c) => c.type === "expense").map((c) => c.name);
+          const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
+          const annotatedText = annotateSlangNominalForAi(text);
+          const parts: GeminiPart[] = [{ text: `TEKS_BEBAS_DARI_USER: ${annotatedText}` }];
+          const items = await parseTransactions(apiKeys, parts, expenseCats, incomeCats, getTodayStr());
+          return { cats, wallets, items };
+        } catch (e) {
+          return { error: e as Error };
+        }
+      })();
 
     const parsed = await parseV2Intent(apiKeys, text);
 

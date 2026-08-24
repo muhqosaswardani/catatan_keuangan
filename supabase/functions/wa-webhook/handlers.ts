@@ -92,7 +92,7 @@ export interface QueuedMediaItem {
   caption?: string;
 }
 
-interface WalletRow {
+export interface WalletRow {
   id: string;
   name: string;
   balance: number;
@@ -100,7 +100,15 @@ interface WalletRow {
   sort_order?: number;
 }
 
-interface CategoryRow {
+// Hasil parseTransactions yang dijalankan lebih awal (paralel) oleh v2_router.ts,
+// dipakai handleTextMessage kalau ada supaya tidak fetch+parse dua kali.
+export interface SpeculativeParseResult {
+  cats: CategoryRow[];
+  wallets: WalletRow[];
+  items: ParsedTransaction[];
+}
+
+export interface CategoryRow {
   id: string;
   name: string;
   type: "expense" | "income";
@@ -139,7 +147,7 @@ async function getDeletedIds(db: SupabaseClient, userId: string): Promise<Set<st
   return new Set((data?.deleted_ids || []).map(String));
 }
 
-async function getCategories(db: SupabaseClient, userId: string): Promise<CategoryRow[]> {
+export async function getCategories(db: SupabaseClient, userId: string): Promise<CategoryRow[]> {
   const deletedSet = await getDeletedIds(db, userId);
   const code = "wa_" + userId;
   const { data } = await db.from("categories").select("id, name, type").or(`user_id.eq.${userId},access_code.eq.${code}`);
@@ -152,7 +160,7 @@ async function getCategories(db: SupabaseClient, userId: string): Promise<Catego
   return rows;
 }
 
-async function getWallets(db: SupabaseClient, userId: string): Promise<WalletRow[]> {
+export async function getWallets(db: SupabaseClient, userId: string): Promise<WalletRow[]> {
   const deletedSet = await getDeletedIds(db, userId);
   const code = "wa_" + userId;
   const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").or(`user_id.eq.${userId},access_code.eq.${code}`);
@@ -879,37 +887,63 @@ export async function handleTextMessage(
   // PRD 5.1a: jawaban nominal boleh dikirim sebagai pesan baru, bukan hanya reply.
   if (await handlePendingNominalMessage(db, apiKeys, msg, userId)) return;
 
-  const [cats, wallets] = await Promise.all([
-    getCategories(db, userId),
-    getWallets(db, userId),
-  ]);
-  const expenseCats = cats
-    .filter((c) => c.type === "expense")
-    .map((c) => c.name);
-  const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
+  // OPTIMISASI KECEPATAN: kalau v2_router sudah menjalankan parseTransactions ini
+  // secara paralel (background) sambil mengklasifikasi intent V2, pakai hasilnya
+  // langsung di sini, bukan mulai dari nol. Logic/hasil akhir SAMA PERSIS -
+  // cuma sumber data cats/wallets/items-nya beda (precomputed vs fetch baru).
+  const speculative = (msg as {
+    _speculativeTextParse?: Promise<SpeculativeParseResult | { error: Error }>;
+  })._speculativeTextParse;
 
-  // Coba parse sebagai transaksi
-  const annotatedText = annotateSlangNominalForAi(text);
-  const parts: GeminiPart[] = [{ text: `TEKS_BEBAS_DARI_USER: ${annotatedText}` }];
+  let cats: CategoryRow[];
+  let wallets: WalletRow[];
   let items: ParsedTransaction[];
 
-  try {
-    items = await parseTransactions(
-      apiKeys,
-      parts,
-      expenseCats,
-      incomeCats,
-      today,
-    );
-  } catch (e) {
-    await sendWhatsAppMessage(
-      PHONE_NUMBER_ID,
-      WA_ACCESS_TOKEN,
-      msg.from,
-      "Maaf, lagi ada gangguan baca pesannya, coba lagi ya.",
-      msg.messageId,
-    );
-    return;
+  if (speculative) {
+    const result = await speculative;
+    if ("error" in result) {
+      await sendWhatsAppMessage(
+        PHONE_NUMBER_ID,
+        WA_ACCESS_TOKEN,
+        msg.from,
+        "Maaf, lagi ada gangguan baca pesannya, coba lagi ya.",
+        msg.messageId,
+      );
+      return;
+    }
+    ({ cats, wallets, items } = result);
+  } else {
+    [cats, wallets] = await Promise.all([
+      getCategories(db, userId),
+      getWallets(db, userId),
+    ]);
+    const expenseCats = cats
+      .filter((c) => c.type === "expense")
+      .map((c) => c.name);
+    const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
+
+    // Coba parse sebagai transaksi
+    const annotatedText = annotateSlangNominalForAi(text);
+    const parts: GeminiPart[] = [{ text: `TEKS_BEBAS_DARI_USER: ${annotatedText}` }];
+
+    try {
+      items = await parseTransactions(
+        apiKeys,
+        parts,
+        expenseCats,
+        incomeCats,
+        today,
+      );
+    } catch (e) {
+      await sendWhatsAppMessage(
+        PHONE_NUMBER_ID,
+        WA_ACCESS_TOKEN,
+        msg.from,
+        "Maaf, lagi ada gangguan baca pesannya, coba lagi ya.",
+        msg.messageId,
+      );
+      return;
+    }
   }
 
   if (!items.length) {
