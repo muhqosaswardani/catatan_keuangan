@@ -4032,7 +4032,7 @@
     #txaiQuickBody {
       display: flex !important;
       flex-direction: column !important;
-      justify-content: center !important;
+      justify-content: flex-start !important;
       max-width: 480px;
       margin: 0 auto;
       width: 100%;
@@ -10296,7 +10296,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.32)';
+      const version = ' (v3.3.33)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
