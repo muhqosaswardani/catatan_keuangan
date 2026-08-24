@@ -549,12 +549,11 @@ async function sendAndMapTx(
   const pushTitle = isUpdated ? "Transaksi diperbarui" : "Transaksi baru tercatat";
   const pushBody = `${typeLabel} · ${noteOrCat}\nRp${tx.amount.toLocaleString("id-ID")} · ${wallet.name}`;
   const editUrl = `./?shortcut=edit-tx&id=${encodeURIComponent(tx.id)}`;
-  const actions = tx.isDraft
-    ? [{ action: "complete", title: "Lengkapi" }, { action: "delete", title: "Hapus" }]
-    : [{ action: "edit", title: "Edit" }, { action: "delete", title: "Hapus" }];
-  const actionUrls = tx.isDraft
-    ? { complete: editUrl }
-    : { edit: editUrl };
+  // Tap area notifikasi (bukan tombol) yang jadi trigger Edit/Lengkapi — ditangani lewat
+  // fallback data.url di sw.js (notificationclick). Tombol "Hapus" tetap dipertahankan
+  // sebagai satu-satunya action button, baik untuk transaksi lengkap maupun draft.
+  const actions = [{ action: "delete", title: "Hapus" }];
+  const actionUrls = {};
 
   const pushPayload = {
     title: pushTitle,
@@ -757,7 +756,7 @@ async function processParsedItems(
             SUPABASE_SERVICE_ROLE_KEY,
             userId,
             "Transaksi butuh dilengkapi",
-            `Foto/teks terbaca (${row.category}), tetapi nominal belum lengkap. Ketuk untuk melengkapi.`,
+            `Foto/teks terbaca (${row.category}), tetapi nominal belum lengkap. Ketuk notifikasi ini untuk melengkapi (batal otomatis dalam 5 menit).`,
             { action: "lengkapi", transaction_id: savedTx.id }
           );
           continue;
@@ -803,7 +802,7 @@ async function processParsedItems(
           SUPABASE_SERVICE_ROLE_KEY,
           userId,
           "Transaksi butuh dilengkapi",
-          `Rp${row.amount.toLocaleString("id-ID")} terbaca, tetapi catatan belum lengkap. Ketuk untuk melengkapi.`,
+          `Rp${row.amount.toLocaleString("id-ID")} terbaca, tetapi catatan belum lengkap. Ketuk notifikasi ini untuk melengkapi (batal otomatis dalam 5 menit).`,
           { action: "lengkapi", transaction_id: savedTx.id }
         );
         continue;
