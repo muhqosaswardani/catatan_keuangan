@@ -10148,7 +10148,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.15)';
+      const version = ' (v3.3.16)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {

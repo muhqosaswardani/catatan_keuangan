@@ -22,15 +22,16 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
     #installBar {
-      display: none;
+      display: flex;
       background: #0F766E;
       color: #ffffff;
-      padding: 10px 16px;
+      padding: 12px 16px;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       z-index: 9999;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: relative;
     }
     #installBar .bar-text {
       font-size: 13px;
@@ -76,15 +77,10 @@
     }
 
     let chatDeferredPrompt = null;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       chatDeferredPrompt = e;
-      if (!isStandalone) {
-        const bar = document.getElementById('installBar');
-        if (bar) bar.style.display = 'flex';
-      }
     });
 
     window.addEventListener('appinstalled', () => {
@@ -95,13 +91,19 @@
 
     async function triggerInstallChat() {
       if (chatDeferredPrompt) {
-        chatDeferredPrompt.prompt();
-        const { outcome } = await chatDeferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          chatDeferredPrompt = null;
-          const bar = document.getElementById('installBar');
-          if (bar) bar.style.display = 'none';
+        try {
+          chatDeferredPrompt.prompt();
+          const { outcome } = await chatDeferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            chatDeferredPrompt = null;
+            const bar = document.getElementById('installBar');
+            if (bar) bar.style.display = 'none';
+          }
+        } catch (e) {
+          console.error(e);
         }
+      } else {
+        alert('Menyiapkan pemasangan... Jika dialog sistem belum muncul otomatis, Anda dapat memilih Tambahkan ke Layar Utama.');
       }
     }
   </script>
