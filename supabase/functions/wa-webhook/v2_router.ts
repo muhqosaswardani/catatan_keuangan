@@ -26,6 +26,18 @@ import {
 const PHONE_NUMBER_ID = Deno.env.get("WA_PHONE_NUMBER_ID")!;
 const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN")!;
 const ACCESS_CODE = Deno.env.get("WA_ACCESS_CODE") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+/**
+ * Potong balasan panjang jadi kalimat singkat buat body notifikasi push,
+ * dipakai saat Balasan WA OFF (user cuma lihat notif, bukan chat WA penuh).
+ */
+function toShortNotifText(text: string, maxLen = 180): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (clean.length <= maxLen) return clean;
+  return clean.slice(0, maxLen).trim() + "…";
+}
 
 /**
  * Pusat Bantuan (help/bantuan/menu) - Exits immediately
@@ -68,8 +80,31 @@ export async function handleV2Message(
   const cleaned = text.toLowerCase();
   const waChatId = msg.from;
 
+  // Ambil status toggle "Balasan WA" di awal — dipakai buat gating Mode Terkunci
+  // (sesi aktif maupun masuk mode baru) dan buat jalur Query/Tanya Jawab di bawah.
+  let waAutoReply = true;
+  const { data: st } = await db.from("user_settings").select("wa_auto_reply").eq("user_id", userId).maybeSingle();
+  if (st && typeof st.wa_auto_reply === "boolean") {
+    waAutoReply = st.wa_auto_reply;
+  }
+
   // 0. Cek: apakah user sedang berada di dalam MODE TERKUNCI aktif?
   const { session, wasTimedOut } = await getV2Session(db, waChatId);
+
+  // Balasan WA OFF -> semua Mode Terkunci (koreksi/limit/tujuan) diabaikan total,
+  // baik yang baru mau masuk maupun sesi yang sedang berjalan. Cukup satu notifikasi
+  // pemberitahuan singkat, tidak diproses lebih lanjut (biar user nggak nyangka macet).
+  if (session && !wasTimedOut && !waAutoReply) {
+    await sendPushNotification(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      userId,
+      "Fitur WA Nonaktif",
+      "Balasan WA sedang nonaktif, jadi Mode Terkunci diabaikan sementara. Nyalakan lagi di pengaturan atau lanjutkan lewat aplikasi web.",
+      { type: "wa_auto_reply_off" }
+    );
+    return true;
+  }
 
   if (wasTimedOut && session) {
     const modeLabel = session.mode?.toUpperCase() ?? "MODE";
@@ -187,16 +222,8 @@ export async function handleV2Message(
   }
 
   // 1. Cek: apakah pesan ini trigger MASUK mode (exact match, case-insensitive)?
-  let waAutoReply = true;
-  const { data: st } = await db.from("user_settings").select("wa_auto_reply").eq("user_id", userId).maybeSingle();
-  if (st && typeof st.wa_auto_reply === "boolean") {
-    waAutoReply = st.wa_auto_reply;
-  }
-
   if (cleaned === "koreksi" || cleaned === "limit" || cleaned === "anggaran" || cleaned === "tujuan" || cleaned === "goals") {
     if (!waAutoReply) {
-      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       await sendPushNotification(
         SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY,
@@ -296,7 +323,11 @@ export async function handleV2Message(
     }
     if (parsed.intent === "query" || parsed.intent === "general_chat") {
       const reply = await processV2Query(db, apiKeys, userId, text);
-      await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
+      await sendUserResponse(
+        db, PHONE_NUMBER_ID, WA_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+        userId, waChatId, reply, msg.messageId,
+        { title: "Jawaban Asisten KaslyAI", body: toShortNotifText(reply), data: { type: "query_response" } }
+      );
       return true;
     }
   }
@@ -305,7 +336,11 @@ export async function handleV2Message(
   const isQuery = text.includes("?");
   if (isQuery) {
     const reply = await processV2Query(db, apiKeys, userId, text);
-    await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, waChatId, reply, msg.messageId);
+    await sendUserResponse(
+      db, PHONE_NUMBER_ID, WA_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+      userId, waChatId, reply, msg.messageId,
+      { title: "Jawaban Asisten KaslyAI", body: toShortNotifText(reply), data: { type: "query_response" } }
+    );
     return true;
   }
 
