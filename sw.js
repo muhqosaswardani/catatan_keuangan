@@ -4,12 +4,14 @@
 // Data transaksi sendiri sudah ditangani offline-first lewat localStorage di dalam index.html —
 // service worker ini hanya menjaga APLIKASINYA (bukan datanya) tetap bisa dibuka tanpa internet.
 
-const CACHE_VERSION = 'kaslyai-v3.3.11';
+const CACHE_VERSION = 'kaslyai-v3.3.12';
 const SCOPE_URL = new URL('./', self.location.href).href;
 const APP_SHELL = [
   SCOPE_URL,
   new URL('index.html', SCOPE_URL).href,
   new URL('manifest.json', SCOPE_URL).href,
+  new URL('chat.html', SCOPE_URL).href,
+  new URL('chat-manifest.json', SCOPE_URL).href,
   new URL('icons/icon-192.png', SCOPE_URL).href,
   new URL('icons/icon-512.png', SCOPE_URL).href,
   new URL('icons/icon-badge-96.png', SCOPE_URL).href,

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Chat KaslyAI</title>
+  <link rel="manifest" href="chat-manifest.json">
+  <meta name="theme-color" content="#0F766E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F5F7F6;
+      --card: #FFFFFF;
+      --ink: #111916;
+      --ink-soft: #5A6662;
+      --accent: #0F766E;
+      --accent-hover: #115E59;
+      --accent-soft: rgba(15, 118, 110, 0.08);
+      --green: #10B981;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .install-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      padding: 32px 24px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-mark {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(15, 118, 110, 0.25);
+    }
+    .brand-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .brand-title .ai-text {
+      font-family: 'Sora', sans-serif;
+      color: var(--green);
+    }
+    .desc {
+      font-size: 14px;
+      color: var(--ink-soft);
+      line-height: 1.5;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+    }
+    .btn-primary:active {
+      background: var(--accent-hover);
+      transform: scale(0.98);
+    }
+    .btn-secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .guide-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 13px;
+      color: var(--ink-soft);
+      text-align: left;
+      line-height: 1.5;
+      width: 100%;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="install-card" id="installCard">
+    <div class="logo-mark">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+
+    <div>
+      <div class="brand-title">Chat <span style="color:var(--ink);">Kasly</span><span class="ai-text">AI</span></div>
+      <p class="desc" style="margin-top:4px;">Pintasan Mandiri Asisten Finansial AI</p>
+    </div>
+
+    <button type="button" class="btn btn-primary" id="btnInstall" onclick="handleInstallChat()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Instal Chat ke Layar Utama</span>
+    </button>
+
+    <button type="button" class="btn btn-secondary" onclick="openChatDirect()">
+      <span>Buka Chat Sekarang</span>
+    </button>
+
+    <div class="guide-box" id="guideBox">
+      <strong>Cara Memasang:</strong><br>
+      1. Tekan tombol titik tiga (⋮) di kanan atas browser Chrome.<br>
+      2. Pilih <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>.<br>
+      3. Ikon Chat KaslyAI akan langsung muncul di Layar Utama HP.
+    </div>
+  </div>
+
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.warn(err));
+    }
+
+    let deferredPrompt = null;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    // Jika sudah dibuka dari standalone PWA, langsung arahkan ke mode chat
+    if (isStandalone) {
+      window.location.replace('./?shortcut=chat');
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+
+    async function handleInstallChat() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          deferredPrompt = null;
+          setTimeout(() => openChatDirect(), 500);
+        }
+      } else {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const guideBox = document.getElementById('guideBox');
+        if (guideBox) {
+          if (isIOS) {
+            guideBox.innerHTML = '<strong>Cara Pasang di iPhone/iPad:</strong><br>1. Tekan tombol Bagikan (Share / ikon kotak panah ke atas) di Safari.<br>2. Pilih "Tambah ke Layar Utama" (Add to Home Screen).<br>3. Tekan "Tambah".';
+          }
+          guideBox.style.display = 'block';
+        }
+      }
+    }
+
+    function openChatDirect() {
+      window.location.replace('./?shortcut=chat');
+    }
+  </script>
+</body>
+</html>

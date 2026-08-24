@@ -6729,7 +6729,7 @@
           <button type="button" class="settings-row-card" onclick="openChatShortcutModal()">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-              <span class="sr-title">Tambah Pintasan Chat <span class="sr-arrow">›</span></span>
+              <span class="sr-title">Instal Pintasan Chat Mandiri <span class="sr-arrow">›</span></span>
             </div>
           </button>
           <!-- Auto-Reply Asisten WhatsApp dikontrol penuh dari Dashboard Admin -->
@@ -10119,7 +10119,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.11)';
+      const version = ' (v3.3.12)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22696,11 +22696,12 @@ PERTANYAAN_USER:
     }
 
     function openChatShortcutModal() {
-      const chatUrl = new URL('./?shortcut=chat', location.href).href;
+      const chatUrl = new URL('./chat.html', location.href).href;
       showConfirmModal({
-        title: 'Pintasan Chat Mandiri',
-        text: 'Ingin membuka fitur Chat AI sebagai aplikasi mandiri? Klik "Buka Chat Mandiri", lalu tekan menu browser (titik tiga) -> "Tambahkan ke Layar Utama" (Add to Home Screen) untuk memasang ikon Chat KaslyAI langsung di Home Screen HP Anda!',
-        actionText: 'Buka Chat Mandiri'
+        title: 'Instal Pintasan Chat Mandiri',
+        text: 'Anda akan dialihkan ke halaman Chat KaslyAI Mandiri untuk memasang ikon Chat langsung ke Layar Utama HP Anda.',
+        actionText: 'Buka Halaman Chat',
+        danger: false
       }).then(confirmed => {
         if (confirmed) {
           window.location.href = chatUrl;
