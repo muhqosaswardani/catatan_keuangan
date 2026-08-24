@@ -1104,9 +1104,8 @@ Deno.serve(async (req: Request) => {
       }
 
       if (!userId) {
-        // If not a verification code, send pendaftaran prompt
-        const regPrompt = "Nomor WhatsApp Anda belum terdaftar di *KaslyAI*.\n\nSilakan lakukan pendaftaran terlebih dahulu melalui aplikasi web KaslyAI.";
-        await sendWhatsAppMessage(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.from, regPrompt, msg.messageId);
+        // Sesuai PRD Fase 2: Pesan dari nomor tak dikenal / belum terverifikasi diabaikan total tanpa balasan
+        console.log(`Unregistered WA number ignored: ${msg.from}`);
         continue;
       }
 

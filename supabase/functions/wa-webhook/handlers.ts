@@ -20,7 +20,7 @@ import {
   matchHistoryAmountWithAi,
   transcribeAudioToText,
 } from "./gemini.ts";
-import { sendWhatsAppMessage, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
+import { sendWhatsAppMessage, sendPushNotification, sendUserResponse, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
 import { processV2Query } from "./v2_query.ts";
 
 // Regex sama persis dengan yang dipakai untuk pesan teks di v2_router.ts —
@@ -64,6 +64,8 @@ const DEFAULT_WALLET_ID = Deno.env.get("WA_DEFAULT_WALLET_ID") ?? "";
 const OWNER_PHONE = Deno.env.get("WA_OWNER_PHONE") ?? "6281226964679"; // 081226964679 → E.164
 const PHONE_NUMBER_ID = Deno.env.get("WA_PHONE_NUMBER_ID")!;
 const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Batching: tunggu 3 detik setelah foto pertama sebelum proses
 const BATCH_WINDOW_MS = 3000;
@@ -523,12 +525,30 @@ async function sendAndMapTx(
     isUpdated,
   );
 
-  const sentMsgId = await sendWhatsAppMessage(
+  const typeLabel = tx.type === "income" ? "Pemasukan" : "Pengeluaran";
+  const noteOrCat = tx.note ? `${tx.note} (${tx.category})` : tx.category;
+  const pushTitle = isUpdated ? "Transaksi diperbarui" : "Transaksi baru tercatat";
+  const pushBody = `${typeLabel} · ${noteOrCat}\nRp${tx.amount.toLocaleString("id-ID")} · ${wallet.name}`;
+  const pushPayload = {
+    title: pushTitle,
+    body: pushBody,
+    data: {
+      action: isUpdated ? "edit" : "save",
+      transaction_id: tx.id
+    }
+  };
+
+  const sentMsgId = await sendUserResponse(
+    db,
     PHONE_NUMBER_ID,
     WA_ACCESS_TOKEN,
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY,
+    userId,
     waChatId,
     bubble,
     replyToMsgId,
+    pushPayload
   );
 
   if (sentMsgId && userId) {
@@ -661,12 +681,19 @@ async function processParsedItems(
   // Scaling proporsional
   applyGroupScaling(rawRows as unknown as TransactionRow[]);
 
+  let waAutoReply = true;
+  if (userId) {
+    const { data: st } = await db.from("user_settings").select("wa_auto_reply").eq("user_id", userId).maybeSingle();
+    if (st && typeof st.wa_auto_reply === "boolean") {
+      waAutoReply = st.wa_auto_reply;
+    }
+  }
+
   for (const row of rawRows) {
     const genericNotes = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
     const isNoteGeneric = !row.note || genericNotes.includes(row.note.toLowerCase().trim());
 
     if (row.amount === 0) {
-      // Coba history fallback (hanya jika note tidak generic)
       let histAmt = null;
       if (!isNoteGeneric) {
         histAmt = await findHistoryAmount(
@@ -682,7 +709,20 @@ async function processParsedItems(
       if (histAmt && histAmt > 0) {
         row.amount = histAmt;
       } else {
-        // Tahan di pending, tanya nominal
+        if (!waAutoReply) {
+          const draftRow = { ...row, is_draft: true };
+          const { savedTx } = await saveTx(db, draftRow as unknown as TransactionRow, wallets, userId);
+          await sendPushNotification(
+            SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY,
+            userId,
+            "Transaksi butuh dilengkapi",
+            `Foto/teks terbaca (${row.category}), tetapi nominal belum lengkap. Ketuk untuk melengkapi.`,
+            { action: "lengkapi", transaction_id: savedTx.id }
+          );
+          continue;
+        }
+
         const pendingId = `pend_${uid()}`;
         await db.from("wa_pending_transactions").insert({
           id: pendingId,
@@ -715,8 +755,22 @@ async function processParsedItems(
     }
 
     if (isNoteGeneric) {
+      if (!waAutoReply) {
+        const draftRow = { ...row, note: "", is_draft: true };
+        const { savedTx } = await saveTx(db, draftRow as unknown as TransactionRow, wallets, userId);
+        await sendPushNotification(
+          SUPABASE_URL,
+          SUPABASE_SERVICE_ROLE_KEY,
+          userId,
+          "Transaksi butuh dilengkapi",
+          `Rp${row.amount.toLocaleString("id-ID")} terbaca, tetapi catatan belum lengkap. Ketuk untuk melengkapi.`,
+          { action: "lengkapi", transaction_id: savedTx.id }
+        );
+        continue;
+      }
+
       const pendingId = `pend_${uid()}`;
-      row.note = ""; // Reset note agar kosong saat ditanya
+      row.note = "";
       await db.from("wa_pending_transactions").insert({
         id: pendingId,
         user_id: userId,
@@ -838,17 +892,25 @@ export async function handleTextMessage(
     // Pesan bukan transaksi → respons AI natural
     try {
       const reply = await generateNaturalResponse(apiKeys, text);
-      await sendWhatsAppMessage(
+      await sendUserResponse(
+        db,
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        userId,
         msg.from,
         reply,
         msg.messageId,
       );
     } catch {
-      await sendWhatsAppMessage(
+      await sendUserResponse(
+        db,
         PHONE_NUMBER_ID,
         WA_ACCESS_TOKEN,
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        userId,
         msg.from,
         "Halo! Ada yang bisa dibantu?",
         msg.messageId,
@@ -1884,9 +1946,13 @@ export async function handleCekSaldo(
   const total = wallets.reduce((s, w) => s + (w.balance ?? 0), 0);
   msg += `\nTotal Saldo: ${formatRupiah(total)}`;
 
-  await sendWhatsAppMessage(
+  await sendUserResponse(
+    db,
     PHONE_NUMBER_ID,
     WA_ACCESS_TOKEN,
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY,
+    userId,
     waChatId,
     msg.trim(),
     replyToMsgId,

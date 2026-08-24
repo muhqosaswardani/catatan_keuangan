@@ -2,7 +2,7 @@
 // VERSI 2 - Router Utama untuk fitur Stage 2 (Intent & Mode - Revisi Sesi & Balasan)
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendWhatsAppMessage } from "./whatsapp.ts";
+import { sendWhatsAppMessage, sendPushNotification, sendUserResponse } from "./whatsapp.ts";
 import { getV2Session, saveV2Session, clearV2Session } from "./v2_db.ts";
 import { processV2Query } from "./v2_query.ts";
 import { handleCekSaldo } from "./handlers.ts";
@@ -186,6 +186,27 @@ export async function handleV2Message(
   }
 
   // 1. Cek: apakah pesan ini trigger MASUK mode (exact match, case-insensitive)?
+  let waAutoReply = true;
+  const { data: st } = await db.from("user_settings").select("wa_auto_reply").eq("user_id", userId).maybeSingle();
+  if (st && typeof st.wa_auto_reply === "boolean") {
+    waAutoReply = st.wa_auto_reply;
+  }
+
+  if (cleaned === "koreksi" || cleaned === "limit" || cleaned === "anggaran" || cleaned === "tujuan" || cleaned === "goals") {
+    if (!waAutoReply) {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      await sendPushNotification(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        userId,
+        "Fitur WA Nonaktif",
+        "Fitur ini perlu balasan WA aktif — nyalakan di pengaturan, atau pakai fitur ini langsung di aplikasi web."
+      );
+      return true;
+    }
+  }
+
   if (cleaned === "koreksi") {
     await handleModeKoreksiEnter(db, waChatId, msg.messageId, userId);
     return true;
