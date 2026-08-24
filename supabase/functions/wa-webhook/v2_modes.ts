@@ -678,7 +678,7 @@ export async function processModeKoreksiBatch(
   }
 
   // Cetak draft dengan rekap totals terstruktur
-  let report = `📋 *Draft Koreksi Saldo*\n\n`;
+  let report = `*Draft Koreksi Saldo*\n\n`;
   if (updatedDraft.length === 0) {
     report += `(kosong)\n`;
   } else {

@@ -4298,6 +4298,20 @@
       opacity: 0.8;
     }
 
+    /* Ikon SVG inline pengganti emoji — dipakai di status chat, label sinkron, toast, dsb */
+    .ic-inline {
+      display: inline-block;
+      vertical-align: -2px;
+      flex-shrink: 0;
+    }
+    .ic-spin {
+      animation: ic-spin-rotate 1s linear infinite;
+    }
+    @keyframes ic-spin-rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     /* Status indikator pesan (mirip WhatsApp) */
     .chat-msg-status {
       font-size: 9px;
@@ -8894,7 +8908,7 @@
           
           const pill = document.getElementById('verifStatusWrap');
           if (pill) {
-            pill.innerHTML = `<span class="status-pill err" id="verifStatusPill">✗ Waktu verifikasi habis</span>`;
+            pill.innerHTML = `<span class="status-pill err" id="verifStatusPill">${ICON_X} Waktu verifikasi habis</span>`;
           }
           showToast('Batas waktu verifikasi habis. Silakan coba lagi.');
           return;
@@ -8913,7 +8927,7 @@
             // Mark verified in UI
             const pill = document.getElementById('verifStatusWrap');
             if (pill) {
-              pill.innerHTML = `<span class="status-pill ok" id="verifStatusPill">✓ Nomor WA terverifikasi</span>`;
+              pill.innerHTML = `<span class="status-pill ok" id="verifStatusPill">${ICON_CHECK} Nomor WA terverifikasi</span>`;
             }
             showToast('Verifikasi berhasil! Akun aktif.');
             document.getElementById('btnVerifWa').style.display = 'none';
@@ -9214,7 +9228,7 @@
           </div>
           <div class="wa-mock-body">
             <div class="wa-bub out">Beli nasi goreng 15rb pakai cash<span class="tm">10:02</span></div>
-            <div class="wa-bub in">Catat: <b>Makanan</b> - Rp 15.000 (Dompet: Tunai). Saldo Dompet saat ini Rp 185.000. 📝<span class="tm">10:02</span></div>
+            <div class="wa-bub in">Catat: <b>Makanan</b> - Rp 15.000 (Dompet: Tunai). Saldo Dompet saat ini Rp 185.000. ${ICON_CHECK}<span class="tm">10:02</span></div>
           </div>
         </div>
       `,
@@ -9231,7 +9245,7 @@
               <div class="thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3V2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
               <div><b>Kirim Foto Struk</b><br><span style="font-size:10px;opacity:.8;">struk-indomaret.jpg</span></div>
             </div>
-            <div class="wa-bub in">Berhasil mendeteksi struk Indomaret sebesar Rp 45.300. Dicatat ke kategori <b>Belanja Bulanan</b>. ✓<span class="tm">10:05</span></div>
+            <div class="wa-bub in">Berhasil mendeteksi struk Indomaret sebesar Rp 45.300. Dicatat ke kategori <b>Belanja Bulanan</b>. ${ICON_CHECK}<span class="tm">10:05</span></div>
           </div>
         </div>
       `,
@@ -9239,7 +9253,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <h3 style="font-size:16px;margin:0;">3. Atur Sumber Mesin AI</h3>
           <span class="intro-badge-${onboardingState.aiChoice==='free'?'free':'own'}" onclick="openModal('modalInfoAiKey')" style="cursor:pointer;">
-            ${onboardingState.aiChoice==='free'?'AI Gratis Bersama':'API Key Sendiri'} 🛈
+            ${onboardingState.aiChoice==='free'?'AI Gratis Bersama':'API Key Sendiri'} ${ICON_INFO}
           </span>
         </div>
         <p style="color:var(--ink-soft);font-size:13px;line-height:1.55;margin:0 0 14px;text-align:left;">Pilih mesin AI yang kamu inginkan. Kamu bisa gunakan API Key Gemini milik akun Google kamu sendiri secara gratis agar tidak terkena antrean limit bersama.</p>
@@ -9901,7 +9915,7 @@
         chip.innerHTML = 'Trial habis · fitur AI terkunci';
       } else if (userTrialStatus === 'paid') {
         chip.className = 'trial-chip paid';
-        chip.innerHTML = '✓ Premium Lifetime';
+        chip.innerHTML = ICON_CHECK + ' Premium Lifetime';
       } else {
         chip.className = 'trial-chip active';
         chip.innerHTML = `Trial aktif · <span>${trialDaysLeft}</span> hari lagi`;
@@ -9975,7 +9989,7 @@
         closeModal('modalTrialHabis');
         userTrialStatus = 'paid';
         updateTrialTopbarUI();
-        showToast('✓ Token valid! Fitur AI & WhatsApp aktif selamanya.');
+        showToast('Token valid! Fitur AI & WhatsApp aktif selamanya.');
       } catch (err) {
         console.error('Gagal mengaktifkan token:', err);
         showToast('Terjadi kesalahan koneksi saat mengaktifkan token.');
@@ -10027,16 +10041,16 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.0)';
+      const version = ' (v3.2.1)';
       if (status === 'syncing' && isManual) {
-        label.textContent = '⟳ Sinkronisasi...' + version;
+        label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
-        label.textContent = '☁ Sinkron ' + hh + ':' + mm + version;
+        label.innerHTML = ICON_CLOUD + ' Sinkron ' + hh + ':' + mm + version;
       } else if (status === 'offline') {
-        label.textContent = '⚠️ Offline' + version;
+        label.innerHTML = ICON_WARNING + ' Offline' + version;
       }
     }
 
@@ -14543,10 +14557,10 @@
             else if (s === 'sudah-dibayar') sudahBayar.push(r.name + ' (' + formatRupiah(r.amount) + ')');
             else if (s === 'belum-bayar') belumBayar.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
           });
-          if (terlambat.length) lines.push('⚠️ TERLAMBAT (BELUM dibayar di siklus ini, sudah lewat jatuh tempo): ' + terlambat.join(', '));
-          if (jatuhTempo.length) lines.push('⏰ JATUH TEMPO HARI INI: ' + jatuhTempo.join(', '));
-          if (belumBayar.length) lines.push('⏳ BELUM DIBAYAR (dalam periode berjalan, belum jatuh tempo): ' + belumBayar.join(', '));
-          if (sudahBayar.length) lines.push('✅ Sudah dibayar periode ini (aman): ' + sudahBayar.join(', '));
+          if (terlambat.length) lines.push('[TERLAMBAT] (BELUM dibayar di siklus ini, sudah lewat jatuh tempo): ' + terlambat.join(', '));
+          if (jatuhTempo.length) lines.push('[JATUH TEMPO HARI INI]: ' + jatuhTempo.join(', '));
+          if (belumBayar.length) lines.push('[BELUM DIBAYAR] (dalam periode berjalan, belum jatuh tempo): ' + belumBayar.join(', '));
+          if (sudahBayar.length) lines.push('[SUDAH DIBAYAR] periode ini (aman): ' + sudahBayar.join(', '));
         }
       }
 
@@ -14834,10 +14848,10 @@
           activeRecurring.forEach(r => {
             const s = recurringStatus(r);
             let statusLabel = '';
-            if (s === 'terlambat') statusLabel = '⚠️ TERLAMBAT (belum bayar)';
-            else if (s === 'jatuh-tempo') statusLabel = '⏰ JATUH TEMPO';
-            else if (s === 'belum-bayar') statusLabel = '⏳ Belum bayar (dalam periode berjalan)';
-            else if (s === 'sudah-dibayar') statusLabel = '✅ Sudah bayar (aman/selesai)';
+            if (s === 'terlambat') statusLabel = '[TERLAMBAT] (belum bayar)';
+            else if (s === 'jatuh-tempo') statusLabel = '[JATUH TEMPO]';
+            else if (s === 'belum-bayar') statusLabel = '[BELUM BAYAR] (dalam periode berjalan)';
+            else if (s === 'sudah-dibayar') statusLabel = '[SUDAH BAYAR] (aman/selesai)';
             lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + r.nextDue + ')');
           });
         }
@@ -18107,7 +18121,7 @@
             reset_at: resetAt,
             updated_at: resetAt
           });
-          showToast('Data server berhasil dihapus ✓');
+          showToast('Data server berhasil dihapus');
         } catch (err) {
           console.warn('Supabase reset err:', err);
           showToast('Gagal hapus data server, coba lagi');
@@ -18980,6 +18994,18 @@
     let chatSelectedFile = null;
     let chatFlushingPending = false;
 
+    // ── Ikon SVG custom (pengganti emoji) ─────────────────────
+    // Dipakai untuk status pesan chat, label sinkron, toast, dsb —
+    // supaya tidak bergantung ke rendering emoji bawaan OS/browser.
+    const ICON_CLOCK = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>';
+    const ICON_CHECK = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+    const ICON_RETRY = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 2.6 6.4"/><path d="M3 20v-6h6"/></svg>';
+    const ICON_WARNING = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 9v5"/><circle cx="12" cy="17.5" r=".6" fill="currentColor" stroke="none"/></svg>';
+    const ICON_CLOUD = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H8a5 5 0 1 1 1.3-9.8A6 6 0 0 1 21 12a4 4 0 0 1-3.5 7z"/></svg>';
+    const ICON_SYNC = '<svg class="ic-inline ic-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>';
+    const ICON_X = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+    const ICON_INFO = '<svg class="ic-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.5" r=".6" fill="currentColor" stroke="none"/></svg>';
+
     // ── Offline-queue helpers ─────────────────────────────────
     function getChatPendingQueue() {
       try { return JSON.parse(localStorage.getItem('fk_chat_pending') || '[]'); } catch(e) { return []; }
@@ -18991,7 +19017,7 @@
       const q = getChatPendingQueue().filter(p => p.payload.messageId !== msgId);
       saveChatPendingQueue(q);
     }
-    // Mark a chatHistory bubble as delivered (remove ⌛ pending status)
+    // Mark a chatHistory bubble as delivered (remove pending status)
     function markBubbleDelivered(msgId) {
       const msg = chatHistory.find(m => m.id === msgId);
       if (msg) { msg.pending = false; localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory)); }
@@ -19169,11 +19195,11 @@
         let statusHtml = '';
         if (isUser) {
           if (msg.pending) {
-            statusHtml = `<span class="chat-msg-status pending" title="Menunggu koneksi…">⌛</span>`;
+            statusHtml = `<span class="chat-msg-status pending" title="Menunggu koneksi…">${ICON_CLOCK}</span>`;
           } else if (msg.failed) {
-            statusHtml = `<span class="chat-msg-status failed" title="Gagal — ketuk untuk coba ulang" onclick="retryChatMessage('${msg.id}',event)">⚠ Coba Ulang</span>`;
+            statusHtml = `<span class="chat-msg-status failed" title="Gagal — ketuk untuk coba ulang" onclick="retryChatMessage('${msg.id}',event)">${ICON_RETRY} Coba Ulang</span>`;
           } else {
-            statusHtml = `<span class="chat-msg-status sent" title="Terkirim">✓</span>`;
+            statusHtml = `<span class="chat-msg-status sent" title="Terkirim">${ICON_CHECK}</span>`;
           }
         }
         content += `<span class="time">${formatTime(msg.timestamp)}${statusHtml}</span>`;
@@ -19377,7 +19403,7 @@
       toggleChatActionBtn();
     }
 
-    // Toggle action button: mic (empty) ↔ send (has text/file)
+    // Toggle action button: mic (empty) <-> send (has text/file)
     function toggleChatActionBtn() {
       const input = document.getElementById('chatInputText');
       const btn = document.getElementById('chatActionBtn');
@@ -19516,7 +19542,7 @@
       // Build message ID dulu sebelum append agar bisa track status
       const msgId = 'msg_web_' + uid();
 
-      // Append user bubble langsung (status: pending ⌛)
+      // Append user bubble langsung (status: pending)
       appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, msgId, replyTo, true /* pending */);
 
       // Build payload
@@ -19547,6 +19573,11 @@
     // Kirim satu payload ke Edge Function dan update status bubble
     async function dispatchChatPayload(msgId, payload, token) {
       showChatTyping();
+      // Timeout eksplisit: kalau server/edge function tidak merespons dalam waktu wajar
+      // (cold start, koneksi macet, dll), batalkan fetch alih-alih menunggu tanpa batas.
+      // Ini yang bikin bubble bisa nyangkut status pending selamanya walau internet lancar.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
       try {
         const edgeFnUrl = SUPABASE_URL + '/functions/v1/wa-webhook';
         const response = await fetch(edgeFnUrl, {
@@ -19556,8 +19587,10 @@
             'x-web-chat': 'true',
             'Authorization': 'Bearer ' + (token || SUPABASE_KEY)
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errText = await response.text();
@@ -19598,17 +19631,30 @@
         refreshAllViews();
 
       } catch (err) {
-        // Network error — tetap di queue, bubble tetap ⌛
-        console.warn('sendChatMessage: network error, pesan masuk antrian:', err);
-        // Tidak hapus dari pending queue, cukup hide typing
-        // Bubble sudah ada & sudah berstatus pending
+        clearTimeout(timeoutId);
+        // Timeout ATAU network error — jangan biarkan bubble nyangkut pending selamanya
+        // tanpa ada yang mencoba lagi. Simpan jumlah percobaan; interval auto-retry
+        // (lihat scheduleChatAutoRetry) akan terus mencoba selama masih di antrian.
+        // Kalau sudah gagal berkali-kali, hentikan auto-retry dan tandai gagal supaya
+        // user bisa ketuk untuk coba ulang manual.
+        console.warn('sendChatMessage: gagal kirim (timeout/network), akan dicoba ulang otomatis:', err);
+        const q = getChatPendingQueue();
+        const item = q.find(p => p.payload.messageId === msgId);
+        if (item) {
+          item.attempts = (item.attempts || 0) + 1;
+          saveChatPendingQueue(q);
+          if (item.attempts >= 5) {
+            removePendingByMsgId(msgId);
+            markBubbleFailed(msgId);
+          }
+        }
         renderChat(false);
       } finally {
         hideChatTyping();
       }
     }
 
-    // Retry manual saat user ketuk ⚠
+    // Retry manual saat user ketuk tombol "Coba Ulang"
     async function retryChatMessage(msgId, event) {
       if (event) { event.stopPropagation(); }
       const q = getChatPendingQueue();
@@ -19781,7 +19827,7 @@
         return;
       }
       if (cleaned === 'help' || cleaned === 'bantuan' || cleaned === 'menu') {
-        appendChatBubble('bot', `*Pusat Bantuan Catatan Keuangan Bot* ✓\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- \`koreksi\` : Penyesuaian saldo dompet.\n- \`limit\` / \`anggaran\` : Kelola limit anggaran bulanan.\n- \`tujuan\` / \`goals\` : Kelola tujuan tabungan keuangan.\n\n*Sub-perintah dalam Mode Terkunci:*\n- \`ya\` / \`oke\` : Konfirmasi aksi final mode.\n- \`batal\` : Keluar tanpa menyimpan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Checklist: "bayar cicilan motor" untuk melunasi checklist.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya \`?\` di akhir kalimat untuk bertanya apa saja.`, Date.now());
+        appendChatBubble('bot', `*Pusat Bantuan Catatan Keuangan Bot*\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- \`koreksi\` : Penyesuaian saldo dompet.\n- \`limit\` / \`anggaran\` : Kelola limit anggaran bulanan.\n- \`tujuan\` / \`goals\` : Kelola tujuan tabungan keuangan.\n\n*Sub-perintah dalam Mode Terkunci:*\n- \`ya\` / \`oke\` : Konfirmasi aksi final mode.\n- \`batal\` : Keluar tanpa menyimpan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Checklist: "bayar cicilan motor" untuk melunasi checklist.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya \`?\` di akhir kalimat untuk bertanya apa saja.`, Date.now());
         return;
       }
 
@@ -19943,7 +19989,7 @@ Teks user: "${text}"
 
     async function handleChatCekSaldo() {
       const wallets = getWallets();
-      let text = `*Ringkasan Saldo Dompet:* ✓\n\n`;
+      let text = `*Ringkasan Saldo Dompet:*\n\n`;
       wallets.forEach((w) => {
         text += `• ${w.name}: ${formatRupiah(w.balance)}\n`;
       });
@@ -20177,7 +20223,7 @@ Keluarkan JSON dengan schema:
       syncAllWithSupabase(true);
 
       const wName = wallets.find(w => w.id === walletId)?.name || 'Dompet';
-      appendChatBubble('bot', `Berhasil membayar tagihan *"${target.name}"* sebesar *${formatRupiah(target.amount)}* menggunakan *${wName}*! ✓`, Date.now(), null, txId);
+      appendChatBubble('bot', `Berhasil membayar tagihan *"${target.name}"* sebesar *${formatRupiah(target.amount)}* menggunakan *${wName}*!`, Date.now(), null, txId);
     }
 
     async function handleChatTransferIntent(intentTransfer) {
@@ -20228,7 +20274,7 @@ Keluarkan JSON dengan schema:
       refreshAllViews();
       syncAllWithSupabase(true);
 
-      appendChatBubble('bot', `Berhasil memindahkan dana sebesar *${formatRupiah(amount)}* dari *${sourceW.name}* ke *${destW.name}*! ✓`, Date.now(), null, txId);
+      appendChatBubble('bot', `Berhasil memindahkan dana sebesar *${formatRupiah(amount)}* dari *${sourceW.name}* ke *${destW.name}*!`, Date.now(), null, txId);
       return true;
     }
 
@@ -20353,7 +20399,7 @@ Keluarkan JSON dengan schema:
         const label = existingEntry
           ? `Berhasil menambah *${debtType === 'utang' ? 'utang' : 'piutang'}* ke *${displayName}*`
           : (debtType === 'utang' ? `Berhasil mencatat *utang baru* ke *${displayName}*` : `Berhasil mencatat *piutang baru* ke *${displayName}*`);
-        appendChatBubble('bot', `${label} sebesar *${formatRupiah(amount)}*! ✓`, Date.now(), null, debtId);
+        appendChatBubble('bot', `${label} sebesar *${formatRupiah(amount)}*!`, Date.now(), null, debtId);
         return true;
       }
     }
@@ -20377,7 +20423,7 @@ Keluarkan JSON dengan schema:
         dbEntry.amount = 0;
         dbEntry.updatedAt = Date.now();
 
-        resultMsg = `Berhasil melunasi utang/piutang ke *${entry.personName}*! ✓`;
+        resultMsg = `Berhasil melunasi utang/piutang ke *${entry.personName}*!`;
 
         if (diff < 0) {
           const overpay = Math.abs(diff);
@@ -20399,7 +20445,7 @@ Keluarkan JSON dengan schema:
       } else {
         dbEntry.amount = diff;
         dbEntry.updatedAt = Date.now();
-        resultMsg = `Berhasil membayar cicilan utang/piutang ke *${entry.personName}* sebesar *${formatRupiah(payAmount)}*. Sisa utang saat ini: *${formatRupiah(diff)}*. ✓`;
+        resultMsg = `Berhasil membayar cicilan utang/piutang ke *${entry.personName}* sebesar *${formatRupiah(payAmount)}*. Sisa utang saat ini: *${formatRupiah(diff)}*.`;
       }
 
       setDebtsLocalOnly(debts);
@@ -20466,7 +20512,7 @@ Keluarkan JSON dengan schema:
 
           const wallets = getWallets();
           const wName = wallets.find(w => w.id === pendingTx.wallet_id)?.name || 'Dompet';
-          appendChatBubble('bot', `Catat: *"${pendingTx.note}"* sebesar *${formatRupiah(pendingTx.amount)}* (${wName}) ✓`, Date.now(), null, pendingTx.id);
+          appendChatBubble('bot', `Catat: *"${pendingTx.note}"* sebesar *${formatRupiah(pendingTx.amount)}* (${wName})`, Date.now(), null, pendingTx.id);
         } else {
           appendChatBubble('bot', 'Nominal tidak valid. Silakan ketik angkanya saja.', Date.now());
         }
@@ -20609,7 +20655,7 @@ Keluarkan JSON dengan schema:
         syncAllWithSupabase(true);
 
         const wName = wallets.find(w => w.id === targetWalletId)?.name || 'Dompet';
-        appendChatBubble('bot', `Catat: *"${it.note}"* sebesar *${formatRupiah(amount)}* (${wName}) ✓`, Date.now(), null, txId);
+        appendChatBubble('bot', `Catat: *"${it.note}"* sebesar *${formatRupiah(amount)}* (${wName})`, Date.now(), null, txId);
       }
     }
 
@@ -20703,13 +20749,13 @@ Keluarkan JSON dengan schema:
         refreshAllViews();
         syncAllWithSupabase(true);
 
-        appendChatBubble('bot', `Berhasil memproses foto belanja:\nCatat *"${it.note}"* sebesar *${formatRupiah(amount)}* (${primaryW.name}) ✓`, Date.now(), null, txId);
+        appendChatBubble('bot', `Berhasil memproses foto belanja:\nCatat *"${it.note}"* sebesar *${formatRupiah(amount)}* (${primaryW.name})`, Date.now(), null, txId);
       }
     }
 
     async function handleChatModeKoreksiEnter() {
       const wallets = getWallets();
-      let text = `*Mode Koreksi Saldo* (Cek) ✓\nPilih dompet yang mau dikoreksi (boleh lebih dari satu):\n\n`;
+      let text = `*Mode Koreksi Saldo* (Cek)\nPilih dompet yang mau dikoreksi (boleh lebih dari satu):\n\n`;
       wallets.forEach((w, idx) => {
         text += `${idx + 1}. ${w.name} — ${formatRupiah(w.balance)}\n`;
       });
@@ -20868,7 +20914,7 @@ Keluarkan JSON dengan schema:
 
         chatSession = null;
         saveChatStateToNavConfig();
-        appendChatBubble('bot', 'Koreksi saldo berhasil disimpan! ✓', Date.now());
+        appendChatBubble('bot', 'Koreksi saldo berhasil disimpan!', Date.now());
         return;
       }
 
@@ -20947,7 +20993,7 @@ Keluarkan JSON dengan schema:
       saveChatStateToNavConfig();
 
       // Cetak draft koreksi
-      let report = `📋 *Draft Koreksi Saldo*\n\n`;
+      let report = `*Draft Koreksi Saldo*\n\n`;
       updatedDraft.forEach((item, idx) => {
         const orig = wallets.find(w => w.id === item.wallet_id);
         const systemBalance = orig ? Number(orig.balance) : 0;
@@ -21660,7 +21706,7 @@ Keluarkan JSON dengan schema:
       syncAllWithSupabase(true);
 
       const wName = wallets.find(w => w.id === tx.wallet_id)?.name || 'Dompet';
-      appendChatBubble('bot', `Transaksi diubah:\n*"${tx.note}"* sebesar *${formatRupiah(tx.amount)}* (${wName}) ✓`, Date.now(), null, tx.id);
+      appendChatBubble('bot', `Transaksi diubah:\n*"${tx.note}"* sebesar *${formatRupiah(tx.amount)}* (${wName})`, Date.now(), null, tx.id);
     }
 
     function matchWalletByName(name) {
@@ -22183,6 +22229,17 @@ PERTANYAAN_USER:
         setTimeout(() => { if (typeof flushPendingChatMessages === 'function') flushPendingChatMessages(); }, 1000);
       });
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));
+
+      // Auto-retry berkala untuk pesan chat yang masih pending di antrian.
+      // Ini fallback untuk kasus koneksi tetap "online" di level OS/browser
+      // tapi request ke edge function gagal (timeout, cold start, dsb) —
+      // tanpa ini, bubble bisa nyangkut status pending selamanya karena event 'online'
+      // tidak pernah terpicu lagi (koneksi memang tidak pernah putus).
+      setInterval(() => {
+        if (navigator.onLine && !chatFlushingPending && getChatPendingQueue().length > 0) {
+          flushPendingChatMessages();
+        }
+      }, 15000);
       window.addEventListener('focus', () => { syncAllWithSupabase(true); activateDuePendingTransactions(); });
 
       // Setup auto-trigger keypad for amount inputs on mobile
@@ -22390,7 +22447,7 @@ PERTANYAAN_USER:
           body: JSON.stringify({
             user_id: currentUserId,
             title: 'KaslyAI — Uji Coba',
-            body: 'Kalau kamu lihat ini, notifikasi push sudah berfungsi 🎉',
+            body: 'Kalau kamu lihat ini, notifikasi push sudah berfungsi.',
             data: { url: './?source=pwa' },
           }),
         });
@@ -22406,7 +22463,7 @@ PERTANYAAN_USER:
     function openChatShortcutModal() {
       const chatUrl = new URL('./?shortcut=chat', location.href).href;
       showConfirmModal({
-        title: '📱 Pintasan Chat Mandiri',
+        title: 'Pintasan Chat Mandiri',
         text: 'Ingin membuka fitur Chat AI sebagai aplikasi mandiri? Klik "Buka Chat Mandiri", lalu tekan menu browser (titik tiga) -> "Tambahkan ke Layar Utama" (Add to Home Screen) untuk memasang ikon Chat KaslyAI langsung di Home Screen HP Anda!',
         actionText: 'Buka Chat Mandiri'
       }).then(confirmed => {
