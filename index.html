@@ -4340,8 +4340,29 @@
     .chat-bubble img {
       max-width: 100%;
       border-radius: var(--radius-s);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       display: block;
+    }
+
+    /* Bubble khusus foto/gambar agar pas & fit mirip WhatsApp */
+    .chat-bubble.has-image {
+      padding: 4px 4px 3px 4px;
+      border-radius: 12px;
+      max-width: 85%;
+    }
+    .chat-bubble.has-image img {
+      max-width: 100%;
+      border-radius: 9px;
+      margin-bottom: 0;
+      display: block;
+      cursor: pointer;
+    }
+    .chat-bubble.has-image .chat-bubble-text {
+      padding: 6px 6px 2px 6px;
+    }
+    .chat-bubble.has-image .time {
+      margin-top: 2px;
+      padding: 0 4px 1px 4px;
     }
 
     /* Chat Lightbox Modal Overlay */
@@ -10051,7 +10072,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.5)';
+      const version = ' (v3.2.6)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19187,18 +19208,22 @@
         }
 
         const msgText = String(msg.text || '');
+        const hasImage = !!msg.image;
+        const imgClass = hasImage ? ' has-image' : '';
 
         if (msg.image) {
           content += `<img src="${msg.image}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
         }
 
-        // Format text with bold backticks/asterisks
-        let textHtml = escapeHtml(msgText)
-          .replace(/\n/g, '<br>')
-          .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-          .replace(/`(.*?)`/g, '<code>$1</code>');
+        if (msgText.trim()) {
+          // Format text with bold backticks/asterisks
+          let textHtml = escapeHtml(msgText)
+            .replace(/\n/g, '<br>')
+            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+            .replace(/`(.*?)`/g, '<code>$1</code>');
 
-        content += `<div>${textHtml}</div>`;
+          content += `<div class="chat-bubble-text">${textHtml}</div>`;
+        }
         // Pending / failed status indicator (like WhatsApp clock / retry)
         let statusHtml = '';
         if (isUser) {
@@ -19247,7 +19272,7 @@
         const clarifyAttr = isClarify ? ` data-clarify="true"` : '';
         const msgIdAttr = ` data-msg-id="${msg.id}"`;
 
-        html += `<div class="chat-bubble ${alignClass}${txClass}"${txAttr}${clarifyAttr}${msgIdAttr} onclick="handleChatBubbleClick(this)">${badgeHtml}${content}${actionHintHtml}</div>`;
+        html += `<div class="chat-bubble ${alignClass}${txClass}${imgClass}"${txAttr}${clarifyAttr}${msgIdAttr} onclick="handleChatBubbleClick(this)">${badgeHtml}${content}${actionHintHtml}</div>`;
       });
 
       // Inject HTML
