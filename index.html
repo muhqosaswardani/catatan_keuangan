@@ -9993,7 +9993,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.1.5)';
+      const version = ' (v3.1.6)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22749,18 +22749,22 @@ PERTANYAAN_USER:
             deleteTransaction(txId);
             refreshAllViews();
           }
-        } else if (event.data.type === 'NOTIF_OPEN_EDIT' && event.data.url) {
+        } else if (event.data.type === 'NOTIF_OPEN_EDIT') {
           try {
-            const u = new URL(event.data.url);
-            const shortcut = u.searchParams.get('shortcut');
-            const id = u.searchParams.get('id');
-            if (shortcut === 'edit-tx' && id) {
+            let id = event.data.transaction_id;
+            if (!id && event.data.url) {
+              const u = new URL(event.data.url, location.href);
+              id = u.searchParams.get('id');
+            }
+            if (id) {
               if (document.body.classList.contains('chat-quick-mode')) {
                 closeChatQuickMode();
               }
               openTransactionModal(id);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[sw-msg] error opening edit modal:', e);
+          }
         }
       });
     }

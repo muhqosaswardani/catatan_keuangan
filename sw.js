@@ -223,9 +223,7 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   // targetUrl ditentukan oleh pengirim notifikasi lewat payload.data:
-  // - data.url: URL relatif ke scope app yang mau dibuka
-  // - data.actionUrls[action]: URL berbeda per tombol aksi yang ditekan
-  let targetPath = './';
+  let targetPath = './?shortcut=edit-tx&id=' + encodeURIComponent(data.transaction_id || '');
   if (action && data.actionUrls && data.actionUrls[action]) {
     targetPath = data.actionUrls[action];
   } else if (data.url) {
@@ -234,17 +232,31 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = new URL(targetPath, SCOPE_URL).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Kalau app sudah terbuka di tab/window manapun, fokuskan & navigasi ke sana
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
+      // 1. Cari client window yang sudah terbuka di scope ini
       for (const client of clientList) {
-        if (client.url.startsWith(SCOPE_URL) && 'focus' in client) {
-          if ('navigate' in client) client.navigate(targetUrl);
-          client.postMessage({ type: 'NOTIF_OPEN_EDIT', url: targetUrl });
-          return client.focus();
+        if ('focus' in client) {
+          try {
+            client.postMessage({
+              type: 'NOTIF_OPEN_EDIT',
+              url: targetUrl,
+              transaction_id: data.transaction_id
+            });
+            return await client.focus();
+          } catch (e) {
+            console.warn('[sw] client.focus error:', e);
+          }
         }
       }
-      // Kalau belum ada window terbuka, buka baru
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      // 2. Jika belum ada window terbuka, buka window baru
+      if (self.clients.openWindow) {
+        return await self.clients.openWindow(targetUrl);
+      }
+    }).catch(async (err) => {
+      console.error('[sw] notificationclick error, fallback openWindow:', err);
+      if (self.clients.openWindow) {
+        return await self.clients.openWindow(targetUrl);
+      }
     })
   );
 });
