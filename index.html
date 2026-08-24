@@ -8371,7 +8371,7 @@
                 style="min-height:160px;font-size:16px;" oninput="updateTxaiQuickProcessBtn()"></textarea>
             </div>
             <div id="txaiQuickThumbs" class="file-thumb-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
-            <input type="file" id="txaiQuickFileInput" accept="image/*,application/pdf" multiple style="display:none;" onchange="handleTxaiQuickFiles(this.files)">
+            <input type="file" id="txaiQuickFileInput" accept="image/*" multiple style="display:none;" onchange="handleTxaiQuickFiles(this.files)">
             <input type="file" id="txaiQuickCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleTxaiQuickFiles(this.files)">
             <div style="display:flex;gap:8px;margin-bottom:14px;">
               <button type="button" class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('txaiQuickFileInput').click()">Galeri</button>
@@ -22437,6 +22437,8 @@ PERTANYAAN_USER:
       return items;
     }
 
+    let lastProcessedTxaiQuickTxs = [];
+
     async function processTxaiQuick() {
       if (txaiQuickFiles.length === 0 && !(document.getElementById('txaiQuickText').value || '').trim() && !txaiQuickAudioPart) return;
       document.getElementById('txaiQuickStepInput').style.display = 'none';
@@ -22447,6 +22449,8 @@ PERTANYAAN_USER:
         const wallet = wallets.find(w => w.isPrimary) || wallets[0];
         const savedTxs = [];
         const draftTxs = [];
+        lastProcessedTxaiQuickTxs = [];
+
         for (const it of items) {
           const type = it && it.type === 'income' ? 'income' : 'expense';
           const amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
@@ -22464,6 +22468,7 @@ PERTANYAAN_USER:
             isDraft
           };
           const saved = addTransaction(tx);
+          lastProcessedTxaiQuickTxs.push(saved.id);
           if (isDraft) draftTxs.push(saved); else savedTxs.push(saved);
           // Kirim notifikasi PWA per transaksi (bukan digabung), sesuai PRD.
           sendTxaiQuickNotification(saved, isDraft ? 'tx_incomplete' : 'tx_saved', wallet);
@@ -22558,40 +22563,51 @@ PERTANYAAN_USER:
     }
 
     function saveTxaiQuickInlineEdit() {
-      const id = document.getElementById('txaiEditId').value;
-      if (!id) return;
-      const note = (document.getElementById('txaiEditNote').value || '').trim() || 'Transaksi';
-      const amount = parseRupiahInput(document.getElementById('txaiEditAmount').value || '0');
-      const type = document.getElementById('txaiEditType').value || 'expense';
-      const categoryId = document.getElementById('txaiEditCategory').value;
-      const walletId = document.getElementById('txaiEditWallet').value;
-      const date = document.getElementById('txaiEditDate').value || todayStr();
+      try {
+        const id = document.getElementById('txaiEditId').value;
+        if (!id) return;
+        const note = (document.getElementById('txaiEditNote').value || '').trim() || 'Transaksi';
+        const amount = parseRupiahInput(document.getElementById('txaiEditAmount').value || '0');
+        const type = document.getElementById('txaiEditType').value || 'expense';
+        const categoryId = document.getElementById('txaiEditCategory').value;
+        const walletId = document.getElementById('txaiEditWallet').value;
+        const date = document.getElementById('txaiEditDate').value || todayStr();
 
-      const txs = getTransactions();
-      const tx = txs.find(t => t.id === id);
-      if (!tx) return;
+        const txs = getTransactions();
+        const tx = txs.find(t => t.id === id);
+        if (!tx) {
+          showToast('Transaksi tidak ditemukan');
+          cancelTxaiQuickInlineEdit();
+          return;
+        }
 
-      tx.note = note;
-      tx.amount = amount;
-      tx.type = type;
-      tx.categoryId = categoryId;
-      tx.walletId = walletId;
-      tx.date = date;
-      tx.isDraft = false; // Tanda transaksi sudah lengkap!
+        tx.note = note;
+        tx.amount = amount;
+        tx.type = type;
+        tx.categoryId = categoryId;
+        tx.walletId = walletId;
+        tx.date = date;
+        tx.isDraft = false; // Tanda transaksi sudah lengkap!
 
-      updateTransaction(id, tx);
-      showToast('Transaksi berhasil diperbarui');
+        updateTransaction(id, tx);
+        showToast('Transaksi berhasil disimpan');
 
-      // Kembali ke layar hasil di dalam Transaksi AI Cepat tanpa keluar ke app dashboard!
-      document.getElementById('txaiQuickStepEdit').style.display = 'none';
-      document.getElementById('txaiQuickStepResult').style.display = 'block';
+        // Kembali ke layar hasil di dalam Transaksi AI Cepat tanpa keluar ke app dashboard!
+        document.getElementById('txaiQuickStepEdit').style.display = 'none';
+        document.getElementById('txaiQuickStepResult').style.display = 'block';
 
-      // Re-render kartu hasil
-      const remainingTxs = getTransactions().filter(t => t.id === id || txs.some(st => st.id === t.id));
-      const savedTxs = remainingTxs.filter(t => !t.isDraft);
-      const draftTxs = remainingTxs.filter(t => t.isDraft);
-      renderTxaiQuickResult(savedTxs, draftTxs);
-      refreshAllViews();
+        // Re-render kartu hasil dari batch transaksi ini
+        const currentAllTxs = getTransactions();
+        const batchTxs = currentAllTxs.filter(t => lastProcessedTxaiQuickTxs.includes(t.id));
+        const targetList = batchTxs.length ? batchTxs : [tx];
+        const savedTxs = targetList.filter(t => !t.isDraft);
+        const draftTxs = targetList.filter(t => t.isDraft);
+        renderTxaiQuickResult(savedTxs, draftTxs);
+        refreshAllViews();
+      } catch (err) {
+        console.error('[txaiQuick] error save inline edit:', err);
+        showToast('Gagal menyimpan perubahan');
+      }
     }
 
     function deleteTxaiQuickTx(id) {
