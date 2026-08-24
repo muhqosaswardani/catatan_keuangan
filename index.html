@@ -8484,7 +8484,8 @@
           <div id="aiScanCaptureView">
             <div class="field" style="margin-bottom:12px;">
               <label>Teks Bebas (opsional)</label>
-              <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini"
+              <textarea id="aiScanTextInput" rows="6" style="min-height:130px;font-size:16px;"
+                placeholder="Tulis catatan transaksinya di sini"
                 oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off"
                 autocorrect="off" spellcheck="false"></textarea>
               <p class="ai-mic-hint" id="aiMicHint"></p>
@@ -10393,7 +10394,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.51)';
+      const version = ' (v3.3.52)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
