@@ -4666,19 +4666,38 @@
     }
 
     /* Standalone / Quick Chat Mode (App Shortcut) */
+    body.chat-quick-mode {
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      overflow: hidden !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
     body.chat-quick-mode #headerApp {
       display: none !important;
     }
     body.chat-quick-mode .bottom-nav {
       display: none !important;
     }
-    body.chat-quick-mode #page-chat {
-      padding-top: max(10px, env(safe-area-inset-top)) !important;
-      padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    body.chat-quick-mode .app {
+      padding: 0 !important;
+      margin: 0 !important;
       height: 100dvh !important;
       max-height: 100dvh !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    body.chat-quick-mode #page-chat {
+      flex: 1 !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      padding-top: max(8px, env(safe-area-inset-top)) !important;
+      padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+      padding-left: 12px !important;
+      padding-right: 12px !important;
       box-sizing: border-box !important;
       overflow: hidden !important;
+      margin: 0 auto !important;
     }
     body.chat-quick-mode #chatBackBtn {
       display: inline-flex !important;
@@ -9965,7 +9984,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.6)';
+      const version = ' (v3.0.7)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
