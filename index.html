@@ -10072,7 +10072,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.6)';
+      const version = ' (v3.2.7)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19597,23 +19597,24 @@
         payload.image = { data: imageDataForServer, mimeType: imageMimeType };
       }
 
-      // Simpan ke antrian offline dulu
-      const pendingQueue = getChatPendingQueue();
-      pendingQueue.push({ payload, token: token || null, addedAt: Date.now(), replyTo });
-      saveChatPendingQueue(pendingQueue);
+      if (!navigator.onLine) {
+        // Simpan ke antrian offline hanya jika koneksi mati
+        const pendingQueue = getChatPendingQueue();
+        pendingQueue.push({ payload, token: token || null, addedAt: Date.now(), replyTo });
+        saveChatPendingQueue(pendingQueue);
+        return;
+      }
 
-      // Coba kirim sekarang
+      // Kirim langsung saat online
       await dispatchChatPayload(msgId, payload, token);
     }
 
     // Kirim satu payload ke Edge Function dan update status bubble
     async function dispatchChatPayload(msgId, payload, token) {
       showChatTyping();
-      // Timeout eksplisit: kalau server/edge function tidak merespons dalam waktu wajar
-      // (cold start, koneksi macet, dll), batalkan fetch alih-alih menunggu tanpa batas.
-      // Ini yang bikin bubble bisa nyangkut status pending selamanya walau internet lancar.
+      // Timeout eksplisit 25 detik
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       try {
         const edgeFnUrl = SUPABASE_URL + '/functions/v1/wa-webhook';
         const response = await fetch(edgeFnUrl, {
@@ -19668,21 +19669,20 @@
 
       } catch (err) {
         clearTimeout(timeoutId);
-        // Timeout ATAU network error — jangan biarkan bubble nyangkut pending selamanya
-        // tanpa ada yang mencoba lagi. Simpan jumlah percobaan; interval auto-retry
-        // (lihat scheduleChatAutoRetry) akan terus mencoba selama masih di antrian.
-        // Kalau sudah gagal berkali-kali, hentikan auto-retry dan tandai gagal supaya
-        // user bisa ketuk untuk coba ulang manual.
-        console.warn('sendChatMessage: gagal kirim (timeout/network), akan dicoba ulang otomatis:', err);
+        console.warn('sendChatMessage: gagal kirim (timeout/network), simpan ke antrian offline:', err);
         const q = getChatPendingQueue();
-        const item = q.find(p => p.payload.messageId === msgId);
-        if (item) {
-          item.attempts = (item.attempts || 0) + 1;
-          saveChatPendingQueue(q);
-          if (item.attempts >= 5) {
+        const existing = q.find(p => p.payload && p.payload.messageId === msgId);
+        if (existing) {
+          existing.attempts = (existing.attempts || 0) + 1;
+          if (existing.attempts >= 5) {
             removePendingByMsgId(msgId);
             markBubbleFailed(msgId);
+          } else {
+            saveChatPendingQueue(q);
           }
+        } else {
+          q.push({ payload, token: token || null, addedAt: Date.now(), attempts: 1 });
+          saveChatPendingQueue(q);
         }
         renderChat(false);
       } finally {
@@ -19693,45 +19693,37 @@
     // Retry manual saat user ketuk tombol "Coba Ulang"
     async function retryChatMessage(msgId, event) {
       if (event) { event.stopPropagation(); }
-      const q = getChatPendingQueue();
-      const item = q.find(p => p.payload.messageId === msgId);
-      if (!item) {
-        // Coba refresh token lalu kirim ulang dari history
-        const msg = chatHistory.find(m => m.id === msgId);
-        if (!msg) return;
-        const { data: sessionData } = await supabaseClient.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        const userProfile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
-        const userPhone = (userProfile && userProfile.nomor_wa) || (currentUserData && currentUserData.nomor_wa) || '6289626112023';
-        const payload = { text: msg.text, from: userPhone, user_id: currentUserId, messageId: msgId, contextId: null };
-        const q2 = getChatPendingQueue();
-        q2.push({ payload, token: token || null, addedAt: Date.now() });
-        saveChatPendingQueue(q2);
-        markBubbleDelivered(msgId); // reset failed state
-        const msg2 = chatHistory.find(m => m.id === msgId); if (msg2) { msg2.failed = false; msg2.pending = true; }
-        renderChat(false);
-        await dispatchChatPayload(msgId, payload, token);
-        return;
-      }
-      // Reset ke pending
-      const msg3 = chatHistory.find(m => m.id === msgId); if (msg3) { msg3.failed = false; msg3.pending = true; }
+      const msg = chatHistory.find(m => m.id === msgId);
+      if (!msg) return;
+      msg.failed = false;
+      msg.pending = true;
       renderChat(false);
-      const { data: sd } = await supabaseClient.auth.getSession();
-      await dispatchChatPayload(msgId, item.payload, sd?.session?.access_token || item.token);
+      
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const userProfile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
+      const userPhone = (userProfile && userProfile.nomor_wa) || (currentUserData && currentUserData.nomor_wa) || '6289626112023';
+      const payload = { text: msg.text, from: userPhone, user_id: currentUserId, messageId: msgId, contextId: null };
+      await dispatchChatPayload(msgId, payload, token);
     }
 
     // Flush semua pesan pending (dipanggil saat online kembali)
     async function flushPendingChatMessages() {
-      if (chatFlushingPending) return;
+      if (chatFlushingPending || !navigator.onLine) return;
       const q = getChatPendingQueue();
       if (q.length === 0) return;
       chatFlushingPending = true;
+      saveChatPendingQueue([]); // Clear immediately so concurrent triggers cannot double-send
       console.log('[chat] Flush', q.length, 'pesan pending...');
       try {
         const { data: sd } = await supabaseClient.auth.getSession();
         const freshToken = sd?.session?.access_token;
         for (const item of q) {
-          await dispatchChatPayload(item.payload.messageId, item.payload, freshToken || item.token);
+          try {
+            await dispatchChatPayload(item.payload.messageId, item.payload, freshToken || item.token);
+          } catch (e) {
+            console.warn('[chat] Gagal flush pesan:', item.payload.messageId, e);
+          }
         }
       } finally {
         chatFlushingPending = false;
@@ -22097,10 +22089,6 @@ PERTANYAAN_USER:
       // Re-render chat UI if the user is currently viewing the chat page
       if (typeof currentTab !== 'undefined' && currentTab === 'chat' && typeof renderChat === 'function') {
         renderChat();
-      }
-      // Kirim pesan-pesan chat yang masih pending (dari sesi offline sebelumnya)
-      if (typeof flushPendingChatMessages === 'function') {
-        setTimeout(() => flushPendingChatMessages(), 1500);
       }
     }
 
