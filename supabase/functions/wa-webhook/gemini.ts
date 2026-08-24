@@ -191,6 +191,7 @@ export function buildTransactionPrompt(
     '   - "wifi 2,5" → expense, note "Bayar wifi", amount 2500 (rumus koma-desimal-ribu berlaku KONSISTEN di semua konteks, termasuk tagihan besar seperti wifi — JANGAN ditafsir jadi 2500000 hanya karena "kelihatannya" wifi biasanya mahal; ikuti angka literalnya apa adanya).\n' +
     '   - "minjemin duit ke Budi 200rb" → expense, note "Pinjamkan uang ke Budi", amount 200000, category "Lainnya".\n' +
     '   - "jadi tadi pagi aku ke pasar beli sayur 25rb terus mampir warkop ngopi 8rb abis itu ke bengkel benerin ban bocor 15rb" (contoh gaya transkrip VN panjang tanpa koma/pemisah jelas) → HARUS dipecah jadi 3 transaksi terpisah berdasarkan pergantian konteks aktivitas: (1) expense "Beli sayur di pasar" 25000, (2) expense "Ngopi di warkop" 8000, (3) expense "Tambal ban bocor" 15000 — JANGAN digabung jadi satu transaksi besar atau dianggap gagal parse hanya karena tidak ada tanda baca pemisah.\n' +
+    '6. ATURAN PENULISAN KETERANGAN (NOTE): Wajib tulis keterangan ("note") secara rapi, ringkas, bersih, dan menggunakan huruf kapital di awal setiap kata (Title Case / Capital Case). WAJIB perbaiki kesalahan ketik (typo), singkatan informal/slang, dan kata berulang (Contoh: "paket internet pket malem" menjadi "Paket Internet Malam", "mkn ns pdg" menjadi "Makan Nasi Padang", "isi bnsin mtor" menjadi "Isi Bensin Motor", "byr wifi" menjadi "Bayar Wifi", "blanja di indomaret" menjadi "Belanja Indomaret"). Jangan salin mentah-mentah typo atau kata berulang dari teks user!\n\n' +
     'Pola umumnya: SELAMA ada kata benda/kata kerja/nama tempat/aktivitas apapun yang berpotensi berkaitan aktivitas ekonomi (benerin/ganti/servis/parkir/potong/tambal/beli/bayar/jual/dapat/dsb, ATAU sekadar nama barang/jasa/tempat tanpa kata kerja sama sekali) — walau ditulis santai, typo, terlalu singkat, nominalnya pakai istilah gaul, ATAU tanpa nominal sama sekali — WAJIB tetap dibuatkan objek transaksinya. JANGAN biarkan ketidakpastian soal kategori, kejelasan nominal, ATAU singkatnya kalimat membuatmu menolak keseluruhan transaksinya; pilih tebakan terbaik dan tetap keluarkan objeknya. Array kosong [] HANYA untuk 3 kategori sempit di aturan 0.\n\n' +
     'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, wallet, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.'
   );
@@ -348,6 +349,15 @@ export async function parseTransactions(
       );
       const text = extractGeminiText(data);
       const parsed = parseAiJson(text);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(tx => {
+          if (tx && tx.note) {
+            let s = String(tx.note).replace(/\s+/g, ' ').trim();
+            if (s) s = s.replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+            tx.note = s.slice(0, 80) || 'Transaksi';
+          }
+        });
+      }
       return parsed;
     } catch (e) {
       lastErr = e as Error;
