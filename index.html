@@ -10289,7 +10289,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.27)';
+      const version = ' (v3.3.28)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12198,6 +12198,13 @@
         if (popped.type === 'modal') {
           closeModalUI(popped.id);
           if (popped.id === 'modalIconPicker') catEditingId = null; /* reset state tambahan saat ditutup lewat tombol Back fisik/browser */
+        } else if (popped.type === 'txai-step') {
+          if (popped.step === 'edit') {
+            document.getElementById('txaiQuickStepEdit').style.display = 'none';
+            document.getElementById('txaiQuickStepResult').style.display = 'block';
+          } else if (popped.step === 'result') {
+            resetTxaiQuickScreen();
+          }
         }
       }
       const top = navStack[navStack.length - 1];
@@ -22986,6 +22993,21 @@ PERTANYAAN_USER:
       openModal('modalTxaiQuick');
     }
     function closeTxaiQuickScreen() {
+      const editStep = document.getElementById('txaiQuickStepEdit');
+      const resultStep = document.getElementById('txaiQuickStepResult');
+      if (editStep && editStep.style.display !== 'none') {
+        cancelTxaiQuickInlineEdit();
+        return;
+      }
+      if (resultStep && resultStep.style.display !== 'none') {
+        const top = navStack[navStack.length - 1];
+        if (top && top.type === 'txai-step' && top.step === 'result') {
+          history.back();
+        } else {
+          resetTxaiQuickScreen();
+        }
+        return;
+      }
       if (txaiQuickMicRecording) stopTxaiQuickVoiceRecording();
       closeModal('modalTxaiQuick');
     }
@@ -22999,6 +23021,7 @@ PERTANYAAN_USER:
       document.getElementById('txaiQuickStepInput').style.display = 'block';
       document.getElementById('txaiQuickStepLoading').style.display = 'none';
       document.getElementById('txaiQuickStepResult').style.display = 'none';
+      document.getElementById('txaiQuickStepEdit').style.display = 'none';
     }
     function handleTxaiQuickFiles(fileList) {
       const files = Array.from(fileList || []);
@@ -23213,7 +23236,13 @@ PERTANYAAN_USER:
 
     function renderTxaiQuickResult(savedTxs, draftTxs) {
       document.getElementById('txaiQuickStepLoading').style.display = 'none';
+      document.getElementById('txaiQuickStepInput').style.display = 'none';
+      document.getElementById('txaiQuickStepEdit').style.display = 'none';
       document.getElementById('txaiQuickStepResult').style.display = 'block';
+      const top = navStack[navStack.length - 1];
+      if (!top || top.type !== 'txai-step' || top.step !== 'result') {
+        navPush({ type: 'txai-step', step: 'result' });
+      }
       const all = [...savedTxs, ...draftTxs];
       const total = savedTxs.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
       let html = '';
@@ -23277,6 +23306,7 @@ PERTANYAAN_USER:
 
       document.getElementById('txaiQuickStepResult').style.display = 'none';
       document.getElementById('txaiQuickStepEdit').style.display = 'block';
+      navPush({ type: 'txai-step', step: 'edit' });
 
       if (tx.isDraft || !tx.amount) {
         setTimeout(() => {
@@ -23287,8 +23317,13 @@ PERTANYAAN_USER:
     }
 
     function cancelTxaiQuickInlineEdit() {
-      document.getElementById('txaiQuickStepEdit').style.display = 'none';
-      document.getElementById('txaiQuickStepResult').style.display = 'block';
+      const top = navStack[navStack.length - 1];
+      if (top && top.type === 'txai-step' && top.step === 'edit') {
+        history.back();
+      } else {
+        document.getElementById('txaiQuickStepEdit').style.display = 'none';
+        document.getElementById('txaiQuickStepResult').style.display = 'block';
+      }
     }
 
     function saveTxaiQuickInlineEdit() {
@@ -23322,6 +23357,11 @@ PERTANYAAN_USER:
         showToast('Transaksi berhasil disimpan');
 
         // Kembali ke layar hasil di dalam Transaksi AI Cepat tanpa keluar ke app dashboard!
+        const top = navStack[navStack.length - 1];
+        if (top && top.type === 'txai-step' && top.step === 'edit') {
+          navStack.pop();
+          history.back();
+        }
         document.getElementById('txaiQuickStepEdit').style.display = 'none';
         document.getElementById('txaiQuickStepResult').style.display = 'block';
 
