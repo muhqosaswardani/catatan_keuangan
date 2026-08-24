@@ -9999,7 +9999,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.1.8)';
+      const version = ' (v3.1.9)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19482,7 +19482,12 @@
         if (!response.ok) {
           const errText = await response.text();
           console.error('Edge Function error:', response.status, errText);
-          appendChatBubble('bot', 'Maaf, terjadi kesalahan server. Coba lagi ya.', Date.now());
+          let userErr = 'Maaf, terjadi kesalahan server. Coba lagi ya.';
+          try {
+            const parsed = JSON.parse(errText);
+            if (parsed.error) userErr = 'Maaf: ' + parsed.error;
+          } catch(e) {}
+          appendChatBubble('bot', userErr, Date.now());
           return;
         }
 

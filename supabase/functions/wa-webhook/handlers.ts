@@ -141,16 +141,27 @@ async function getDeletedIds(db: SupabaseClient, userId: string): Promise<Set<st
 
 async function getCategories(db: SupabaseClient, userId: string): Promise<CategoryRow[]> {
   const deletedSet = await getDeletedIds(db, userId);
-  const { data } = await db.from("categories").select("id, name, type").eq("user_id", userId);
-  const rows = (data ?? []) as CategoryRow[];
-  return rows.filter(r => !deletedSet.has(String(r.id)));
+  const code = "wa_" + userId;
+  const { data } = await db.from("categories").select("id, name, type").or(`user_id.eq.${userId},access_code.eq.${code}`);
+  let rows = (data ?? []) as CategoryRow[];
+  rows = rows.filter(r => !deletedSet.has(String(r.id)));
+  if (rows.length === 0) {
+    const { data: sysCats } = await db.from("categories").select("id, name, type").limit(20);
+    if (sysCats && sysCats.length > 0) return sysCats as CategoryRow[];
+  }
+  return rows;
 }
 
 async function getWallets(db: SupabaseClient, userId: string): Promise<WalletRow[]> {
   const deletedSet = await getDeletedIds(db, userId);
-  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").eq("user_id", userId);
-  const rows = (data ?? []) as WalletRow[];
-  return rows.filter(r => !deletedSet.has(String(r.id)));
+  const code = "wa_" + userId;
+  const { data } = await db.from("wallets").select("id, name, balance, is_primary, sort_order").or(`user_id.eq.${userId},access_code.eq.${code}`);
+  let rows = (data ?? []) as WalletRow[];
+  rows = rows.filter(r => !deletedSet.has(String(r.id)));
+  if (rows.length === 0) {
+    return [{ id: "wallet_utama", name: "Dompet Utama", balance: 0, is_primary: true, sort_order: 1 }];
+  }
+  return rows;
 }
 
 // ============================================================
