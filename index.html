@@ -4661,17 +4661,15 @@
     .chat-attach-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
+      background: rgba(0, 0, 0, 0.32);
       animation: fadeIn 0.15s ease-out;
     }
     .chat-attach-panel {
       position: relative;
       background: var(--surface, #ffffff);
-      border-radius: 24px 24px 0 0;
-      padding: 12px 24px max(24px, env(safe-area-inset-bottom));
-      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+      border-radius: 28px 28px 0 0;
+      padding: 14px 20px max(28px, env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.12);
       animation: slideUpAttach 0.22s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 1;
       max-width: 500px;
@@ -4684,54 +4682,55 @@
       to { transform: translateY(0); }
     }
     .chat-attach-handle {
-      width: 40px;
+      width: 36px;
       height: 4px;
-      background: var(--line, #e2e8f0);
+      background: var(--line, #d8dcdb);
       border-radius: 2px;
-      margin: 0 auto 18px;
+      margin: 0 auto 20px;
     }
     .chat-attach-grid {
       display: flex;
-      justify-content: space-around;
-      align-items: center;
-      gap: 24px;
-      padding: 4px 10px;
+      justify-content: flex-start;
+      align-items: flex-start;
+      gap: 28px;
+      padding: 4px 6px 8px;
     }
     .chat-attach-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: none;
       border: none;
       cursor: pointer;
-      padding: 6px 12px;
+      padding: 0;
+      width: 72px;
       -webkit-tap-highlight-color: transparent;
     }
     .chat-attach-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 18px;
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+      box-shadow: none;
       transition: transform 0.15s ease;
     }
     .chat-attach-item:active .chat-attach-icon {
-      transform: scale(0.92);
+      transform: scale(0.94);
     }
     .chat-attach-icon.gallery {
-      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      background: #7c4fe0;
       color: #ffffff;
     }
     .chat-attach-icon.file {
-      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      background: #3d7ff2;
       color: #ffffff;
     }
     .chat-attach-item span {
-      font-size: 13.5px;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 500;
       color: var(--ink, #1e293b);
     }
 
@@ -10404,7 +10403,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.54)';
+      const version = ' (v3.3.55)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
