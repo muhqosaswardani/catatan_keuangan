@@ -10051,7 +10051,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.4)';
+      const version = ' (v3.2.5)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10454,6 +10454,8 @@
                 .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
 
               merged.chatHistory = mergedChat;
+              chatHistory = mergedChat;
+              localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
               
               const localChatTs = Number(localCfg.chatUpdatedAt) || 0;
               const remoteChatTs = Number(remoteCfg.chatUpdatedAt) || 0;
@@ -19115,7 +19117,7 @@
       cfg.chatHistory = chatHistory;
       cfg.chatSession = chatSession;
       cfg.chatUpdatedAt = Date.now();
-      setNavConfig(cfg);
+      setNavConfigLocalOnly(cfg);
     }
 
     function getChatDateHeaderStr(timestamp) {
@@ -19555,9 +19557,12 @@
       const { data: sessionData } = await supabaseClient.auth.getSession();
       const token = sessionData?.session?.access_token;
 
+      const userProfile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
+      const userPhone = (userProfile && userProfile.nomor_wa) || (currentUserData && currentUserData.nomor_wa) || '6289626112023';
+
       const payload = {
         text: text,
-        from: (currentUserData && currentUserData.nomor_wa) || '6281226964679',
+        from: userPhone,
         user_id: currentUserId,
         messageId: msgId,
         contextId: contextId
@@ -19671,7 +19676,9 @@
         if (!msg) return;
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const token = sessionData?.session?.access_token;
-        const payload = { text: msg.text, from: (currentUserData && currentUserData.nomor_wa) || '6281226964679', user_id: currentUserId, messageId: msgId, contextId: null };
+        const userProfile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
+        const userPhone = (userProfile && userProfile.nomor_wa) || (currentUserData && currentUserData.nomor_wa) || '6289626112023';
+        const payload = { text: msg.text, from: userPhone, user_id: currentUserId, messageId: msgId, contextId: null };
         const q2 = getChatPendingQueue();
         q2.push({ payload, token: token || null, addedAt: Date.now() });
         saveChatPendingQueue(q2);
