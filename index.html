@@ -6714,7 +6714,7 @@
             style="display:none;" onclick="sendTestNotification()">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/></svg></span>
-              <span class="sr-title">Kirim Notifikasi Uji Coba <span class="sr-arrow">›</span></span>
+              <span class="sr-title">Kirim Notifikasi Uji Coba (Tombol Edit) <span class="sr-arrow">›</span></span>
             </div>
           </button>
           <button type="button" class="settings-row-card" onclick="openChatShortcutModal()">
@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.3)';
+      const version = ' (v3.3.4)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22520,12 +22520,39 @@ PERTANYAAN_USER:
       }
     }
 
+    // Notifikasi uji coba KHUSUS untuk tes tombol aksi Edit/Hapus di notifikasi sistem.
+    // Dipakai transaksi TERAKHIR yang beneran ada (bukan ID palsu), supaya kalau tombol
+    // "Edit" ditekan, app beneran bisa buka modal edit transaksi itu — jadi user bisa
+    // pastikan sendiri klik Edit = masuk mode edit (bukan attach ke aksi Hapus).
     async function sendTestNotification() {
       if (!currentUserId) return;
       try {
         await autoSyncPushSubscription();
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const token = sessionData?.session?.access_token;
+
+        // Ambil transaksi paling baru sebagai target uji coba tombol Edit
+        const txs = getTransactions().slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.id || '').localeCompare(a.id || ''));
+        const testTx = txs[0];
+
+        let body, data;
+        if (testTx) {
+          const editUrl = './?shortcut=edit-tx&id=' + encodeURIComponent(testTx.id);
+          body = 'Ketuk tombol "Edit" di bawah ini untuk pastikan app beneran masuk mode edit transaksi "' + (testTx.note || 'ini') + '" — bukan malah kehapus.';
+          data = {
+            url: editUrl,
+            type: 'test_edit_button',
+            transaction_id: testTx.id,
+            actions: [{ action: 'edit', title: 'Edit' }, { action: 'delete', title: 'Hapus' }],
+            actionUrls: { edit: editUrl },
+            requireInteraction: true,
+          };
+        } else {
+          // Belum ada transaksi sama sekali -> tetap kirim notif polos tanpa tombol aksi
+          body = 'Kalau kamu lihat ini, notifikasi push sudah berfungsi. (Belum ada transaksi buat tes tombol Edit)';
+          data = { url: './?source=pwa' };
+        }
+
         const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
           method: 'POST',
           headers: {
@@ -22534,14 +22561,14 @@ PERTANYAAN_USER:
           },
           body: JSON.stringify({
             user_id: currentUserId,
-            title: 'KaslyAI — Uji Coba',
-            body: 'Kalau kamu lihat ini, notifikasi push sudah berfungsi.',
-            data: { url: './?source=pwa' },
+            title: testTx ? 'KaslyAI — Uji Coba Tombol Edit' : 'KaslyAI — Uji Coba',
+            body,
+            data,
           }),
         });
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || 'Gagal kirim');
-        showToast(`Terkirim ke ${result.sent} device`);
+        showToast(testTx ? `Terkirim ke ${result.sent} device — coba ketuk tombol Edit di notifikasinya` : `Terkirim ke ${result.sent} device`);
       } catch (err) {
         console.error('[push] test gagal:', err);
         showToast('Gagal kirim notifikasi uji coba');
