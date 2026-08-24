@@ -2542,6 +2542,7 @@
       grid-column: 1;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
       padding: 10px 8px;
     }
@@ -4689,49 +4690,45 @@
       margin: 0 auto 20px;
     }
     .chat-attach-grid {
-      display: flex;
-      justify-content: flex-start;
-      align-items: flex-start;
-      gap: 28px;
-      padding: 4px 6px 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 4px 2px 8px;
     }
     .chat-attach-item {
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      background: none;
-      border: none;
+      border: 1.5px dashed var(--line);
+      border-radius: var(--radius-m, 14px);
+      background: var(--surface, #ffffff);
       cursor: pointer;
-      padding: 0;
-      width: 72px;
+      padding: 18px 8px;
       -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .chat-attach-item:active {
+      background: var(--surface-2, #f1f5f9);
+      transform: scale(0.98);
     }
     .chat-attach-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: 20px;
+      width: auto;
+      height: auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: none;
-      transition: transform 0.15s ease;
+      color: var(--ink-soft, #5B6A68);
     }
-    .chat-attach-item:active .chat-attach-icon {
-      transform: scale(0.94);
-    }
-    .chat-attach-icon.gallery {
-      background: #7c4fe0;
-      color: #ffffff;
-    }
-    .chat-attach-icon.file {
-      background: #3d7ff2;
-      color: #ffffff;
+    .chat-attach-icon svg {
+      display: block;
+      stroke: var(--ink-soft, #5B6A68);
     }
     .chat-attach-item span {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--ink, #1e293b);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink-soft, #5B6A68);
     }
 
     .chat-attachment-preview {
@@ -10403,7 +10400,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.55)';
+      const version = ' (v3.3.56)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
