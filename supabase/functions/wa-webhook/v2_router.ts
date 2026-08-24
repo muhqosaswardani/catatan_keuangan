@@ -322,7 +322,7 @@ export async function handleV2Message(
       if (ok) return true;
     }
     if (parsed.intent === "query" || parsed.intent === "general_chat") {
-      const reply = await processV2Query(db, apiKeys, userId, text);
+      const reply = await processV2Query(db, apiKeys, userId, text, !waAutoReply);
       await sendUserResponse(
         db, PHONE_NUMBER_ID, WA_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
         userId, waChatId, reply, msg.messageId,
@@ -335,7 +335,7 @@ export async function handleV2Message(
   // 4. Cek: apakah pesan mengandung tanda tanya "?"
   const isQuery = text.includes("?");
   if (isQuery) {
-    const reply = await processV2Query(db, apiKeys, userId, text);
+    const reply = await processV2Query(db, apiKeys, userId, text, !waAutoReply);
     await sendUserResponse(
       db, PHONE_NUMBER_ID, WA_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
       userId, waChatId, reply, msg.messageId,
