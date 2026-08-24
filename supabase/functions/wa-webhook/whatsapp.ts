@@ -246,7 +246,8 @@ export async function sendUserResponse(
   replyToMessageId?: string,
   pushPayload?: { title: string; body: string; data?: Record<string, unknown> }
 ): Promise<string> {
-  const waAutoReply = await isWaAutoReplyEnabled(db, userId);
+  const store = chatContext.getStore();
+  const isWebChat = !!(store && store.isWebChat);
 
   let aiLocked = false;
   const { data: usr } = await db.from("users").select("ai_locked").eq("id", userId).maybeSingle();
@@ -256,7 +257,7 @@ export async function sendUserResponse(
 
   if (aiLocked) {
     const lockedMsg = "Fitur AI saat ini terkunci (periode uji coba habis). Silakan hubungi admin atau masukkan token aktivasi di aplikasi web untuk membuka akses.";
-    if (waAutoReply) {
+    if (isWebChat || (await isWaAutoReplyEnabled(db, userId))) {
       return await sendWhatsAppMessage(phoneNumberId, accessToken, waChatId, lockedMsg, replyToMessageId);
     } else {
       await sendPushNotification(supabaseUrl, serviceRoleKey, userId, "Fitur AI Terkunci", lockedMsg, { type: "ai_locked" });
@@ -264,6 +265,15 @@ export async function sendUserResponse(
     }
   }
 
+  // Jika dipanggil dari Web Chat di aplikasi web, respons teks HARUS SELALU dikembalikan ke chat web
+  if (isWebChat) {
+    if (textReply) {
+      return await sendWhatsAppMessage(phoneNumberId, accessToken, waChatId, textReply, replyToMessageId);
+    }
+    return "";
+  }
+
+  const waAutoReply = await isWaAutoReplyEnabled(db, userId);
   let sentMsgId = "";
   if (waAutoReply) {
     // Balasan WA ON -> Konfirmasi dikirim via WA Chat, TIDAK memicu notifikasi PWA HP
