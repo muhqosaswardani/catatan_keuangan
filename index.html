@@ -10392,7 +10392,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.46)';
+      const version = ' (v3.3.47)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14111,7 +14111,8 @@
       document.getElementById('aiScanResultView').style.display = 'none';
       document.getElementById('aiScanAnalyzeBtn').disabled = true;
       const wallets = getWallets();
-      aiWalletValue = wallets[0] ? wallets[0].id : null;
+      const primaryAiWallet = wallets.find(w => w.isPrimary) || wallets[0];
+      aiWalletValue = primaryAiWallet ? primaryAiWallet.id : null;
       document.getElementById('aiScanWalletLabel').textContent = aiWalletValue ? walletById(aiWalletValue).name : 'Pilih dompet';
       if (opts && opts.skipOpen) { openModalUI('modalAiScan'); } else { openModal('modalAiScan'); }
     }
