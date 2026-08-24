@@ -393,7 +393,7 @@ async function loadData() {
 
     return {
       id: u.id,
-      nama: u.nama_lengkap || u.nomor_wa || 'Pengguna',
+      nama: u.nama || u.nama_lengkap || u.nomor_wa || 'Pengguna',
       wa: maskWa(u.nomor_wa),
       raw_wa: u.nomor_wa,
       status: status,
@@ -471,9 +471,21 @@ async function toggleWaReply(userId, nama){
   const u = adminUsers.find(x=>x.id===userId);
   if(!u) return;
   const nextVal = !u.waReply;
-  await db.from('user_settings').upsert({ user_id: userId, wa_auto_reply: nextVal });
-  await db.from('users').update({ balasan_otomatis_wa: nextVal }).eq('id', userId);
-  toast(`Balasan Otomatis WA untuk ${nama} di-set ${nextVal ? 'ON' : 'OFF'}.`);
+  u.waReply = nextVal;
+  renderUsers(searchFilterText);
+
+  try {
+    const { data: existingSt } = await db.from('user_settings').select('user_id').eq('user_id', userId).maybeSingle();
+    if (existingSt) {
+      await db.from('user_settings').update({ wa_auto_reply: nextVal, updated_at: new Date().toISOString() }).eq('user_id', userId);
+    } else {
+      await db.from('user_settings').insert({ user_id: userId, access_code: 'wa_' + userId, wa_auto_reply: nextVal, updated_at: new Date().toISOString() });
+    }
+    await db.from('users').update({ balasan_otomatis_wa: nextVal }).eq('id', userId);
+    toast(`Balasan Otomatis WA untuk ${nama} di-set ${nextVal ? 'ON' : 'OFF'}.`);
+  } catch (err) {
+    console.error('Error toggle WA reply:', err);
+  }
   await loadData();
 }
 
