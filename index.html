@@ -10296,7 +10296,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.33)';
+      const version = ' (v3.3.34)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14532,10 +14532,14 @@
     // overload/tidak ditemukan, otomatis lanjut coba model berikutnya di baris bawahnya —
     // tanpa perlu ganti manual. Urutan boleh diubah/ditambah/dikurangi sesuai kebutuhan.
     const GEMINI_MODELS = [
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-1.5-flash',
-      'gemini-1.5-flash-8b'
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash-lite',
+      'gemini-2.5-flash-lite',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3-flash',
+      'gemini-2.5-flash'
     ];
     // Menyiapkan satu file (foto ATAU dokumen PDF) jadi "part" yang bisa dikirim ke Gemini.
     // - PDF/dokumen non-gambar: dikirim apa adanya sebagai base64, Gemini bisa baca PDF langsung
@@ -14624,11 +14628,9 @@
           const generationConfig = {
             responseMimeType: 'application/json',
             temperature: (typeof temperature === 'number' ? temperature : 0.1),
-            maxOutputTokens: 1024
+            maxOutputTokens: 1024,
+            thinkingConfig: { thinkingBudget: 0 }
           };
-          if (!/2\.0/.test(model)) {
-            generationConfig.thinkingConfig = { thinkingBudget: 0 };
-          }
           // responseSchema memaksa Gemini ikut struktur JSON persis (grammar-constrained decoding),
           // jauh lebih kuat daripada cuma mengandalkan instruksi teks di prompt. Ini yang paling
           // ngurangin kasus "Format respons AI tidak valid" yang muncul acak walau input sama persis.
