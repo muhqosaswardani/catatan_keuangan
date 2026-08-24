@@ -2555,7 +2555,7 @@
 
     .ai-choice-grid-camright .ai-choice-btn-cam {
       grid-column: 2;
-      grid-row: 1 / span 2;
+      grid-row: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -2564,9 +2564,9 @@
     }
 
     .ai-choice-grid-camright .ai-choice-btn-cam svg {
-      width: 26px;
-      height: 26px;
-      margin-bottom: 6px;
+      width: 22px;
+      height: 22px;
+      margin-bottom: 5px;
     }
 
     .ai-choice-grid-camright .ai-choice-btn-cam {
@@ -2575,6 +2575,42 @@
 
     .ai-choice-grid-camright .ai-choice-btn-stack {
       font-size: 12px;
+    }
+
+    /* Tombol mic: kotak di grid, persis di bawah tombol Kamera */
+    .ai-choice-grid-camright .ai-choice-btn-mic {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--ink-soft);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic svg {
+      width: 19px;
+      height: 19px;
+      margin-bottom: 5px;
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic:active {
+      transform: scale(.97);
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic.recording {
+      background: #e11d48;
+      border-color: #e11d48;
+      color: #fff;
+      animation: aiMicPulse 1.2s ease-in-out infinite;
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic.recording svg path {
+      stroke: #fff;
     }
 
     .file-thumb.file-thumb-doc {
@@ -8448,20 +8484,9 @@
           <div id="aiScanCaptureView">
             <div class="field" style="margin-bottom:12px;">
               <label>Teks Bebas (opsional)</label>
-              <div class="ai-text-wrap">
-                <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini"
-                  oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off"
-                  autocorrect="off" spellcheck="false"></textarea>
-                <button type="button" class="ai-mic-btn" id="aiMicBtn" onclick="toggleAiVoiceRecording()"
-                  aria-label="Rekam suara">
-                  <svg id="aiMicIcon" width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor"
-                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.8"
-                      stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-              </div>
+              <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini"
+                oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off"
+                autocorrect="off" spellcheck="false"></textarea>
               <p class="ai-mic-hint" id="aiMicHint"></p>
             </div>
             <div class="ai-choice-grid ai-choice-grid-camright">
@@ -8491,6 +8516,16 @@
                 </svg>
                 Kamera
               </div>
+              <button type="button" class="ai-choice-btn ai-choice-btn-mic" id="aiMicBtn"
+                onclick="toggleAiVoiceRecording()" aria-label="Rekam suara">
+                <svg id="aiMicIcon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="#5B6A68"
+                    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="#5B6A68" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Rekam Suara
+              </button>
             </div>
             <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none"
               onchange="onAiFilesAdded(event)">
@@ -10354,7 +10389,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.44)';
+      const version = ' (v3.3.45)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14305,9 +14340,12 @@
       const finish = (rows) => {
         aiScanRows = rows;
         computeAiDupFlags();
-        renderAiScanRows();
         document.getElementById('aiScanLoadingView').style.display = 'none';
+        // Tampilkan dulu container-nya SEBELUM render baris (bug fix: kalau textarea
+        // di-render & di-auto-resize saat parent masih display:none, scrollHeight-nya
+        // kebaca 0 -> field Keterangan jadi kepotong/kolaps jadi garis tipis).
         document.getElementById('aiScanResultView').style.display = 'block';
+        renderAiScanRows();
       };
       const showAiScanError = (msg) => {
         document.getElementById('aiScanLoadingView').style.display = 'none';
