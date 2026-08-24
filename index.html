@@ -7551,7 +7551,6 @@
               </svg>
             </button>
             <div class="err">Pilih kategori</div>
-            <div class="quick-chip-row" id="txCategoryQuickRow"></div>
           </div>
           <div class="field" id="txDebtBlock" style="display:none;">
             <label>Utang Piutang</label>
@@ -7585,7 +7584,6 @@
             <label>Jumlah</label>
             <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="txAmount" inputmode="decimal"
                 oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-            <div class="quick-chip-row" id="txAmountQuickRow"></div>
             <div class="err">Jumlah harus lebih dari 0</div>
           </div>
           <div class="field">
@@ -10392,7 +10390,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.47)';
+      const version = ' (v3.3.48)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
