@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#F5F7F6; --surface:#FFFFFF; --surface-2:#EEF2F1; --ink:#152524; --ink-soft:#5B6A68;
@@ -23,11 +24,10 @@
   .wrap{max-width:720px;margin:0 auto;padding:20px 18px 60px;}
   svg{display:block;}
 
-  /* dev banner — file ini terpisah dari prototype multi-user, sengaja tanpa login */
   .dev-banner{background:var(--ink);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:8px 14px;letter-spacing:.02em;}
   .dev-banner b{color:var(--accent-soft);}
 
-  .page-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 20px;}
+  .page-head{display:flex;align-items:center;justify-space-between;gap:10px;margin:18px 0 20px;}
   .page-head h1{font-size:20px;margin:0;}
   .page-head .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;font-family:'Inter',sans-serif;font-weight:500;}
   .brand-mark{width:40px;height:40px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;}
@@ -81,7 +81,6 @@
   .apikey-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600;}
   .apikey-row button{background:none;border:none;color:var(--expense);font-weight:700;cursor:pointer;font-size:12px;}
 
-  /* toggle switch gaya iOS — dipakai untuk kontrol "Balasan Otomatis WA" per user */
   .toggle-switch{width:42px;height:24px;border-radius:100px;background:var(--surface-2);border:1.5px solid var(--line);position:relative;cursor:pointer;flex-shrink:0;transition:background .18s ease,border-color .18s ease;}
   .toggle-switch .knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s ease;}
   .toggle-switch.on{background:var(--accent);border-color:var(--accent);}
@@ -95,12 +94,21 @@
 
   .section-title{font-size:14px;font-weight:700;margin-bottom:10px;}
 
+  .danger-row{display:flex;justify-content:flex-end;margin-top:8px;}
+  .link-danger{background:none;border:none;color:var(--expense);font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;padding:4px 2px;}
+  .link-danger:active{opacity:.6;}
+  .modal-confirm-msg b.danger-text{color:var(--expense);}
+  .confirm-type-field{margin-top:14px;}
+  .confirm-type-field input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;text-align:center;font-weight:700;letter-spacing:.05em;}
+  .confirm-type-field input:focus{outline:none;border-color:var(--expense);}
+  .btn-danger{background:var(--expense);color:#fff;}
+  .btn-danger:disabled{background:var(--surface-2);color:var(--ink-soft);}
+
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);
     background:var(--ink);color:#fff;padding:11px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:900;
     opacity:0;pointer-events:none;transition:all .25s ease;max-width:90%;text-align:center;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
-  /* modal konfirmasi kustom (ganti dialog bawaan browser) */
   .modal-overlay{position:fixed;inset:0;background:rgba(10,20,19,.45);display:none;align-items:center;justify-content:center;padding:24px;z-index:1000;}
   .modal-overlay.open{display:flex;}
   .modal-overlay .modal{background:var(--surface);width:100%;max-width:400px;border-radius:20px;box-shadow:var(--shadow);animation:popcenter .18s ease;}
@@ -110,13 +118,42 @@
   .modal-confirm-msg{font-size:13.5px;line-height:1.55;color:var(--ink-soft);margin-bottom:20px;}
   .modal-confirm-actions{display:flex;gap:10px;}
   .modal-confirm-actions .btn{flex:1;}
+
+  #authOverlay{position:fixed;inset:0;background:var(--bg);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .auth-card{background:var(--surface);width:100%;max-width:380px;border-radius:var(--radius-l);box-shadow:var(--shadow);padding:24px;}
 </style>
 </head>
 <body>
 
-<div class="dev-banner">🧪 <b>PROTOTYPE</b> — Dashboard Admin (halaman terpisah, akses lewat link langsung — tanpa login). Update: tambah toggle "Balasan Otomatis WA" per pengguna di tab Pengguna.</div>
+<div class="dev-banner">🔒 <b>DASHBOARD ADMIN</b> — Terproteksi Supabase Auth (Multi-Device & Live Data).</div>
 
-<div class="wrap">
+<!-- Login Overlay -->
+<div id="authOverlay">
+  <div class="auth-card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <h2 style="margin:0;font-size:18px;">Login Admin</h2>
+        <div style="font-size:12px;color:var(--ink-soft);">KaslyAI Management</div>
+      </div>
+    </div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="field">
+        <label>Email Admin</label>
+        <input type="email" id="loginEmail" required placeholder="admin@kaslyai.local">
+      </div>
+      <div class="field">
+        <label>Kata Sandi</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Masuk ke Dashboard</button>
+    </form>
+  </div>
+</div>
+
+<div class="wrap" id="adminApp" style="display:none;">
 
   <div class="page-head">
     <div style="display:flex;align-items:center;gap:12px;">
@@ -128,6 +165,7 @@
         <div class="sub">KaslyAI · Catatan Keuangan</div>
       </div>
     </div>
+    <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
   </div>
 
   <div class="admin-tabs">
@@ -146,7 +184,7 @@
     </div>
     <div class="search-bar">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <input type="text" placeholder="Cari nama / nomor WA…" oninput="renderUsers(this.value)">
+      <input type="text" placeholder="Cari nama / nomor WA…" oninput="filterUsers(this.value)">
     </div>
     <div id="userList"></div>
   </div>
@@ -177,7 +215,7 @@
     </div>
     <div class="card" style="margin-top:14px;">
       <div class="section-title">API Key Pribadi (Admin)</div>
-      <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;">Khusus buat kebutuhan AI kamu sendiri sebagai admin — chat AI di dashboard, testing di web, dan asisten WhatsApp admin. Urutan pemakaian: <b style="color:var(--ink);">API key pribadi dipakai duluan</b>, kalau kuotanya habis baru otomatis pindah pakai API Key Bersama di atas.</p>
+      <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;">Khusus buat kebutuhan AI kamu sendiri sebagai admin. Urutan pemakaian: API key pribadi dipakai duluan, baru jatuh ke API Key Bersama.</p>
       <div id="personalKeyList"></div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <input type="text" id="inpPersonalKey" placeholder="Tempel API Key pribadi…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
@@ -203,33 +241,55 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalDeleteAccount">
+  <div class="modal">
+    <div class="modal-confirm-body">
+      <div class="modal-confirm-title">Hapus akun <span id="delAccName"></span>?</div>
+      <div class="modal-confirm-msg">
+        <b class="danger-text">Semua data akun ini akan dihapus permanen</b> — dompet, transaksi, kategori, anggaran, tujuan tabungan, utang-piutang, dan riwayat lainnya. Tindakan ini <b>tidak bisa dibatalkan</b>.<br><br>
+        Nomor WhatsApp yang sama <b>tetap boleh dipakai lagi</b> untuk mendaftar sebagai akun baru dari awal.
+        <div class="confirm-type-field">
+          <label style="display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;">Ketik <b>HAPUS</b> untuk konfirmasi</label>
+          <input type="text" id="inpDeleteConfirm" placeholder="HAPUS" oninput="checkDeleteConfirmInput()" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-confirm-actions">
+        <button class="btn btn-secondary" onclick="closeDeleteAccountModal()">Batal</button>
+        <button class="btn btn-danger" id="btnDeleteAccountOk" disabled onclick="confirmDeleteAccount()">Hapus Akun</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-/* =====================================================
-   DASHBOARD ADMIN — halaman terpisah, dummy data
-   Tidak ada layar login: siapa pun yang punya link ini
-   langsung masuk (sesuai keputusan produk: link tidak disebar publik).
-===================================================== */
-let adminUsers = [
-  {nama:'Muhamad Qosas', wa:'0812xxxxxx74', status:'paid', daftar:'12 Jun 2026', aktif:'Hari ini', token:'ABC123XY', waReply:true},
-  {nama:'Siti Rahma', wa:'0813xxxxxx02', status:'trial', daftar:'10 Agu 2026', aktif:'2 jam lalu', token:'-', waReply:true},
-  {nama:'Andi Wijaya', wa:'0857xxxxxx45', status:'habis', daftar:'01 Agu 2026', aktif:'3 hari lalu', token:'-', waReply:false},
-  {nama:'Dewi Lestari', wa:'0898xxxxxx19', status:'trial', daftar:'14 Agu 2026', aktif:'Baru saja', token:'-', waReply:true},
-];
-let adminTokens = [
-  {code:'DEMO2026', used:false, by:null},
-  {code:'ABC123XY', used:true, by:'Muhamad Qosas'},
-  {code:'QWER7890', used:false, by:null},
-  {code:'USEDTOK1', used:true, by:'(demo) pengguna lama'},
-];
-let sharedKeys = ['AIzaSyDEMO-SharedKey-0001'];
-let personalKeys = ['AIzaSyDEMO-PersonalKey-0001'];
+const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
+
+let db = null;
+if (window.supabase && window.supabase.createClient) {
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+let adminUsers = [];
+let adminTokens = [];
+let sharedKeys = [];
+let personalKeys = [];
 let trialDurasiHari = 7;
+let searchFilterText = '';
 
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function maskWa(num){
+  if (!num) return '-';
+  const clean = num.replace(/\D/g,'');
+  if (clean.length > 8) {
+    return clean.slice(0,4) + 'xxxxxx' + clean.slice(-2);
+  }
+  return num;
 }
 function maskKey(k){ return k.length>8 ? k.slice(0,4)+'••••'+k.slice(-4) : k; }
 
@@ -250,18 +310,124 @@ document.getElementById('btnConfirmOk').onclick = function(){
   if(cb) cb();
 };
 
+async function checkSession() {
+  if (!db) return;
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    document.getElementById('authOverlay').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'block';
+    await loadData();
+  } else {
+    document.getElementById('authOverlay').style.display = 'flex';
+    document.getElementById('adminApp').style.display = 'none';
+  }
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+  btn.textContent = 'Memproses...';
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  btn.disabled = false;
+  btn.textContent = 'Masuk ke Dashboard';
+  if (error) {
+    alert('Gagal login admin: ' + error.message);
+  } else {
+    checkSession();
+  }
+}
+
+async function handleLogout() {
+  if (db) await db.auth.signOut();
+  checkSession();
+}
+
 function switchAdminTab(tab){
   document.querySelectorAll('.admin-tabs button').forEach(b=>b.classList.toggle('active', b.dataset.atab===tab));
   document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('admin' + tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
 }
+
+async function loadData() {
+  if (!db) return;
+  // Fetch users + settings
+  const { data: usersData } = await db.from('users').select('*').order('created_at', { ascending: false });
+  const { data: settingsData } = await db.from('user_settings').select('*');
+  const { data: tokensData } = await db.from('tokens').select('*').order('created_at', { ascending: false });
+  const { data: globalData } = await db.from('global_settings').select('*');
+
+  adminTokens = tokensData || [];
+
+  if (globalData) {
+    const dur = globalData.find(g => g.key === 'default_trial_days');
+    if (dur) trialDurasiHari = parseInt(dur.value) || 7;
+    const shared = globalData.find(g => g.key === 'gemini_shared_keys');
+    if (shared && Array.isArray(shared.value)) sharedKeys = shared.value;
+    const personal = globalData.find(g => g.key === 'admin_private_keys');
+    if (personal && Array.isArray(personal.value)) personalKeys = personal.value;
+  }
+
+  const now = new Date();
+  adminUsers = (usersData || []).map(u => {
+    const st = (settingsData || []).find(s => s.user_id === u.id);
+    const waReply = st?.wa_auto_reply ?? u.balasan_otomatis_wa ?? true;
+    
+    let status = 'trial';
+    if (u.token_dipakai) {
+      status = 'paid';
+    } else {
+      const trialStart = u.trial_mulai_at ? new Date(u.trial_mulai_at) : new Date(u.created_at || now);
+      const trialDays = u.trial_lama_hari || 7;
+      const expiry = new Date(trialStart.getTime() + trialDays * 24 * 60 * 60 * 1000);
+      if (now > expiry) {
+        status = 'habis';
+      }
+    }
+
+    const createdStr = u.created_at ? new Date(u.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) : '-';
+    const activeStr = u.last_active_at ? new Date(u.last_active_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) : 'Hari ini';
+
+    return {
+      id: u.id,
+      nama: u.nama_lengkap || u.nomor_wa || 'Pengguna',
+      wa: maskWa(u.nomor_wa),
+      raw_wa: u.nomor_wa,
+      status: status,
+      daftar: createdStr,
+      aktif: activeStr,
+      token: u.token_dipakai || '-',
+      waReply: waReply
+    };
+  });
+
+  document.getElementById('trialDurasiLabel').textContent = trialDurasiHari;
+  document.getElementById('inpTrialDurasi').value = trialDurasiHari;
+
+  renderStats();
+  renderUsers(searchFilterText);
+  renderTokens();
+  renderSharedKeys();
+  renderPersonalKeys();
+}
+
 function renderStats(){
   document.getElementById('statTotal').textContent = adminUsers.length;
   document.getElementById('statTrial').textContent = adminUsers.filter(u=>u.status==='trial').length;
   document.getElementById('statHabis').textContent = adminUsers.filter(u=>u.status==='habis').length;
   document.getElementById('statPaid').textContent = adminUsers.filter(u=>u.status==='paid').length;
 }
+
 function statusLabel(s){ return s==='paid'?'Sudah Bayar':s==='trial'?'Trial Aktif':'Trial Habis'; }
+
+function filterUsers(val) {
+  searchFilterText = val;
+  renderUsers(val);
+}
+
 function renderUsers(filter){
   filter = (filter||'').toLowerCase();
   const wrap = document.getElementById('userList');
@@ -274,93 +440,156 @@ function renderUsers(filter){
       </div>
       <div class="meta">Daftar: ${u.daftar} · Aktif terakhir: ${u.aktif}${u.token!=='-' ? ' · Token: '+u.token : ''}</div>
       <div class="user-row-actions">
-        <button class="btn btn-secondary btn-sm" ${u.token!=='-' ? 'disabled' : `onclick="confirmSendToken('${u.nama}')"`}>${u.token!=='-' ? 'Token Terkirim' : 'Kirim Token'}</button>
-        <button class="btn btn-ghost btn-sm" onclick="confirmResetWa('${u.nama}')">Reset WA</button>
+        <button class="btn btn-secondary btn-sm" ${u.token!=='-' ? 'disabled' : `onclick="confirmSendToken('${u.id}', '${u.nama}')"`}>${u.token!=='-' ? 'Token Terkirim' : 'Kirim Token'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="confirmResetWa('${u.id}', '${u.nama}')">Reset WA</button>
       </div>
       <div class="wa-toggle-row">
         <div class="l">Balasan Otomatis WA</div>
         <div style="display:flex;align-items:center;">
           <span class="state-label ${u.waReply?'on':'off'}">${u.waReply?'ON':'OFF'}</span>
-          <div class="toggle-switch ${u.waReply?'on':''}" onclick="toggleWaReply('${u.nama}')"><div class="knob"></div></div>
+          <div class="toggle-switch ${u.waReply?'on':''}" onclick="toggleWaReply('${u.id}', '${u.nama}')"><div class="knob"></div></div>
         </div>
+      </div>
+      <div class="danger-row">
+        <button class="link-danger" onclick="openDeleteAccountModal('${u.id}', '${u.nama}')">Hapus Akun</button>
       </div>
     </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Tidak ada pengguna cocok.</div>';
 }
-function confirmSendToken(nama){
-  const free = adminTokens.find(t=>!t.used);
+
+async function confirmSendToken(userId, nama){
+  const free = adminTokens.find(t=>t.status === 'available' || !t.used);
   if(!free){ toast('Stok token habis — generate token baru dulu.'); return; }
-  customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, ()=>{
-    free.used = true; free.by = nama;
-    const u = adminUsers.find(x=>x.nama===nama);
-    if(u) u.token = free.code;
-    renderTokens();
-    renderUsers(document.querySelector('.search-bar input').value);
+  customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, async ()=>{
+    await db.from('tokens').update({ status: 'used', used_by: userId, used_at: new Date().toISOString() }).eq('code', free.code);
+    await db.from('users').update({ token_dipakai: free.code, ai_locked: false }).eq('id', userId);
     toast(`Token ${free.code} dikirim ke ${nama}.`);
+    await loadData();
   }, 'Kirim Token');
 }
-function toggleWaReply(nama){
-  const u = adminUsers.find(x=>x.nama===nama);
+
+async function toggleWaReply(userId, nama){
+  const u = adminUsers.find(x=>x.id===userId);
   if(!u) return;
-  u.waReply = !u.waReply;
-  renderUsers(document.querySelector('.search-bar input').value);
-  toast(`Balasan Otomatis WA untuk ${nama} di-set ${u.waReply ? 'ON' : 'OFF'} (tampilan saja, belum tersambung ke sistem).`);
+  const nextVal = !u.waReply;
+  await db.from('user_settings').upsert({ user_id: userId, wa_auto_reply: nextVal });
+  await db.from('users').update({ balasan_otomatis_wa: nextVal }).eq('id', userId);
+  toast(`Balasan Otomatis WA untuk ${nama} di-set ${nextVal ? 'ON' : 'OFF'}.`);
+  await loadData();
 }
-function confirmResetWa(nama){
-  customConfirm(`Reset sambungan nomor WA untuk ${nama}? Pengguna harus verifikasi ulang.`, ()=>{
+
+async function confirmResetWa(userId, nama){
+  customConfirm(`Reset sambungan nomor WA untuk ${nama}? Pengguna harus verifikasi ulang.`, async ()=>{
+    await db.from('users').update({ status_verifikasi: 'pending' }).eq('id', userId);
     toast(`Sambungan WA ${nama} direset.`);
+    await loadData();
   }, 'Reset WA');
 }
+
+let _deleteTargetId = null;
+let _deleteTargetNama = null;
+function openDeleteAccountModal(userId, nama){
+  _deleteTargetId = userId;
+  _deleteTargetNama = nama;
+  document.getElementById('delAccName').textContent = nama;
+  document.getElementById('inpDeleteConfirm').value = '';
+  document.getElementById('btnDeleteAccountOk').disabled = true;
+  document.getElementById('modalDeleteAccount').classList.add('open');
+}
+function closeDeleteAccountModal(){
+  document.getElementById('modalDeleteAccount').classList.remove('open');
+  _deleteTargetId = null;
+  _deleteTargetNama = null;
+}
+function checkDeleteConfirmInput(){
+  const v = document.getElementById('inpDeleteConfirm').value.trim();
+  document.getElementById('btnDeleteAccountOk').disabled = (v !== 'HAPUS');
+}
+
+async function confirmDeleteAccount(){
+  if(!_deleteTargetId) return;
+  const userId = _deleteTargetId;
+  const nama = _deleteTargetNama;
+  closeDeleteAccountModal();
+  
+  const { error } = await db.rpc('admin_delete_user', { target_user_id: userId });
+  if (error) {
+    // Fallback: direct delete from users table
+    await db.from('users').delete().eq('id', userId);
+  }
+  toast(`Akun ${nama} & seluruh datanya telah dihapus permanen.`);
+  await loadData();
+}
+
 function renderTokens(){
   document.getElementById('tokenList').innerHTML = adminTokens.map(t=>`
     <div class="token-row">
-      <div><div class="code">${t.code}</div><div class="meta">${t.used ? 'Dipakai oleh '+t.by : 'Belum dipakai'}</div></div>
-      <span class="status-tag ${t.used?'habis':'trial'}">${t.used?'Terpakai':'Tersedia'}</span>
-    </div>`).join('');
-  renderStats();
+      <div><div class="code">${t.code}</div><div class="meta">${t.status==='used' || t.used ? 'Dipakai' : 'Belum dipakai'}</div></div>
+      <span class="status-tag ${t.status==='used' || t.used ?'habis':'trial'}">${t.status==='used' || t.used ?'Terpakai':'Tersedia'}</span>
+    </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Belum ada token.</div>';
 }
-function generateToken(){
+
+async function generateToken(){
   const code = Array.from({length:8},()=> 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
-  adminTokens.unshift({code, used:false, by:null});
-  renderTokens();
+  await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
   toast('Token baru dibuat: ' + code);
+  await loadData();
 }
-function saveTrialDurasi(){
-  trialDurasiHari = parseInt(document.getElementById('inpTrialDurasi').value)||7;
-  document.getElementById('trialDurasiLabel').textContent = trialDurasiHari;
-  toast('Durasi trial default diperbarui: ' + trialDurasiHari + ' hari.');
+
+async function saveTrialDurasi(){
+  const val = parseInt(document.getElementById('inpTrialDurasi').value)||7;
+  await db.from('global_settings').upsert({ key: 'default_trial_days', value: JSON.stringify(val), updated_at: new Date().toISOString() });
+  toast('Durasi trial default diperbarui: ' + val + ' hari.');
+  await loadData();
 }
+
 function renderSharedKeys(){
   document.getElementById('sharedKeyList').innerHTML = sharedKeys.length ? sharedKeys.map((k,i)=>`
-    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="sharedKeys.splice(${i},1);renderSharedKeys()">Hapus</button></div>
+    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="removeSharedKey(${i})">Hapus</button></div>
   `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key bersama.</div>';
 }
-function addSharedKey(){
+
+async function addSharedKey(){
   const v = document.getElementById('inpSharedKey').value.trim();
   if(!v) return;
   sharedKeys.push(v);
+  await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
   document.getElementById('inpSharedKey').value='';
-  renderSharedKeys();
   toast('API key bersama ditambahkan.');
+  await loadData();
 }
+
+async function removeSharedKey(index) {
+  sharedKeys.splice(index, 1);
+  await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
+  toast('API key bersama dihapus.');
+  await loadData();
+}
+
 function renderPersonalKeys(){
   document.getElementById('personalKeyList').innerHTML = personalKeys.length ? personalKeys.map((k,i)=>`
-    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="personalKeys.splice(${i},1);renderPersonalKeys()">Hapus</button></div>
-  `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key pribadi — sementara pakai API Key Bersama.</div>';
+    <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="removePersonalKey(${i})">Hapus</button></div>
+  `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key pribadi.</div>';
 }
-function addPersonalKey(){
+
+async function addPersonalKey(){
   const v = document.getElementById('inpPersonalKey').value.trim();
   if(!v) return;
   personalKeys.push(v);
+  await db.from('global_settings').upsert({ key: 'admin_private_keys', value: personalKeys, updated_at: new Date().toISOString() });
   document.getElementById('inpPersonalKey').value='';
-  renderPersonalKeys();
   toast('API key pribadi ditambahkan.');
+  await loadData();
 }
 
-/* init */
-renderUsers('');
-renderTokens();
-renderSharedKeys();
-renderPersonalKeys();
+async function removePersonalKey(index) {
+  personalKeys.splice(index, 1);
+  await db.from('global_settings').upsert({ key: 'admin_private_keys', value: personalKeys, updated_at: new Date().toISOString() });
+  toast('API key pribadi dihapus.');
+  await loadData();
+}
+
+/* Init */
+checkSession();
 </script>
 </body>
 </html>
