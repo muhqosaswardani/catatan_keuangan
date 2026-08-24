@@ -173,6 +173,7 @@ export async function processV2Query(
   apiKeys: string[],
   userId: string,
   userQuestion: string,
+  forNotifOnly = false,
 ): Promise<string> {
   const todayStr = getTodayStr(); // YYYY-MM-DD (WIB)
   const { monthStr, label: periodLabel, filterByMonth } = parseQueryMonth(userQuestion, todayStr);
@@ -445,6 +446,13 @@ ATURAN FORMAT JAWABAN:
 - Kalimat pembuka sebelum list HARUS natural dan menyesuaikan konteks pertanyaan — JANGAN gunakan template tetap. Misalnya: kalau ditanya "hari ini ada berapa transaksi", fokus ke jumlah; kalau ditanya "belanja apa aja kemarin", fokus ke daftar belanja. Variasikan kalimat pembukanya.
 - Kamu yang menentukan format mana yang paling pas untuk setiap jawaban — tidak ada aturan mutlak. Prioritaskan keterbacaan.
 
+${forNotifOnly ? `
+ATURAN KHUSUS MODE NOTIFIKASI (Balasan WA sedang NONAKTIF):
+- Jawabanmu HANYA akan tampil sebagai notifikasi push di HP, bukan sebagai chat WA biasa, jadi ruang tampilnya sangat terbatas dan tidak boleh terpotong "...".
+- Tulis jawaban maksimal sekitar 160 karakter, dalam 1 kalimat singkat (boleh 2 kalimat pendek kalau benar-benar perlu).
+- Langsung ke inti jawaban/angka kesimpulannya saja. JANGAN pakai list bernomor, JANGAN pakai rincian per kategori/item, JANGAN pakai line break.
+- Abaikan instruksi "boleh panjang" dan aturan format list di atas selama masih dalam mode notifikasi ini.
+` : ""}
 DATA_FINANSIAL_RIIL:
 ${JSON.stringify(realFinancialContext, null, 2)}
 
