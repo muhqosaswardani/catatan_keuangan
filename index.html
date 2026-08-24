@@ -10296,7 +10296,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.31)';
+      const version = ' (v3.3.32)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22982,9 +22982,13 @@ PERTANYAAN_USER:
     let txaiQuickMicStream = null;
     let txaiQuickMicChunks = [];
 
-    function openTxaiQuickScreen() {
-      resetTxaiQuickScreen();
-      openModal('modalTxaiQuick');
+    function openTxaiQuickScreen(forceReset) {
+      const modal = document.getElementById('modalTxaiQuick');
+      const isOpen = modal && modal.classList.contains('open');
+      if (!isOpen || forceReset) {
+        resetTxaiQuickScreen();
+        openModal('modalTxaiQuick');
+      }
     }
     function closeTxaiQuickScreen() {
       const editStep = document.getElementById('txaiQuickStepEdit');
@@ -23507,6 +23511,12 @@ PERTANYAAN_USER:
             }
           }, 0);
         }
+        if (shortcut) {
+          try {
+            const cleanUrl = location.pathname + (location.hash || '');
+            history.replaceState(history.state, '', cleanUrl);
+          } catch (uErr) {}
+        }
       } catch (e) {}
     }
 
@@ -23528,7 +23538,10 @@ PERTANYAAN_USER:
         if (shortcut === 'chat') {
           openChatQuickMode();
         } else if (shortcut === 'transaksi-ai') {
-          openTxaiQuickScreen();
+          const modal = document.getElementById('modalTxaiQuick');
+          if (!modal || !modal.classList.contains('open')) {
+            openTxaiQuickScreen();
+          }
         } else if (shortcut === 'edit-tx') {
           if (id) {
             if (document.body.classList.contains('chat-quick-mode')) {
