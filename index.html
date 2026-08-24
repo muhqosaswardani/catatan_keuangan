@@ -2763,7 +2763,8 @@
     }
 
     .scan-fields input,
-    .scan-fields select {
+    .scan-fields select,
+    .scan-fields textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 9px;
@@ -2772,6 +2773,8 @@
       font-family: inherit;
       background: var(--surface);
       color: var(--ink);
+      resize: none;
+      line-height: 1.4;
     }
 
     /* Crosscheck AI (fitur 5) */
@@ -10389,7 +10392,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.45)';
+      const version = ' (v3.3.46)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
