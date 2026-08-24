@@ -4,7 +4,7 @@
 // Data transaksi sendiri sudah ditangani offline-first lewat localStorage di dalam index.html —
 // service worker ini hanya menjaga APLIKASINYA (bukan datanya) tetap bisa dibuka tanpa internet.
 
-const CACHE_VERSION = 'kaslyai-v3.3.24';
+const CACHE_VERSION = 'kaslyai-v3.3.25';
 const SCOPE_URL = new URL('./', self.location.href).href;
 const APP_SHELL = [
   SCOPE_URL,
