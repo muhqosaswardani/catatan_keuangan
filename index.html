@@ -8331,7 +8331,7 @@
           <div id="txaiQuickStepInput">
             <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;">Ketik, foto struk, atau rekam suara — langsung tersimpan otomatis tanpa layar konfirmasi.</p>
             <div class="field">
-              <textarea id="txaiQuickText" rows="5" placeholder="Cth: makan siang 25rb, parkir 2rb..."
+              <textarea id="txaiQuickText" rows="5" placeholder="Tulis transaksi di sini..."
                 style="min-height:160px;font-size:16px;" oninput="updateTxaiQuickProcessBtn()"></textarea>
             </div>
             <div id="txaiQuickThumbs" class="file-thumb-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
@@ -8340,7 +8340,7 @@
             <div style="display:flex;gap:8px;margin-bottom:14px;">
               <button type="button" class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('txaiQuickFileInput').click()">Galeri</button>
               <button type="button" class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('txaiQuickCameraInput').click()">Kamera</button>
-              <button type="button" class="btn btn-secondary" id="txaiQuickMicBtn" style="flex:1;" onclick="toggleTxaiQuickVoiceRecording()">🎤 Rekam</button>
+              <button type="button" class="btn btn-secondary" id="txaiQuickMicBtn" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="toggleTxaiQuickVoiceRecording()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Rekam</button>
             </div>
             <div id="txaiQuickMicHint" style="display:none;font-size:11.5px;color:var(--ink-soft);text-align:center;margin:-6px 0 10px;"></div>
             <button type="button" class="btn btn-primary btn-block" id="txaiQuickProcessBtn" onclick="processTxaiQuick()" disabled>Proses dengan AI</button>
@@ -9920,7 +9920,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.2)';
+      const version = ' (v3.0.3)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22266,7 +22266,7 @@ PERTANYAAN_USER:
       txaiQuickMicRecording = true;
       const btn = document.getElementById('txaiQuickMicBtn');
       const hint = document.getElementById('txaiQuickMicHint');
-      if (btn) { btn.classList.add('recording'); btn.textContent = '⏹ Berhenti'; }
+      if (btn) { btn.classList.add('recording'); btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg> Berhenti'; }
       if (hint) { hint.style.display = 'block'; hint.textContent = 'Merekam… ketuk lagi untuk berhenti'; }
     }
     function stopTxaiQuickVoiceRecording() {
@@ -22276,7 +22276,7 @@ PERTANYAAN_USER:
       if (txaiQuickMicStream) { txaiQuickMicStream.getTracks().forEach(t => t.stop()); txaiQuickMicStream = null; }
       txaiQuickMicRecording = false;
       const btn = document.getElementById('txaiQuickMicBtn');
-      if (btn) { btn.classList.remove('recording'); btn.textContent = '🎤 Rekam'; }
+      if (btn) { btn.classList.remove('recording'); btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Rekam'; }
     }
     function onTxaiQuickVoiceRecordingStopped() {
       const hint = document.getElementById('txaiQuickMicHint');
@@ -22505,20 +22505,22 @@ PERTANYAAN_USER:
       try {
         const params = new URLSearchParams(location.search);
         const shortcut = params.get('shortcut');
+        const id = params.get('id');
         if (!shortcut) return;
+
+        // Bersihkan query string LANGSUNG dari URL browser agar reload/refresh tidak memicu ulang shortcut!
+        try {
+          const cleanUrl = location.pathname + (location.hash || '');
+          history.replaceState(history.state, '', cleanUrl);
+        } catch (uErr) {}
+
         if (shortcut === 'chat') {
           openChatQuickMode();
         } else if (shortcut === 'transaksi-ai') {
           openTxaiQuickScreen();
         } else if (shortcut === 'edit-tx') {
-          const id = params.get('id');
           if (id) openTransactionModal(id);
         }
-        // Bersihkan query string biar shortcut tidak ke-trigger ulang tiap reload/kembali dari background.
-        const url = new URL(location.href);
-        url.searchParams.delete('shortcut');
-        url.searchParams.delete('id');
-        history.replaceState(history.state, '', url.toString());
       } catch (e) {
         console.warn('[shortcut] gagal proses parameter shortcut:', e);
       }
