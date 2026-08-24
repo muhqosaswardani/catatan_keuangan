@@ -8735,6 +8735,8 @@
     };
 
     const LS_LAST_USER_ID = 'catatan_keuangan_last_user_id';
+    var isChatQuickMode = false;
+    var prevTabBeforeChatQuick = 'beranda';
 
     // BUGFIX (v2.9.10): mencegah data lintas-akun ke-cache di device yang sama.
     // Sebelumnya, login (submitMasuk) dan sesi Supabase Auth yang otomatis restore
@@ -10268,7 +10270,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.25)';
+      const version = ' (v3.3.26)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23369,9 +23371,6 @@ PERTANYAAN_USER:
         console.warn('[txaiQuick] gagal kirim notifikasi:', err);
       }
     }
-
-    let isChatQuickMode = false;
-    let prevTabBeforeChatQuick = 'beranda';
 
     function openChatQuickMode() {
       if (currentTab !== 'chat') {
