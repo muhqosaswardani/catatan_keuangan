@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>KaslyAI</title>
 
   <!-- PWA -->
@@ -4795,10 +4795,11 @@
       flex: 1 !important;
       width: 100% !important;
       max-width: 100% !important;
+      height: 100% !important;
       height: 100dvh !important;
-      max-height: 100dvh !important;
+      max-height: 100% !important;
       padding-top: max(8px, env(safe-area-inset-top)) !important;
-      padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+      padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
       padding-left: 12px !important;
       padding-right: 12px !important;
       box-sizing: border-box !important;
@@ -7013,6 +7014,7 @@
             <!-- Text input -->
             <textarea id="chatInputText" class="oneline-ta" rows="1" placeholder="Ketik pesan..." autocomplete="off"
               onkeydown="if(event.key==='Enter'){event.preventDefault(); sendChatMessage();}"
+              onfocus="setTimeout(()=>{ this.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); chatScrollToBottom(); }, 300)"
               oninput="this.value=this.value.replace(/\n/g,'');toggleChatActionBtn()"
               enterkeyhint="send"></textarea>
 
@@ -10144,7 +10146,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.18)';
+      const version = ' (v3.3.19)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19243,6 +19245,22 @@
           } catch (e) {
             chatSession = null;
           }
+        }
+      }
+
+      if (!window.__chatViewportBound) {
+        window.__chatViewportBound = true;
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', () => {
+            const pageChat = document.getElementById('page-chat');
+            if (pageChat && (pageChat.classList.contains('active') || document.body.classList.contains('chat-quick-mode'))) {
+              const input = document.getElementById('chatInputText');
+              if (document.activeElement === input) {
+                input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+              }
+              chatScrollToBottom();
+            }
+          });
         }
       }
     }
