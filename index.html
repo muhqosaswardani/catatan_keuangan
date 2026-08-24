@@ -1769,7 +1769,6 @@
 
     .amount-input input {
       padding-left: 40px;
-      font-weight: 700;
     }
 
     .inline-add {
@@ -10394,7 +10393,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.49)';
+      const version = ' (v3.3.50)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
