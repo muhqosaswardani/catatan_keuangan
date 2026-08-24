@@ -4030,22 +4030,23 @@
       flex-direction: column;
     }
     #txaiQuickBody {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
       max-width: 480px;
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
       padding: max(16px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
       overflow-y: auto;
-    }
-    #txaiQuickStepInput {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      margin: auto 0;
+    }
+    #txaiQuickStepInput,
+    #txaiQuickStepLoading,
+    #txaiQuickStepResult,
+    #txaiQuickStepEdit {
+      width: 100%;
+      box-sizing: border-box;
     }
     #txaiQuickThumbs .file-thumb {
       position: relative;
@@ -10289,7 +10290,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.28)';
+      const version = ' (v3.3.29)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
