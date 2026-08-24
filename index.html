@@ -4666,11 +4666,18 @@
     }
 
     /* Standalone / Quick Chat Mode (App Shortcut) */
+    body.chat-quick-mode #headerApp {
+      display: none !important;
+    }
     body.chat-quick-mode .bottom-nav {
       display: none !important;
     }
     body.chat-quick-mode #page-chat {
-      padding-bottom: 75px !important;
+      padding-top: 16px !important;
+      padding-bottom: 0 !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      box-sizing: border-box !important;
     }
     body.chat-quick-mode #chatBackBtn {
       display: inline-flex !important;
@@ -9920,7 +9927,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.3)';
+      const version = ' (v3.0.4)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21824,6 +21831,7 @@ PERTANYAAN_USER:
       // belakang. Kalau ternyata belum login, layar ini akan ketutup overlay
       // login oleh alur di bawah — jadi aman untuk kasus itu juga.
       getAccessCode();
+      checkEarlyAppShortcut();
       navInit();
       renderBottomNav();
       document.getElementById('trDate') && (document.getElementById('trDate').value = todayStr());
@@ -22497,6 +22505,18 @@ PERTANYAAN_USER:
       const btn = document.getElementById('chatBackBtn');
       if (btn) btn.style.display = 'none';
       switchTab(prevTabBeforeChatQuick || 'beranda');
+    }
+
+    function checkEarlyAppShortcut() {
+      try {
+        const params = new URLSearchParams(location.search);
+        const shortcut = params.get('shortcut');
+        if (shortcut === 'chat') {
+          isChatQuickMode = true;
+          document.body.classList.add('chat-quick-mode');
+          currentTab = 'chat';
+        }
+      } catch (e) {}
     }
 
     // Dipanggil dari init() saat app dibuka lewat App Shortcut (?shortcut=chat / ?shortcut=transaksi-ai
