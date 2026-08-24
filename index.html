@@ -10092,7 +10092,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.1)';
+      const version = ' (v3.3.2)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19649,9 +19649,11 @@
     // Kirim satu payload ke Edge Function dan update status bubble
     async function dispatchChatPayload(msgId, payload, token) {
       showChatTyping();
-      // Timeout eksplisit 25 detik
+      // Timeout eksplisit 45 detik (dinaikkan dari 25 detik — sebelumnya lebih pendek
+      // dari batas terpanjang yang mungkin dipakai proses AI di server, jadi balasan bisa
+      // "hilang" di app walau transaksi sudah berhasil tersimpan di server)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
         const edgeFnUrl = SUPABASE_URL + '/functions/v1/wa-webhook';
         const response = await fetch(edgeFnUrl, {

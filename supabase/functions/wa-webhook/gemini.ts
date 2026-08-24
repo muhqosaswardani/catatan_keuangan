@@ -248,7 +248,10 @@ export async function callGeminiRaw(
 
       let res: Response;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+      // Timeout per-model diperpendek dari 30s -> 15s: kalau satu model lagi lambat/nyangkut,
+      // sistem lebih cepat pindah ke model/key berikutnya di daftar fallback yang sama,
+      // bukan nunggu lama dulu. Urutan & pilihan model tidak berubah sama sekali.
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
         res = await fetch(url, {
           method: "POST",
