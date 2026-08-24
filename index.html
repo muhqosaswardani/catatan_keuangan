@@ -6717,6 +6717,15 @@
               <span class="sr-title">Kirim Notifikasi Uji Coba (Tombol Edit) <span class="sr-arrow">›</span></span>
             </div>
           </button>
+          <button type="button" class="settings-row-card" id="settInstallAppRow" onclick="handleInstallAppClick()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+              <div class="sr-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Instal Aplikasi ke Layar Utama</span>
+                <span id="settInstallAppBadge" class="sr-arrow">›</span>
+              </div>
+            </div>
+          </button>
           <button type="button" class="settings-row-card" onclick="openChatShortcutModal()">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
@@ -10110,7 +10119,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.10)';
+      const version = ' (v3.3.11)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22202,6 +22211,11 @@ PERTANYAAN_USER:
       if (typeof currentTab !== 'undefined' && currentTab === 'chat' && typeof renderChat === 'function') {
         renderChat();
       }
+
+      // Update PWA install status badge in Settings
+      if (typeof updateInstallStatusUI === 'function') {
+        updateInstallStatusUI();
+      }
     }
 
     async function init() {
@@ -22613,6 +22627,71 @@ PERTANYAAN_USER:
       } catch (err) {
         console.error('[push] test gagal:', err);
         showToast('Gagal kirim notifikasi uji coba');
+      }
+    }
+
+    async function handleInstallAppClick() {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      if (isStandalone) {
+        showToast('Aplikasi KaslyAI sudah terpasang di layar utama');
+        return;
+      }
+
+      if (window.deferredInstallPrompt) {
+        try {
+          window.deferredInstallPrompt.prompt();
+          const { outcome } = await window.deferredInstallPrompt.userChoice;
+          if (outcome === 'accepted') {
+            showToast('Aplikasi berhasil dipasang di layar utama');
+            window.deferredInstallPrompt = null;
+            updateInstallStatusUI();
+          }
+        } catch (e) {
+          console.error('Install prompt error:', e);
+        }
+        return;
+      }
+
+      // Deteksi iOS Safari
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        showConfirmModal({
+          title: 'Pasang di iPhone / iPad',
+          text: 'Untuk memasang aplikasi ke Layar Utama:\n1. Tekan tombol Bagikan (Share / ikon kotak panah ke atas) di menu Safari.\n2. Gulir ke bawah lalu pilih "Tambah ke Layar Utama" (Add to Home Screen).\n3. Tekan "Tambah" di pojok kanan atas.',
+          actionText: 'Mengerti',
+          danger: false
+        });
+        return;
+      }
+
+      // Panduan jika browser belum siap atau menunda prompt bawaan
+      showConfirmModal({
+        title: 'Instal Aplikasi ke Layar Utama',
+        text: 'Aplikasi KaslyAI dapat dipasang langsung ke Layar Utama HP Anda.\n\nJika dialog instalasi otomatis belum muncul:\n1. Tekan menu titik tiga (⋮) di pojok kanan atas browser Chrome.\n2. Pilih "Instal aplikasi" atau "Tambahkan ke Layar Utama".\n3. Ikon KaslyAI akan muncul di layar utama HP Anda.',
+        actionText: 'Mengerti',
+        danger: false
+      });
+    }
+
+    function updateInstallStatusUI() {
+      const badge = document.getElementById('settInstallAppBadge');
+      if (!badge) return;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      if (isStandalone) {
+        badge.textContent = 'Terpasang';
+        badge.style.fontSize = '12px';
+        badge.style.fontWeight = '600';
+        badge.style.color = 'var(--accent, #10b981)';
+      } else if (window.deferredInstallPrompt) {
+        badge.textContent = 'Tersedia';
+        badge.style.fontSize = '12px';
+        badge.style.fontWeight = '600';
+        badge.style.color = 'var(--accent, #10b981)';
+      } else {
+        badge.innerHTML = '›';
+        badge.style.fontSize = '';
+        badge.style.fontWeight = '';
+        badge.style.color = '';
       }
     }
 
@@ -23207,15 +23286,17 @@ PERTANYAAN_USER:
       });
     }
 
-    // ====== PWA: simpan event install agar bisa dipicu dari tombol UI sendiri (opsional, dipakai fase berikutnya) ======
+    // ====== PWA: simpan event install agar bisa dipicu dari tombol UI sendiri ======
     window.deferredInstallPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       window.deferredInstallPrompt = e;
       window.dispatchEvent(new CustomEvent('kaslyai:install-available'));
+      if (typeof updateInstallStatusUI === 'function') updateInstallStatusUI();
     });
     window.addEventListener('appinstalled', () => {
       window.deferredInstallPrompt = null;
+      if (typeof updateInstallStatusUI === 'function') updateInstallStatusUI();
     });
   </script>
 
