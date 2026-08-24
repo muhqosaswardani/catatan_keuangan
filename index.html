@@ -10357,7 +10357,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.41)';
+      const version = ' (v3.3.42)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23277,6 +23277,7 @@ PERTANYAAN_USER:
           const amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
           const note = formatCleanTxNote(it && it.note);
           const categoryId = matchCategoryByName(it && it.category, type);
+          const categoryObj = categoryId ? categoryById(categoryId) : null;
           const isDraft = amount <= 0;
           const tx = {
             date: todayStr(),
@@ -23284,6 +23285,7 @@ PERTANYAAN_USER:
             amount,
             note,
             categoryId,
+            category: categoryObj ? categoryObj.name : (it && it.category) || 'Lainnya',
             walletId: wallet ? wallet.id : null,
             source: 'app',
             isDraft
@@ -23460,11 +23462,13 @@ PERTANYAAN_USER:
           return;
         }
 
+        const categoryObj = categoryId ? categoryById(categoryId) : null;
         editTransaction(id, {
           note,
           amount,
           type,
           categoryId,
+          category: categoryObj ? categoryObj.name : (tx.category || 'Lainnya'),
           walletId,
           date,
           isDraft: false
