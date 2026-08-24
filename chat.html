@@ -153,13 +153,6 @@
     }
 
     let deferredPrompt = null;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-    // Jika sudah dibuka dari standalone PWA, langsung arahkan ke mode chat
-    if (isStandalone) {
-      window.location.replace('./?shortcut=chat');
-    }
-
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
