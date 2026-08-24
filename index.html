@@ -8683,36 +8683,42 @@
           <div id="txaiQuickStepEdit" style="display:none;">
             <h2 id="txaiEditTitle" style="font-size:16px;font-weight:700;margin:0 0 12px;">Lengkapi Transaksi</h2>
             <input type="hidden" id="txaiEditId">
-            <div class="field" style="margin-bottom:10px;">
-              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Tipe Transaksi</label>
-              <select id="txaiEditType" class="select" onchange="renderTxaiEditCategories()" style="width:100%;">
-                <option value="expense">Pengeluaran</option>
-                <option value="income">Pemasukan</option>
-              </select>
+            <div class="type-toggle" style="margin-bottom:12px;">
+              <button type="button" id="txaiEditTypeExpense" class="active" onclick="setTxaiEditType('expense')">Pengeluaran</button>
+              <button type="button" id="txaiEditTypeIncome" onclick="setTxaiEditType('income')">Pemasukan</button>
             </div>
-            <div class="field" style="margin-bottom:10px;">
-              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Keterangan</label>
-              <input type="text" id="txaiEditNote" placeholder="Nama transaksi" style="width:100%;">
+            <div class="field" style="margin-bottom:12px;">
+              <label>Keterangan</label>
+              <input type="text" id="txaiEditNote" placeholder="Nama transaksi" autocomplete="off" autocorrect="off" spellcheck="false" style="width:100%;">
             </div>
-            <div class="field" style="margin-bottom:10px;">
-              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Nominal (Rp)</label>
-              <input type="text" id="txaiEditAmount" inputmode="decimal" placeholder="0" oninput="formatThousandInput(this)" style="width:100%;font-weight:700;font-size:16px;">
+            <div class="field" style="margin-bottom:12px;">
+              <label>Nominal</label>
+              <div class="amount-input">
+                <span class="prefix">Rp</span>
+                <input type="text" id="txaiEditAmount" inputmode="decimal" placeholder="0" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false">
+              </div>
             </div>
-            <div class="field" style="margin-bottom:10px;">
-              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Kategori</label>
-              <select id="txaiEditCategory" class="select" style="width:100%;"></select>
+            <div class="field" style="margin-bottom:12px;">
+              <label>Kategori</label>
+              <button type="button" class="picker-btn" id="txaiEditCatBtn" onclick="openTxaiEditCategoryPicker()" style="width:100%;">
+                <span id="txaiEditCatLabel">Pilih Kategori</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
             </div>
-            <div class="field" style="margin-bottom:10px;">
-              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Dompet</label>
-              <select id="txaiEditWallet" class="select" style="width:100%;"></select>
+            <div class="field" style="margin-bottom:12px;">
+              <label>Dompet</label>
+              <button type="button" class="picker-btn" id="txaiEditWalletBtn" onclick="openTxaiEditWalletPicker()" style="width:100%;">
+                <span id="txaiEditWalletLabel">Pilih Dompet</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
             </div>
             <div class="field" style="margin-bottom:16px;">
-              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Tanggal</label>
-              <input type="date" id="txaiEditDate" style="width:100%;">
+              <label>Tanggal</label>
+              <input type="date" id="txaiEditDate" style="width:100%;" autocomplete="off" autocorrect="off" spellcheck="false">
             </div>
-            <div style="display:flex;gap:8px;">
-              <button type="button" class="btn btn-secondary" style="flex:1;" onclick="cancelTxaiQuickInlineEdit()">Batal</button>
-              <button type="button" class="btn btn-primary" style="flex:1;" onclick="saveTxaiQuickInlineEdit()">Simpan Transaksi</button>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-secondary" onclick="cancelTxaiQuickInlineEdit()">Batal</button>
+              <button type="button" class="btn btn-primary" onclick="saveTxaiQuickInlineEdit()">Simpan Transaksi</button>
             </div>
           </div>
         </div>
@@ -10290,7 +10296,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.30)';
+      const version = ' (v3.3.31)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23261,19 +23267,57 @@ PERTANYAAN_USER:
       document.getElementById('txaiQuickResultBody').innerHTML = html;
     }
 
-    function renderTxaiEditCategories() {
-      const type = document.getElementById('txaiEditType').value || 'expense';
+    let txaiEditTypeValue = 'expense';
+    let txaiEditCatValue = null;
+    let txaiEditWalletValue = null;
+
+    function setTxaiEditType(type) {
+      txaiEditTypeValue = type;
+      const btnExp = document.getElementById('txaiEditTypeExpense');
+      const btnInc = document.getElementById('txaiEditTypeIncome');
+      if (btnExp) btnExp.classList.toggle('active', type === 'expense');
+      if (btnInc) btnInc.classList.toggle('active', type === 'income');
       const cats = getCategories().filter(c => c.type === type);
-      const sel = document.getElementById('txaiEditCategory');
-      if (!sel) return;
-      sel.innerHTML = cats.map(c => '<option value="' + c.id + '">' + escAttr(c.name) + '</option>').join('');
+      if (!cats.some(c => c.id === txaiEditCatValue)) {
+        txaiEditCatValue = cats[0] ? cats[0].id : null;
+      }
+      updateTxaiEditCatLabel();
     }
 
-    function renderTxaiEditWallets() {
+    function updateTxaiEditCatLabel() {
+      const c = categoryById(txaiEditCatValue);
+      const el = document.getElementById('txaiEditCatLabel');
+      if (el) {
+        el.textContent = c ? c.name : 'Pilih kategori';
+        el.classList.toggle('ph', !c);
+      }
+    }
+
+    function updateTxaiEditWalletLabel() {
+      const w = walletById(txaiEditWalletValue);
+      const el = document.getElementById('txaiEditWalletLabel');
+      if (el) {
+        el.textContent = w ? w.name : 'Pilih dompet';
+        el.classList.toggle('ph', !w);
+      }
+    }
+
+    function openTxaiEditCategoryPicker() {
+      const cats = getCategories().filter(c => c.type === txaiEditTypeValue);
+      const options = cats.map(c => ({ value: c.id, label: c.name }));
+      openPicker('Pilih Kategori', options, txaiEditCatValue, v => {
+        txaiEditCatValue = v;
+        updateTxaiEditCatLabel();
+      });
+    }
+
+    function openTxaiEditWalletPicker() {
       const wallets = getWallets();
-      const sel = document.getElementById('txaiEditWallet');
-      if (!sel) return;
-      sel.innerHTML = wallets.map(w => '<option value="' + w.id + '">' + escAttr(w.name) + '</option>').join('');
+      const options = wallets.map(w => ({ value: w.id, label: w.name }));
+      openPicker('Pilih Dompet', options, txaiEditWalletValue, v => {
+        txaiEditWalletValue = v;
+        updateTxaiEditWalletLabel();
+      });
     }
 
     function editTxaiQuickTx(id) {
@@ -23283,11 +23327,18 @@ PERTANYAAN_USER:
 
       document.getElementById('txaiEditId').value = id;
       document.getElementById('txaiEditTitle').textContent = tx.isDraft ? 'Lengkapi Transaksi' : 'Edit Transaksi';
-      document.getElementById('txaiEditType').value = tx.type || 'expense';
-      renderTxaiEditCategories();
-      if (tx.categoryId) document.getElementById('txaiEditCategory').value = tx.categoryId;
-      renderTxaiEditWallets();
-      if (tx.walletId) document.getElementById('txaiEditWallet').value = tx.walletId;
+      txaiEditTypeValue = tx.type || 'expense';
+      txaiEditCatValue = tx.categoryId || null;
+      txaiEditWalletValue = tx.walletId || null;
+
+      const btnExp = document.getElementById('txaiEditTypeExpense');
+      const btnInc = document.getElementById('txaiEditTypeIncome');
+      if (btnExp) btnExp.classList.toggle('active', txaiEditTypeValue === 'expense');
+      if (btnInc) btnInc.classList.toggle('active', txaiEditTypeValue === 'income');
+
+      updateTxaiEditCatLabel();
+      updateTxaiEditWalletLabel();
+
       document.getElementById('txaiEditNote').value = tx.note || '';
       document.getElementById('txaiEditAmount').value = tx.amount ? String(tx.amount).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
       document.getElementById('txaiEditDate').value = tx.date || todayStr();
@@ -23296,10 +23347,11 @@ PERTANYAAN_USER:
       document.getElementById('txaiQuickStepEdit').style.display = 'block';
       navPush({ type: 'txai-step', step: 'edit' });
 
+      setupAmountKeypadAutoTrigger();
+
       if (tx.isDraft || !tx.amount) {
         setTimeout(() => {
-          const amtInp = document.getElementById('txaiEditAmount');
-          if (amtInp) { amtInp.focus(); amtInp.select(); }
+          openAmountKeypad('txaiEditAmount');
         }, 150);
       }
     }
@@ -23320,9 +23372,9 @@ PERTANYAAN_USER:
         if (!id) return;
         const note = (document.getElementById('txaiEditNote').value || '').trim() || 'Transaksi';
         const amount = parseRupiahInput(document.getElementById('txaiEditAmount').value || '0');
-        const type = document.getElementById('txaiEditType').value || 'expense';
-        const categoryId = document.getElementById('txaiEditCategory').value;
-        const walletId = document.getElementById('txaiEditWallet').value;
+        const type = txaiEditTypeValue || 'expense';
+        const categoryId = txaiEditCatValue;
+        const walletId = txaiEditWalletValue;
         const date = document.getElementById('txaiEditDate').value || todayStr();
 
         const txs = getTransactions();
@@ -23333,15 +23385,15 @@ PERTANYAAN_USER:
           return;
         }
 
-        tx.note = note;
-        tx.amount = amount;
-        tx.type = type;
-        tx.categoryId = categoryId;
-        tx.walletId = walletId;
-        tx.date = date;
-        tx.isDraft = false; // Tanda transaksi sudah lengkap!
-
-        updateTransaction(id, tx);
+        editTransaction(id, {
+          note,
+          amount,
+          type,
+          categoryId,
+          walletId,
+          date,
+          isDraft: false
+        });
         showToast('Transaksi berhasil disimpan');
 
         // Kembali ke layar hasil di dalam Transaksi AI Cepat tanpa keluar ke app dashboard!
@@ -23356,7 +23408,8 @@ PERTANYAAN_USER:
         // Re-render kartu hasil dari batch transaksi ini
         const currentAllTxs = getTransactions();
         const batchTxs = currentAllTxs.filter(t => lastProcessedTxaiQuickTxs.includes(t.id));
-        const targetList = batchTxs.length ? batchTxs : [tx];
+        const updatedTx = currentAllTxs.find(t => t.id === id);
+        const targetList = batchTxs.length ? batchTxs : (updatedTx ? [updatedTx] : []);
         const savedTxs = targetList.filter(t => !t.isDraft);
         const draftTxs = targetList.filter(t => t.isDraft);
         renderTxaiQuickResult(savedTxs, draftTxs);
