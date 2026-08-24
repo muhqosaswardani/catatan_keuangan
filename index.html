@@ -4380,7 +4380,7 @@
     .chat-bubble.has-image {
       padding: 4px 4px 3px 4px;
       border-radius: 12px;
-      max-width: 85%;
+      max-width: 88%;
       width: fit-content;
       display: flex;
       flex-direction: column;
@@ -4392,7 +4392,7 @@
       align-items: flex-start;
     }
     .chat-bubble.has-image img {
-      max-height: 260px;
+      max-height: 330px;
       max-width: 100%;
       width: auto;
       height: auto;
@@ -10187,7 +10187,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.20)';
+      const version = ' (v3.3.21)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
