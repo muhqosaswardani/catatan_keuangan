@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.6)';
+      const version = ' (v3.3.7)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15298,6 +15298,30 @@
     function escAttr(str) {
       return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+    // Dipakai oleh SEMUA trigger notif (WA maupun app) sebelum buka mode edit.
+    // Transaksi yang dibuat server-side (lewat WA webhook) belum tentu ada di
+    // localStorage device ini, jadi kita paksa sync dulu kalau txId belum ketemu
+    // lokal -- baru openTransactionModal dipanggil, supaya field-nya selalu
+    // sesuai data hasil pembacaan AI (bukan form kosong).
+    async function openTransactionModalWithSync(id) {
+      if (!id) return;
+      let tx = getTransactions().find(t => t.id === id);
+      if (!tx && currentUserId && supabaseClient) {
+        try {
+          await syncAllWithSupabase(true);
+          refreshAllViews();
+        } catch (e) {
+          console.warn('[notif] gagal sync sebelum buka mode edit:', e);
+        }
+        tx = getTransactions().find(t => t.id === id);
+      }
+      if (!tx) {
+        showToast('Transaksi belum ditemukan/belum sinkron, coba lagi sebentar.');
+        return;
+      }
+      openTransactionModal(id);
+    }
+
     function openTransactionModal(txId, opts) {
       document.getElementById('txId').value = txId || '';
       document.getElementById('txDeleteBtn').style.display = txId ? 'inline-flex' : 'none';
@@ -22983,7 +23007,7 @@ PERTANYAAN_USER:
         const catName = (cat && cat.name) || 'Lainnya';
         const title = type === 'tx_incomplete' ? 'Transaksi butuh dilengkapi' : 'Transaksi baru tercatat';
         const body = type === 'tx_incomplete'
-          ? (tx.note + ' — nominalnya belum jelas. Ketuk notifikasi ini untuk lengkapi (batal otomatis dalam 5 menit).')
+          ? ((tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran') + ' - ' + (tx.note || 'Transaksi') + ' (' + catName + ')\nNominal tidak diketahui\nKetuk untuk melengkapi (batal otomatis dalam 5 menit).')
           : ((tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran') + ' · ' + tx.note + '\n' + formatRupiah(tx.amount) + ' · ' + ((wallet && wallet.name) || '') + '\nKetuk untuk edit.');
         const editUrl = './?shortcut=edit-tx&id=' + encodeURIComponent(tx.id);
         // Tap area notifikasi (bukan tombol) yang jadi trigger Edit/Lengkapi — ditangani lewat
@@ -23077,7 +23101,7 @@ PERTANYAAN_USER:
             if (document.body.classList.contains('chat-quick-mode')) {
               closeChatQuickMode();
             }
-            openTransactionModal(id);
+            openTransactionModalWithSync(id);
           }
         }
       } catch (e) {
@@ -23108,7 +23132,7 @@ PERTANYAAN_USER:
               if (document.body.classList.contains('chat-quick-mode')) {
                 closeChatQuickMode();
               }
-              openTransactionModal(id);
+              openTransactionModalWithSync(id);
             }
           } catch (e) {
             console.warn('[sw-msg] error opening edit modal:', e);

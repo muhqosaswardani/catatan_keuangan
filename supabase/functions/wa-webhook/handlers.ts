@@ -756,7 +756,7 @@ async function processParsedItems(
             SUPABASE_SERVICE_ROLE_KEY,
             userId,
             "Transaksi butuh dilengkapi",
-            `Foto/teks terbaca (${row.category}), tetapi nominal belum lengkap. Ketuk notifikasi ini untuk melengkapi (batal otomatis dalam 5 menit).`,
+            `${row.type === "income" ? "Pemasukan" : "Pengeluaran"} - ${row.note || row.category} (${row.category})\nNominal tidak diketahui\nKetuk untuk melengkapi (batal otomatis dalam 5 menit).`,
             { action: "lengkapi", transaction_id: savedTx.id }
           );
           continue;
