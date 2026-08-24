@@ -33,10 +33,20 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
  * Potong balasan panjang jadi kalimat singkat buat body notifikasi push,
  * dipakai saat Balasan WA OFF (user cuma lihat notif, bukan chat WA penuh).
  */
-function toShortNotifText(text: string, maxLen = 180): string {
+function toShortNotifText(text: string, maxLen = 150): string {
   const clean = text.replace(/\s+/g, " ").trim();
   if (clean.length <= maxLen) return clean;
-  return clean.slice(0, maxLen).trim() + "…";
+
+  // Jika ada lebih dari satu kalimat, ambil kalimat pertama jika sudah lengkap
+  const firstSentenceMatch = clean.match(/^([^.!?]+[.!?])/);
+  if (firstSentenceMatch && firstSentenceMatch[1].length <= maxLen && firstSentenceMatch[1].length >= 15) {
+    return firstSentenceMatch[1].trim();
+  }
+
+  // Jika tetap melebihi maxLen, potong rapi di batas kata terakhir
+  const cut = clean.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 30 ? cut.slice(0, lastSpace) : cut).trim();
 }
 
 /**

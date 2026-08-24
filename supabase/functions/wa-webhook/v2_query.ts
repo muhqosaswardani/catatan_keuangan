@@ -448,10 +448,17 @@ ATURAN FORMAT JAWABAN:
 
 ${forNotifOnly ? `
 ATURAN KHUSUS MODE NOTIFIKASI (Balasan WA sedang NONAKTIF):
-- Jawabanmu HANYA akan tampil sebagai notifikasi push di HP, bukan sebagai chat WA biasa, jadi ruang tampilnya sangat terbatas dan tidak boleh terpotong "...".
-- Tulis jawaban maksimal sekitar 160 karakter, dalam 1 kalimat singkat (boleh 2 kalimat pendek kalau benar-benar perlu).
-- Langsung ke inti jawaban/angka kesimpulannya saja. JANGAN pakai list bernomor, JANGAN pakai rincian per kategori/item, JANGAN pakai line break.
-- Abaikan instruksi "boleh panjang" dan aturan format list di atas selama masih dalam mode notifikasi ini.
+- Jawaban Anda HANYA akan tampil di jendela notifikasi push HP yang berukuran sangat sempit.
+- WAJIB TEPAT 1 KALIMAT TUNTAS & PADAT (Maksimal 15-20 kata, di bawah 120 karakter).
+- LANGSUNG sebutkan kesimpulan angka/faktanya saja secara padat tanpa pengantar panjang.
+  Contoh BENAR: "Pengeluaran rata-rata harian kamu di bulan Agustus 2026 adalah Rp315.747 per hari."
+  Contoh BENAR: "Total pengeluaran makan kamu di bulan ini adalah Rp1.250.000."
+  Contoh BENAR: "Saldo Dompet Utama kamu saat ini adalah Rp2.500.000."
+- DILARANG KERAS:
+  * DILARANG membuat kalimat kedua (JANGAN beri penawaran detail seperti "Jika ingin melihat lebih detail...", "Berikut rincian...", "Ada yang bisa dibantu?", dll.).
+  * DILARANG menggunakan list, bullet points, atau baris baru (line break).
+  * DILARANG membuat kalimat yang menggantung/bersambung. Kalimat HARUS selesai tuntas dan diakhiri titik.
+- Abaikan instruksi "boleh panjang", rincian kategori pendukung, dan aturan format list di atas selama dalam mode notifikasi ini.
 ` : ""}
 DATA_FINANSIAL_RIIL:
 ${JSON.stringify(realFinancialContext, null, 2)}
