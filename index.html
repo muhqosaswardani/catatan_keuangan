@@ -9984,7 +9984,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.7)';
+      const version = ' (v3.0.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22101,7 +22101,6 @@ PERTANYAAN_USER:
         const auth = subJson.keys?.auth || '';
         const { error } = await supabaseClient.from('push_subscriptions').upsert({
           user_id: currentUserId,
-          access_code: 'wa_' + currentUserId,
           endpoint: subJson.endpoint,
           p256dh: p256dh,
           auth: auth,
