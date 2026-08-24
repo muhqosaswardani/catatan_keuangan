@@ -4001,8 +4001,11 @@
     #page-chat {
       display: none;
       flex-direction: column;
-      height: calc(100dvh - 78px - env(safe-area-inset-bottom) - var(--chat-topbar-h, 0px));
-      padding: 0 14px;
+      height: calc(100dvh - 64px - 72px - env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 0 12px;
       overflow: hidden;
     }
 
@@ -4672,6 +4675,7 @@
       overflow: hidden !important;
       padding: 0 !important;
       margin: 0 !important;
+      width: 100% !important;
     }
     body.chat-quick-mode #headerApp {
       display: none !important;
@@ -4681,14 +4685,19 @@
     }
     body.chat-quick-mode .app {
       padding: 0 !important;
-      margin: 0 !important;
+      margin: 0 auto !important;
+      width: 100% !important;
+      max-width: 100% !important;
       height: 100dvh !important;
       max-height: 100dvh !important;
       display: flex !important;
       flex-direction: column !important;
+      box-sizing: border-box !important;
     }
     body.chat-quick-mode #page-chat {
       flex: 1 !important;
+      width: 100% !important;
+      max-width: 100% !important;
       height: 100dvh !important;
       max-height: 100dvh !important;
       padding-top: max(8px, env(safe-area-inset-top)) !important;
@@ -9984,7 +9993,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.8)';
+      const version = ' (v3.0.9)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {

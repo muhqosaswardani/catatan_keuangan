@@ -1,610 +1,1163 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
-<title>Dashboard Admin — KaslyAI</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  :root{
-    --bg:#F5F7F6; --surface:#FFFFFF; --surface-2:#EEF2F1; --ink:#152524; --ink-soft:#5B6A68;
-    --line:#E3E9E7; --accent:#0F766E; --accent-dark:#0B5951; --accent-soft:#DCF1EE;
-    --income:#1E8F5A; --income-soft:#E3F5EB; --expense:#C4453B; --expense-soft:#FBE7E5;
-    --warn:#B7791F; --warn-soft:#FCF0DC; --info:#2F6FED; --info-dark:#1E4FB8; --info-soft:#E7EEFE;
-    --radius-l:20px; --radius-m:14px; --radius-s:10px;
-    --shadow:0 1px 2px rgba(21,37,36,0.04), 0 8px 24px -12px rgba(21,37,36,0.18);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;}
-  h1,h2,h3{font-family:'Sora',sans-serif;}
-  .wrap{max-width:720px;margin:0 auto;padding:20px 18px 60px;}
-  svg{display:block;}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+  <title>Dashboard Admin — KaslyAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #F5F7F6;
+      --surface: #FFFFFF;
+      --surface-2: #EEF2F1;
+      --ink: #152524;
+      --ink-soft: #5B6A68;
+      --line: #E3E9E7;
+      --accent: #0F766E;
+      --accent-dark: #0B5951;
+      --accent-soft: #DCF1EE;
+      --income: #1E8F5A;
+      --income-soft: #E3F5EB;
+      --expense: #C4453B;
+      --expense-soft: #FBE7E5;
+      --warn: #B7791F;
+      --warn-soft: #FCF0DC;
+      --info: #2F6FED;
+      --info-dark: #1E4FB8;
+      --info-soft: #E7EEFE;
+      --radius-l: 20px;
+      --radius-m: 14px;
+      --radius-s: 10px;
+      --shadow: 0 1px 2px rgba(21, 37, 36, 0.04), 0 8px 24px -12px rgba(21, 37, 36, 0.18);
+    }
 
-  .dev-banner{background:var(--ink);color:#fff;font-size:11px;font-weight:700;text-align:center;padding:8px 14px;letter-spacing:.02em;}
-  .dev-banner b{color:var(--accent-soft);}
+    * {
+      box-sizing: border-box;
+    }
 
-  .page-head{display:flex;align-items:center;justify-space-between;gap:10px;margin:18px 0 20px;}
-  .page-head h1{font-size:20px;margin:0;}
-  .page-head .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;font-family:'Inter',sans-serif;font-weight:500;}
-  .brand-mark{width:40px;height:40px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;}
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
 
-  .card{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:16px;}
-  .btn{border:none;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:13px 18px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s ease, opacity .15s ease;}
-  .btn:active{transform:scale(.97);}
-  .btn:disabled{opacity:.45;cursor:not-allowed;}
-  .btn:disabled:active{transform:none;}
-  .btn-primary{background:var(--accent);color:#fff;}
-  .btn-secondary{background:var(--surface-2);color:var(--ink);}
-  .btn-ghost{background:var(--surface-2);color:var(--ink);}
-  .btn-block{width:100%;}
-  .btn-sm{padding:8px 12px;font-size:12.5px;border-radius:9px;}
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
 
-  .field{margin-bottom:14px;}
-  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
-  .field input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 13px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--surface);}
-  .field input:focus{outline:none;border-color:var(--accent);}
+    h1,
+    h2,
+    h3 {
+      font-family: 'Sora', sans-serif;
+    }
 
-  .admin-tabs{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;gap:4px;margin-bottom:18px;}
-  .admin-tabs button{flex:1;border:none;background:transparent;padding:10px;border-radius:9px;font-weight:700;font-size:13px;color:var(--ink-soft);cursor:pointer;font-family:inherit;}
-  .admin-tabs button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);}
-  .admin-panel{display:none;}
-  .admin-panel.active{display:block;}
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 18px 60px;
+    }
 
-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
-  .stat{background:var(--surface);border-radius:var(--radius-m);padding:12px;box-shadow:var(--shadow);}
-  .stat .t{font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
-  .stat .v{font-size:19px;font-weight:800;margin-top:4px;font-family:'Sora',sans-serif;}
+    svg {
+      display: block;
+    }
 
-  .search-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:10px 13px;margin-bottom:12px;}
-  .search-bar input{flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:14px;}
+    .dev-banner {
+      background: var(--ink);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      padding: 8px 14px;
+      letter-spacing: .02em;
+    }
 
-  .user-row{background:var(--surface);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:12px 13px;margin-bottom:8px;}
-  .user-row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
-  .user-row-top b{font-size:14px;}
-  .user-row .wa-num{font-size:12px;color:var(--ink-soft);margin-top:1px;}
-  .user-row .meta{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
-  .status-tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap;}
-  .status-tag.trial{background:var(--accent-soft);color:var(--accent-dark);}
-  .status-tag.habis{background:var(--expense-soft);color:var(--expense);}
-  .status-tag.paid{background:var(--income-soft);color:var(--income);}
-  .user-row-actions{display:flex;gap:8px;margin-top:10px;}
-  .user-row-actions .btn{flex:1;}
+    .dev-banner b {
+      color: var(--accent-soft);
+    }
 
-  .token-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border-radius:12px;padding:11px 13px;box-shadow:var(--shadow);margin-bottom:8px;}
-  .token-row .code{font-family:'Sora',sans-serif;font-weight:800;letter-spacing:.04em;font-size:14.5px;}
-  .token-row .meta{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+    .page-head {
+      display: flex;
+      align-items: center;
+      justify-space-between;
+      gap: 10px;
+      margin: 18px 0 20px;
+    }
 
-  .apikey-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:10px;padding:9px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600;}
-  .apikey-row button{background:none;border:none;color:var(--expense);font-weight:700;cursor:pointer;font-size:12px;}
+    .page-head h1 {
+      font-size: 20px;
+      margin: 0;
+    }
 
-  .toggle-switch{width:42px;height:24px;border-radius:100px;background:var(--surface-2);border:1.5px solid var(--line);position:relative;cursor:pointer;flex-shrink:0;transition:background .18s ease,border-color .18s ease;}
-  .toggle-switch .knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s ease;}
-  .toggle-switch.on{background:var(--accent);border-color:var(--accent);}
-  .toggle-switch.on .knob{left:20px;}
-  .wa-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
-  .wa-toggle-row .l{font-size:12px;color:var(--ink-soft);font-weight:600;}
-  .wa-toggle-row .l small{display:block;font-size:10.5px;font-weight:500;color:var(--ink-soft);opacity:.8;margin-top:1px;}
-  .wa-toggle-row .state-label{font-size:10.5px;font-weight:800;margin-right:8px;}
-  .wa-toggle-row .state-label.on{color:var(--accent-dark);}
-  .wa-toggle-row .state-label.off{color:var(--ink-soft);}
+    .page-head .sub {
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      margin-top: 3px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+    }
 
-  .section-title{font-size:14px;font-weight:700;margin-bottom:10px;}
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      flex-shrink: 0;
+    }
 
-  .danger-row{display:flex;justify-content:flex-end;margin-top:8px;}
-  .link-danger{background:none;border:none;color:var(--expense);font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;padding:4px 2px;}
-  .link-danger:active{opacity:.6;}
-  .modal-confirm-msg b.danger-text{color:var(--expense);}
-  .confirm-type-field{margin-top:14px;}
-  .confirm-type-field input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;text-align:center;font-weight:700;letter-spacing:.05em;}
-  .confirm-type-field input:focus{outline:none;border-color:var(--expense);}
-  .btn-danger{background:var(--expense);color:#fff;}
-  .btn-danger:disabled{background:var(--surface-2);color:var(--ink-soft);}
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-m);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
 
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);
-    background:var(--ink);color:#fff;padding:11px 18px;border-radius:100px;font-size:13px;font-weight:600;z-index:900;
-    opacity:0;pointer-events:none;transition:all .25s ease;max-width:90%;text-align:center;}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    .btn {
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 13px 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform .1s ease, opacity .15s ease;
+    }
 
-  .modal-overlay{position:fixed;inset:0;background:rgba(10,20,19,.45);display:none;align-items:center;justify-content:center;padding:24px;z-index:1000;}
-  .modal-overlay.open{display:flex;}
-  .modal-overlay .modal{background:var(--surface);width:100%;max-width:400px;border-radius:20px;box-shadow:var(--shadow);animation:popcenter .18s ease;}
-  @keyframes popcenter{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
-  .modal-confirm-body{padding:22px 20px 20px;}
-  .modal-confirm-title{font-size:16px;font-weight:800;font-family:'Sora',sans-serif;margin-bottom:8px;}
-  .modal-confirm-msg{font-size:13.5px;line-height:1.55;color:var(--ink-soft);margin-bottom:20px;}
-  .modal-confirm-actions{display:flex;gap:10px;}
-  .modal-confirm-actions .btn{flex:1;}
+    .btn:active {
+      transform: scale(.97);
+    }
 
-  #authOverlay{position:fixed;inset:0;background:var(--bg);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;}
-  .auth-card{background:var(--surface);width:100%;max-width:380px;border-radius:var(--radius-l);box-shadow:var(--shadow);padding:24px;}
-</style>
-</head>
-<body>
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
 
-<div class="dev-banner">🔒 <b>DASHBOARD ADMIN</b> — Terproteksi Supabase Auth (Multi-Device & Live Data).</div>
+    .btn:disabled:active {
+      transform: none;
+    }
 
-<!-- Login Overlay -->
-<div id="authOverlay">
-  <div class="auth-card">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-      <div class="brand-mark">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </div>
-      <div>
-        <h2 style="margin:0;font-size:18px;">Login Admin</h2>
-        <div style="font-size:12px;color:var(--ink-soft);">KaslyAI Management</div>
-      </div>
-    </div>
-    <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="field">
-        <label>Email Admin</label>
-        <input type="email" id="loginEmail" required placeholder="admin@kaslyai.local">
-      </div>
-      <div class="field">
-        <label>Kata Sandi</label>
-        <input type="password" id="loginPassword" required placeholder="••••••••">
-      </div>
-      <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Masuk ke Dashboard</button>
-    </form>
-  </div>
-</div>
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
 
-<div class="wrap" id="adminApp" style="display:none;">
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
 
-  <div class="page-head">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div class="brand-mark">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </div>
-      <div>
-        <h1>Dashboard Admin</h1>
-        <div class="sub">KaslyAI · Catatan Keuangan</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.0.8</span>
-      <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
-    </div>
-  </div>
+    .btn-ghost {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
 
-  <div class="admin-tabs">
-    <button class="active" data-atab="pengguna" onclick="switchAdminTab('pengguna')">Pengguna</button>
-    <button data-atab="token" onclick="switchAdminTab('token')">Kode Token</button>
-    <button data-atab="pengaturan" onclick="switchAdminTab('pengaturan')">Pengaturan</button>
-  </div>
+    .btn-block {
+      width: 100%;
+    }
 
-  <!-- Tab: Pengguna -->
-  <div class="admin-panel active" id="adminPengguna">
-    <div class="stat-grid">
-      <div class="stat"><div class="t">Total Pengguna</div><div class="v" id="statTotal">0</div></div>
-      <div class="stat"><div class="t">Trial Aktif</div><div class="v" id="statTrial">0</div></div>
-      <div class="stat"><div class="t">Trial Habis</div><div class="v" id="statHabis">0</div></div>
-      <div class="stat"><div class="t">Sudah Bayar</div><div class="v" id="statPaid">0</div></div>
-    </div>
-    <div class="search-bar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <input type="text" placeholder="Cari nama / nomor WA…" oninput="filterUsers(this.value)">
-    </div>
-    <div id="userList"></div>
-  </div>
+    .btn-sm {
+      padding: 8px 12px;
+      font-size: 12.5px;
+      border-radius: 9px;
+    }
 
-  <!-- Tab: Kode Token -->
-  <div class="admin-panel" id="adminToken">
-    <button class="btn btn-primary btn-block" onclick="generateToken()" style="margin-bottom:14px;">+ Generate Kode Token Baru</button>
-    <div id="tokenList"></div>
-  </div>
+    .field {
+      margin-bottom: 14px;
+    }
 
-  <!-- Tab: Pengaturan -->
-  <div class="admin-panel" id="adminPengaturan">
-    <div class="card" style="margin-bottom:14px;">
-      <div class="section-title">Lama Masa Trial</div>
-      <div class="field" style="margin-bottom:8px;">
-        <label>Durasi trial (hari) — saat ini berlaku <b id="trialDurasiLabel">7</b> hari</label>
-        <input type="number" id="inpTrialDurasi" value="7" min="1">
-      </div>
-      <button class="btn btn-secondary btn-block btn-sm" onclick="saveTrialDurasi()">Simpan Durasi Trial</button>
-    </div>
-    <div class="card">
-      <div class="section-title">API Key Gemini Bersama</div>
-      <div id="sharedKeyList"></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <input type="text" id="inpSharedKey" placeholder="Tempel API Key baru…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
-        <button class="btn btn-primary btn-sm" onclick="addSharedKey()">Tambah</button>
-      </div>
-    </div>
-    <div class="card" style="margin-top:14px;">
-      <div class="section-title">API Key Pribadi (Admin)</div>
-      <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;">Khusus buat kebutuhan AI kamu sendiri sebagai admin. Urutan pemakaian: API key pribadi dipakai duluan, baru jatuh ke API Key Bersama.</p>
-      <div id="personalKeyList"></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <input type="text" id="inpPersonalKey" placeholder="Tempel API Key pribadi…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
-        <button class="btn btn-primary btn-sm" onclick="addPersonalKey()">Tambah</button>
-      </div>
-    </div>
-  </div>
+    .field label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+    }
 
-</div>
+    .field input {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 13px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--surface);
+    }
 
-<div class="toast" id="toast"></div>
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
 
-<div class="modal-overlay" id="modalConfirm">
-  <div class="modal">
-    <div class="modal-confirm-body">
-      <div class="modal-confirm-title" id="confirmTitle">Konfirmasi</div>
-      <div class="modal-confirm-msg" id="confirmMsg"></div>
-      <div class="modal-confirm-actions">
-        <button class="btn btn-secondary" onclick="closeConfirm()">Batal</button>
-        <button class="btn btn-primary" id="btnConfirmOk">Oke</button>
-      </div>
-    </div>
-  </div>
-</div>
+    .admin-tabs {
+      display: flex;
+      background: var(--surface-2);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 18px;
+    }
 
-<div class="modal-overlay" id="modalDeleteAccount">
-  <div class="modal">
-    <div class="modal-confirm-body">
-      <div class="modal-confirm-title">Hapus akun <span id="delAccName"></span>?</div>
-      <div class="modal-confirm-msg">
-        <b class="danger-text">Semua data akun ini akan dihapus permanen</b> — dompet, transaksi, kategori, anggaran, tujuan tabungan, utang-piutang, dan riwayat lainnya. Tindakan ini <b>tidak bisa dibatalkan</b>.<br><br>
-        Nomor WhatsApp yang sama <b>tetap boleh dipakai lagi</b> untuk mendaftar sebagai akun baru dari awal.
-        <div class="confirm-type-field">
-          <label style="display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;">Ketik <b>HAPUS</b> untuk konfirmasi</label>
-          <input type="text" id="inpDeleteConfirm" placeholder="HAPUS" oninput="checkDeleteConfirmInput()" autocomplete="off">
-        </div>
-      </div>
-      <div class="modal-confirm-actions">
-        <button class="btn btn-secondary" onclick="closeDeleteAccountModal()">Batal</button>
-        <button class="btn btn-danger" id="btnDeleteAccountOk" disabled onclick="confirmDeleteAccount()">Hapus Akun</button>
-      </div>
-    </div>
-  </div>
-</div>
+    .admin-tabs button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 10px;
+      border-radius: 9px;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-family: inherit;
+    }
 
-<script>
-const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
+    .admin-tabs button.active {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+    }
 
-let db = null;
-if (window.supabase && window.supabase.createClient) {
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-}
+    .admin-panel {
+      display: none;
+    }
 
-let adminUsers = [];
-let adminTokens = [];
-let sharedKeys = [];
-let personalKeys = [];
-let trialDurasiHari = 7;
-let searchFilterText = '';
+    .admin-panel.active {
+      display: block;
+    }
 
-function toast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
-}
-function maskWa(num){
-  if (!num) return '-';
-  const clean = num.replace(/\D/g,'');
-  if (clean.length > 8) {
-    return clean.slice(0,4) + 'xxxxxx' + clean.slice(-2);
-  }
-  return num;
-}
-function maskKey(k){ return k.length>8 ? k.slice(0,4)+'••••'+k.slice(-4) : k; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
 
-let _confirmCallback = null;
-function customConfirm(message, callback, title){
-  document.getElementById('confirmTitle').textContent = title || 'Konfirmasi';
-  document.getElementById('confirmMsg').textContent = message;
-  _confirmCallback = callback;
-  document.getElementById('modalConfirm').classList.add('open');
-}
-function closeConfirm(){
-  document.getElementById('modalConfirm').classList.remove('open');
-  _confirmCallback = null;
-}
-document.getElementById('btnConfirmOk').onclick = function(){
-  const cb = _confirmCallback;
-  closeConfirm();
-  if(cb) cb();
-};
+    .stat {
+      background: var(--surface);
+      border-radius: var(--radius-m);
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
 
-async function checkSession() {
-  if (!db) return;
-  const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    document.getElementById('authOverlay').style.display = 'none';
-    document.getElementById('adminApp').style.display = 'block';
-    await loadData();
-  } else {
-    document.getElementById('authOverlay').style.display = 'flex';
-    document.getElementById('adminApp').style.display = 'none';
-  }
-}
+    .stat .t {
+      font-size: 11px;
+      color: var(--ink-soft);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
 
-async function handleLogin(e) {
-  e.preventDefault();
-  const btn = document.getElementById('btnLogin');
-  btn.disabled = true;
-  btn.textContent = 'Memproses...';
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
+    .stat .v {
+      font-size: 19px;
+      font-weight: 800;
+      margin-top: 4px;
+      font-family: 'Sora', sans-serif;
+    }
 
-  const { error } = await db.auth.signInWithPassword({ email, password });
-  btn.disabled = false;
-  btn.textContent = 'Masuk ke Dashboard';
-  if (error) {
-    alert('Gagal login admin: ' + error.message);
-  } else {
-    checkSession();
-  }
-}
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 10px 13px;
+      margin-bottom: 12px;
+    }
 
-async function handleLogout() {
-  if (db) await db.auth.signOut();
-  checkSession();
-}
+    .search-bar input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 14px;
+    }
 
-function switchAdminTab(tab){
-  document.querySelectorAll('.admin-tabs button').forEach(b=>b.classList.toggle('active', b.dataset.atab===tab));
-  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('admin' + tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
-}
+    .user-row {
+      background: var(--surface);
+      border-radius: var(--radius-m);
+      box-shadow: var(--shadow);
+      padding: 12px 13px;
+      margin-bottom: 8px;
+    }
 
-async function loadData() {
-  if (!db) return;
-  // Fetch users + settings
-  const { data: usersData } = await db.from('users').select('*').order('created_at', { ascending: false });
-  const { data: settingsData } = await db.from('user_settings').select('*');
-  const { data: tokensData } = await db.from('tokens').select('*').order('created_at', { ascending: false });
-  const { data: globalData } = await db.from('global_settings').select('*');
+    .user-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
 
-  adminTokens = tokensData || [];
+    .user-row-top b {
+      font-size: 14px;
+    }
 
-  if (globalData) {
-    const dur = globalData.find(g => g.key === 'default_trial_days');
-    if (dur) trialDurasiHari = parseInt(dur.value) || 7;
-    const shared = globalData.find(g => g.key === 'gemini_shared_keys');
-    if (shared && Array.isArray(shared.value)) sharedKeys = shared.value;
-    const personal = globalData.find(g => g.key === 'admin_private_keys');
-    if (personal && Array.isArray(personal.value)) personalKeys = personal.value;
-  }
+    .user-row .wa-num {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-top: 1px;
+    }
 
-  const now = new Date();
-  adminUsers = (usersData || []).map(u => {
-    const st = (settingsData || []).find(s => s.user_id === u.id);
-    const waReply = st?.wa_auto_reply ?? u.balasan_otomatis_wa ?? true;
-    
-    let status = 'trial';
-    if (u.token_dipakai) {
-      status = 'paid';
-    } else {
-      const trialStart = u.trial_mulai_at ? new Date(u.trial_mulai_at) : new Date(u.created_at || now);
-      const trialDays = u.trial_lama_hari || 7;
-      const expiry = new Date(trialStart.getTime() + trialDays * 24 * 60 * 60 * 1000);
-      if (now > expiry) {
-        status = 'habis';
+    .user-row .meta {
+      font-size: 11.5px;
+      color: var(--ink-soft);
+      margin-top: 8px;
+    }
+
+    .status-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .status-tag.trial {
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+    }
+
+    .status-tag.habis {
+      background: var(--expense-soft);
+      color: var(--expense);
+    }
+
+    .status-tag.paid {
+      background: var(--income-soft);
+      color: var(--income);
+    }
+
+    .user-row-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .user-row-actions .btn {
+      flex: 1;
+    }
+
+    .token-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 11px 13px;
+      box-shadow: var(--shadow);
+      margin-bottom: 8px;
+    }
+
+    .token-row .code {
+      font-family: 'Sora', sans-serif;
+      font-weight: 800;
+      letter-spacing: .04em;
+      font-size: 14.5px;
+    }
+
+    .token-row .meta {
+      font-size: 11px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    .apikey-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-2);
+      border-radius: 10px;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+
+    .apikey-row button {
+      background: none;
+      border: none;
+      color: var(--expense);
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .toggle-switch {
+      width: 42px;
+      height: 24px;
+      border-radius: 100px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--line);
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .18s ease, border-color .18s ease;
+    }
+
+    .toggle-switch .knob {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+      transition: left .18s ease;
+    }
+
+    .toggle-switch.on {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch.on .knob {
+      left: 20px;
+    }
+
+    .wa-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .wa-toggle-row .l {
+      font-size: 12px;
+      color: var(--ink-soft);
+      font-weight: 600;
+    }
+
+    .wa-toggle-row .l small {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 500;
+      color: var(--ink-soft);
+      opacity: .8;
+      margin-top: 1px;
+    }
+
+    .wa-toggle-row .state-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      margin-right: 8px;
+    }
+
+    .wa-toggle-row .state-label.on {
+      color: var(--accent-dark);
+    }
+
+    .wa-toggle-row .state-label.off {
+      color: var(--ink-soft);
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .danger-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
+    .link-danger {
+      background: none;
+      border: none;
+      color: var(--expense);
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 4px 2px;
+    }
+
+    .link-danger:active {
+      opacity: .6;
+    }
+
+    .modal-confirm-msg b.danger-text {
+      color: var(--expense);
+    }
+
+    .confirm-type-field {
+      margin-top: 14px;
+    }
+
+    .confirm-type-field input {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 14px;
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    .confirm-type-field input:focus {
+      outline: none;
+      border-color: var(--expense);
+    }
+
+    .btn-danger {
+      background: var(--expense);
+      color: #fff;
+    }
+
+    .btn-danger:disabled {
+      background: var(--surface-2);
+      color: var(--ink-soft);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--ink);
+      color: #fff;
+      padding: 11px 18px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 900;
+      opacity: 0;
+      pointer-events: none;
+      transition: all .25s ease;
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 20, 19, .45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 1000;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-overlay .modal {
+      background: var(--surface);
+      width: 100%;
+      max-width: 400px;
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      animation: popcenter .18s ease;
+    }
+
+    @keyframes popcenter {
+      from {
+        opacity: 0;
+        transform: scale(.94);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
       }
     }
 
-    const createdStr = u.created_at ? new Date(u.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) : '-';
-    const activeStr = u.last_active_at ? new Date(u.last_active_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) : 'Hari ini';
+    .modal-confirm-body {
+      padding: 22px 20px 20px;
+    }
 
-    return {
-      id: u.id,
-      nama: u.nama || u.nama_lengkap || u.nomor_wa || 'Pengguna',
-      wa: maskWa(u.nomor_wa),
-      raw_wa: u.nomor_wa,
-      status: status,
-      daftar: createdStr,
-      aktif: activeStr,
-      token: u.token_dipakai || '-',
-      waReply: waReply
+    .modal-confirm-title {
+      font-size: 16px;
+      font-weight: 800;
+      font-family: 'Sora', sans-serif;
+      margin-bottom: 8px;
+    }
+
+    .modal-confirm-msg {
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--ink-soft);
+      margin-bottom: 20px;
+    }
+
+    .modal-confirm-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-confirm-actions .btn {
+      flex: 1;
+    }
+
+    #authOverlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      width: 100%;
+      max-width: 380px;
+      border-radius: var(--radius-l);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="dev-banner">🔒 <b>DASHBOARD ADMIN</b> — Terproteksi Supabase Auth (Multi-Device & Live Data).</div>
+
+  <!-- Login Overlay -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <div class="brand-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor"
+              stroke-width="1.8" />
+            <path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <h2 style="margin:0;font-size:18px;">Login Admin</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">KaslyAI Management</div>
+        </div>
+      </div>
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="field">
+          <label>Email Admin</label>
+          <input type="email" id="loginEmail" required placeholder="admin@kaslyai.local">
+        </div>
+        <div class="field">
+          <label>Kata Sandi</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Masuk ke Dashboard</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="wrap" id="adminApp" style="display:none;">
+
+    <div class="page-head">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="brand-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12c0-4.97 4.03-9 9-9s9 4.03 9 9-4.03 9-9 9-9-4.03-9-9Z" stroke="currentColor"
+              stroke-width="1.8" />
+            <path d="M12 7v5l3.2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <h1>Dashboard Admin</h1>
+          <div class="sub">KaslyAI · Catatan Keuangan</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="version-tag" id="adminVersionBadge"
+          style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.0.7</span>
+        <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
+      </div>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="active" data-atab="pengguna" onclick="switchAdminTab('pengguna')">Pengguna</button>
+      <button data-atab="token" onclick="switchAdminTab('token')">Kode Token</button>
+      <button data-atab="pengaturan" onclick="switchAdminTab('pengaturan')">Pengaturan</button>
+    </div>
+
+    <!-- Tab: Pengguna -->
+    <div class="admin-panel active" id="adminPengguna">
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="t">Total Pengguna</div>
+          <div class="v" id="statTotal">0</div>
+        </div>
+        <div class="stat">
+          <div class="t">Trial Aktif</div>
+          <div class="v" id="statTrial">0</div>
+        </div>
+        <div class="stat">
+          <div class="t">Trial Habis</div>
+          <div class="v" id="statHabis">0</div>
+        </div>
+        <div class="stat">
+          <div class="t">Sudah Bayar</div>
+          <div class="v" id="statPaid">0</div>
+        </div>
+      </div>
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+          <path d="M21 21l-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        <input type="text" placeholder="Cari nama / nomor WA…" oninput="filterUsers(this.value)">
+      </div>
+      <div id="userList"></div>
+    </div>
+
+    <!-- Tab: Kode Token -->
+    <div class="admin-panel" id="adminToken">
+      <button class="btn btn-primary btn-block" onclick="generateToken()" style="margin-bottom:14px;">+ Generate Kode
+        Token Baru</button>
+      <div id="tokenList"></div>
+    </div>
+
+    <!-- Tab: Pengaturan -->
+    <div class="admin-panel" id="adminPengaturan">
+      <div class="card" style="margin-bottom:14px;">
+        <div class="section-title">Lama Masa Trial</div>
+        <div class="field" style="margin-bottom:8px;">
+          <label>Durasi trial (hari) — saat ini berlaku <b id="trialDurasiLabel">7</b> hari</label>
+          <input type="number" id="inpTrialDurasi" value="7" min="1">
+        </div>
+        <button class="btn btn-secondary btn-block btn-sm" onclick="saveTrialDurasi()">Simpan Durasi Trial</button>
+      </div>
+      <div class="card">
+        <div class="section-title">API Key Gemini Bersama</div>
+        <div id="sharedKeyList"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input type="text" id="inpSharedKey" placeholder="Tempel API Key baru…"
+            style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
+          <button class="btn btn-primary btn-sm" onclick="addSharedKey()">Tambah</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="section-title">API Key Pribadi (Admin)</div>
+        <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;">Khusus buat kebutuhan AI kamu
+          sendiri sebagai admin. Urutan pemakaian: API key pribadi dipakai duluan, baru jatuh ke API Key Bersama.</p>
+        <div id="personalKeyList"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input type="text" id="inpPersonalKey" placeholder="Tempel API Key pribadi…"
+            style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
+          <button class="btn btn-primary btn-sm" onclick="addPersonalKey()">Tambah</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="modalConfirm">
+    <div class="modal">
+      <div class="modal-confirm-body">
+        <div class="modal-confirm-title" id="confirmTitle">Konfirmasi</div>
+        <div class="modal-confirm-msg" id="confirmMsg"></div>
+        <div class="modal-confirm-actions">
+          <button class="btn btn-secondary" onclick="closeConfirm()">Batal</button>
+          <button class="btn btn-primary" id="btnConfirmOk">Oke</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalDeleteAccount">
+    <div class="modal">
+      <div class="modal-confirm-body">
+        <div class="modal-confirm-title">Hapus akun <span id="delAccName"></span>?</div>
+        <div class="modal-confirm-msg">
+          <b class="danger-text">Semua data akun ini akan dihapus permanen</b> — dompet, transaksi, kategori, anggaran,
+          tujuan tabungan, utang-piutang, dan riwayat lainnya. Tindakan ini <b>tidak bisa dibatalkan</b>.<br><br>
+          Nomor WhatsApp yang sama <b>tetap boleh dipakai lagi</b> untuk mendaftar sebagai akun baru dari awal.
+          <div class="confirm-type-field">
+            <label style="display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;">Ketik
+              <b>HAPUS</b> untuk konfirmasi</label>
+            <input type="text" id="inpDeleteConfirm" placeholder="HAPUS" oninput="checkDeleteConfirmInput()"
+              autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-confirm-actions">
+          <button class="btn btn-secondary" onclick="closeDeleteAccountModal()">Batal</button>
+          <button class="btn btn-danger" id="btnDeleteAccountOk" disabled onclick="confirmDeleteAccount()">Hapus
+            Akun</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
+
+    let db = null;
+    if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+
+    let adminUsers = [];
+    let adminTokens = [];
+    let sharedKeys = [];
+    let personalKeys = [];
+    let trialDurasiHari = 7;
+    let searchFilterText = '';
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+    }
+    function maskWa(num) {
+      if (!num) return '-';
+      const clean = num.replace(/\D/g, '');
+      if (clean.length > 8) {
+        return clean.slice(0, 4) + 'xxxxxx' + clean.slice(-2);
+      }
+      return num;
+    }
+    function maskKey(k) { return k.length > 8 ? k.slice(0, 4) + '••••' + k.slice(-4) : k; }
+
+    let _confirmCallback = null;
+    function customConfirm(message, callback, title) {
+      document.getElementById('confirmTitle').textContent = title || 'Konfirmasi';
+      document.getElementById('confirmMsg').textContent = message;
+      _confirmCallback = callback;
+      document.getElementById('modalConfirm').classList.add('open');
+    }
+    function closeConfirm() {
+      document.getElementById('modalConfirm').classList.remove('open');
+      _confirmCallback = null;
+    }
+    document.getElementById('btnConfirmOk').onclick = function () {
+      const cb = _confirmCallback;
+      closeConfirm();
+      if (cb) cb();
     };
-  });
 
-  document.getElementById('trialDurasiLabel').textContent = trialDurasiHari;
-  document.getElementById('inpTrialDurasi').value = trialDurasiHari;
+    async function checkSession() {
+      if (!db) return;
+      const { data: { session } } = await db.auth.getSession();
+      if (session) {
+        document.getElementById('authOverlay').style.display = 'none';
+        document.getElementById('adminApp').style.display = 'block';
+        await loadData();
+      } else {
+        document.getElementById('authOverlay').style.display = 'flex';
+        document.getElementById('adminApp').style.display = 'none';
+      }
+    }
 
-  renderStats();
-  renderUsers(searchFilterText);
-  renderTokens();
-  renderSharedKeys();
-  renderPersonalKeys();
-}
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
 
-function renderStats(){
-  document.getElementById('statTotal').textContent = adminUsers.length;
-  document.getElementById('statTrial').textContent = adminUsers.filter(u=>u.status==='trial').length;
-  document.getElementById('statHabis').textContent = adminUsers.filter(u=>u.status==='habis').length;
-  document.getElementById('statPaid').textContent = adminUsers.filter(u=>u.status==='paid').length;
-}
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      btn.disabled = false;
+      btn.textContent = 'Masuk ke Dashboard';
+      if (error) {
+        alert('Gagal login admin: ' + error.message);
+      } else {
+        checkSession();
+      }
+    }
 
-function statusLabel(s){ return s==='paid'?'Sudah Bayar':s==='trial'?'Trial Aktif':'Trial Habis'; }
+    async function handleLogout() {
+      if (db) await db.auth.signOut();
+      checkSession();
+    }
 
-function filterUsers(val) {
-  searchFilterText = val;
-  renderUsers(val);
-}
+    function switchAdminTab(tab) {
+      document.querySelectorAll('.admin-tabs button').forEach(b => b.classList.toggle('active', b.dataset.atab === tab));
+      document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('admin' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+    }
 
-function renderUsers(filter){
-  filter = (filter||'').toLowerCase();
-  const wrap = document.getElementById('userList');
-  const list = adminUsers.filter(u => u.nama.toLowerCase().includes(filter) || u.wa.includes(filter));
-  wrap.innerHTML = list.map(u=>`
+    async function loadData() {
+      if (!db) return;
+      // Fetch users + settings
+      const { data: usersData } = await db.from('users').select('*').order('created_at', { ascending: false });
+      const { data: settingsData } = await db.from('user_settings').select('*');
+      const { data: tokensData } = await db.from('tokens').select('*').order('created_at', { ascending: false });
+      const { data: globalData } = await db.from('global_settings').select('*');
+
+      adminTokens = tokensData || [];
+
+      if (globalData) {
+        const dur = globalData.find(g => g.key === 'default_trial_days');
+        if (dur) trialDurasiHari = parseInt(dur.value) || 7;
+        const shared = globalData.find(g => g.key === 'gemini_shared_keys');
+        if (shared && Array.isArray(shared.value)) sharedKeys = shared.value;
+        const personal = globalData.find(g => g.key === 'admin_private_keys');
+        if (personal && Array.isArray(personal.value)) personalKeys = personal.value;
+      }
+
+      const now = new Date();
+      adminUsers = (usersData || []).map(u => {
+        const st = (settingsData || []).find(s => s.user_id === u.id);
+        const waReply = st?.wa_auto_reply ?? u.balasan_otomatis_wa ?? true;
+
+        let status = 'trial';
+        if (u.token_dipakai) {
+          status = 'paid';
+        } else {
+          const trialStart = u.trial_mulai_at ? new Date(u.trial_mulai_at) : new Date(u.created_at || now);
+          const trialDays = u.trial_lama_hari || 7;
+          const expiry = new Date(trialStart.getTime() + trialDays * 24 * 60 * 60 * 1000);
+          if (now > expiry) {
+            status = 'habis';
+          }
+        }
+
+        const createdStr = u.created_at ? new Date(u.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+        const activeStr = u.last_active_at ? new Date(u.last_active_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Hari ini';
+
+        return {
+          id: u.id,
+          nama: u.nama || u.nama_lengkap || u.nomor_wa || 'Pengguna',
+          wa: maskWa(u.nomor_wa),
+          raw_wa: u.nomor_wa,
+          status: status,
+          daftar: createdStr,
+          aktif: activeStr,
+          token: u.token_dipakai || '-',
+          waReply: waReply
+        };
+      });
+
+      document.getElementById('trialDurasiLabel').textContent = trialDurasiHari;
+      document.getElementById('inpTrialDurasi').value = trialDurasiHari;
+
+      renderStats();
+      renderUsers(searchFilterText);
+      renderTokens();
+      renderSharedKeys();
+      renderPersonalKeys();
+    }
+
+    function renderStats() {
+      document.getElementById('statTotal').textContent = adminUsers.length;
+      document.getElementById('statTrial').textContent = adminUsers.filter(u => u.status === 'trial').length;
+      document.getElementById('statHabis').textContent = adminUsers.filter(u => u.status === 'habis').length;
+      document.getElementById('statPaid').textContent = adminUsers.filter(u => u.status === 'paid').length;
+    }
+
+    function statusLabel(s) { return s === 'paid' ? 'Sudah Bayar' : s === 'trial' ? 'Trial Aktif' : 'Trial Habis'; }
+
+    function filterUsers(val) {
+      searchFilterText = val;
+      renderUsers(val);
+    }
+
+    function renderUsers(filter) {
+      filter = (filter || '').toLowerCase();
+      const wrap = document.getElementById('userList');
+      const list = adminUsers.filter(u => u.nama.toLowerCase().includes(filter) || u.wa.includes(filter));
+      wrap.innerHTML = list.map(u => `
     <div class="user-row">
       <div class="user-row-top">
         <div><b>${u.nama}</b><div class="wa-num">${u.wa}</div></div>
         <span class="status-tag ${u.status}">${statusLabel(u.status)}</span>
       </div>
-      <div class="meta">Daftar: ${u.daftar} · Aktif terakhir: ${u.aktif}${u.token!=='-' ? ' · Token: '+u.token : ''}</div>
+      <div class="meta">Daftar: ${u.daftar} · Aktif terakhir: ${u.aktif}${u.token !== '-' ? ' · Token: ' + u.token : ''}</div>
       <div class="user-row-actions">
-        <button class="btn btn-secondary btn-sm" ${u.token!=='-' ? 'disabled' : `onclick="confirmSendToken('${u.id}', '${u.nama}')"`}>${u.token!=='-' ? 'Token Terkirim' : 'Kirim Token'}</button>
+        <button class="btn btn-secondary btn-sm" ${u.token !== '-' ? 'disabled' : `onclick="confirmSendToken('${u.id}', '${u.nama}')"`}>${u.token !== '-' ? 'Token Terkirim' : 'Kirim Token'}</button>
         <button class="btn btn-ghost btn-sm" onclick="confirmResetWa('${u.id}', '${u.nama}')">Reset WA</button>
       </div>
       <div class="wa-toggle-row">
         <div class="l">Balasan Otomatis WA</div>
         <div style="display:flex;align-items:center;">
-          <span class="state-label ${u.waReply?'on':'off'}">${u.waReply?'ON':'OFF'}</span>
-          <div class="toggle-switch ${u.waReply?'on':''}" onclick="toggleWaReply('${u.id}', '${u.nama}')"><div class="knob"></div></div>
+          <span class="state-label ${u.waReply ? 'on' : 'off'}">${u.waReply ? 'ON' : 'OFF'}</span>
+          <div class="toggle-switch ${u.waReply ? 'on' : ''}" onclick="toggleWaReply('${u.id}', '${u.nama}')"><div class="knob"></div></div>
         </div>
       </div>
       <div class="danger-row">
         <button class="link-danger" onclick="openDeleteAccountModal('${u.id}', '${u.nama}')">Hapus Akun</button>
       </div>
     </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Tidak ada pengguna cocok.</div>';
-}
-
-async function confirmSendToken(userId, nama){
-  const free = adminTokens.find(t=>t.status === 'available' || !t.used);
-  if(!free){ toast('Stok token habis — generate token baru dulu.'); return; }
-  customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, async ()=>{
-    await db.from('tokens').update({ status: 'used', used_by: userId, used_at: new Date().toISOString() }).eq('code', free.code);
-    await db.from('users').update({ token_dipakai: free.code, ai_locked: false }).eq('id', userId);
-    toast(`Token ${free.code} dikirim ke ${nama}.`);
-    await loadData();
-  }, 'Kirim Token');
-}
-
-async function toggleWaReply(userId, nama){
-  const u = adminUsers.find(x=>x.id===userId);
-  if(!u) return;
-  const nextVal = !u.waReply;
-  u.waReply = nextVal;
-  renderUsers(searchFilterText);
-
-  try {
-    const { data: existingSt } = await db.from('user_settings').select('user_id').eq('user_id', userId).maybeSingle();
-    if (existingSt) {
-      await db.from('user_settings').update({ wa_auto_reply: nextVal, updated_at: new Date().toISOString() }).eq('user_id', userId);
-    } else {
-      await db.from('user_settings').insert({ user_id: userId, access_code: 'wa_' + userId, wa_auto_reply: nextVal, updated_at: new Date().toISOString() });
     }
-    await db.from('users').update({ balasan_otomatis_wa: nextVal }).eq('id', userId);
-    toast(`Balasan Otomatis WA untuk ${nama} di-set ${nextVal ? 'ON' : 'OFF'}.`);
-  } catch (err) {
-    console.error('Error toggle WA reply:', err);
-  }
-  await loadData();
-}
 
-async function confirmResetWa(userId, nama){
-  customConfirm(`Reset sambungan nomor WA untuk ${nama}? Pengguna harus verifikasi ulang.`, async ()=>{
-    await db.from('users').update({ status_verifikasi: 'pending' }).eq('id', userId);
-    toast(`Sambungan WA ${nama} direset.`);
-    await loadData();
-  }, 'Reset WA');
-}
+    async function confirmSendToken(userId, nama) {
+      const free = adminTokens.find(t => t.status === 'available' || !t.used);
+      if (!free) { toast('Stok token habis — generate token baru dulu.'); return; }
+      customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, async () => {
+        await db.from('tokens').update({ status: 'used', used_by: userId, used_at: new Date().toISOString() }).eq('code', free.code);
+        await db.from('users').update({ token_dipakai: free.code, ai_locked: false }).eq('id', userId);
+        toast(`Token ${free.code} dikirim ke ${nama}.`);
+        await loadData();
+      }, 'Kirim Token');
+    }
 
-let _deleteTargetId = null;
-let _deleteTargetNama = null;
-function openDeleteAccountModal(userId, nama){
-  _deleteTargetId = userId;
-  _deleteTargetNama = nama;
-  document.getElementById('delAccName').textContent = nama;
-  document.getElementById('inpDeleteConfirm').value = '';
-  document.getElementById('btnDeleteAccountOk').disabled = true;
-  document.getElementById('modalDeleteAccount').classList.add('open');
-}
-function closeDeleteAccountModal(){
-  document.getElementById('modalDeleteAccount').classList.remove('open');
-  _deleteTargetId = null;
-  _deleteTargetNama = null;
-}
-function checkDeleteConfirmInput(){
-  const v = document.getElementById('inpDeleteConfirm').value.trim();
-  document.getElementById('btnDeleteAccountOk').disabled = (v !== 'HAPUS');
-}
+    async function toggleWaReply(userId, nama) {
+      const u = adminUsers.find(x => x.id === userId);
+      if (!u) return;
+      const nextVal = !u.waReply;
+      u.waReply = nextVal;
+      renderUsers(searchFilterText);
 
-async function confirmDeleteAccount(){
-  if(!_deleteTargetId) return;
-  const userId = _deleteTargetId;
-  const nama = _deleteTargetNama;
-  closeDeleteAccountModal();
-  
-  const { error } = await db.rpc('admin_delete_user', { target_user_id: userId });
-  if (error) {
-    // Fallback: direct delete from users table
-    await db.from('users').delete().eq('id', userId);
-  }
-  toast(`Akun ${nama} & seluruh datanya telah dihapus permanen.`);
-  await loadData();
-}
+      try {
+        const { data: existingSt } = await db.from('user_settings').select('user_id').eq('user_id', userId).maybeSingle();
+        if (existingSt) {
+          await db.from('user_settings').update({ wa_auto_reply: nextVal, updated_at: new Date().toISOString() }).eq('user_id', userId);
+        } else {
+          await db.from('user_settings').insert({ user_id: userId, access_code: 'wa_' + userId, wa_auto_reply: nextVal, updated_at: new Date().toISOString() });
+        }
+        await db.from('users').update({ balasan_otomatis_wa: nextVal }).eq('id', userId);
+        toast(`Balasan Otomatis WA untuk ${nama} di-set ${nextVal ? 'ON' : 'OFF'}.`);
+      } catch (err) {
+        console.error('Error toggle WA reply:', err);
+      }
+      await loadData();
+    }
 
-function renderTokens(){
-  document.getElementById('tokenList').innerHTML = adminTokens.map(t=>`
+    async function confirmResetWa(userId, nama) {
+      customConfirm(`Reset sambungan nomor WA untuk ${nama}? Pengguna harus verifikasi ulang.`, async () => {
+        await db.from('users').update({ status_verifikasi: 'pending' }).eq('id', userId);
+        toast(`Sambungan WA ${nama} direset.`);
+        await loadData();
+      }, 'Reset WA');
+    }
+
+    let _deleteTargetId = null;
+    let _deleteTargetNama = null;
+    function openDeleteAccountModal(userId, nama) {
+      _deleteTargetId = userId;
+      _deleteTargetNama = nama;
+      document.getElementById('delAccName').textContent = nama;
+      document.getElementById('inpDeleteConfirm').value = '';
+      document.getElementById('btnDeleteAccountOk').disabled = true;
+      document.getElementById('modalDeleteAccount').classList.add('open');
+    }
+    function closeDeleteAccountModal() {
+      document.getElementById('modalDeleteAccount').classList.remove('open');
+      _deleteTargetId = null;
+      _deleteTargetNama = null;
+    }
+    function checkDeleteConfirmInput() {
+      const v = document.getElementById('inpDeleteConfirm').value.trim();
+      document.getElementById('btnDeleteAccountOk').disabled = (v !== 'HAPUS');
+    }
+
+    async function confirmDeleteAccount() {
+      if (!_deleteTargetId) return;
+      const userId = _deleteTargetId;
+      const nama = _deleteTargetNama;
+      closeDeleteAccountModal();
+
+      const { error } = await db.rpc('admin_delete_user', { target_user_id: userId });
+      if (error) {
+        // Fallback: direct delete from users table
+        await db.from('users').delete().eq('id', userId);
+      }
+      toast(`Akun ${nama} & seluruh datanya telah dihapus permanen.`);
+      await loadData();
+    }
+
+    function renderTokens() {
+      document.getElementById('tokenList').innerHTML = adminTokens.map(t => `
     <div class="token-row">
-      <div><div class="code">${t.code}</div><div class="meta">${t.status==='used' || t.used ? 'Dipakai' : 'Belum dipakai'}</div></div>
-      <span class="status-tag ${t.status==='used' || t.used ?'habis':'trial'}">${t.status==='used' || t.used ?'Terpakai':'Tersedia'}</span>
+      <div><div class="code">${t.code}</div><div class="meta">${t.status === 'used' || t.used ? 'Dipakai' : 'Belum dipakai'}</div></div>
+      <span class="status-tag ${t.status === 'used' || t.used ? 'habis' : 'trial'}">${t.status === 'used' || t.used ? 'Terpakai' : 'Tersedia'}</span>
     </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Belum ada token.</div>';
-}
+    }
 
-async function generateToken(){
-  const code = Array.from({length:8},()=> 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
-  await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
-  toast('Token baru dibuat: ' + code);
-  await loadData();
-}
+    async function generateToken() {
+      const code = Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+      await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
+      toast('Token baru dibuat: ' + code);
+      await loadData();
+    }
 
-async function saveTrialDurasi(){
-  const val = parseInt(document.getElementById('inpTrialDurasi').value)||7;
-  await db.from('global_settings').upsert({ key: 'default_trial_days', value: JSON.stringify(val), updated_at: new Date().toISOString() });
-  toast('Durasi trial default diperbarui: ' + val + ' hari.');
-  await loadData();
-}
+    async function saveTrialDurasi() {
+      const val = parseInt(document.getElementById('inpTrialDurasi').value) || 7;
+      await db.from('global_settings').upsert({ key: 'default_trial_days', value: JSON.stringify(val), updated_at: new Date().toISOString() });
+      toast('Durasi trial default diperbarui: ' + val + ' hari.');
+      await loadData();
+    }
 
-function renderSharedKeys(){
-  document.getElementById('sharedKeyList').innerHTML = sharedKeys.length ? sharedKeys.map((k,i)=>`
+    function renderSharedKeys() {
+      document.getElementById('sharedKeyList').innerHTML = sharedKeys.length ? sharedKeys.map((k, i) => `
     <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="removeSharedKey(${i})">Hapus</button></div>
   `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key bersama.</div>';
-}
+    }
 
-async function addSharedKey(){
-  const v = document.getElementById('inpSharedKey').value.trim();
-  if(!v) return;
-  sharedKeys.push(v);
-  await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
-  document.getElementById('inpSharedKey').value='';
-  toast('API key bersama ditambahkan.');
-  await loadData();
-}
+    async function addSharedKey() {
+      const v = document.getElementById('inpSharedKey').value.trim();
+      if (!v) return;
+      sharedKeys.push(v);
+      await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
+      document.getElementById('inpSharedKey').value = '';
+      toast('API key bersama ditambahkan.');
+      await loadData();
+    }
 
-async function removeSharedKey(index) {
-  sharedKeys.splice(index, 1);
-  await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
-  toast('API key bersama dihapus.');
-  await loadData();
-}
+    async function removeSharedKey(index) {
+      sharedKeys.splice(index, 1);
+      await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
+      toast('API key bersama dihapus.');
+      await loadData();
+    }
 
-function renderPersonalKeys(){
-  document.getElementById('personalKeyList').innerHTML = personalKeys.length ? personalKeys.map((k,i)=>`
+    function renderPersonalKeys() {
+      document.getElementById('personalKeyList').innerHTML = personalKeys.length ? personalKeys.map((k, i) => `
     <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="removePersonalKey(${i})">Hapus</button></div>
   `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key pribadi.</div>';
-}
+    }
 
-async function addPersonalKey(){
-  const v = document.getElementById('inpPersonalKey').value.trim();
-  if(!v) return;
-  personalKeys.push(v);
-  await db.from('global_settings').upsert({ key: 'admin_private_keys', value: personalKeys, updated_at: new Date().toISOString() });
-  document.getElementById('inpPersonalKey').value='';
-  toast('API key pribadi ditambahkan.');
-  await loadData();
-}
+    async function addPersonalKey() {
+      const v = document.getElementById('inpPersonalKey').value.trim();
+      if (!v) return;
+      personalKeys.push(v);
+      await db.from('global_settings').upsert({ key: 'admin_private_keys', value: personalKeys, updated_at: new Date().toISOString() });
+      document.getElementById('inpPersonalKey').value = '';
+      toast('API key pribadi ditambahkan.');
+      await loadData();
+    }
 
-async function removePersonalKey(index) {
-  personalKeys.splice(index, 1);
-  await db.from('global_settings').upsert({ key: 'admin_private_keys', value: personalKeys, updated_at: new Date().toISOString() });
-  toast('API key pribadi dihapus.');
-  await loadData();
-}
+    async function removePersonalKey(index) {
+      personalKeys.splice(index, 1);
+      await db.from('global_settings').upsert({ key: 'admin_private_keys', value: personalKeys, updated_at: new Date().toISOString() });
+      toast('API key pribadi dihapus.');
+      await loadData();
+    }
 
-/* Init */
-checkSession();
-</script>
+    /* Init */
+    checkSession();
+  </script>
 </body>
+
 </html>
