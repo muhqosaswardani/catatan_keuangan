@@ -19,15 +19,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
-const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:admin@kaslyai.app";
-
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const DEFAULT_VAPID_PUBLIC = "BM_LVbHrtrBort_zSW9ZhVjyWK1SE5K_66INjBhFx1AQPxTYnQLhrSUbPfmv95EPIM62gFn2h9Lub9sEilp7cx8";
 
 interface SendPushBody {
   user_id: string;
@@ -37,8 +29,6 @@ interface SendPushBody {
 }
 
 Deno.serve(async (req: Request) => {
-  // CORS: fungsi ini dipanggil langsung dari browser (tombol "Kirim Notifikasi
-  // Uji Coba" di Pengaturan), jadi wajib jawab preflight OPTIONS + kasih header CORS.
   const requestOrigin = req.headers.get("origin") || "*";
   const corsHeaders = {
     "Access-Control-Allow-Origin": requestOrigin,
@@ -51,6 +41,23 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || DEFAULT_VAPID_PUBLIC;
+    const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
+    const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:admin@kaslyai.app";
+
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+      try {
+        webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+      } catch (vErr) {
+        console.warn("[send-push-notification] Warning setVapidDetails:", vErr);
+      }
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -140,4 +147,11 @@ Deno.serve(async (req: Request) => {
     JSON.stringify({ sent, failed: subs.length - sent, cleaned: staleIds.length }),
     { status: 200, headers: corsHeaders },
   );
+  } catch (err: any) {
+    console.error("[send-push-notification] Unhandled Exception:", err);
+    return new Response(
+      JSON.stringify({ error: err?.message || String(err) }),
+      { status: 500, headers: corsHeaders }
+    );
+  }
 });

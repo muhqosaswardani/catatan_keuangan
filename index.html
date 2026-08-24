@@ -9902,7 +9902,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.0)';
+      const version = ' (v3.0.1)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21846,6 +21846,7 @@ PERTANYAAN_USER:
               if (authOb) authOb.classList.remove('open');
               localStorage.setItem(LS_KEYS.onboarded, '1');
               checkTrialStatus();
+              autoSyncPushSubscription();
             } else {
               // Not onboarded yet! Show onboarding intro wizard
               const authOb = document.getElementById('auth-onboarding');
@@ -22002,8 +22003,48 @@ PERTANYAAN_USER:
       }
     }
 
+    async function saveSubscriptionToDb(subscription) {
+      if (!currentUserId || !supabaseClient) return;
+      const subJson = subscription?.toJSON ? subscription.toJSON() : subscription;
+      if (!subJson || !subJson.endpoint) return;
+      try {
+        const p256dh = subJson.keys?.p256dh || '';
+        const auth = subJson.keys?.auth || '';
+        const { error } = await supabaseClient.from('push_subscriptions').upsert({
+          user_id: currentUserId,
+          access_code: 'wa_' + currentUserId,
+          endpoint: subJson.endpoint,
+          p256dh: p256dh,
+          auth: auth,
+          user_agent: navigator.userAgent,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'endpoint' });
+        if (error && error.code !== '23505') {
+          console.error('[push] gagal saveSubscriptionToDb:', error);
+        }
+      } catch (err) {
+        console.error('[push] exception saveSubscriptionToDb:', err);
+      }
+    }
+
+    async function autoSyncPushSubscription() {
+      if (!pushNotifSupported() || !currentUserId || !supabaseClient) return;
+      if (Notification.permission !== 'granted') return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await saveSubscriptionToDb(sub);
+        } else {
+          await subscribeToPush(reg, true);
+        }
+      } catch (e) {
+        console.warn('[push] autoSyncPushSubscription error:', e);
+      }
+    }
+
     // Klik row "Notifikasi": kalau belum aktif, mulai alur minta izin + subscribe.
-    // Kalau sudah aktif, tidak melakukan apa-apa selain nunjukin statusnya (tidak nge-nag).
+    // Kalau sudah aktif, sinkronkan subscription ke Supabase dan perbarui UI.
     async function handleNotificationRowClick() {
       if (!pushNotifSupported()) {
         showToast('Browser ini tidak mendukung notifikasi push');
@@ -22022,7 +22063,9 @@ PERTANYAAN_USER:
         const reg = await navigator.serviceWorker.ready;
         const existing = await reg.pushManager.getSubscription();
         if (existing) {
-          // sudah aktif, tidak ada aksi lanjutan dari sini
+          await saveSubscriptionToDb(existing);
+          showToast('Notifikasi aktif');
+          await updateNotificationSettingsUI();
           return;
         }
         await subscribeToPush(reg);
@@ -22033,7 +22076,7 @@ PERTANYAAN_USER:
     }
 
     // Minta izin browser, generate push subscription, dan simpan ke Supabase.
-    async function subscribeToPush(reg) {
+    async function subscribeToPush(reg, isSilent = false) {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         await updateNotificationSettingsUI();
@@ -22045,27 +22088,8 @@ PERTANYAAN_USER:
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
 
-      const subJson = subscription.toJSON();
-      const { error } = await supabaseClient.from('push_subscriptions').insert({
-        user_id: currentUserId,
-        endpoint: subJson.endpoint,
-        p256dh: subJson.keys.p256dh,
-        auth: subJson.keys.auth,
-        user_agent: navigator.userAgent,
-      });
-
-      if (error) {
-        // Kalau endpoint sudah ada (device resubscribe dgn user beda / duplikat), abaikan
-        // error unique constraint dan anggap sukses.
-        if (!(error.code === '23505')) {
-          console.error('[push] gagal simpan subscription:', error);
-          showToast('Gagal menyimpan pengaturan notifikasi');
-          await subscription.unsubscribe().catch(() => {});
-          return;
-        }
-      }
-
-      showToast('Notifikasi diaktifkan');
+      await saveSubscriptionToDb(subscription);
+      if (!isSilent) showToast('Notifikasi diaktifkan');
       await updateNotificationSettingsUI();
     }
 
@@ -22085,11 +22109,10 @@ PERTANYAAN_USER:
       }
     }
 
-    // TESTING (Fase 2 Bagian 1) — hapus fungsi & tombol pemanggilnya setelah
-    // semua bagian Fase 2 selesai & stabil.
     async function sendTestNotification() {
       if (!currentUserId) return;
       try {
+        await autoSyncPushSubscription();
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const token = sessionData?.session?.access_token;
         const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
