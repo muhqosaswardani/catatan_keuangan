@@ -4344,25 +4344,41 @@
       display: block;
     }
 
-    /* Bubble khusus foto/gambar agar pas & fit mirip WhatsApp */
+    /* Bubble khusus foto/gambar agar pas & fit proporsional mirip WhatsApp */
     .chat-bubble.has-image {
       padding: 4px 4px 3px 4px;
       border-radius: 12px;
       max-width: 85%;
+      width: fit-content;
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-bubble.has-image.user {
+      align-items: flex-end;
+    }
+    .chat-bubble.has-image.bot {
+      align-items: flex-start;
     }
     .chat-bubble.has-image img {
+      max-height: 260px;
       max-width: 100%;
+      width: auto;
+      height: auto;
       border-radius: 9px;
       margin-bottom: 0;
       display: block;
       cursor: pointer;
+      object-fit: contain;
     }
     .chat-bubble.has-image .chat-bubble-text {
       padding: 6px 6px 2px 6px;
+      width: 100%;
+      word-break: break-word;
     }
     .chat-bubble.has-image .time {
       margin-top: 2px;
       padding: 0 4px 1px 4px;
+      align-self: flex-end;
     }
 
     /* Chat Lightbox Modal Overlay */
@@ -10072,7 +10088,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.7)';
+      const version = ' (v3.2.8)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19207,7 +19223,12 @@
           `;
         }
 
-        const msgText = String(msg.text || '');
+        let rawText = msg.text;
+        if (rawText && typeof rawText === 'object') {
+          rawText = rawText.text || rawText.message || rawText.body || '';
+        }
+        let msgText = String(rawText || '');
+        if (msgText === '[object Object]') msgText = '';
         const hasImage = !!msg.image;
         const imgClass = hasImage ? ' has-image' : '';
 
@@ -19650,11 +19671,19 @@
 
         if (result.success && result.messages && result.messages.length > 0) {
           for (const msgObj of result.messages) {
-            const botText = typeof msgObj === 'object' ? msgObj.text : msgObj;
+            let botText = '';
+            if (typeof msgObj === 'string') {
+              botText = msgObj;
+            } else if (msgObj && typeof msgObj === 'object') {
+              botText = msgObj.text || msgObj.message || msgObj.body || '';
+            }
+            if (botText === '[object Object]') botText = '';
             const botMsgId = typeof msgObj === 'object' ? msgObj.messageId : null;
             const botTxId = typeof msgObj === 'object' ? msgObj.txId : null;
             const botIsClarify = typeof msgObj === 'object' ? !!msgObj.isClarify : false;
-            appendChatBubble('bot', botText, Date.now(), null, botTxId, botIsClarify, botMsgId);
+            if (botText || botTxId) {
+              appendChatBubble('bot', botText, Date.now(), null, botTxId, botIsClarify, botMsgId);
+            }
           }
         } else if (result.error) {
           appendChatBubble('bot', 'Maaf, terjadi kesalahan: ' + result.error, Date.now());
