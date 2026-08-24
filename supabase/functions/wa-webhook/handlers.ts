@@ -529,12 +529,25 @@ async function sendAndMapTx(
   const noteOrCat = tx.note ? `${tx.note} (${tx.category})` : tx.category;
   const pushTitle = isUpdated ? "Transaksi diperbarui" : "Transaksi baru tercatat";
   const pushBody = `${typeLabel} · ${noteOrCat}\nRp${tx.amount.toLocaleString("id-ID")} · ${wallet.name}`;
+  const editUrl = `./?shortcut=edit-tx&id=${encodeURIComponent(tx.id)}`;
+  const actions = tx.isDraft
+    ? [{ action: "complete", title: "Lengkapi" }, { action: "delete", title: "Hapus" }]
+    : [{ action: "edit", title: "Edit" }, { action: "delete", title: "Hapus" }];
+  const actionUrls = tx.isDraft
+    ? { complete: editUrl }
+    : { edit: editUrl };
+
   const pushPayload = {
     title: pushTitle,
     body: pushBody,
     data: {
       action: isUpdated ? "edit" : "save",
-      transaction_id: tx.id
+      transaction_id: tx.id,
+      user_id: userId,
+      actions,
+      actionUrls,
+      url: editUrl,
+      requireInteraction: true
     }
   };
 

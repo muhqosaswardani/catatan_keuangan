@@ -143,8 +143,8 @@ const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
 
 async function handleDeleteFromNotification(data) {
-  const { transaction_id: txId, access_code: accessCode } = data;
-  if (!txId || !accessCode) return;
+  const { transaction_id: txId, user_id: userId } = data;
+  if (!txId) return;
   const headers = {
     apikey: SUPABASE_KEY,
     Authorization: `Bearer ${SUPABASE_KEY}`,
@@ -153,7 +153,7 @@ async function handleDeleteFromNotification(data) {
   try {
     // 1. Ambil dulu data transaksinya (buat snapshot Undo & buat tau wallet_id-nya)
     const getRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}&access_code=eq.${encodeURIComponent(accessCode)}&select=*`,
+      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}&select=*`,
       { headers }
     );
     const rows = await getRes.json();
@@ -162,15 +162,18 @@ async function handleDeleteFromNotification(data) {
 
     // 2. Hapus baris transaksinya
     await fetch(
-      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}&access_code=eq.${encodeURIComponent(accessCode)}`,
+      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}`,
       { method: 'DELETE', headers }
     );
 
     // 3. Recalculate saldo dompet murni dari transaksi yang TERSISA (bukan +delta),
     // biar tidak drift walau ada race condition dengan device lain.
     if (tx.wallet_id) {
+      const uId = tx.user_id || userId;
       const txRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/transactions?access_code=eq.${encodeURIComponent(accessCode)}&or=(wallet_id.eq.${encodeURIComponent(tx.wallet_id)},to_wallet_id.eq.${encodeURIComponent(tx.wallet_id)})&select=type,amount,wallet_id,to_wallet_id`,
+        uId
+          ? `${SUPABASE_URL}/rest/v1/transactions?user_id=eq.${encodeURIComponent(uId)}&or=(wallet_id.eq.${encodeURIComponent(tx.wallet_id)},to_wallet_id.eq.${encodeURIComponent(tx.wallet_id)})&select=type,amount,wallet_id,to_wallet_id`
+          : `${SUPABASE_URL}/rest/v1/transactions?or=(wallet_id.eq.${encodeURIComponent(tx.wallet_id)},to_wallet_id.eq.${encodeURIComponent(tx.wallet_id)})&select=type,amount,wallet_id,to_wallet_id`,
         { headers }
       );
       const remaining = await txRes.json();
@@ -186,25 +189,12 @@ async function handleDeleteFromNotification(data) {
         }
       }
       await fetch(
-        `${SUPABASE_URL}/rest/v1/wallets?id=eq.${encodeURIComponent(tx.wallet_id)}&access_code=eq.${encodeURIComponent(accessCode)}`,
+        `${SUPABASE_URL}/rest/v1/wallets?id=eq.${encodeURIComponent(tx.wallet_id)}`,
         { method: 'PATCH', headers, body: JSON.stringify({ balance, updated_at: new Date().toISOString() }) }
       );
     }
 
-    // 4. Simpan snapshot buat Undo di app (kolom last_notif_deleted di user_settings)
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/user_settings?access_code=eq.${encodeURIComponent(accessCode)}`,
-      {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          last_notif_deleted: { tx, deletedAt: Date.now() },
-          updated_at: new Date().toISOString(),
-        }),
-      }
-    );
-
-    // 5. Kasih tau user transaksinya sudah dihapus (notifikasi baru, ringkas)
+    // 4. Kasih tau user transaksinya sudah dihapus (notifikasi baru, ringkas)
     self.registration.showNotification('Transaksi dihapus', {
       body: (tx.note || 'Transaksi') + ' sudah dihapus dari catatan.',
       icon: new URL('icons/icon-192.png', SCOPE_URL).href,
@@ -221,7 +211,7 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {};
   const action = event.action; // '' kalau klik body notifikasi (bukan tombol aksi)
 
-  if (action === 'hapus') {
+  if (action === 'hapus' || action === 'delete') {
     event.waitUntil(handleDeleteFromNotification(data));
     return;
   }
