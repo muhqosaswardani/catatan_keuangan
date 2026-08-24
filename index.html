@@ -4095,7 +4095,7 @@
       background-color: var(--surface-2);
       background-image: radial-gradient(var(--line) 1px, transparent 1px);
       background-size: 16px 16px;
-      scroll-behavior: smooth;
+      /* scroll-behavior dikendalikan via JS: instant saat render, smooth saat tombol bawah */
     }
     .chat-scroll-bottom-btn {
       position: absolute;
@@ -19115,6 +19115,7 @@
 
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
       const isInitialRender = !container.innerHTML.trim();
+      const shouldScrollBottom = forceScroll || isInitialRender || isNearBottom;
 
       let html = '';
       let lastDateStr = '';
@@ -19215,13 +19216,18 @@
         html += `<div class="chat-bubble ${alignClass}${txClass}"${txAttr}${clarifyAttr}${msgIdAttr} onclick="handleChatBubbleClick(this)">${badgeHtml}${content}${actionHintHtml}</div>`;
       });
 
+      // Inject HTML
       container.innerHTML = html;
-      if (forceScroll || isInitialRender || isNearBottom) {
+
+      if (shouldScrollBottom) {
+        // Instantly jump to bottom — disable scroll-behavior animation sementara
+        const prevBehavior = container.style.scrollBehavior;
+        container.style.scrollBehavior = 'auto';
         container.scrollTop = container.scrollHeight;
-        // Jaga-jaga jika DOM belum ter-render sempurna saat pergantian tab
-        setTimeout(() => {
-          container.scrollTop = container.scrollHeight;
-        }, 50);
+        // Restore scroll behavior setelah 1 frame (supaya animasi scroll-to-bottom manual tetap smooth)
+        requestAnimationFrame(() => {
+          container.style.scrollBehavior = prevBehavior;
+        });
       }
       
       // Perbarui visibilitas tombol scroll to bottom setelah render
@@ -19235,7 +19241,10 @@
     function chatScrollToBottom() {
       const container = document.getElementById('chatMessages');
       if (container) {
+        // Tombol scroll manual → smooth
+        container.style.scrollBehavior = 'smooth';
         container.scrollTop = container.scrollHeight;
+        requestAnimationFrame(() => { container.style.scrollBehavior = 'auto'; });
         const btn = document.getElementById('chatScrollBottomBtn');
         if (btn) btn.style.display = 'none';
       }
