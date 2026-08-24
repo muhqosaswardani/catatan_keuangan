@@ -145,69 +145,40 @@ const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
 async function handleDeleteFromNotification(data) {
   const { transaction_id: txId, user_id: userId } = data;
   if (!txId) return;
-  const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-  };
+
   try {
-    // 1. Ambil dulu data transaksinya (buat snapshot Undo & buat tau wallet_id-nya)
-    const getRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}&select=*`,
-      { headers }
-    );
-    const rows = await getRes.json();
-    const tx = Array.isArray(rows) && rows[0];
-    if (!tx) return;
+    // Panggil Edge Function delete-transaction yang memiliki service role key (bypass RLS secara aman)
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-transaction`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ transaction_id: txId, user_id: userId })
+    });
 
-    // 2. Hapus baris transaksinya
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(txId)}`,
-      { method: 'DELETE', headers }
-    );
-
-    // 3. Recalculate saldo dompet murni dari transaksi yang TERSISA (bukan +delta),
-    // biar tidak drift walau ada race condition dengan device lain.
-    if (tx.wallet_id) {
-      const uId = tx.user_id || userId;
-      const txRes = await fetch(
-        uId
-          ? `${SUPABASE_URL}/rest/v1/transactions?user_id=eq.${encodeURIComponent(uId)}&or=(wallet_id.eq.${encodeURIComponent(tx.wallet_id)},to_wallet_id.eq.${encodeURIComponent(tx.wallet_id)})&select=type,amount,wallet_id,to_wallet_id`
-          : `${SUPABASE_URL}/rest/v1/transactions?or=(wallet_id.eq.${encodeURIComponent(tx.wallet_id)},to_wallet_id.eq.${encodeURIComponent(tx.wallet_id)})&select=type,amount,wallet_id,to_wallet_id`,
-        { headers }
-      );
-      const remaining = await txRes.json();
-      let balance = 0;
-      if (Array.isArray(remaining)) {
-        for (const r of remaining) {
-          if (r.type === 'transfer') {
-            if (r.wallet_id === tx.wallet_id) balance -= Number(r.amount) || 0;
-            if (r.to_wallet_id === tx.wallet_id) balance += Number(r.amount) || 0;
-          } else if (r.wallet_id === tx.wallet_id) {
-            balance += r.type === 'income' ? (Number(r.amount) || 0) : -(Number(r.amount) || 0);
-          }
-        }
-      }
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/wallets?id=eq.${encodeURIComponent(tx.wallet_id)}`,
-        { method: 'PATCH', headers, body: JSON.stringify({ balance, updated_at: new Date().toISOString() }) }
-      );
+    const result = await res.json();
+    if (!res.ok && !result.success) {
+      console.warn('[sw] delete-transaction response not ok:', result);
+      return;
     }
 
-    // 4. Kirim pesan ke semua window app yang terbuka agar transaksi terhapus secara real-time
+    const noteName = result.note || 'Transaksi';
+
+    // 1. Kirim pesan ke semua window app yang terbuka agar transaksi terhapus secara real-time di UI
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clientsList) {
       client.postMessage({ type: 'NOTIF_TRANSACTION_DELETED', txId });
     }
 
-    // 5. Kasih tau user transaksinya sudah dihapus (notifikasi baru, ringkas)
+    // 2. Berikan notifikasi konfirmasi bahwa transaksi berhasil dihapus
     self.registration.showNotification('Transaksi dihapus', {
-      body: (tx.note || 'Transaksi') + ' sudah dihapus dari catatan.',
+      body: noteName + ' telah terhapus dari catatan.',
       icon: new URL('icons/icon-192.png', SCOPE_URL).href,
       tag: 'txai-delete-confirm',
     });
   } catch (e) {
-    // Gagal diam-diam (mis. offline) — transaksinya tetap ada, user masih bisa hapus manual dari app.
+    console.error('[sw] error handleDeleteFromNotification:', e);
   }
 }
 
