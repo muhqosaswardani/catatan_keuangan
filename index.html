@@ -10268,7 +10268,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.23)';
+      const version = ' (v3.3.24)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12059,6 +12059,12 @@
     }
 
     function switchTabUI(tab) {
+      if (tab !== 'chat') {
+        isChatQuickMode = false;
+        document.body.classList.remove('chat-quick-mode');
+        const btn = document.getElementById('chatBackBtn');
+        if (btn) btn.style.display = 'none';
+      }
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       const pageEl = document.getElementById('page-' + tab);
       if (pageEl) pageEl.classList.add('active');
@@ -22455,6 +22461,15 @@ PERTANYAAN_USER:
       // lama dulu (bukan "—" kosong) sambil auth check & sync jalan di
       // belakang. Kalau ternyata belum login, layar ini akan ketutup overlay
       // login oleh alur di bawah — jadi aman untuk kasus itu juga.
+      // 1. Pulihkan user ID lokal terlebih dahulu agar render instan dari cache langsung memiliki scope data yang benar
+      try {
+        const cachedUserId = localStorage.getItem(LS_LAST_USER_ID);
+        if (cachedUserId) {
+          currentUserId = cachedUserId;
+          ensureLocalScopeForUser(currentUserId);
+        }
+      } catch (e) {}
+
       getAccessCode();
       checkEarlyAppShortcut();
       navInit();
