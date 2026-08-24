@@ -4289,13 +4289,31 @@
     .chat-bubble .time {
       font-size: 9.5px;
       color: var(--ink-soft);
-      margin-top: 4px;
-      text-align: right;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      justify-content: flex-end;
       gap: 4px;
       opacity: 0.8;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    /* Waktu float ke kanan & mengikuti baris teks terakhir (gaya WhatsApp).
+       Kalau baris terakhir sudah penuh, otomatis turun ke baris sendiri —
+       browser yang urus, tidak perlu JS. */
+    .chat-bubble-text .time {
+      float: right;
+      margin-top: 4px;
+      margin-left: 8px;
+      margin-bottom: -3px;
+      padding-top: 2px;
+    }
+
+    /* Bubble tanpa teks (mis. gambar saja) — waktu tetap block, rata kanan
+       seperti sebelumnya */
+    .chat-bubble > .time {
+      margin-top: 4px;
+      justify-content: flex-end;
+      width: 100%;
     }
 
     /* Ikon SVG inline pengganti emoji — dipakai di status chat, label sinkron, toast, dsb */
@@ -10092,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.2)';
+      const version = ' (v3.3.3)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19243,15 +19261,6 @@
           content += `<img src="${msg.image}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
         }
 
-        if (msgText.trim()) {
-          // Format text with bold backticks/asterisks
-          let textHtml = escapeHtml(msgText)
-            .replace(/\n/g, '<br>')
-            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-            .replace(/`(.*?)`/g, '<code>$1</code>');
-
-          content += `<div class="chat-bubble-text">${textHtml}</div>`;
-        }
         // Pending / failed status indicator (like WhatsApp clock / retry)
         let statusHtml = '';
         if (isUser) {
@@ -19263,7 +19272,24 @@
             statusHtml = `<span class="chat-msg-status sent" title="Terkirim">${ICON_CHECK}</span>`;
           }
         }
-        content += `<span class="time">${formatTime(msg.timestamp)}${statusHtml}</span>`;
+        const timeHtml = `<span class="time">${formatTime(msg.timestamp)}${statusHtml}</span>`;
+
+        if (msgText.trim()) {
+          // Format text with bold backticks/asterisks
+          let textHtml = escapeHtml(msgText)
+            .replace(/\n/g, '<br>')
+            .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+            .replace(/`(.*?)`/g, '<code>$1</code>');
+
+          // Waktu ditaruh sebagai child terakhir di dalam teks (bukan sibling di
+          // luar) supaya bisa float mengikuti baris terakhir teks, gaya WhatsApp —
+          // bukan selalu turun ke baris baru di bawah teks.
+          content += `<div class="chat-bubble-text">${textHtml}${timeHtml}</div>`;
+        } else {
+          // Tidak ada teks (mis. bubble gambar saja) — waktu tetap sebagai
+          // elemen terpisah, diposisikan lewat .chat-bubble.has-image .time
+          content += timeHtml;
+        }
 
         const isTx = !!msg.txId || (!isUser && (
           msgText.includes('Transaksi tercatat') || 
