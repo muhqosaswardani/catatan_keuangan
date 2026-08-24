@@ -665,12 +665,12 @@
       </div>
       <form id="loginForm" onsubmit="handleLogin(event)">
         <div class="field">
-          <label>Email Admin</label>
-          <input type="email" id="loginEmail" required placeholder="admin@kaslyai.local">
+          <label>Nomor WhatsApp Admin</label>
+          <input type="text" id="loginIdentifier" required placeholder="08xxxxxxxxxx atau email admin" autocomplete="username">
         </div>
         <div class="field">
           <label>Kata Sandi</label>
-          <input type="password" id="loginPassword" required placeholder="••••••••">
+          <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Masuk ke Dashboard</button>
       </form>
@@ -694,7 +694,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.3</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.4</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -882,14 +882,25 @@
       const btn = document.getElementById('btnLogin');
       btn.disabled = true;
       btn.textContent = 'Memproses...';
-      const email = document.getElementById('loginEmail').value.trim();
+      const rawInput = (document.getElementById('loginIdentifier')?.value || document.getElementById('loginEmail')?.value || '').trim();
       const password = document.getElementById('loginPassword').value;
+
+      let email = rawInput;
+      if (!rawInput.includes('@')) {
+        let clean = rawInput.replace(/\D/g, '');
+        if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+        else if (clean.startsWith('8')) clean = '62' + clean;
+        email = `${clean}@kaslyai.local`;
+      }
 
       const { error } = await db.auth.signInWithPassword({ email, password });
       btn.disabled = false;
       btn.textContent = 'Masuk ke Dashboard';
       if (error) {
-        alert('Gagal login admin: ' + error.message);
+        const errorMsg = error.message === 'Invalid login credentials' 
+          ? 'Nomor WhatsApp atau Kata Sandi salah.' 
+          : error.message;
+        alert('Gagal login admin: ' + errorMsg);
       } else {
         checkSession();
       }
