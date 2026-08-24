@@ -10051,7 +10051,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.3)';
+      const version = ' (v3.2.4)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19066,6 +19066,7 @@
             } else if (lowerText.includes('tren keuangan') || lowerText.includes('arus kas') || lowerText.includes('sisa dompet:') || lowerText.includes('bagaimana tren')) {
               msg.isClarify = false;
             }
+          }
           // Reset pending jika tidak ada di queue aktif atau sudah lewat lebih dari 3 menit
           if (msg.sender === 'user' && msg.pending) {
             const queue = getChatPendingQueue();
