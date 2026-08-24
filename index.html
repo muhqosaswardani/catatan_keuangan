@@ -4026,6 +4026,26 @@
       height: 100dvh;
       max-height: 100dvh;
       border-radius: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    #txaiQuickBody {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+      padding: max(16px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+      overflow-y: auto;
+    }
+    #txaiQuickStepInput {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      margin: auto 0;
     }
     #txaiQuickThumbs .file-thumb {
       position: relative;
@@ -8630,7 +8650,6 @@
 
           <!-- STEP: input -->
           <div id="txaiQuickStepInput">
-            <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;">Ketik, foto struk, atau rekam suara — langsung tersimpan otomatis tanpa layar konfirmasi.</p>
             <div class="field">
               <textarea id="txaiQuickText" rows="5" placeholder="Tulis transaksi di sini..."
                 style="min-height:160px;font-size:16px;" oninput="updateTxaiQuickProcessBtn()"></textarea>
@@ -10270,7 +10289,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.26)';
+      const version = ' (v3.3.27)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23400,6 +23419,12 @@ PERTANYAAN_USER:
           isChatQuickMode = true;
           document.body.classList.add('chat-quick-mode');
           currentTab = 'chat';
+        } else if (shortcut === 'transaksi-ai') {
+          setTimeout(() => {
+            if (typeof openTxaiQuickScreen === 'function') {
+              openTxaiQuickScreen();
+            }
+          }, 0);
         }
       } catch (e) {}
     }
