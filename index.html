@@ -8365,6 +8365,43 @@
             <div id="txaiQuickResultBody"></div>
             <button type="button" class="btn btn-secondary btn-block" style="margin-top:10px;" onclick="resetTxaiQuickScreen()">Catat Transaksi Lagi</button>
           </div>
+
+          <!-- STEP: inline edit / lengkapi transaksi -->
+          <div id="txaiQuickStepEdit" style="display:none;">
+            <h2 id="txaiEditTitle" style="font-size:16px;font-weight:700;margin:0 0 12px;">Lengkapi Transaksi</h2>
+            <input type="hidden" id="txaiEditId">
+            <div class="field" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Tipe Transaksi</label>
+              <select id="txaiEditType" class="select" onchange="renderTxaiEditCategories()" style="width:100%;">
+                <option value="expense">Pengeluaran</option>
+                <option value="income">Pemasukan</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Keterangan</label>
+              <input type="text" id="txaiEditNote" placeholder="Nama transaksi" style="width:100%;">
+            </div>
+            <div class="field" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Nominal (Rp)</label>
+              <input type="text" id="txaiEditAmount" inputmode="decimal" placeholder="0" oninput="formatThousandInput(this)" style="width:100%;font-weight:700;font-size:16px;">
+            </div>
+            <div class="field" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Kategori</label>
+              <select id="txaiEditCategory" class="select" style="width:100%;"></select>
+            </div>
+            <div class="field" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Dompet</label>
+              <select id="txaiEditWallet" class="select" style="width:100%;"></select>
+            </div>
+            <div class="field" style="margin-bottom:16px;">
+              <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:4px;">Tanggal</label>
+              <input type="date" id="txaiEditDate" style="width:100%;">
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn btn-secondary" style="flex:1;" onclick="cancelTxaiQuickInlineEdit()">Batal</button>
+              <button type="button" class="btn btn-primary" style="flex:1;" onclick="saveTxaiQuickInlineEdit()">Simpan Transaksi</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -9928,7 +9965,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.5)';
+      const version = ' (v3.0.6)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22307,24 +22344,36 @@ PERTANYAAN_USER:
       reader.readAsDataURL(blob);
     }
 
-    // Skema & prompt sengaja dibuat mandiri (bukan reuse fungsi aiScanWithGemini punya
-    // fitur lama) supaya fitur "Transaksi AI" existing tetap 100% tidak tersentuh.
+    // Skema & prompt menggunakan daftar kategori & aturan real-time persis seperti AI scan utama app.
     async function txaiQuickParseWithGemini() {
       const key = getGeminiApiKey();
       const ta = document.getElementById('txaiQuickText');
       const freeText = (ta && ta.value || '').trim();
+      const expenseCats = getCategories().filter(c => c.type === 'expense').map(c => c.name);
+      const incomeCats = getCategories().filter(c => c.type === 'income').map(c => c.name);
+
       const promptText =
-        'Kamu adalah asisten pencatat transaksi keuangan. Baca input user (teks/foto struk/rekaman suara) ' +
-        'dan keluarkan array JSON transaksi. Field per transaksi: type ("income"/"expense"), amount (angka, 0 kalau ' +
-        'nominal tidak disebutkan/tidak jelas — JANGAN mengarang nominal), note (keterangan singkat, sudah dirapikan ' +
-        'tanpa kata pengisi), category (nama kategori paling cocok). Kalau dari satu input ada BEBERAPA transaksi ' +
-        'kategori/aktivitas berbeda (mis. struk belanja campuran, atau cerita voice note berisi beberapa aktivitas), ' +
-        'PECAH jadi beberapa objek transaksi terpisah, jangan digabung. Keluarkan HANYA array JSON, tanpa markdown, ' +
-        'tanpa penjelasan.';
+        'Kamu asisten pencatatan keuangan pribadi. Tugasmu membaca input user (teks bebas, foto struk, atau rekaman suara) ' +
+        'dan mengeluarkan JSON array transaksi.\n\n' +
+        'Daftar Kategori Pengeluaran (expense) yang TERSEDIA: [' + expenseCats.join(', ') + '].\n' +
+        'Daftar Kategori Pemasukan (income) yang TERSEDIA: [' + incomeCats.join(', ') + '].\n\n' +
+        'Panduan Klasifikasi Kategori & Nominal:\n' +
+        '1. Cocokkan kategori transaksi dengan nama dari daftar di atas yang PALING SPESIFIK. Misalnya: kata "makan", "makanan", "nasi", "lauk", "bakso", "mie", "soto", "warung", "resto" WAJIB masuk ke kategori "' + (expenseCats.find(c => c.toLowerCase().includes('makan')) || 'Makan') + '". JANGAN PERNAH masukkan makanan ke kategori "Lainnya" jika kategori makanan tersedia!\n' +
+        '2. Jika di dalam input TIDAK ADA nominal (mis. cuma "makan" atau "bensin"), set "amount" ke 0 — JANGAN MENEBAK ATAU MENGARANG NOMINAL (seperti 100000 atau 10000)!\n' +
+        '3. Kenali format nominal Indonesia: "25rb"=25000, "2,5"=2500, "seceng"=1000, "goceng"=5000, "ceban"=10000, "gocap"=50000, "5k"=5000.\n' +
+        '4. Jika dari satu input ada BEBERAPA transaksi terpisah, PECAH menjadi beberapa objek transaksi terpisah dalam array JSON.\n' +
+        '5. JIKA REKAMAN SUARA/TEKS KOSONG ATAU SAMA SEKALI TIDAK BERISI INFORMASI TRANSAKSI (misalnya hening/diam tanpa ucapan, atau kata sapaan polos "halo"), keluarkan ARRAY KOSONG [].\n\n' +
+        'Field per transaksi:\n' +
+        '- "type": "income" atau "expense"\n' +
+        '- "amount": integer angka (0 jika nominal tidak disebutkan)\n' +
+        '- "note": string keterangan singkat (mis. "Makan", "Bensin", "Beli kuota")\n' +
+        '- "category": string nama kategori (harus persis sesuai daftar di atas)';
+
       const parts = [{ text: promptText }];
       if (freeText) parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + freeText });
       for (const f of txaiQuickFiles) { parts.push(await fileToGenerativePart(f)); }
-      if (txaiQuickAudioPart) { parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara berisi ucapan tentang transaksi. Dengarkan & perlakukan hasil transkrip persis seperti TEKS_BEBAS_DARI_USER.' }); parts.push(txaiQuickAudioPart); }
+      if (txaiQuickAudioPart) { parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara user tentang transaksi. Dengarkan & transkripsikan.' }); parts.push(txaiQuickAudioPart); }
+
       const schema = {
         type: 'ARRAY',
         items: {
@@ -22338,6 +22387,7 @@ PERTANYAAN_USER:
           required: ['type', 'amount', 'note', 'category']
         }
       };
+
       const MAX_ATTEMPTS = 3;
       let items = null, lastErr = null;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -22354,6 +22404,9 @@ PERTANYAAN_USER:
         }
       }
       if (!items) throw lastErr || new Error('Format respons AI tidak valid');
+      if (items.length === 0) {
+        throw new Error('Suara/teks tidak terdeteksi sebagai transaksi. Silakan rekam atau ketik ucapan transaksi.');
+      }
       return items;
     }
 
@@ -22391,7 +22444,7 @@ PERTANYAAN_USER:
         renderTxaiQuickResult(savedTxs, draftTxs);
       } catch (err) {
         console.error('[txaiQuick] gagal proses:', err);
-        showToast('Gagal memproses dengan AI: ' + (err && err.message ? err.message : 'coba lagi'));
+        showToast((err && err.message ? err.message : 'Gagal memproses dengan AI'));
         document.getElementById('txaiQuickStepLoading').style.display = 'none';
         document.getElementById('txaiQuickStepInput').style.display = 'block';
       }
@@ -22412,7 +22465,7 @@ PERTANYAAN_USER:
       all.forEach(t => {
         const cats = getCategories();
         const cat = cats.find(c => c.id === t.categoryId);
-        html += '<div class="txai-tx-card">' +
+        html += '<div class="txai-tx-card" data-tx-id="' + t.id + '">' +
           '<div class="txai-tx-row"><span class="l">Keterangan</span><span class="v">' + escAttr(t.note) + '</span></div>' +
           '<div class="txai-tx-row"><span class="l">Kategori</span><span class="v">' + escAttr((cat && cat.name) || '-') + '</span></div>' +
           (t.isDraft
@@ -22430,10 +22483,90 @@ PERTANYAAN_USER:
       document.getElementById('txaiQuickResultBody').innerHTML = html;
     }
 
-    function editTxaiQuickTx(id) {
-      closeTxaiQuickScreen();
-      openTransactionModal(id); // fungsi edit transaksi yang sudah ada di app
+    function renderTxaiEditCategories() {
+      const type = document.getElementById('txaiEditType').value || 'expense';
+      const cats = getCategories().filter(c => c.type === type);
+      const sel = document.getElementById('txaiEditCategory');
+      if (!sel) return;
+      sel.innerHTML = cats.map(c => '<option value="' + c.id + '">' + escAttr(c.name) + '</option>').join('');
     }
+
+    function renderTxaiEditWallets() {
+      const wallets = getWallets();
+      const sel = document.getElementById('txaiEditWallet');
+      if (!sel) return;
+      sel.innerHTML = wallets.map(w => '<option value="' + w.id + '">' + escAttr(w.name) + '</option>').join('');
+    }
+
+    function editTxaiQuickTx(id) {
+      const txs = getTransactions();
+      const tx = txs.find(t => t.id === id);
+      if (!tx) return;
+
+      document.getElementById('txaiEditId').value = id;
+      document.getElementById('txaiEditTitle').textContent = tx.isDraft ? 'Lengkapi Transaksi' : 'Edit Transaksi';
+      document.getElementById('txaiEditType').value = tx.type || 'expense';
+      renderTxaiEditCategories();
+      if (tx.categoryId) document.getElementById('txaiEditCategory').value = tx.categoryId;
+      renderTxaiEditWallets();
+      if (tx.walletId) document.getElementById('txaiEditWallet').value = tx.walletId;
+      document.getElementById('txaiEditNote').value = tx.note || '';
+      document.getElementById('txaiEditAmount').value = tx.amount ? String(tx.amount).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+      document.getElementById('txaiEditDate').value = tx.date || todayStr();
+
+      document.getElementById('txaiQuickStepResult').style.display = 'none';
+      document.getElementById('txaiQuickStepEdit').style.display = 'block';
+
+      if (tx.isDraft || !tx.amount) {
+        setTimeout(() => {
+          const amtInp = document.getElementById('txaiEditAmount');
+          if (amtInp) { amtInp.focus(); amtInp.select(); }
+        }, 150);
+      }
+    }
+
+    function cancelTxaiQuickInlineEdit() {
+      document.getElementById('txaiQuickStepEdit').style.display = 'none';
+      document.getElementById('txaiQuickStepResult').style.display = 'block';
+    }
+
+    function saveTxaiQuickInlineEdit() {
+      const id = document.getElementById('txaiEditId').value;
+      if (!id) return;
+      const note = (document.getElementById('txaiEditNote').value || '').trim() || 'Transaksi';
+      const amount = parseRupiahInput(document.getElementById('txaiEditAmount').value || '0');
+      const type = document.getElementById('txaiEditType').value || 'expense';
+      const categoryId = document.getElementById('txaiEditCategory').value;
+      const walletId = document.getElementById('txaiEditWallet').value;
+      const date = document.getElementById('txaiEditDate').value || todayStr();
+
+      const txs = getTransactions();
+      const tx = txs.find(t => t.id === id);
+      if (!tx) return;
+
+      tx.note = note;
+      tx.amount = amount;
+      tx.type = type;
+      tx.categoryId = categoryId;
+      tx.walletId = walletId;
+      tx.date = date;
+      tx.isDraft = false; // Tanda transaksi sudah lengkap!
+
+      updateTransaction(id, tx);
+      showToast('Transaksi berhasil diperbarui');
+
+      // Kembali ke layar hasil di dalam Transaksi AI Cepat tanpa keluar ke app dashboard!
+      document.getElementById('txaiQuickStepEdit').style.display = 'none';
+      document.getElementById('txaiQuickStepResult').style.display = 'block';
+
+      // Re-render kartu hasil
+      const remainingTxs = getTransactions().filter(t => t.id === id || txs.some(st => st.id === t.id));
+      const savedTxs = remainingTxs.filter(t => !t.isDraft);
+      const draftTxs = remainingTxs.filter(t => t.isDraft);
+      renderTxaiQuickResult(savedTxs, draftTxs);
+      refreshAllViews();
+    }
+
     function deleteTxaiQuickTx(id) {
       deleteTransaction(id); // fungsi hapus transaksi yang sudah ada di app
       showToast('Transaksi dihapus');
