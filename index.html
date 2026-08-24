@@ -6620,6 +6620,12 @@
               <span class="sr-title">Kirim Notifikasi Uji Coba <span class="sr-arrow">›</span></span>
             </div>
           </button>
+          <button type="button" class="settings-row-card" onclick="openChatShortcutModal()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+              <span class="sr-title">Tambah Pintasan Chat <span class="sr-arrow">›</span></span>
+            </div>
+          </button>
           <!-- Auto-Reply Asisten WhatsApp dikontrol penuh dari Dashboard Admin -->
           <button type="button" class="settings-row-card danger" onclick="openResetConfirm()">
             <div class="sr-row">
@@ -9993,7 +9999,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.1.7)';
+      const version = ' (v3.1.8)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19443,9 +19449,13 @@
 
       try {
         // Build payload for Edge Function
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
         const payload = {
           text: text,
-          from: '6281226964679',
+          from: (currentUserData && currentUserData.nomor_wa) || '6281226964679',
+          user_id: currentUserId,
           messageId: 'msg_web_' + uid(),
           contextId: contextId
         };
@@ -19464,7 +19474,7 @@
           headers: {
             'Content-Type': 'application/json',
             'x-web-chat': 'true',
-            'Authorization': 'Bearer ' + SUPABASE_KEY
+            'Authorization': 'Bearer ' + (token || SUPABASE_KEY)
           },
           body: JSON.stringify(payload)
         });
@@ -22241,6 +22251,19 @@ PERTANYAAN_USER:
         console.error('[push] test gagal:', err);
         showToast('Gagal kirim notifikasi uji coba');
       }
+    }
+
+    function openChatShortcutModal() {
+      const chatUrl = new URL('./?shortcut=chat', location.href).href;
+      showConfirmModal({
+        title: '📱 Pintasan Chat Mandiri',
+        text: 'Ingin membuka fitur Chat AI sebagai aplikasi mandiri? Klik "Buka Chat Mandiri", lalu tekan menu browser (titik tiga) -> "Tambahkan ke Layar Utama" (Add to Home Screen) untuk memasang ikon Chat KaslyAI langsung di Home Screen HP Anda!',
+        actionText: 'Buka Chat Mandiri'
+      }).then(confirmed => {
+        if (confirmed) {
+          window.location.href = chatUrl;
+        }
+      });
     }
 
     /* =========================================================

@@ -931,6 +931,10 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      if (!userId && webPayload.user_id) {
+        userId = webPayload.user_id;
+      }
+
       if (!userId && msg.from) {
         const user = await getUserByWa(db, msg.from);
         if (user && user.status_verifikasi === "verified") {
