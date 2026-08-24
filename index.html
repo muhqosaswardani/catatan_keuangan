@@ -1031,19 +1031,15 @@
     }
 
     .ai-text-wrap {
-      position: relative;
-    }
-
-    .ai-text-wrap textarea {
-      padding-right: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
     }
 
     .ai-mic-btn {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-      width: 32px;
-      height: 32px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       border: none;
       background: var(--surface);
@@ -1055,6 +1051,7 @@
       cursor: pointer;
       transition: background .15s, color .15s;
       padding: 0;
+      flex-shrink: 0;
     }
 
     .ai-mic-btn:active {
@@ -8457,7 +8454,7 @@
                   autocorrect="off" spellcheck="false"></textarea>
                 <button type="button" class="ai-mic-btn" id="aiMicBtn" onclick="toggleAiVoiceRecording()"
                   aria-label="Rekam suara">
-                  <svg id="aiMicIcon" width="17" height="17" viewBox="0 0 24 24" fill="none">
+                  <svg id="aiMicIcon" width="22" height="22" viewBox="0 0 24 24" fill="none">
                     <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor"
                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                     <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.8"
@@ -10357,7 +10354,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.43)';
+      const version = ' (v3.3.44)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
