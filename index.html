@@ -22716,11 +22716,44 @@ PERTANYAAN_USER:
         } else if (shortcut === 'transaksi-ai') {
           openTxaiQuickScreen();
         } else if (shortcut === 'edit-tx') {
-          if (id) openTransactionModal(id);
+          if (id) {
+            if (document.body.classList.contains('chat-quick-mode')) {
+              closeChatQuickMode();
+            }
+            openTransactionModal(id);
+          }
         }
       } catch (e) {
         console.warn('[shortcut] gagal proses parameter shortcut:', e);
       }
+    }
+
+    window.addEventListener('focus', () => { handleAppShortcutParam(); });
+    window.addEventListener('popstate', () => { handleAppShortcutParam(); });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (!event.data) return;
+        if (event.data.type === 'NOTIF_TRANSACTION_DELETED') {
+          const txId = event.data.txId;
+          if (txId) {
+            deleteTransaction(txId);
+            refreshAllViews();
+          }
+        } else if (event.data.type === 'NOTIF_OPEN_EDIT' && event.data.url) {
+          try {
+            const u = new URL(event.data.url);
+            const shortcut = u.searchParams.get('shortcut');
+            const id = u.searchParams.get('id');
+            if (shortcut === 'edit-tx' && id) {
+              if (document.body.classList.contains('chat-quick-mode')) {
+                closeChatQuickMode();
+              }
+              openTransactionModal(id);
+            }
+          } catch (e) {}
+        }
+      });
     }
 
     // Undo untuk transaksi yang dihapus lewat tombol "Hapus" di notifikasi (dieksekusi oleh

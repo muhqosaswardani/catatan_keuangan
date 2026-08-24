@@ -194,7 +194,13 @@ async function handleDeleteFromNotification(data) {
       );
     }
 
-    // 4. Kasih tau user transaksinya sudah dihapus (notifikasi baru, ringkas)
+    // 4. Kirim pesan ke semua window app yang terbuka agar transaksi terhapus secara real-time
+    const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientsList) {
+      client.postMessage({ type: 'NOTIF_TRANSACTION_DELETED', txId });
+    }
+
+    // 5. Kasih tau user transaksinya sudah dihapus (notifikasi baru, ringkas)
     self.registration.showNotification('Transaksi dihapus', {
       body: (tx.note || 'Transaksi') + ' sudah dihapus dari catatan.',
       icon: new URL('icons/icon-192.png', SCOPE_URL).href,
@@ -233,6 +239,7 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if (client.url.startsWith(SCOPE_URL) && 'focus' in client) {
           if ('navigate' in client) client.navigate(targetUrl);
+          client.postMessage({ type: 'NOTIF_OPEN_EDIT', url: targetUrl });
           return client.focus();
         }
       }
