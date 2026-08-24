@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.5)';
+      const version = ' (v3.3.6)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22538,15 +22538,15 @@ PERTANYAAN_USER:
         let body, data;
         if (testTx) {
           const editUrl = './?shortcut=edit-tx&id=' + encodeURIComponent(testTx.id);
-          body = 'Ketuk tombol "Edit" di bawah ini untuk pastikan app beneran masuk mode edit transaksi "' + (testTx.note || 'ini') + '".';
+          body = 'Ketuk notifikasi ini (bukan tombol) untuk pastikan app beneran masuk mode edit transaksi "' + (testTx.note || 'ini') + '".';
           data = {
             url: editUrl,
             type: 'test_edit_button',
             transaction_id: testTx.id,
-            // Sementara cuma 1 tombol (Edit) — buat isolasi apakah masalahnya
-            // muncul karena ada tombol Hapus di sebelahnya atau bukan.
-            actions: [{ action: 'edit', title: 'Edit' }],
-            actionUrls: { edit: editUrl },
+            // Tanpa tombol Edit lagi — tap area notifikasi yang jadi trigger (lewat fallback
+            // data.url di sw.js notificationclick), sesuai perilaku produksi saat ini.
+            actions: [],
+            actionUrls: {},
             requireInteraction: true,
           };
         } else {
@@ -22983,15 +22983,16 @@ PERTANYAAN_USER:
         const catName = (cat && cat.name) || 'Lainnya';
         const title = type === 'tx_incomplete' ? 'Transaksi butuh dilengkapi' : 'Transaksi baru tercatat';
         const body = type === 'tx_incomplete'
-          ? (tx.note + ' — nominalnya belum jelas. Ketuk untuk lengkapi.')
-          : ((tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran') + ' · ' + tx.note + '\n' + formatRupiah(tx.amount) + ' · ' + ((wallet && wallet.name) || ''));
+          ? (tx.note + ' — nominalnya belum jelas. Ketuk notifikasi ini untuk lengkapi (batal otomatis dalam 5 menit).')
+          : ((tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran') + ' · ' + tx.note + '\n' + formatRupiah(tx.amount) + ' · ' + ((wallet && wallet.name) || '') + '\nKetuk untuk edit.');
         const editUrl = './?shortcut=edit-tx&id=' + encodeURIComponent(tx.id);
+        // Tap area notifikasi (bukan tombol) yang jadi trigger Edit/Lengkapi — ditangani lewat
+        // fallback data.url di sw.js (notificationclick), tidak butuh action button terpisah lagi.
+        // Tombol "Hapus" tetap dipertahankan sebagai satu-satunya action button untuk tx lengkap.
         const actions = type === 'tx_incomplete'
-          ? [{ action: 'lengkapi', title: 'Lengkapi' }]
-          : [{ action: 'edit', title: 'Edit' }, { action: 'hapus', title: 'Hapus' }];
-        const actionUrls = type === 'tx_incomplete'
-          ? { lengkapi: editUrl }
-          : { edit: editUrl };
+          ? []
+          : [{ action: 'hapus', title: 'Hapus' }];
+        const actionUrls = {};
         const { data: sessionData } = await supabaseClient.auth.getSession();
         const token = sessionData?.session?.access_token;
         await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
