@@ -20,7 +20,7 @@ import {
   matchHistoryAmountWithAi,
   transcribeAudioToText,
 } from "./gemini.ts";
-import { sendWhatsAppMessage, sendPushNotification, sendUserResponse, downloadWhatsAppMedia, safeBytesToBase64 } from "./whatsapp.ts";
+import { sendWhatsAppMessage, sendPushNotification, sendUserResponse, downloadWhatsAppMedia, safeBytesToBase64, chatContext } from "./whatsapp.ts";
 import { processV2Query } from "./v2_query.ts";
 
 // Regex sama persis dengan yang dipakai untuk pesan teks di v2_router.ts —
@@ -721,6 +721,14 @@ async function processParsedItems(
     }
   }
 
+  // Toggle "Balasan WA" cuma relevan buat nomor WhatsApp asli (WA ON = balas via chat WA,
+  // WA OFF = balas via push notification HP). Chat AI di app WAJIB selalu balas di jendela
+  // chat-nya sendiri, terlepas dari toggle ini sama sekali — kalau tidak, chat app kelihatan
+  // "gak ada balasan dari server" padahal sebenarnya notif push terkirim ke HP (di luar chat
+  // yang sedang dibuka user), bukan gagal beneran.
+  const store = chatContext.getStore();
+  const isWebChat = !!(store && store.isWebChat);
+
   for (const row of rawRows) {
     const genericNotes = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
     const isNoteGeneric = !row.note || genericNotes.includes(row.note.toLowerCase().trim());
@@ -741,7 +749,7 @@ async function processParsedItems(
       if (histAmt && histAmt > 0) {
         row.amount = histAmt;
       } else {
-        if (!waAutoReply) {
+        if (!waAutoReply && !isWebChat) {
           const draftRow = { ...row, is_draft: true };
           const { savedTx } = await saveTx(db, draftRow as unknown as TransactionRow, wallets, userId);
           await sendPushNotification(
@@ -787,7 +795,7 @@ async function processParsedItems(
     }
 
     if (isNoteGeneric) {
-      if (!waAutoReply) {
+      if (!waAutoReply && !isWebChat) {
         const draftRow = { ...row, note: "", is_draft: true };
         const { savedTx } = await saveTx(db, draftRow as unknown as TransactionRow, wallets, userId);
         await sendPushNotification(
