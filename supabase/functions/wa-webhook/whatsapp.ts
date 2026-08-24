@@ -266,14 +266,12 @@ export async function sendUserResponse(
 
   let sentMsgId = "";
   if (waAutoReply) {
+    // Balasan WA ON -> Konfirmasi dikirim via WA Chat, TIDAK memicu notifikasi PWA HP
     if (textReply) {
       sentMsgId = await sendWhatsAppMessage(phoneNumberId, accessToken, waChatId, textReply, replyToMessageId);
     }
-    if (pushPayload) {
-      await sendPushNotification(supabaseUrl, serviceRoleKey, userId, pushPayload.title, pushPayload.body, pushPayload.data);
-    }
   } else {
-    // Balasan WA OFF -> Selalu kirim notifikasi PWA HP
+    // Balasan WA OFF -> Konfirmasi WA ditiadakan, Notifikasi PWA HP menjadi satu-satunya cara konfirmasi
     if (pushPayload) {
       await sendPushNotification(supabaseUrl, serviceRoleKey, userId, pushPayload.title, pushPayload.body, pushPayload.data);
     } else if (textReply) {
