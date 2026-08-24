@@ -4664,6 +4664,17 @@
     .screen.active {
       display: flex;
     }
+
+    /* Standalone / Quick Chat Mode (App Shortcut) */
+    body.chat-quick-mode .bottom-nav {
+      display: none !important;
+    }
+    body.chat-quick-mode #page-chat {
+      padding-bottom: 75px !important;
+    }
+    body.chat-quick-mode #chatBackBtn {
+      display: inline-flex !important;
+    }
     .screen:has(.screen-footer) {
       overflow: hidden;
     }
@@ -6789,9 +6800,16 @@
 
     <!-- ============ PAGE: CHAT ============ -->
     <div class="page" id="page-chat">
-      <div class="topbar">
-        <div class="eyebrow">Asisten AI</div>
-        <h1>Chat Asisten</h1>
+      <div class="topbar" style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button type="button" class="icon-btn" id="chatBackBtn" style="display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:none;background:var(--card);color:var(--ink);cursor:pointer;box-shadow:var(--shadow-sm);padding:0;" onclick="closeChatQuickMode()" title="Kembali ke Aplikasi">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div>
+            <div class="eyebrow">Asisten AI</div>
+            <h1 style="margin:0;">Chat Asisten</h1>
+          </div>
+        </div>
       </div>
 
       <!-- WhatsApp style chat container -->
@@ -9902,7 +9920,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.0.1)';
+      const version = ' (v3.0.2)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11732,6 +11750,12 @@
        ke Beranda. Pindah tab biasa lewat bottom nav TETAP pakai perilaku lama (replace,
        tidak menumpuk) supaya Back dari situ tidak nyangkut banyak layer. */
     function switchTab(tab, opts) {
+      if (typeof isChatQuickMode !== 'undefined' && isChatQuickMode && tab !== 'chat') {
+        isChatQuickMode = false;
+        document.body.classList.remove('chat-quick-mode');
+        const btn = document.getElementById('chatBackBtn');
+        if (btn) btn.style.display = 'none';
+      }
       if (tab === 'chat' && userTrialStatus === 'habis') {
         openModal('modalTrialHabis');
         return;
@@ -22452,16 +22476,38 @@ PERTANYAAN_USER:
       }
     }
 
+    let isChatQuickMode = false;
+    let prevTabBeforeChatQuick = 'beranda';
+
+    function openChatQuickMode() {
+      if (currentTab !== 'chat') {
+        prevTabBeforeChatQuick = currentTab || 'beranda';
+      }
+      isChatQuickMode = true;
+      document.body.classList.add('chat-quick-mode');
+      const btn = document.getElementById('chatBackBtn');
+      if (btn) btn.style.display = 'inline-flex';
+      switchTab('chat');
+      setTimeout(() => typeof chatScrollToBottom === 'function' && chatScrollToBottom(true), 100);
+    }
+
+    function closeChatQuickMode() {
+      isChatQuickMode = false;
+      document.body.classList.remove('chat-quick-mode');
+      const btn = document.getElementById('chatBackBtn');
+      if (btn) btn.style.display = 'none';
+      switchTab(prevTabBeforeChatQuick || 'beranda');
+    }
+
     // Dipanggil dari init() saat app dibuka lewat App Shortcut (?shortcut=chat / ?shortcut=transaksi-ai
-    // / ?shortcut=edit-tx&id=...). Pintasan ini HANYA bisa dipicu lewat tekan-lama ikon PWA sesuai PRD,
-    // tidak ada entry point lain di dalam UI.
+    // / ?shortcut=edit-tx&id=...). Pintasan ini HANYA bisa dipicu lewat tekan-lama ikon PWA sesuai PRD.
     function handleAppShortcutParam() {
       try {
         const params = new URLSearchParams(location.search);
         const shortcut = params.get('shortcut');
         if (!shortcut) return;
         if (shortcut === 'chat') {
-          switchTab('chat');
+          openChatQuickMode();
         } else if (shortcut === 'transaksi-ai') {
           openTxaiQuickScreen();
         } else if (shortcut === 'edit-tx') {
