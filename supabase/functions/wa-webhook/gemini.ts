@@ -481,7 +481,9 @@ export async function generateClarificationQuestion(
     prompt = `Kamu adalah asisten keuangan pribadi yang ramah, sopan, dan santai. Buatkan kalimat pertanyaan chat WhatsApp yang natural, singkat, dan santai dalam bahasa Indonesia sehari-hari untuk menanyakan berapa nominal/harga dari transaksi berikut.\n\n` +
       `Keterangan transaksi: "${context.note}"\n\n` +
       `Aturan:\n` +
-      `- Jangan kaku, buat pertanyaan natural layaknya teman chat (misalnya: "Btw, [nama barang] ini harganya berapa ya?" atau variasi santai lainnya).\n` +
+      `- Jangan kaku, buat pertanyaan natural layaknya teman chat (misalnya: "[nama barang] ini harganya berapa ya?" atau variasi santai lainnya).\n` +
+      `- JANGAN pakai kata pembuka basa-basi seperti "Btw", "Eh", "Anyway", atau sejenisnya — langsung saja ke pertanyaannya.\n` +
+      `- JANGAN menyebut kata waktu/hari apapun (kemarin, tadi, barusan, semalam, dll) — kamu tidak tahu kapan transaksinya terjadi, jadi cukup sebut nama barangnya pakai kata "ini".\n` +
       `- Jangan bertele-tele, maks 1-2 kalimat pendek.\n` +
       `- Jangan ada emoji sama sekali.\n` +
       `- Keluarkan HANYA teks pertanyaan tersebut saja.`;
@@ -490,7 +492,9 @@ export async function generateClarificationQuestion(
     prompt = `Kamu adalah asisten keuangan pribadi yang ramah, sopan, dan santai. Buatkan kalimat pertanyaan chat WhatsApp yang natural, singkat, dan santai dalam bahasa Indonesia sehari-hari untuk menanyakan apa keterangan/kegunaan dari pengeluaran uang sebesar ${amtLabel} berikut.\n\n` +
       `Nominal transaksi: ${amtLabel}\n\n` +
       `Aturan:\n` +
-      `- Jangan kaku, buat pertanyaan natural layaknya teman chat (misalnya: "Uang Rp[nominal] tadi buat bayar apa ya?" atau variasi santai lainnya).\n` +
+      `- Jangan kaku, buat pertanyaan natural layaknya teman chat (misalnya: "Uang Rp[nominal] ini buat bayar apa ya?" atau variasi santai lainnya).\n` +
+      `- JANGAN pakai kata pembuka basa-basi seperti "Btw", "Eh", "Anyway", atau sejenisnya — langsung saja ke pertanyaannya.\n` +
+      `- JANGAN menyebut kata waktu/hari apapun (kemarin, tadi, barusan, semalam, dll) — kamu tidak tahu kapan transaksinya terjadi, jadi cukup pakai kata "ini".\n` +
       `- Jangan bertele-tele, maks 1-2 kalimat pendek.\n` +
       `- Jangan ada emoji sama sekali.\n` +
       `- Keluarkan HANYA teks pertanyaan tersebut saja.`;
