@@ -7,16 +7,12 @@
 // ============================================================
 
 const GEMINI_MODELS = [
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
-  "gemini-3.0-flash",
-  "gemini-3-flash",
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
+  "gemini-flash-lite-latest",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-3.6-flash",
+  "gemini-3-flash-preview",
 ];
 const GEMINI_API_BASE =
   "https://generativelanguage.googleapis.com/v1beta/models";
@@ -220,26 +216,18 @@ export async function callGeminiRaw(
   }
 
   const startKeyIdx = Math.floor(Math.random() * numKeys);
-  const startModelIdx = Math.floor(Math.random() * numModels);
-
   for (let k = 0; k < numKeys; k++) {
     const kIdx = (startKeyIdx + k) % numKeys;
     const apiKey = apiKeys[kIdx];
 
     for (let m = 0; m < numModels; m++) {
-      const mIdx = (startModelIdx + m) % numModels;
-      const model = GEMINI_MODELS[mIdx];
+      const model = GEMINI_MODELS[m];
       const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
       const generationConfig: Record<string, unknown> = {
         temperature,
         maxOutputTokens: 2048,
       };
-
-      // Matikan thinking untuk model yang mendukungnya (bukan 2.0)
-      if (!/2\.0/.test(model)) {
-        generationConfig.thinkingConfig = { thinkingBudget: 0 };
-      }
 
       if (responseSchema) {
         generationConfig.responseMimeType = "application/json";
