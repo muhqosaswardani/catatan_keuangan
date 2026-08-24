@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.8)';
+      const version = ' (v3.3.9)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10261,11 +10261,17 @@
       return query.eq('access_code', code);
     }
 
+    let syncInFlightPromise = null;
+    let resolveSyncInFlight = null;
     async function syncAllWithSupabase(silent = true) {
       // Hard block: never run sync while a full data reset is in progress
       if (isResettingData) return;
       if (isSyncingData) {
         isSyncNeededAgain = true;
+        // Sync lain lagi jalan bersamaan (mis. sync boot init() vs sync yang dipicu
+        // openTransactionModalWithSync). Daripada langsung nyerah & bikin caller
+        // pikir datanya "tidak ada", tunggu sync yang sedang berjalan itu selesai dulu.
+        if (syncInFlightPromise) { try { await syncInFlightPromise; } catch (e) {} }
         return;
       }
       if (!supabaseClient || !navigator.onLine) {
@@ -10275,6 +10281,7 @@
       }
 
       isSyncingData = true;
+      syncInFlightPromise = new Promise(res => { resolveSyncInFlight = res; });
       updateSyncStatusUI('syncing', !silent);
       const code = getAccessCode();
       const beforeHash = getContentHash();
@@ -10667,6 +10674,8 @@
           isSyncNeededAgain = false;
           setTimeout(() => syncAllWithSupabase(true), 100);
         }
+        if (typeof resolveSyncInFlight === 'function') resolveSyncInFlight();
+        syncInFlightPromise = null;
       }
     }
 
