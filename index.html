@@ -7950,8 +7950,6 @@
           <h3>Susun Bottom Nav</h3><button class="modal-close" onclick="closeModal('modalNavConfig')">&times;</button>
         </div>
         <div class="modal-body">
-          <p style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;line-height:1.5;">Pilih maksimal 5 halaman
-            untuk navigasi utama (Beranda selalu terkunci di sana). Sisanya otomatis masuk ke tombol "Lainnya".</p>
           <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Navigasi Utama</div>
           <div id="navConfigCoreList" style="margin-bottom:18px;"></div>
           <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Lainnya</div>
@@ -10394,7 +10392,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.52)';
+      const version = ' (v3.3.53)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
