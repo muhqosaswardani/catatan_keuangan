@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.7)';
+      const version = ' (v3.3.8)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15316,7 +15316,7 @@
         tx = getTransactions().find(t => t.id === id);
       }
       if (!tx) {
-        showToast('Transaksi belum ditemukan/belum sinkron, coba lagi sebentar.');
+        showToast('Transaksi ini sudah kedaluwarsa (dibatalkan otomatis krn >5 menit tidak dilengkapi) atau sudah dihapus. Silakan catat ulang manual.');
         return;
       }
       openTransactionModal(id);
