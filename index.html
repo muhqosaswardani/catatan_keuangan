@@ -9993,7 +9993,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.1.4)';
+      const version = ' (v3.1.5)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22108,6 +22108,10 @@ PERTANYAAN_USER:
       try {
         const p256dh = subJson.keys?.p256dh || '';
         const auth = subJson.keys?.auth || '';
+
+        // Bersihkan subscription lama milik user pada device/browser ini agar 1 HP = 1 Device aktif
+        await supabaseClient.from('push_subscriptions').delete().eq('user_id', currentUserId).eq('user_agent', navigator.userAgent);
+
         const { error } = await supabaseClient.from('push_subscriptions').upsert({
           user_id: currentUserId,
           endpoint: subJson.endpoint,
@@ -22197,10 +22201,15 @@ PERTANYAAN_USER:
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
-        if (!sub) return;
-        const endpoint = sub.endpoint;
-        await supabaseClient.from('push_subscriptions').delete().eq('endpoint', endpoint);
-        await sub.unsubscribe();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          await supabaseClient.from('push_subscriptions').delete().eq('endpoint', endpoint);
+          await sub.unsubscribe();
+        }
+        if (currentUserId) {
+          // Putuskan semua subscription user ini pada browser/device ini saat logout
+          await supabaseClient.from('push_subscriptions').delete().eq('user_id', currentUserId).eq('user_agent', navigator.userAgent);
+        }
       } catch (e) {
         console.error('[push] gagal unsubscribe saat logout:', e);
       }
