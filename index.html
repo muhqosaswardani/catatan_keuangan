@@ -10088,7 +10088,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.2.8)';
+      const version = ' (v3.2.9)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19042,6 +19042,7 @@
     let chatPendingReplyToMsgId = null;
     let chatSelectedFile = null;
     let chatFlushingPending = false;
+    let isChatSending = false;
 
     // ── Offline-queue helpers ─────────────────────────────────
     function getChatPendingQueue() {
@@ -19067,6 +19068,8 @@
 
     // Initialize chat
     function initChatState() {
+      // Clear legacy pending queue on start to prevent ghost dispatches
+      localStorage.removeItem('fk_chat_pending');
       const cfg = getNavConfig();
       if (cfg.chatHistory && Array.isArray(cfg.chatHistory)) {
         chatHistory = cfg.chatHistory;
@@ -19528,6 +19531,7 @@
 
     // Send user message
     async function sendChatMessage() {
+      if (isChatSending) return;
       const input = document.getElementById('chatInputText');
       if (!input) return;
 
@@ -19535,6 +19539,8 @@
       const file = chatSelectedFile;
 
       if (!text && !file) return;
+
+      isChatSending = true;
 
       // Capture reply context before clearing it
       let replyTo = null;
@@ -19576,58 +19582,64 @@
       input.value = '';
       clearChatAttachment();
       cancelChatReply(); // Close quote banner and clear variables immediately!
+      toggleChatActionBtn();
 
-      let imageBase64ForDisplay = null;
-      let imageDataForServer = null;
-      let imageMimeType = null;
+      try {
+        let imageBase64ForDisplay = null;
+        let imageDataForServer = null;
+        let imageMimeType = null;
 
-      if (file) {
-        try {
-          const part = await fileToGenerativePart(file);
-          imageBase64ForDisplay = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-          imageDataForServer = part.inlineData.data;
-          imageMimeType = part.inlineData.mimeType;
-        } catch (e) {
-          console.error(e);
-          showToast('Gagal memproses lampiran foto');
+        if (file) {
+          try {
+            const part = await fileToGenerativePart(file);
+            imageBase64ForDisplay = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            imageDataForServer = part.inlineData.data;
+            imageMimeType = part.inlineData.mimeType;
+          } catch (e) {
+            console.error(e);
+            showToast('Gagal memproses lampiran foto');
+          }
         }
+
+        // Build message ID dulu sebelum append agar bisa track status
+        const msgId = 'msg_web_' + uid();
+
+        // Append user bubble langsung (status: pending)
+        appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, msgId, replyTo, true /* pending */);
+
+        // Build payload
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+
+        const userProfile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
+        const userPhone = (userProfile && userProfile.nomor_wa) || (currentUserData && currentUserData.nomor_wa) || '6289626112023';
+
+        const payload = {
+          text: text,
+          from: userPhone,
+          user_id: currentUserId,
+          messageId: msgId,
+          contextId: contextId
+        };
+
+        if (imageDataForServer && imageMimeType) {
+          payload.image = { data: imageDataForServer, mimeType: imageMimeType };
+        }
+
+        if (!navigator.onLine) {
+          // Simpan ke antrian offline hanya jika koneksi mati
+          const pendingQueue = getChatPendingQueue();
+          pendingQueue.push({ payload, token: token || null, addedAt: Date.now(), replyTo });
+          saveChatPendingQueue(pendingQueue);
+          return;
+        }
+
+        // Kirim langsung saat online
+        await dispatchChatPayload(msgId, payload, token);
+      } finally {
+        isChatSending = false;
+        toggleChatActionBtn();
       }
-
-      // Build message ID dulu sebelum append agar bisa track status
-      const msgId = 'msg_web_' + uid();
-
-      // Append user bubble langsung (status: pending)
-      appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, msgId, replyTo, true /* pending */);
-
-      // Build payload
-      const { data: sessionData } = await supabaseClient.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      const userProfile = (typeof getUserProfile === 'function') ? getUserProfile() : null;
-      const userPhone = (userProfile && userProfile.nomor_wa) || (currentUserData && currentUserData.nomor_wa) || '6289626112023';
-
-      const payload = {
-        text: text,
-        from: userPhone,
-        user_id: currentUserId,
-        messageId: msgId,
-        contextId: contextId
-      };
-
-      if (imageDataForServer && imageMimeType) {
-        payload.image = { data: imageDataForServer, mimeType: imageMimeType };
-      }
-
-      if (!navigator.onLine) {
-        // Simpan ke antrian offline hanya jika koneksi mati
-        const pendingQueue = getChatPendingQueue();
-        pendingQueue.push({ payload, token: token || null, addedAt: Date.now(), replyTo });
-        saveChatPendingQueue(pendingQueue);
-        return;
-      }
-
-      // Kirim langsung saat online
-      await dispatchChatPayload(msgId, payload, token);
     }
 
     // Kirim satu payload ke Edge Function dan update status bubble
@@ -22284,17 +22296,6 @@ PERTANYAAN_USER:
         setTimeout(() => { if (typeof flushPendingChatMessages === 'function') flushPendingChatMessages(); }, 1000);
       });
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));
-
-      // Auto-retry berkala untuk pesan chat yang masih pending di antrian.
-      // Ini fallback untuk kasus koneksi tetap "online" di level OS/browser
-      // tapi request ke edge function gagal (timeout, cold start, dsb) —
-      // tanpa ini, bubble bisa nyangkut status pending selamanya karena event 'online'
-      // tidak pernah terpicu lagi (koneksi memang tidak pernah putus).
-      setInterval(() => {
-        if (navigator.onLine && !chatFlushingPending && getChatPendingQueue().length > 0) {
-          flushPendingChatMessages();
-        }
-      }, 15000);
       window.addEventListener('focus', () => { syncAllWithSupabase(true); activateDuePendingTransactions(); });
 
       // Setup auto-trigger keypad for amount inputs on mobile

@@ -900,7 +900,19 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+const recentWebChatResponses = new Map<string, { timestamp: number; responseBody: string }>();
+
+function cleanupRecentWebChat() {
+  const now = Date.now();
+  for (const [k, v] of recentWebChatResponses.entries()) {
+    if (now - v.timestamp > 180000) {
+      recentWebChatResponses.delete(k);
+    }
+  }
+}
+
     if (isWebChat) {
+      cleanupRecentWebChat();
       const db = getDb();
       let webPayload: Record<string, any>;
       try {
@@ -909,6 +921,15 @@ Deno.serve(async (req: Request) => {
         return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
           status: 400,
           headers: corsHeaders
+        });
+      }
+
+      if (webPayload.messageId && recentWebChatResponses.has(webPayload.messageId)) {
+        console.log(`[Deduplication] Message ID ${webPayload.messageId} already processed, returning cached response.`);
+        const cached = recentWebChatResponses.get(webPayload.messageId)!;
+        return new Response(cached.responseBody, {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
 
@@ -1014,7 +1035,11 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        return new Response(JSON.stringify({ success: true, messages: mappedMessages }), {
+        const respJson = JSON.stringify({ success: true, messages: mappedMessages });
+        if (webPayload.messageId) {
+          recentWebChatResponses.set(webPayload.messageId, { timestamp: Date.now(), responseBody: respJson });
+        }
+        return new Response(respJson, {
           status: 200,
           headers: corsHeaders
         });
