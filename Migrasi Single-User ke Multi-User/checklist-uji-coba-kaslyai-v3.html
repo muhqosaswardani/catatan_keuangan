@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checklist Uji Coba — KaslyAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F7F6; --surface:#FFFFFF; --surface-2:#EEF2F1; --ink:#152524; --ink-soft:#5B6A68;
+    --line:#E3E9E7; --accent:#0F766E; --accent-dark:#0B5951; --accent-soft:#DCF1EE;
+    --warn:#B7791F; --warn-soft:#FCF0DC; --ok:#1E8F5A; --ok-soft:#E3F5EB; --fail:#C4453B; --fail-soft:#FBE7E5;
+    --radius-l:20px; --radius-m:14px; --radius-s:10px;
+    --shadow:0 1px 2px rgba(21,37,36,0.04), 0 8px 24px -12px rgba(21,37,36,0.18);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:60px;}
+  .wrap{max-width:660px;margin:0 auto;padding:22px 16px 40px;}
+  h1{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin:0 0 4px;}
+  .kasly{font-family:'Sora',sans-serif;}
+  .kasly .k{color:var(--ink);}
+  .kasly .ai{color:var(--accent);}
+  .subtitle{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0 0 8px;}
+  .subtitle.hint{color:var(--accent-dark);font-weight:600;margin-bottom:20px;}
+
+  .overall-card{background:var(--surface);border-radius:var(--radius-l);box-shadow:var(--shadow);padding:18px;margin-bottom:22px;position:sticky;top:12px;z-index:50;}
+  .overall-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .overall-top .label{font-size:12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+  .overall-top .count{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:var(--accent-dark);}
+  .bar-outer{height:10px;background:var(--surface-2);border-radius:100px;overflow:hidden;display:flex;}
+  .bar-inner-ok{height:100%;background:var(--ok);width:0%;transition:width .3s ease;}
+  .bar-inner-fail{height:100%;background:var(--fail);width:0%;transition:width .3s ease;}
+  .overall-status{margin-top:12px;font-size:13px;font-weight:700;padding:10px 12px;border-radius:var(--radius-s);background:var(--surface-2);color:var(--ink-soft);text-align:center;transition:all .25s ease;}
+  .overall-status.ready{background:var(--ok-soft);color:var(--ok);}
+  .overall-status.hasfail{background:var(--fail-soft);color:var(--fail);}
+  .overall-actions{display:flex;gap:8px;margin-top:12px;}
+  .btn-export{flex:1;background:var(--accent);color:#fff;border:none;font-family:inherit;font-weight:700;font-size:12.5px;padding:11px;border-radius:var(--radius-s);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .btn-export:active{background:var(--accent-dark);}
+  .btn-reset-sm{background:none;border:1.5px solid var(--line);color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:12.5px;padding:11px 14px;border-radius:var(--radius-s);cursor:pointer;}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(21,37,36,.5);z-index:200;align-items:flex-end;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal-card{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:20px 18px calc(20px + env(safe-area-inset-bottom));animation:slideUp .22s ease;}
+  @keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  .modal-title{font-family:'Sora',sans-serif;font-size:16px;font-weight:800;margin:0 0 4px;}
+  .modal-sub{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
+  .modal-opt{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--radius-m);padding:14px;margin-bottom:10px;cursor:pointer;font-family:inherit;}
+  .modal-opt:active{background:var(--accent-soft);border-color:var(--accent);}
+  .modal-opt-icon{width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .modal-opt-text b{display:block;font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+  .modal-opt-text span{font-size:12px;color:var(--ink-soft);line-height:1.45;}
+  .modal-cancel{display:block;width:100%;text-align:center;background:none;border:none;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;padding:10px;margin-top:2px;cursor:pointer;}
+
+  .free-form textarea{width:100%;border:1.5px solid var(--line);border-radius:var(--radius-s);padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink);resize:vertical;min-height:64px;background:var(--surface);}
+  .free-form textarea:focus{outline:none;border-color:var(--accent);}
+  .free-photo-row{display:flex;gap:8px;margin-top:8px;}
+  .free-photo-btn{flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--surface-2);border:1.5px solid var(--line);border-radius:var(--radius-s);padding:9px 12px;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  .free-photo-btn.has-photo{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-dark);}
+  .free-add-btn{flex:1;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-s);font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;}
+  .free-add-btn:active{background:var(--accent-dark);}
+  .free-photo-preview{display:block;max-width:100%;max-height:160px;border-radius:var(--radius-s);margin-top:10px;border:1.5px solid var(--line);object-fit:cover;}
+
+  .free-item{background:var(--surface-2);border-radius:var(--radius-m);padding:12px;margin-top:12px;position:relative;}
+  .free-item-text{font-size:13px;line-height:1.55;padding-right:26px;white-space:pre-wrap;}
+  .free-item-photo{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius-s);margin-top:10px;border:1px solid var(--line);}
+  .free-item-del{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .free-item-edit{position:absolute;top:10px;right:38px;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+  .pr-free-item{page-break-before:always; break-before:page; page-break-inside:avoid; break-inside:avoid; padding-top:6px;}
+  .pr-free-first h2{font-family:'Sora',sans-serif;font-size:14.5px;margin:0 0 10px;border-bottom:2px solid #152524;padding-bottom:4px;}
+  .pr-free-first .pr-free-photo{max-height:170mm;}
+  .pr-free-text{font-size:12px;line-height:1.6;white-space:pre-wrap;}
+  .pr-free-photo{display:block;max-width:100%;max-height:195mm;width:auto;height:auto;object-fit:contain;margin:10px auto 0;border:1px solid #ccc;border-radius:4px;}
+
+  .mode-row{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+  .mode-text{flex:1;display:flex;flex-direction:column;gap:2px;}
+  .mode-title{font-size:12px;font-weight:700;color:var(--ink);}
+  .mode-desc{font-size:11px;color:var(--ink-soft);line-height:1.4;}
+  .switch{flex-shrink:0;width:44px;height:26px;border-radius:100px;border:none;background:var(--surface-2);position:relative;cursor:pointer;padding:3px;transition:background .2s ease;}
+  .switch.on{background:var(--accent);}
+  .switch-knob{display:block;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s ease;}
+  .switch.on .switch-knob{transform:translateX(18px);}
+
+  .phase{background:var(--surface);border-radius:var(--radius-l);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+  .phase-head{display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;user-select:none;}
+  .phase-num{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:800;font-size:14px;flex-shrink:0;}
+  .phase-head.done .phase-num{background:var(--ok);color:#fff;}
+  .phase-head.hasfail .phase-num{background:var(--fail);color:#fff;}
+  .phase-title-wrap{flex:1;min-width:0;}
+  .phase-title{font-size:15.5px;font-weight:800;font-family:'Sora',sans-serif;}
+  .phase-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .phase-chevron{color:var(--ink-soft);transition:transform .2s ease;flex-shrink:0;}
+  .phase-chevron.open{transform:rotate(180deg);}
+  .phase-body{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+  .phase-body.open{max-height:8000px;}
+  .phase-body-inner{padding:0 18px 18px;}
+
+  .grp-label{font-size:11px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;}
+  .grp-label:first-child{margin-top:0;}
+  .grp-label.warn-label{color:var(--warn);}
+
+  .item{padding:11px 0;border-bottom:1px solid var(--line);}
+  .item:last-child{border-bottom:none;}
+  .item-row{display:flex;align-items:flex-start;gap:10px;}
+  .item-text{flex:1;font-size:13.5px;line-height:1.55;}
+  .item-text b{font-weight:700;}
+  .item.status-ok .item-text{color:var(--ink-soft);}
+  .status-btns{display:flex;gap:5px;flex-shrink:0;}
+  .status-btn{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);transition:all .12s ease;}
+  .status-btn:active{transform:scale(.92);}
+  .status-btn.ok-btn.active{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .status-btn.fail-btn.active{background:var(--fail);border-color:var(--fail);color:#fff;}
+  .note-wrap{display:none;margin:8px 0 0 0;}
+  .item.status-fail .note-wrap, .item.has-note .note-wrap{display:block;}
+  .note-wrap textarea{width:100%;border:1.5px solid var(--fail);background:var(--fail-soft);border-radius:var(--radius-s);padding:8px 10px;font-family:inherit;font-size:12.5px;color:var(--ink);resize:vertical;min-height:44px;}
+  .note-wrap textarea::placeholder{color:#b98882;}
+
+  .reset-btn{display:block;width:100%;margin-top:20px;background:none;border:1.5px solid var(--line);color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:12.5px;padding:10px;border-radius:var(--radius-s);cursor:pointer;}
+  .reset-btn:active{background:var(--surface-2);}
+
+  /* ============ TAMPILAN CETAK / SIMPAN PDF ============ */
+  #printReport{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    .wrap > *:not(#printReport){display:none !important;}
+    #printReport, #printReport *{visibility:visible;}
+    #printReport{display:block !important;position:absolute;left:0;top:0;width:100%;padding:0;}
+    .pr-header{margin-bottom:18px;}
+    .pr-header h1{font-family:'Sora',sans-serif;font-size:20px;margin:0 0 4px;}
+    .pr-meta{font-size:11px;color:#555;}
+    .pr-summary{font-size:12.5px;font-weight:700;margin:10px 0 4px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;}
+    .pr-phase{margin-top:16px;page-break-inside:avoid;}
+    .pr-phase h2{font-family:'Sora',sans-serif;font-size:14.5px;margin:0 0 8px;border-bottom:2px solid #152524;padding-bottom:4px;}
+    .pr-item{font-size:11.5px;line-height:1.5;padding:5px 0;border-bottom:1px dotted #ccc;display:flex;gap:8px;}
+    .pr-tag{flex-shrink:0;font-weight:800;font-size:10px;padding:1px 7px;border-radius:100px;height:fit-content;margin-top:1px;}
+    .pr-tag.ok{background:#E3F5EB;color:#1E8F5A;}
+    .pr-tag.fail{background:#FBE7E5;color:#C4453B;}
+    .pr-tag.pending{background:#eee;color:#777;}
+    .pr-note{font-size:11px;color:#C4453B;margin-top:2px;font-style:italic;white-space:pre-wrap;}
+    .pr-ai-note{font-size:11px;line-height:1.6;background:#F3F0FF;border:1px dashed #6D5BD0;border-radius:6px;padding:10px 12px;margin:12px 0 18px;color:#3D3470;}
+    .pr-ai-note b{color:#2A2358;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1 class="kasly"><span class="k">Kasly</span><span class="ai">AI</span> — Checklist Uji Coba (Final)</h1>
+  <p class="subtitle">Semua Fase 1, 2, 3 tampil sekaligus — cocok dipakai kalau ketiga fase sudah selesai dibangun, buat uji coba menyeluruh.</p>
+  <p class="subtitle hint">Tersimpan otomatis di perangkat ini.</p>
+
+  <div class="overall-card">
+    <div class="overall-top">
+      <span class="label">Total progres</span>
+      <span class="count" id="overallCount">0 / 0</span>
+    </div>
+    <div class="bar-outer"><div class="bar-inner-ok" id="barOk"></div><div class="bar-inner-fail" id="barFail"></div></div>
+    <div class="overall-status" id="overallStatus">Belum ada yang dicek</div>
+    <div class="overall-actions">
+      <button class="btn-export" onclick="openModeModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Simpan sebagai PDF
+      </button>
+      <button class="btn-reset-sm" onclick="resetAll()">Kosongkan</button>
+    </div>
+  </div>
+
+  <!-- ================= TAHAP 1 ================= -->
+  <div class="phase" data-phase="1">
+    <div class="phase-head" onclick="togglePhase(1)">
+      <div class="phase-num">1</div>
+      <div class="phase-title-wrap">
+        <div class="phase-title">Daftar & Masuk Aplikasi</div>
+        <div class="phase-sub" id="phaseSub1">0 dari 0 selesai</div>
+      </div>
+      <svg class="phase-chevron open" id="chev1" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="phase-body open" id="body1">
+      <div class="phase-body-inner">
+
+        <div class="grp-label">Cara pakai biasa</div>
+        <div class="item"><div class="item-row"><span class="item-text">Buka link aplikasi → yang muncul pertama adalah halaman perkenalan, bukan langsung masuk ke aplikasi.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Isi nama dan nomor WhatsApp, lalu centang kotak persetujuan → tombol lanjut baru bisa ditekan setelah kotak itu dicentang.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan tombol "Verifikasi lewat WhatsApp" → WhatsApp otomatis terbuka dengan pesan berisi kode yang sudah terisi sendiri (tidak perlu ketik manual).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kirim pesan itu ke nomor resmi KaslyAI → tanpa perlu refresh apa-apa, aplikasi otomatis lanjut sendiri ke langkah berikutnya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Lewati penjelasan singkat (4 halaman perkenalan fitur), lalu pilih mau pakai AI gratis bawaan atau API key sendiri.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kalau pilih "pakai API key sendiri" → muncul panduan langkah-demi-langkah cara ambil API key gratis dari Google AI Studio.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Saat atur dompet awal, coba tambah lebih dari 1 dompet → semuanya berhasil disimpan.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Saat atur kategori awal, coba tambah kategori baru, ubah nama/ikon salah satu kategori bawaan, dan hapus satu kategori → semuanya berhasil.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Setelah semua langkah selesai → sampai ke halaman utama aplikasi dan siap dipakai.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Pakai fitur dasar (tambah/ubah/hapus data)</div>
+        <div class="item"><div class="item-row"><span class="item-text">Sebagai <b>user</b>: tambah dompet baru dari dalam aplikasi (bukan pas onboarding) → langsung muncul di daftar dompet.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Ubah nama/saldo dompet yang sudah ada, lalu hapus salah satu dompet → perubahan tersimpan, dompet yang dihapus hilang dari daftar.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tambah kategori baru, ubah nama/ikon salah satu kategori, dan hapus satu kategori dari dalam aplikasi (bukan pas onboarding) → semuanya tersimpan.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Catat transaksi <b>pemasukan</b> secara manual → masuk ke riwayat, saldo dompet ikut bertambah sesuai nominal.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Catat transaksi <b>pengeluaran</b> secara manual → masuk ke riwayat, saldo dompet ikut berkurang sesuai nominal.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Ubah (edit) transaksi yang sudah tercatat, misal ganti nominal atau kategorinya → perubahan tersimpan, saldo dompet ikut menyesuaikan otomatis.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Hapus transaksi secara manual dari riwayat → hilang dari daftar, saldo dompet ikut menyesuaikan (kembali seperti sebelum transaksi itu ada).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Data antar akun benar-benar terpisah</div>
+        <div class="item"><div class="item-row"><span class="item-text">Daftar 2 akun berbeda (nomor WA beda), masing-masing catat beberapa dompet & transaksi → login sebagai akun A, pastikan <b>tidak ada satupun</b> data milik akun B yang kelihatan (dompet, transaksi, kategori, dll).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Cek langsung dari tampilan Supabase → tiap baris data (dompet, transaksi, kategori) tercatat kepunyaan akun/user yang benar, tidak ada yang salah pemilik atau tidak jelas pemiliknya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Sinkron data antar perangkat</div>
+        <div class="item"><div class="item-row"><span class="item-text">Login akun yang sama di 2 perangkat berbeda secara bersamaan (misal HP + laptop) → keduanya berhasil masuk tanpa saling logout paksa.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tambah transaksi baru di perangkat pertama → buka/refresh di perangkat kedua, transaksi itu ikut muncul di sana.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Edit atau hapus transaksi di perangkat kedua → perangkat pertama ikut ter-update juga (setelah refresh/dibuka lagi).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Pasang aplikasi ke layar utama</div>
+        <div class="item"><div class="item-row"><span class="item-text">Browser menawarkan opsi "Tambahkan ke Layar Utama" / "Install Aplikasi" saat aplikasi dibuka.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Setelah dipasang, muncul ikon di layar utama HP dan bisa dibuka seperti aplikasi biasa (tanpa kelihatan address bar browser).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Keluar & pindah akun</div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan tombol "Keluar" di halaman pengaturan → muncul dulu pertanyaan "Yakin mau keluar?" sebelum benar-benar keluar.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kalau ada catatan transaksi yang dibuat saat offline dan belum sempat tersinkron, coba tekan "Keluar" → ada peringatan tambahan dulu sebelum diizinkan keluar.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Setelah keluar, buka aplikasi lagi → diminta isi nomor WA & verifikasi ulang dari awal (tidak otomatis masuk lagi).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Masukkan nomor WA yang sudah pernah terdaftar sebelumnya → begitu verifikasi berhasil, langsung ke halaman utama dengan data lama (tidak disuruh ulang isi dompet/kategori/pilih AI lagi).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Di HP yang sama: keluar dari akun pertama, lalu daftar/masuk pakai nomor WA lain → berhasil, dan data kedua akun ini terpisah rapi, tidak tercampur.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Coba dipakai tanpa internet</div>
+        <div class="item"><div class="item-row"><span class="item-text">Matikan koneksi internet HP, lalu coba catat transaksi manual → tetap bisa dicatat seperti biasa.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Nyalakan lagi internetnya → transaksi yang dicatat tadi otomatis muncul/tersinkron ke server tanpa perlu diapa-apakan lagi.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label warn-label">Percobaan sengaja bikin gagal (uji keamanan)</div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba daftar 2 kali pakai nomor WhatsApp yang persis sama → yang kedua harus ditolak/diarahkan ke pesan "sudah pernah daftar", bukan malah bikin akun baru.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Buka aplikasi dari HP/browser lain pakai nomor yang sama, tanpa keluar dulu dari HP pertama → diminta verifikasi ulang, <b>tapi HP pertama tidak ikut ter-keluar otomatis</b> (dua-duanya tetap bisa dipakai bersamaan).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Di HP yang sama, tutup aplikasi lalu buka lagi → langsung masuk seperti biasa, tidak diminta verifikasi ulang.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba tekan tombol lanjut tanpa mencentang kotak persetujuan → tidak bisa lanjut sama sekali.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Minta kode verifikasi lalu kirim dari nomor WhatsApp yang beda dengan nomor yang tadi didaftarkan di form → harus ditolak, tidak dianggap berhasil verifikasi.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Cek daftar penyimpanan data di belakang layar (lewat tampilan Supabase) → data user & transaksi baru sudah tersimpan terhubung ke akun/nomor WA masing-masing, bukan lagi memakai satu kode akses lama yang dipakai bersama.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Cek nomor WhatsApp yang dulu dipakai untuk uji coba (sebelum migrasi) → otomatis sudah tersambung ke akun admin, tidak perlu verifikasi ulang dari nol.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAHAP 2 ================= -->
+  <div class="phase" data-phase="2">
+    <div class="phase-head" onclick="togglePhase(2)">
+      <div class="phase-num">2</div>
+      <div class="phase-title-wrap">
+        <div class="phase-title">WhatsApp & Notifikasi HP</div>
+        <div class="phase-sub" id="phaseSub2">0 dari 0 selesai</div>
+      </div>
+      <svg class="phase-chevron" id="chev2" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="phase-body" id="body2">
+      <div class="phase-body-inner">
+
+        <div class="grp-label">Halaman promosi</div>
+        <div class="item"><div class="item-row"><span class="item-text">Buka link halaman promosi (yang rencananya dibagikan di TikTok) → tampil dengan benar, ada tombol "coba gratis" dan tombol "chat admin".</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan tombol "coba gratis" → mengarah ke alur daftar aplikasi (Tahap 1).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan tombol "chat admin" → membuka WhatsApp ke nomor pribadi/bisnis admin (bukan nomor resmi KaslyAI).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Kirim transaksi lewat WhatsApp</div>
+        <div class="item"><div class="item-row"><span class="item-text">Matikan dulu saklar "Balasan Otomatis WA" di pengaturan, lalu kirim foto struk/teks transaksi ke nomor resmi KaslyAI → tidak ada balasan apapun di WhatsApp, tapi notifikasi muncul di HP.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan notifikasi itu → transaksinya ternyata sudah otomatis tersimpan (kelihatan di riwayat transaksi aplikasi).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba hapus transaksi langsung dari tombol di notifikasi (tanpa buka aplikasi) → transaksi benar-benar terhapus, lalu begitu aplikasi dibuka muncul pilihan "Batalkan/Undo".</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kirim pesan yang datanya kurang lengkap (misal "beli makan" tanpa sebut nominal) → jadi transaksi berstatus draf, notifikasinya juga beda ("perlu dilengkapi"), bukan langsung dianggap selesai.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan notifikasi "perlu dilengkapi" tadi → terbuka ke halaman edit dengan data yang sudah kebaca AI (kategori dll) sudah otomatis terisi, tinggal lengkapi nominalnya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Nyalakan lagi saklar "Balasan Otomatis WA" di pengaturan, lalu ulangi kirim struk → sekarang dapat balasan langsung di chat WhatsApp seperti biasa.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Selagi saklar menyala, kirim transaksi yang datanya kurang lengkap → AI bertanya balik lewat chat WhatsApp (bukan langsung dianggap draf).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kirim 1 struk belanja yang isinya campuran beberapa kategori (misal galon + bensin + kopi) → tersimpan sebagai beberapa transaksi terpisah, masing-masing dapat notifikasi sendiri-sendiri.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kirim pesan dari nomor WhatsApp asing yang belum pernah terdaftar/terverifikasi sama sekali → tidak dibalas apapun, diabaikan begitu saja.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Semua link & tombol berfungsi benar</div>
+        <div class="item"><div class="item-row"><span class="item-text">Link halaman promosi bisa dibuka dari perangkat manapun, tanpa perlu login/daftar dulu buat sekadar melihat halamannya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tombol WA di halaman promosi <b>dan</b> di layar promo dalam-aplikasi, dua-duanya diperiksa satu-satu → mengarah ke nomor yang benar sesuai tujuan masing-masing (tidak tertukar).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba cari di semua halaman yang bisa diakses publik (halaman promosi, layar awal aplikasi, dst) → tidak ada satupun tombol/link yang mengarah ke halaman admin. Link admin cuma diketahui dari kamu sendiri.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label warn-label">Percobaan gagal tambahan (isi pesan aneh/tidak jelas)</div>
+        <div class="item"><div class="item-row"><span class="item-text">Kirim foto yang bukan struk/tidak berkaitan (misal foto pemandangan) ke nomor resmi KaslyAI → <b>tidak</b> asal dicatat jadi transaksi ngawur; AI membalas natural lewat chat WA menjelaskan itu bukan transaksi (coba saat toggle "Balasan Otomatis WA" ON <b>dan</b> OFF, dua-duanya harus tetap dibalas lewat WA).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kirim pesan teks yang sangat panjang atau ngasal/tidak jelas maksudnya (bukan indikasi transaksi) → sistem tidak error, tidak salah catat jadi transaksi, dan tetap dibalas natural lewat chat WA baik toggle ON maupun OFF.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Minta 2 orang (2 akun WA berbeda) kirim struk ke nomor resmi KaslyAI di waktu yang berdekatan/bersamaan → transaksi masing-masing tercatat ke akun yang benar, sama sekali tidak tertukar/nyasar ke akun lain.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Pintasan & pertanyaan umum</div>
+        <div class="item"><div class="item-row"><span class="item-text">Di menu Pengaturan, tekan tombol "Pasang Pintasan Chat ke Layar Utama" → muncul prompt install terpisah, dan setelah dipasang muncul <b>ikon baru</b> (terpisah dari ikon utama) di layar utama HP.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan ikon Chat yang baru dipasang tadi → langsung membuka fitur chat full-screen yang sudah ada, tidak ikut berubah.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Di menu Pengaturan, tekan tombol "Pasang Pintasan Transaksi AI ke Layar Utama" → muncul prompt install terpisah, dan setelah dipasang muncul <b>ikon ke-3</b> (beda dari ikon utama & ikon Chat) di layar utama HP.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan ikon Transaksi AI yang baru dipasang tadi → alurnya beda dari fitur "Transaksi AI" yang lama di dalam aplikasi (yang lama masih ada langkah tinjau & tombol simpan manual, jangan sampai tertukar/hilang); yang baru langsung tersimpan otomatis + notifikasi.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tanpa pernah menekan kedua tombol pasang pintasan tadi → tidak ada ikon Chat/Transaksi AI tambahan yang muncul sendiri di layar utama (pintasan ini sifatnya opsional, bukan otomatis).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Saat saklar WA sedang mati, tanya hal umum lewat WhatsApp (misal "saldo saya berapa?") → jawabannya tetap muncul, tapi lewat notifikasi HP, bukan balasan WA.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Saat saklar WA sedang mati, coba ketik "koreksi" atau "limit" atau "tujuan" di WhatsApp → fitur itu tidak berjalan, tapi tetap ada notifikasi yang mengarahkan untuk pakai fitur itu di aplikasi web.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Saat saklar WA menyala, coba lagi ketik "koreksi"/"limit"/"tujuan" → fitur mode ini berjalan normal seperti biasa lewat chat WA.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAHAP 3 ================= -->
+  <div class="phase" data-phase="3">
+    <div class="phase-head" onclick="togglePhase(3)">
+      <div class="phase-num">3</div>
+      <div class="phase-title-wrap">
+        <div class="phase-title">Masa Coba, Kode Langganan & Halaman Admin</div>
+        <div class="phase-sub" id="phaseSub3">0 dari 0 selesai</div>
+      </div>
+      <svg class="phase-chevron" id="chev3" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="phase-body" id="body3">
+      <div class="phase-body-inner">
+
+        <div class="grp-label">Masa coba gratis & kode langganan</div>
+        <div class="item"><div class="item-row"><span class="item-text">Daftar akun baru → fitur AI (chat, baca transaksi otomatis) langsung bisa dipakai sejak hari pertama, tanpa perlu kode apapun dulu.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Minta masa coba gratis-nya diatur jadi sangat singkat dulu (misal 1 hari) lewat halaman admin, lalu tunggu sampai lewat waktu itu → fitur AI jadi terkunci, tapi catat transaksi manual tetap bisa dipakai seperti biasa selamanya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Begitu masa coba habis, muncul pemberitahuan di aplikasi yang mengarahkan untuk berlangganan, lengkap dengan kolom buat masukkan kode.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba pakai fitur AI lewat WhatsApp saat masa coba sudah habis → tetap ikut terkunci juga (bukan cuma terkunci di tampilan aplikasi/web saja).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Masukkan kode langganan yang salah/asal-asalan → muncul pesan yang jelas kalau kodenya tidak ditemukan/salah.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Masukkan kode langganan yang benar → fitur AI langsung aktif lagi, baik di web maupun WhatsApp.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba pakai kode yang sama itu lagi di akun lain → ditolak, tidak bisa dipakai ulang.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Akun milik admin sendiri (bukan akun user biasa) → tetap ikut kena aturan masa coba & butuh kode juga, tidak otomatis bebas selamanya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+        <div class="grp-label">Halaman khusus admin</div>
+        <div class="item"><div class="item-row"><span class="item-text">Daftar akun user baru dari sisi pengguna biasa → langsung (atau setelah refresh singkat) muncul di daftar Pengguna pada halaman admin, tidak perlu waktu lama.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba buka link halaman admin langsung tanpa login dulu (buka di browser lain/mode penyamaran) → tidak bisa masuk, diminta login dulu.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Login ke halaman admin pakai email & kata sandi → berhasil masuk dan bisa lihat daftar pengguna.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Di daftar pengguna: nomor WhatsApp tiap orang ditampilkan sebagian disamarkan (tidak ditampilkan utuh), dan kolom pencarian nama berfungsi.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Angka ringkasan di atas (total pengguna, masih coba gratis, sudah habis, sudah bayar) sesuai dengan jumlah pengguna yang sebenarnya.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba tekan tombol "Kirim Kode" saat stok kode langganan sedang habis → diberi tahu jelas kalau stoknya habis, bukan diam saja/error tanpa keterangan.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Bikin kode baru lewat halaman "Kode Token" → kode baru muncul di daftar dengan status "belum dipakai".</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan tombol "Reset WhatsApp" pada salah satu pengguna → pengguna itu diminta verifikasi ulang begitu dia buka aplikasinya lagi.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tekan tombol "Hapus Akun" pada salah satu pengguna → tombol konfirmasi <b>tidak bisa ditekan</b> sebelum mengetik "HAPUS" di kolom yang disediakan.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Ketik "HAPUS" lalu konfirmasi hapus akun → akun itu hilang dari daftar Pengguna, dan seluruh data terkait (dompet, transaksi, kategori, budget, tujuan tabungan, utang-piutang) ikut terhapus permanen (cek juga langsung dari tampilan Supabase).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Setelah akun dihapus, coba daftar ulang dari awal (alur Daftar biasa) pakai nomor WA yang sama persis dengan akun yang tadi dihapus → berhasil didaftarkan sebagai akun benar-benar baru (onboarding dari nol: verifikasi WA, setup dompet & kategori lagi), <b>bukan</b> ditolak/dianggap nomor sudah terdaftar.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Kalau akun yang dihapus tadi sebelumnya sudah pernah pakai kode token (status sudah bayar) → cek di menu Kode Token, kode itu tetap berstatus "sudah dipakai" (tidak kembali jadi stok tersedia).</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Ubah lama masa coba gratis di halaman pengaturan admin ke angka lain → yang berubah cuma akun baru yang daftar setelahnya, akun-akun lama yang sudah ada tidak ikut berubah.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tambah API key AI bersama baru di halaman admin → berhasil masuk daftar, dan bisa dihapus lagi kapan saja.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Tambah API key pribadi khusus admin (terpisah dari yang bersama) → tersimpan dan bisa dipakai duluan sebelum jatuh ke API key bersama.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Cek dari sisi teknis (Network tab di browser) saat aplikasi memanggil AI → kunci API itu tidak pernah kelihatan/terkirim ke tampilan pengguna. <b>Kalau sampai kelihatan, ini masalah keamanan serius dan wajib dibenerin dulu sebelum lanjut.</b></span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Coba bikin API key yang salah/kadaluarsa lalu pakai fitur AI → muncul pesan ramah yang mudah dimengerti (bukan pesan error mentah dari Google), dan sistem coba pindah otomatis ke key lain yang tersimpan.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+        <div class="item"><div class="item-row"><span class="item-text">Buka halaman admin dari 2 perangkat berbeda secara bersamaan (login admin di keduanya) → tidak error, dua-duanya tetap bisa dipakai.</span><span class="status-btns"></span></div><div class="note-wrap"><textarea placeholder="Tulis apa yang terjadi..."></textarea></div></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BUG/CATATAN TAMBAHAN (KETIK BEBAS) ================= -->
+  <div class="phase" data-phase="free">
+    <div class="phase-head" onclick="togglePhase('Free')">
+      <div class="phase-num">＋</div>
+      <div class="phase-title-wrap">
+        <div class="phase-title">Bug / Catatan Tambahan</div>
+        <div class="phase-sub" id="freeSub">Ketik bebas, boleh lampirkan foto</div>
+      </div>
+      <svg class="phase-chevron" id="chevFree" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="phase-body" id="bodyFree">
+      <div class="phase-body-inner">
+
+        <div class="free-form">
+          <textarea id="freeText" placeholder="Tulis bug/catatan yang mau ditambahkan..." rows="3"></textarea>
+          <div class="free-photo-row">
+            <label class="free-photo-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span id="freePhotoLabel">Lampirkan Foto</span>
+              <input type="file" accept="image/*" id="freePhotoInput" style="display:none" onchange="onFreePhotoSelected(event)">
+            </label>
+            <button class="free-add-btn" id="freeAddBtn" onclick="addFreeItem()">+ Tambah ke Daftar</button>
+          </div>
+          <img id="freePhotoPreview" class="free-photo-preview" style="display:none">
+        </div>
+
+        <div id="freeList"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <button class="reset-btn" onclick="resetAll()">Kosongkan semua tanda</button>
+
+</div>
+
+<!-- ============ POP UP PILIH JENIS KALIMAT AI SEBELUM SIMPAN PDF ============ -->
+<div class="modal-overlay" id="modeModal">
+  <div class="modal-card">
+    <div class="modal-title">Kalimat untuk AI di PDF ini mau yang mana?</div>
+
+    <button class="modal-opt" onclick="exportPdf(false)">
+      <span class="modal-opt-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </span>
+      <span class="modal-opt-text">
+        <b>Minta AI buatkan prompt</b>
+        <span>Disusun dulu, kamu yang kirim ke Antigravity.</span>
+      </span>
+    </button>
+
+    <button class="modal-opt" onclick="exportPdf(true)">
+      <span class="modal-opt-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </span>
+      <span class="modal-opt-text">
+        <b>Langsung eksekusi ke Antigravity</b>
+        <span>Tinggal lampirkan, tanpa minta prompt lagi.</span>
+      </span>
+    </button>
+
+    <button class="modal-cancel" onclick="closeModeModal()">Batal</button>
+  </div>
+</div>
+
+<!-- ============ TEMPLATE LAPORAN UNTUK DICETAK/DISIMPAN JADI PDF ============ -->
+<div id="printReport">
+  <div class="pr-header">
+    <h1>KaslyAI — Laporan Hasil Uji Coba</h1>
+    <div class="pr-meta" id="prDate"></div>
+  </div>
+  <div class="pr-summary" id="prSummary"></div>
+  <div class="pr-ai-note" id="prAiNote"></div>
+  <div id="prBody"></div>
+</div>
+
+<script>
+const PHASE_NAMES = {1:'Tahap 1 — Daftar & Masuk Aplikasi', 2:'Tahap 2 — WhatsApp & Notifikasi HP', 3:'Tahap 3 — Masa Coba, Kode Langganan & Halaman Admin'};
+const STORAGE_KEY = 'kaslyai_checklist_v2';
+
+function loadSaved(){
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; }
+  catch(e){ return {}; }
+}
+function saveState(){
+  try {
+    const state = {};
+    document.querySelectorAll('.item').forEach(item => {
+      state[item.dataset.key] = { status: item.dataset.status || '', note: item.querySelector('textarea').value };
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch(e){ /* kalau gagal simpan (mis. mode private/incognito), status tetap jalan di layar, cuma tidak tersimpan permanen */ }
+}
+
+// bangun tombol status (Oke / Gagal) untuk tiap item, dan kasih "nama" unik biar bisa dikenali lagi
+document.querySelectorAll('.phase').forEach(phase => {
+  const n = phase.dataset.phase;
+  phase.querySelectorAll('.item').forEach((item, idx) => {
+    item.dataset.key = 'p' + n + '-' + idx;
+    const btnWrap = item.querySelector('.status-btns');
+    btnWrap.innerHTML =
+      '<button type="button" class="status-btn ok-btn" title="Oke" onclick="setStatus(this,\'ok\')">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' +
+      '</button>' +
+      '<button type="button" class="status-btn fail-btn" title="Gagal" onclick="setStatus(this,\'fail\')">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+      '</button>';
+  });
+});
+
+function setStatus(btn, val){
+  const item = btn.closest('.item');
+  const current = item.dataset.status;
+  const next = (current === val) ? '' : val; // tekan lagi tombol yang sama = batal pilih
+  item.dataset.status = next;
+  item.classList.remove('status-ok','status-fail');
+  item.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+  if(next === 'ok'){ item.classList.add('status-ok'); item.querySelector('.ok-btn').classList.add('active'); }
+  if(next === 'fail'){ item.classList.add('status-fail'); item.querySelector('.fail-btn').classList.add('active'); }
+  saveState();
+  updateAll();
+}
+
+// muat status yang tersimpan sebelumnya
+const saved = loadSaved();
+document.querySelectorAll('.item').forEach(item => {
+  const s = saved[item.dataset.key];
+  if(s && s.status){
+    item.dataset.status = s.status;
+    item.classList.add(s.status === 'ok' ? 'status-ok' : 'status-fail');
+    item.querySelector(s.status === 'ok' ? '.ok-btn' : '.fail-btn').classList.add('active');
+  }
+  if(s && s.note){ item.querySelector('textarea').value = s.note; }
+});
+document.querySelectorAll('.item textarea').forEach(ta => {
+  const item = ta.closest('.item');
+  if(ta.value.trim()) item.classList.add('has-note'); // catatan lama tetap kelihatan walau statusnya sudah bukan Gagal
+  ta.addEventListener('input', () => {
+    item.classList.toggle('has-note', !!ta.value.trim());
+    saveState();
+  });
+});
+
+function countPhase(n){
+  const items = document.querySelectorAll('.phase[data-phase="'+n+'"] .item');
+  let ok = 0, fail = 0;
+  items.forEach(i => { if(i.dataset.status === 'ok') ok++; else if(i.dataset.status === 'fail') fail++; });
+  return { ok, fail, total: items.length };
+}
+
+function updateAll(){
+  let totalOk = 0, totalFail = 0, totalAll = 0;
+  let allOk = true;
+
+  for(let n=1; n<=3; n++){
+    const { ok, fail, total } = countPhase(n);
+    totalOk += ok; totalFail += fail; totalAll += total;
+    document.getElementById('phaseSub'+n).textContent = ok + ' oke · ' + fail + ' gagal · ' + total + ' total';
+    const head = document.querySelector('.phase[data-phase="'+n+'"] .phase-head');
+    head.classList.remove('done','hasfail');
+    if(fail > 0){ head.classList.add('hasfail'); allOk = false; }
+    else if(ok === total){ head.classList.add('done'); }
+    else { allOk = false; }
+  }
+
+  document.getElementById('overallCount').textContent = (totalOk+totalFail) + ' / ' + totalAll + ' dicoba';
+  document.getElementById('barOk').style.width = (totalAll ? (totalOk/totalAll*100) : 0) + '%';
+  document.getElementById('barFail').style.width = (totalAll ? (totalFail/totalAll*100) : 0) + '%';
+
+  const statusEl = document.getElementById('overallStatus');
+  statusEl.classList.remove('ready','hasfail');
+  if(totalOk + totalFail === 0){
+    statusEl.textContent = 'Belum dicoba';
+  } else if(totalFail > 0){
+    statusEl.textContent = '✗ ' + totalFail + ' gagal';
+    statusEl.classList.add('hasfail');
+  } else if(allOk){
+    statusEl.textContent = '✓ Aman lanjut';
+    statusEl.classList.add('ready');
+  } else {
+    statusEl.textContent = 'Belum semua dicoba';
+  }
+}
+
+// ---- pop up pilih mode kalimat AI sebelum simpan PDF ----
+function openModeModal(){
+  document.getElementById('modeModal').classList.add('open');
+}
+function closeModeModal(){
+  document.getElementById('modeModal').classList.remove('open');
+}
+
+// ---- Bug/catatan tambahan (ketik bebas + foto) ----
+const FREE_KEY = 'kaslyai_checklist_free';
+let freeItems = [];
+let freePendingPhoto = null;
+let editingFreeId = null;
+
+function loadFreeItems(){
+  try { const raw = localStorage.getItem(FREE_KEY); return raw ? JSON.parse(raw) : []; }
+  catch(e){ return []; }
+}
+function saveFreeItems(){
+  try { localStorage.setItem(FREE_KEY, JSON.stringify(freeItems)); } catch(e){ /* mis. penuh/private mode, daftar tetap tampil di layar */ }
+}
+
+function onFreePhotoSelected(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      // perkecil dulu biar hemat tempat penyimpanan
+      const maxW = 900;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      freePendingPhoto = canvas.toDataURL('image/jpeg', 0.75);
+
+      const preview = document.getElementById('freePhotoPreview');
+      preview.src = freePendingPhoto;
+      preview.style.display = 'block';
+      document.getElementById('freePhotoLabel').textContent = 'Foto Terlampir ✓';
+      document.querySelector('.free-photo-btn').classList.add('has-photo');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function addFreeItem(){
+  const textEl = document.getElementById('freeText');
+  const text = textEl.value.trim();
+  if(!text && !freePendingPhoto){
+    alert('Tulis deskripsi bug-nya dulu (atau lampirkan foto).');
+    return;
+  }
+
+  if(editingFreeId){
+    const idx = freeItems.findIndex(it => it.id === editingFreeId);
+    if(idx > -1) freeItems[idx] = { id: editingFreeId, text, photo: freePendingPhoto };
+    editingFreeId = null;
+  } else {
+    freeItems.push({ id: 'f' + Date.now(), text, photo: freePendingPhoto });
+  }
+  saveFreeItems();
+  renderFreeItems();
+  resetFreeForm();
+}
+
+function editFreeItem(id){
+  const it = freeItems.find(x => x.id === id);
+  if(!it) return;
+  editingFreeId = id;
+  document.getElementById('freeText').value = it.text || '';
+  freePendingPhoto = it.photo || null;
+  const preview = document.getElementById('freePhotoPreview');
+  if(it.photo){
+    preview.src = it.photo;
+    preview.style.display = 'block';
+    document.getElementById('freePhotoLabel').textContent = 'Foto Terlampir ✓';
+    document.querySelector('.free-photo-btn').classList.add('has-photo');
+  }
+  document.getElementById('freeAddBtn').textContent = '✓ Simpan Perubahan';
+  document.getElementById('freeText').scrollIntoView({behavior:'smooth', block:'center'});
+  document.getElementById('freeText').focus();
+}
+
+function resetFreeForm(){
+  document.getElementById('freeText').value = '';
+  freePendingPhoto = null;
+  editingFreeId = null;
+  document.getElementById('freePhotoInput').value = '';
+  document.getElementById('freePhotoPreview').style.display = 'none';
+  document.getElementById('freePhotoLabel').textContent = 'Lampirkan Foto';
+  document.querySelector('.free-photo-btn').classList.remove('has-photo');
+  document.getElementById('freeAddBtn').textContent = '+ Tambah ke Daftar';
+}
+
+function deleteFreeItem(id){
+  freeItems = freeItems.filter(it => it.id !== id);
+  saveFreeItems();
+  renderFreeItems();
+}
+
+function renderFreeItems(){
+  const list = document.getElementById('freeList');
+  list.innerHTML = freeItems.map(it => `
+    <div class="free-item">
+      <button class="free-item-edit" onclick="editFreeItem('${it.id}')" title="Edit">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+      </button>
+      <button class="free-item-del" onclick="deleteFreeItem('${it.id}')" title="Hapus">✕</button>
+      ${it.text ? `<div class="free-item-text">${it.text.replace(/</g,'&lt;')}</div>` : ''}
+      ${it.photo ? `<img class="free-item-photo" src="${it.photo}">` : ''}
+    </div>
+  `).join('');
+  document.getElementById('freeSub').textContent = freeItems.length + ' catatan ditambahkan';
+}
+
+freeItems = loadFreeItems();
+renderFreeItems();
+
+function togglePhase(n){
+  document.getElementById('body'+n).classList.toggle('open');
+  document.getElementById('chev'+n).classList.toggle('open');
+}
+
+function resetAll(){
+  document.querySelectorAll('.item').forEach(item => {
+    item.dataset.status = '';
+    item.classList.remove('status-ok','status-fail','has-note');
+    item.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+    item.querySelector('textarea').value = '';
+  });
+  saveState();
+  updateAll();
+}
+
+function exportPdf(directExecMode){
+  closeModeModal();
+  const now = new Date();
+  document.getElementById('prDate').textContent = 'Dibuat pada ' + now.toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'}) + ', ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+
+  let totalOk=0, totalFail=0;
+  let bodyHtml = '';
+  for(let n=1; n<=3; n++){
+    const items = document.querySelectorAll('.phase[data-phase="'+n+'"] .item');
+    let phaseHtml = '<div class="pr-phase"><h2>'+PHASE_NAMES[n]+'</h2>';
+    let phaseHasItem = false;
+    items.forEach(item => {
+      const status = item.dataset.status;
+      if(status !== 'ok' && status !== 'fail') return; // lewati yang belum ditandai
+
+      const text = item.querySelector('.item-text').innerHTML;
+      const note = item.querySelector('textarea').value.trim();
+      let tag = '';
+      if(status === 'ok'){ tag = '<span class="pr-tag ok">Oke</span>'; totalOk++; }
+      if(status === 'fail'){ tag = '<span class="pr-tag fail">Gagal</span>'; totalFail++; }
+      phaseHtml += '<div class="pr-item">'+tag+'<div>'+text + (status === 'fail' && note ? '<div class="pr-note">Catatan: '+note.replace(/</g,'&lt;')+'</div>' : '') + '</div></div>';
+      phaseHasItem = true;
+    });
+    phaseHtml += '</div>';
+    if(phaseHasItem) bodyHtml += phaseHtml;
+  }
+
+  if(totalOk + totalFail === 0 && freeItems.length === 0){
+    alert('Belum ada item yang ditandai Oke/Gagal, dan belum ada catatan tambahan. Tandai atau tambahkan catatan dulu sebelum membuat PDF.');
+    return;
+  }
+
+  document.getElementById('prBody').innerHTML = bodyHtml;
+
+  // Sisipkan bug/catatan tambahan (ketik bebas) ke laporan — tiap catatan (+ fotonya) selalu utuh dalam 1 halaman
+  if(freeItems.length > 0){
+    let freeHtml = '';
+    freeItems.forEach((it, idx) => {
+      const wrapClass = idx === 0 ? 'pr-free-item pr-free-first' : 'pr-free-item';
+      freeHtml += '<div class="' + wrapClass + '">';
+      if(idx === 0) freeHtml += '<h2>Bug / Catatan Tambahan</h2>';
+      if(it.text) freeHtml += '<div class="pr-free-text">' + it.text.replace(/</g,'&lt;') + '</div>';
+      if(it.photo) freeHtml += '<img class="pr-free-photo" src="' + it.photo + '">';
+      freeHtml += '</div>';
+    });
+    document.getElementById('prBody').innerHTML += freeHtml;
+  }
+
+  document.getElementById('prSummary').textContent = 'Ringkasan (hanya item yang sudah ditandai): ' + totalOk + ' oke, ' + totalFail + ' gagal, dari total ' + (totalOk+totalFail) + ' item yang sudah dicoba' + (freeItems.length ? ', plus ' + freeItems.length + ' catatan tambahan' : '') + '.';
+
+  const noteEl = document.getElementById('prAiNote');
+  if(directExecMode){
+    noteEl.innerHTML = '<b>Instruksi langsung untuk Antigravity IDE:</b> Ini laporan hasil uji coba aplikasi KaslyAI (aplikasi pencatatan keuangan multi-user berbasis WhatsApp & AI). Baca tiap item bertanda "Gagal" di bawah beserta catatannya, lalu <b>langsung perbaiki bug-bug tersebut</b> di kode aplikasi ini — kerjakan per Tahap sesuai urutan laporan. Tetap ikuti rencana/arsitektur yang sudah disepakati di PRD, jangan mengubah hal lain di luar yang perlu diperbaiki. Item bertanda "Oke" tidak perlu disentuh/diubah apapun.';
+  } else {
+    noteEl.innerHTML = '<b>Instruksi untuk AI pembaca laporan ini:</b> Ini laporan hasil uji coba aplikasi KaslyAI (aplikasi pencatatan keuangan multi-user berbasis WhatsApp & AI). Tolong baca tiap item bertanda "Gagal" di bawah beserta catatannya, lalu buatkan instruksi/prompt perbaikan yang jelas dan sederhana untuk diberikan ke Antigravity IDE (alat coding AI yang dipakai membangun aplikasi ini) — kelompokkan perbaikan per Tahap, dan jangan mengubah rencana/arsitektur besar yang sudah disepakati di PRD. Item bertanda "Oke" tidak perlu dibahas/diubah apapun.';
+  }
+
+  window.print();
+}
+
+updateAll();
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 # PRD — KaslyAI (Migrasi Single-User ke Multi-User)
 
-**Versi:** 2.6 (Menambahkan penanganan fitur mode terkunci WA - koreksi/limit/tujuan - saat toggle OFF)
+**Versi:** 3.1 (Tambah fitur Hapus Akun di Dashboard Admin)
+**Status Eksekusi:** ✅ Fase 1 (Pendaftaran, Verifikasi WA & Onboarding) sudah dijalankan/di-run di Antigravity IDE.
 **Status:** Untuk direview
 
 ---
@@ -50,19 +51,22 @@ Dua prototipe tampilan sudah dibuat dan jadi acuan utama dokumen ini:
 
 | Area | Keputusan |
 |---|---|
-| Login | Murni berbasis nomor WhatsApp — tanpa akun Google, tanpa password. User isi nama + nomor WA di web, centang persetujuan Syarat & Kebijakan Privasi, lalu verifikasi dengan kirim kode unik ke WA resmi "KaslyAI" |
+| Login | Murni berbasis nomor WhatsApp — tanpa akun Google. Layar default adalah **Masuk** (nomor WA + kata sandi) untuk yang sudah punya akun; ada tombol terpisah **Daftar** untuk akun baru |
+| Kata sandi | Dibuat sendiri oleh user saat proses Daftar (bukan sandi sementara/acak buatan sistem) — dipakai untuk Masuk di kemudian hari |
+| Alur Daftar (akun baru) | Isi nama + nomor WA, centang persetujuan Syarat & Kebijakan Privasi, verifikasi lewat kirim kode unik ke WA resmi "KaslyAI", buat kata sandi sendiri → lanjut onboarding (pilih AI, setup dompet & kategori) → masuk ke aplikasi |
+| Alur Masuk (akun sudah ada) | Isi nomor WA + kata sandi → langsung ke halaman utama, **tanpa** onboarding, **tanpa** setup dompet/kategori lagi |
 | Isolasi data | Per akun (kunci akun = nomor WA terverifikasi), diatur di level penyimpanan data (bukan cuma tampilan) |
 | API key AI (Gemini) — user | Saat onboarding, user memilih: **"AI Gratis (bawaan)"** (default, kuota dibagi bareng semua pengguna) atau **"API Key Gemini Sendiri"** (bisa tambah lebih dari satu key, makin banyak makin besar kuota gabungan). Ada panduan step-by-step cara ambil API key gratis dari Google AI Studio |
 | API key AI (Gemini) — bersama | Pemilik aplikasi menyediakan API key bersama yang jadi opsi default semua user; jumlahnya diatur bebas lewat dashboard admin (tambah/kurangi kapan saja, tidak dipatok angka tetap) |
 | API key AI (Gemini) — pribadi admin | Admin juga punya API key pribadi sendiri (terpisah dari API key bersama), khusus untuk kebutuhan AI admin sendiri (chat AI di dashboard, testing, asisten WA admin). Prioritas: API key pribadi admin dulu, baru jatuh ke API key bersama |
 | Prioritas pemakaian key (user biasa) | API key milik user sendiri (kalau ditambahkan) dipakai duluan, baru jatuh ke API key bersama kalau habis/tidak ditambahkan |
-| Nomor WhatsApp "KaslyAI" (resmi) | Satu nomor WA resmi aplikasi, dipakai untuk 2 hal: (1) verifikasi pendaftaran, (2) fitur AI lewat chat WA |
-| Nomor WhatsApp pribadi/bisnis admin | Nomor WA terpisah, khusus dipakai untuk chat closing penjualan (dari tombol "Chat Admin" di layar promo dalam app maupun di halaman promosi eksternal) |
+| Nomor WhatsApp "KaslyAI" (resmi) | Satu nomor WA resmi aplikasi (**+62 812-2696-4679**, akun bisnis "Catatan Keuangan"), dipakai untuk 2 hal: (1) verifikasi pendaftaran, (2) fitur AI lewat chat WA. Terhubung lewat **WhatsApp Business Cloud API resmi dari Meta** (bukan penyedia pihak ketiga) |
+| Nomor WhatsApp pribadi/bisnis admin | Nomor terpisah (**+62 896-2611-2023**), dipakai untuk chat closing penjualan (dari tombol "Chat Admin" di layar promo dalam app maupun di halaman promosi eksternal) & testing |
 | Verifikasi WA | User isi nama + nomor WA + centang setuju S&K → tap tombol "Verifikasi via WhatsApp" → otomatis terbuka WA dengan pesan berisi kode unik yang sudah terisi (format: "Verifikasi KaslyAI, Kode: [kode]") ke nomor resmi KaslyAI → user tinggal tap kirim → sistem cocokkan kode + nomor yang didaftarkan + nomor pengirim → kalau cocok, akun aktif |
 | Format kode verifikasi | 20 karakter kombinasi huruf besar-kecil & angka, menghindari karakter yang membingungkan (0/O, 1/l/I); berlaku selamanya sampai dipakai |
 | Format kode token langganan | 8 karakter huruf besar & angka; dicocokkan tanpa memandang besar-kecil huruf (input otomatis diseragamkan jadi huruf besar) |
 | Pengenalan ulang (device sama) | Otomatis dikenali lagi tanpa perlu verifikasi ulang, **kecuali** user sudah logout manual (lihat baris Logout di bawah) |
-| Pengenalan ulang (device beda) | Wajib verifikasi ulang (kirim kode ke WA lagi) demi keamanan |
+| Pengenalan ulang (device beda) | Wajib verifikasi ulang (kirim kode ke WA lagi) demi keamanan. **Verifikasi di device baru TIDAK memaksa logout device lain** yang sudah aktif — satu akun bisa login bareng di beberapa device sekaligus (HP + tablet, dll) tanpa saling mengganggu |
 | Logout | Tombol "Keluar" di menu Pengaturan, dengan pop up konfirmasi ("Yakin mau keluar?") dan peringatan tambahan kalau ada data offline yang belum tersinkron. Begitu logout, sesi/pengenalan otomatis di device itu dihapus |
 | Login ulang setelah logout / nomor WA sudah pernah terdaftar | User isi nomor WA + verifikasi ulang seperti biasa; kalau nomor itu ternyata sudah pernah terdaftar, begitu verifikasi berhasil **langsung masuk ke menu utama** dengan data yang sudah ada (skip seluruh proses onboarding — pilih AI, setup dompet, setup kategori) |
 | Ganti akun di device yang sama | Dimungkinkan — user logout dari akun A, lalu login dengan nomor WA B (akun berbeda), asal masing-masing sudah logout sebelumnya |
@@ -82,11 +86,12 @@ Dua prototipe tampilan sudah dibuat dan jadi acuan utama dokumen ini:
 | Transaksi data tidak lengkap (toggle ON) | AI tetap menanyakan balik lewat chat WA seperti biasa (mis. "Nominalnya berapa kak?"), transaksi baru tersimpan setelah dijawab |
 | Pertanyaan umum di luar transaksi (toggle OFF) | Jawabannya tetap dikirim — lewat notifikasi PWA berisi jawaban ringkas (mis. "💰 Saldo kamu: Rp 1.250.000"), bukan balasan WA |
 | Fitur mode terkunci (koreksi/limit/tujuan) saat toggle OFF | Dinonaktifkan total lewat WA (fitur percakapan panjang, tidak cocok jadi notifikasi); user diberi tahu lewat notifikasi PWA untuk pakai fitur ini di web, bukan didiamkan |
-| Pintasan Aplikasi (App Shortcuts) | 2 pintasan lewat tekan-lama ikon PWA di home screen: **Chat** (fitur existing, tidak berubah, tidak pakai notifikasi PWA karena sudah ada reply-edit sendiri) dan **Transaksi AI** (jalur baru, terpisah dari fitur "Transaksi AI" di web yang tetap tidak berubah; langsung tersimpan + notifikasi PWA) |
+| Instalasi PWA — Ikon Utama | Aplikasi menawarkan prompt "Tambahkan ke Layar Utama"/"Install Aplikasi" secara otomatis (perilaku standar browser) saat pertama kali dibuka. Setelah dipasang, muncul ikon di layar utama HP dan aplikasi bisa dibuka seperti aplikasi biasa (tanpa address bar browser) |
+| Pintasan Ikon Terpisah (Chat & Transaksi AI) | Berbeda dari App Shortcuts (tekan-lama), ini **2 ikon layar utama yang benar-benar terpisah**, masing-masing di-install manual lewat tombol tersendiri di menu Pengaturan ("Pasang Pintasan Chat" & "Pasang Pintasan Transaksi AI") — tidak otomatis. **Ikon Chat**: buka langsung ke fitur chat full-screen existing (tidak berubah, tidak pakai notifikasi PWA karena sudah ada reply-edit sendiri). **Ikon Transaksi AI**: jalur baru, terpisah dari fitur "Transaksi AI" di web yang tetap tidak berubah; langsung tersimpan otomatis + notifikasi PWA (Edit/Hapus). Ketiga ikon (Utama, Chat, Transaksi AI) membuka 1 aplikasi/data yang sama |
 | Pendaftaran | Isi nama + nomor WA + centang setuju Syarat & Kebijakan Privasi (tanpa email/akun Google) |
 | Konfirmasi pembayaran | Manual sepenuhnya lewat percakapan WA antara admin & user, tidak perlu sistem/form khusus |
 | Notifikasi trial habis | Pop up di aplikasi mengarahkan user untuk berlangganan/hubungi admin, dengan kolom input kode akses langsung di situ |
-| Kuota AI habis | User dikasih pesan ramah buatan sendiri (bukan pesan error mentah dari Google); sistem otomatis pindah ke API key lain yang tersimpan kalau satu key habis kuotanya |
+| Kuota AI habis / API key salah-kadaluarsa | User dikasih pesan ramah buatan sendiri (bukan pesan error mentah dari Google), baik penyebabnya kuota habis maupun key yang salah/kadaluarsa; sistem otomatis pindah ke API key lain yang tersimpan |
 | Mode offline | Aplikasi tetap bisa dipakai catat transaksi manual tanpa internet; data otomatis sinkron ke server begitu online lagi |
 | Penyalahgunaan trial (ganti-ganti nomor WA) | Diterima sebagai risiko yang dianggap wajar; pengaman utama ada di penguncian nomor WA per akun |
 | Status akun admin | Admin (pemilik aplikasi) tetap ikut aturan trial & butuh token seperti user biasa untuk akun KaslyAI pribadinya, tidak dibebaskan otomatis — supaya admin merasakan langsung pengalaman dari sudut pandang user |
@@ -95,7 +100,7 @@ Dua prototipe tampilan sudah dibuat dan jadi acuan utama dokumen ini:
 
 ## 5. Peran Pengguna
 
-- **User biasa**: mendaftar pakai nama + nomor WA (tanpa akun Google/password), verifikasi via WA, jalani onboarding (pilih sumber AI, setup dompet & kategori awal), lalu memakai aplikasi pencatatan keuangan; bisa memakai fitur AI selama trial/sudah bayar.
+- **User biasa**: Daftar pakai nama + nomor WA (tanpa akun Google), verifikasi via WA, buat kata sandi sendiri, jalani onboarding (pilih sumber AI, setup dompet & kategori awal), lalu memakai aplikasi pencatatan keuangan. Kunjungan berikutnya cukup Masuk pakai nomor WA + kata sandi, langsung ke halaman utama. Bisa memakai fitur AI selama trial/sudah bayar.
 - **Admin (pemilik aplikasi)**: satu-satunya yang punya akses ke dashboard (path/link terpisah dari index utama, wajib login email & password lewat Supabase Auth) untuk memantau pengguna, generate & kirim token, atur lama trial, dan kelola API key (bersama maupun pribadi); akun KaslyAI pribadi admin sendiri tetap tunduk pada aturan trial/token seperti user biasa.
 
 ---
@@ -108,29 +113,33 @@ Pengembangan dibagi 3 fase besar, berurutan — tiap fase menghasilkan sesuatu y
 
 **Tujuan:** Aplikasi berhenti memakai satu kode akses bersama, dan mulai punya akun sungguhan (berbasis nomor WA) dengan alur onboarding lengkap sebelum user masuk ke aplikasi utama.
 
-**Cakupan pekerjaan — Alur Layar (sesuai prototype-flow.html):**
+**Cakupan pekerjaan — Alur Layar (disesuaikan dari prototype-flow.html, sekarang 2 alur terpisah):**
 
-1. **Layar Promo/Welcome** (layar pertama dalam app) — perkenalan singkat KaslyAI, 3 poin fitur utama, tombol "Coba Aplikasinya, Gratis" (lanjut daftar) dan tombol "Chat Admin" (untuk tanya-tanya/beli lifetime langsung, menuju nomor WA pribadi/bisnis admin).
-2. **Layar Daftar** — isi **Nama Lengkap** dan **Nomor WhatsApp Aktif**, centang persetujuan **Syarat & Ketentuan** dan **Kebijakan Privasi** (wajib dicentang sebelum tombol lanjut aktif), lalu tap "Lanjutkan & Verifikasi via WhatsApp".
-3. **Layar Verifikasi WA** — tap tombol "Verifikasi via WhatsApp" → otomatis terbuka WhatsApp dengan chat ke **nomor resmi WA "KaslyAI"**, pesan sudah terisi kode unik (format: "Verifikasi KaslyAI" + kode 20 karakter) → user tinggal tap kirim, tidak perlu ketik apa-apa → status berubah jadi "Menunggu konfirmasi…" lalu "✓ Nomor WA terverifikasi" begitu sistem mencocokkan kode+nomor terdaftar+nomor pengirim.
-4. **Layar Onboarding (carousel 4 slide)**:
+1. **Layar Promo/Welcome** (layar pertama dalam app) — perkenalan singkat KaslyAI, 3 poin fitur utama, tombol "Chat Admin" (untuk tanya-tanya/beli lifetime langsung, menuju nomor WA pribadi/bisnis admin), dan tombol lanjut ke **Layar Masuk**.
+2. **Layar Masuk (default, untuk yang sudah punya akun)** — isi **nomor WhatsApp** + **kata sandi** → tap "Masuk" → begitu benar, **langsung ke halaman utama aplikasi** dengan data yang sudah ada, **tanpa** onboarding, **tanpa** setup dompet/kategori lagi. Di layar ini ada tombol/link **"Belum punya akun? Daftar"** untuk yang mau bikin akun baru.
+3. **Layar Daftar (khusus akun baru)** — isi **Nama Lengkap** dan **Nomor WhatsApp Aktif**, centang persetujuan **Syarat & Ketentuan** dan **Kebijakan Privasi** (wajib dicentang sebelum tombol lanjut aktif), lalu tap "Lanjutkan & Verifikasi via WhatsApp".
+4. **Layar Verifikasi WA** (bagian dari alur Daftar) — tap tombol "Verifikasi via WhatsApp" → otomatis terbuka WhatsApp dengan chat ke **nomor resmi WA "KaslyAI"**, pesan sudah terisi kode unik (format: "Verifikasi KaslyAI" + kode 20 karakter) → user tinggal tap kirim, tidak perlu ketik apa-apa → status berubah jadi "Menunggu konfirmasi…" lalu "✓ Nomor WA terverifikasi" begitu sistem mencocokkan kode+nomor terdaftar+nomor pengirim.
+5. **Layar Buat Kata Sandi** (bagian dari alur Daftar, setelah verifikasi WA berhasil) — user membuat **kata sandi sendiri** (bukan sandi sementara/acak buatan sistem) yang nanti dipakai untuk Masuk di kemudian hari.
+6. **Layar Onboarding (carousel 4 slide)** — hanya muncul di alur Daftar, sekali saja untuk akun baru:
    - Slide 1: penjelasan fitur AI pencatat otomatis via WA (kirim foto struk → tercatat otomatis).
    - Slide 2: penjelasan asisten WA (tanya saldo, catat transaksi langsung dari chat ke nomor resmi KaslyAI).
    - Slide 3: penjelasan fitur dasar gratis selamanya di web (dashboard, laporan, anggaran tanpa batas waktu).
    - Slide 4: **pilihan sumber AI** — "AI Gratis (bawaan)" (default, kuota dibagi bareng semua pengguna) vs "API Key Gemini Sendiri" (bisa tambah lebih dari satu key, makin banyak makin besar kuota gabungan milik sendiri). Kalau pilih pakai API key sendiri dan belum punya, ada link ke **panduan step-by-step** (dengan tangkapan layar) cara ambil API key gratis dari Google AI Studio.
-5. **Layar Setup Saldo Awal Dompet** — user isi nama & saldo awal untuk dompetnya (default 1 dompet "Dompet Utama"), bisa tambah lebih dari satu dompet.
-6. **Layar Setup Kategori Transaksi Awal** — kategori bawaan (pengeluaran & pemasukan) sudah tersedia, user bisa edit nama/ikon/warna, hapus, atau tambah kategori baru sendiri.
-7. **Masuk ke Aplikasi Utama** — begitu semua langkah selesai, user diarahkan ke aplikasi utama (index) yang sudah ada, siap dipakai mencatat transaksi.
+7. **Layar Setup Saldo Awal Dompet** (khusus alur Daftar) — user isi nama & saldo awal untuk dompetnya (default 1 dompet "Dompet Utama"), bisa tambah lebih dari satu dompet.
+8. **Layar Setup Kategori Transaksi Awal** (khusus alur Daftar) — kategori bawaan (pengeluaran & pemasukan) sudah tersedia, user bisa edit nama/ikon/warna, hapus, atau tambah kategori baru sendiri.
+9. **Masuk ke Aplikasi Utama** — baik dari alur Daftar (setelah semua langkah di atas) maupun alur Masuk (langsung setelah login berhasil), user diarahkan ke aplikasi utama (index) yang sudah ada, siap dipakai mencatat transaksi.
 
-**Cakupan pekerjaan — Verifikasi & Keamanan:**
-- Sistem mencocokkan **3 hal** sebelum akun dianggap aktif/terverifikasi: kode unik yang diterima, nomor WA yang didaftarkan di web, dan nomor WA pengirim pesan. Ketiganya harus cocok.
-- Kode unik verifikasi: 20 karakter kombinasi huruf besar-kecil & angka (menghindari karakter membingungkan seperti 0/O, 1/l/I), berlaku selamanya sampai dipakai (tidak ada batas waktu untuk saat ini).
+**Cakupan pekerjaan — Verifikasi, Kata Sandi & Keamanan:**
+- Sistem mencocokkan **3 hal** sebelum akun dianggap aktif/terverifikasi saat Daftar: kode unik yang diterima, nomor WA yang didaftarkan di web, dan nomor WA pengirim pesan. Ketiganya harus cocok.
+- Kode unik verifikasi: 20 karakter kombinasi huruf besar-kecil & angka (menghindari karakter membingungkan seperti 0/O, 1/l/I), berlaku selamanya sampai dipakai (tidak ada batas waktu untuk saat ini). Verifikasi WA ini **hanya dilakukan sekali saat Daftar** — bukan syarat untuk Masuk di kemudian hari.
+- **Masuk (login) selanjutnya cukup pakai nomor WA + kata sandi** — tidak perlu kirim kode via WA lagi setiap kali mau login.
 - **Pengenalan ulang saat buka aplikasi lagi:**
-  - Dari **device/browser yang sama**: otomatis dikenali lagi, tidak perlu verifikasi ulang — **kecuali** user sudah logout manual sebelumnya.
-  - Dari **device/browser berbeda**: wajib verifikasi ulang (kirim kode ke WA lagi) — demi keamanan, supaya orang lain yang kebetulan tahu nomor WA seseorang tidak bisa asal masuk ke akunnya.
-- **Logout**: menu setting punya tombol **"Keluar"**. Begitu ditekan, muncul pop up konfirmasi ("Yakin mau keluar?"); kalau ada data offline yang belum sempat tersinkron ke server, muncul peringatan tambahan sebelum logout benar-benar diproses. Setelah logout, sesi/pengenalan otomatis di device itu dihapus — buka aplikasi lagi wajib isi nomor WA + verifikasi ulang dari awal.
-- **Alur untuk nomor WA yang sudah pernah terdaftar**: kalau saat isi nomor WA di layar daftar ternyata nomor itu sudah pernah terverifikasi sebelumnya (baik karena baru logout, ganti device, atau memang login ulang), begitu verifikasi berhasil, sistem **langsung mengarahkan ke menu utama aplikasi** dengan data yang sudah ada — seluruh proses onboarding (carousel, pilih sumber AI, setup dompet, setup kategori) **dilewati** karena sudah pernah dilakukan sebelumnya.
-- **Ganti akun di device yang sama**: karena alur di atas, satu HP/device bisa dipakai bergantian oleh beberapa akun berbeda (nomor WA berbeda) — user tinggal logout dari akun yang sedang aktif, lalu daftar/masuk lagi pakai nomor WA lain.
+  - Dari **device/browser yang sama**: otomatis dikenali lagi (tetap dalam status Masuk), tidak perlu isi ulang nomor WA/sandi — **kecuali** user sudah logout manual sebelumnya.
+  - Dari **device/browser berbeda**, atau setelah logout: kembali ke **Layar Masuk**, cukup isi nomor WA + kata sandi (tidak perlu verifikasi WA lagi, karena itu hanya untuk Daftar). Satu akun didukung untuk login bareng di beberapa device sekaligus (misal HP + tablet) secara bersamaan — login di device baru **tidak memaksa logout** sesi di device lain yang sudah aktif.
+- **Logout**: menu setting punya tombol **"Keluar"**. Begitu ditekan, muncul pop up konfirmasi ("Yakin mau keluar?"); kalau ada data offline yang belum sempat tersinkron ke server, muncul peringatan tambahan sebelum logout benar-benar diproses. Setelah logout, sesi/pengenalan otomatis di device itu dihapus — buka aplikasi lagi kembali ke Layar Masuk (isi nomor WA + kata sandi).
+- **Ganti akun di device yang sama**: satu HP/device bisa dipakai bergantian oleh beberapa akun berbeda — user tinggal logout dari akun yang sedang aktif, lalu Masuk lagi pakai nomor WA + kata sandi akun lain (atau Daftar akun baru).
+- Kalau nomor WA yang diisi di Layar Daftar **ternyata sudah pernah terdaftar sebelumnya**, sistem memberi tahu dan mengarahkan ke Layar Masuk, bukan memproses sebagai pendaftaran baru.
+- **Lupa kata sandi**: di Layar Masuk ada link "Lupa kata sandi?" — user isi nomor WA, verifikasi ulang lewat kirim kode ke WA resmi KaslyAI (memakai mekanisme verifikasi yang sama seperti Daftar), begitu berhasil, user diminta buat kata sandi baru untuk menggantikan yang lama.
 - Pesan WA masuk dari nomor yang belum pernah terverifikasi/terhubung ke akun manapun: diabaikan saja, tidak perlu dibalas otomatis.
 - Nomor WA yang sekarang sudah biasa dipakai untuk testing aplikasi akan otomatis didaftarkan/dihubungkan ke akun admin saat migrasi ke sistem baru.
 
@@ -147,15 +156,22 @@ Pengembangan dibagi 3 fase besar, berurutan — tiap fase menghasilkan sesuatu y
 - Urutan prioritas pemakaian (user biasa): API key milik user sendiri dulu (kalau ada), baru jatuh ke API key bersama kalau habis kuota/belum ditambahkan.
 - **Penanganan kuota habis**: sistem otomatis pindah pakai API key lain yang tersimpan, termasuk berpindah model Gemini kalau diperlukan — mengikuti cara kerja sistem existing, hanya disesuaikan supaya tiap akun punya kumpulan key masing-masing. User diberi pesan pemberitahuan yang ramah (bukan pesan error mentah) kalau semua key sedang tidak bisa dipakai.
 
+**Cakupan pekerjaan — Instalasi PWA (Ikon Utama):**
+- Aplikasi dikonfigurasi sebagai PWA yang bisa di-install (manifest, ikon, service worker dasar) sejak Fase 1 — ini fondasi yang dibutuhkan sebelum Ikon Chat & Ikon Transaksi AI (Fase 2) bisa dipasang.
+- Browser menawarkan prompt "Tambahkan ke Layar Utama"/"Install Aplikasi" secara otomatis saat aplikasi dibuka (perilaku standar browser, tidak perlu tombol khusus untuk ikon ini).
+- Setelah dipasang, aplikasi bisa dibuka dari ikon di layar utama HP layaknya aplikasi biasa, tanpa address bar browser terlihat.
+
 **Kriteria selesai:**
-- User bisa menyelesaikan seluruh alur: daftar → verifikasi WA → onboarding (termasuk pilih sumber AI) → setup dompet → setup kategori → masuk ke aplikasi utama.
+- Browser menawarkan opsi install PWA saat aplikasi pertama dibuka, dan setelah dipasang muncul ikon di layar utama HP yang bisa dibuka tanpa address bar terlihat.
+- User bisa menyelesaikan alur **Daftar**: isi nama+WA → verifikasi WA → buat kata sandi → onboarding (termasuk pilih sumber AI) → setup dompet → setup kategori → masuk ke aplikasi utama.
+- User dengan akun yang sudah ada bisa **Masuk** cukup dengan nomor WA + kata sandi → langsung ke halaman utama, tanpa onboarding/setup dompet/kategori.
 - Dicoba dengan 2 nomor WA berbeda: dipastikan data satu akun sama sekali tidak terlihat/tersentuh dari akun lain.
-- Buka lagi dari device yang sama: langsung dikenali tanpa verifikasi ulang, data (termasuk API key yang tersimpan) tetap muncul utuh.
-- Buka dari device berbeda: diminta verifikasi ulang lewat WA sebelum bisa masuk ke akun yang sama.
+- Buka lagi dari device yang sama: tetap dalam status Masuk tanpa isi ulang apapun, data (termasuk API key yang tersimpan) tetap muncul utuh.
+- Buka dari device berbeda: kembali ke Layar Masuk, cukup isi nomor WA + kata sandi (tidak diminta verifikasi WA lagi).
 - Tombol lanjut di layar daftar tetap nonaktif sebelum checkbox persetujuan S&K dicentang.
-- Tombol "Keluar" di Pengaturan memunculkan konfirmasi, dan peringatan tambahan kalau ada data belum tersinkron; setelah logout, buka aplikasi lagi wajib verifikasi ulang dari nol.
-- Coba login dengan nomor WA yang sudah pernah terdaftar (setelah logout): begitu verifikasi berhasil, langsung masuk ke menu utama dengan data lama, tanpa diminta ulang proses onboarding.
-- Coba ganti akun di device yang sama (logout akun A, masuk dengan nomor WA B): berhasil, dan data masing-masing akun tetap terpisah rapi.
+- Tombol "Keluar" di Pengaturan memunculkan konfirmasi, dan peringatan tambahan kalau ada data belum tersinkron; setelah logout, buka aplikasi lagi kembali ke Layar Masuk.
+- Coba isi nomor WA yang sudah terdaftar di Layar Daftar: diarahkan ke Layar Masuk, bukan diproses sebagai akun baru.
+- Coba ganti akun di device yang sama (logout akun A, Masuk dengan nomor WA+sandi akun B): berhasil, dan data masing-masing akun tetap terpisah rapi.
 
 ---
 
@@ -177,6 +193,7 @@ Pengembangan dibagi 3 fase besar, berurutan — tiap fase menghasilkan sesuatu y
   - **Edit** — membuka aplikasi langsung ke layar edit transaksi tersebut.
   - **Hapus** — transaksi langsung terhapus dalam 1 tap dari notifikasi (tanpa perlu buka aplikasi, tanpa pop up konfirmasi tambahan) — tapi begitu aplikasi dibuka lagi setelahnya, muncul opsi singkat **"Batalkan/Undo"** untuk jaga-jaga kalau salah pencet.
   - Tap badan notifikasi (bukan tombol) → membuka aplikasi ke halaman detail transaksi itu.
+- **Transaksi dengan banyak kategori sekaligus** (misal dari 1 struk belanja campuran isinya beberapa jenis barang): AI memecahnya jadi **beberapa transaksi terpisah** (satu per kategori), masing-masing langsung tersimpan otomatis dan **mengirim notifikasi PWA sendiri-sendiri** (bukan 1 notifikasi gabungan) — supaya tiap transaksi tetap bisa di-Edit/Hapus secara individual.
 - **Toggle "Balasan Otomatis WA" — pengaturan per-user**: di menu setting tiap user (bukan pengaturan global admin), ada saklar on/off untuk balasan otomatis WA:
   - **ON**: sistem tetap membalas di WA seperti model lama (selama masih gratis/sebelum Oktober 2026, atau kalau user tetap memilih membalas walau berbayar). Kalau data transaksi dari user **kurang lengkap** (misal nominal tidak disebut), AI tetap bisa **menanyakan balik lewat chat WA** seperti biasa (mis. "Nominalnya berapa kak?"), transaksi baru tersimpan setelah user menjawab.
   - **OFF**: sistem tidak mengirim balasan WA apapun — **notifikasi PWA jadi satu-satunya cara konfirmasi** untuk user itu. Karena tidak bisa "menanyakan balik" lewat WA, transaksi dengan data **kurang lengkap** (misal nominal tidak disebut) **tidak langsung disimpan penuh** — disimpan sebagai **draf/belum lengkap**, dan notifikasi PWA yang muncul **berbeda tampilannya** dari notifikasi transaksi normal (contoh: "⚠️ Transaksi butuh dilengkapi — tap untuk isi nominal"), tanpa tombol Hapus cepat. Tap notifikasi ini membuka aplikasi ke layar edit transaksi itu, dengan data yang sudah berhasil dibaca AI (kategori, nama item, dll) sudah terisi otomatis, tinggal user lengkapi bagian yang kurang.
@@ -185,13 +202,15 @@ Pengembangan dibagi 3 fase besar, berurutan — tiap fase menghasilkan sesuatu y
   - **Fitur mode terkunci (koreksi saldo, limit anggaran, tujuan tabungan)**: fitur existing ini berupa percakapan bolak-balik yang panjang lewat WA (bukan sekali kirim-balas), jadi **tidak diadaptasi ke notifikasi**. Kalau toggle user itu OFF, fitur mode terkunci ini **dinonaktifkan total lewat WA** — kalau user tetap coba ketik 'koreksi'/'limit'/'tujuan', tetap diberi tahu lewat **notifikasi PWA** (bukan didiamkan), isinya semacam "Fitur ini perlu balasan WA aktif — nyalakan di pengaturan, atau pakai fitur ini langsung di aplikasi web". Kalau toggle ON, fitur mode terkunci berjalan seperti biasa (tidak berubah).
 - Setelah akun terverifikasi (Fase 1), nomor WA user otomatis bisa dipakai untuk fitur AI lewat chat ke nomor resmi "KaslyAI" (kirim foto struk, tanya saldo, dll) — mengikuti model baru di atas.
 - Kalau user ganti nomor HP dan ingin tetap pakai akun yang sama: penyambungan ulang ke nomor baru **harus lewat admin** (reset manual dari dashboard). Kalau tidak masalah ganti akun, user bebas daftar ulang dengan nomor WA baru.
+- **Konten yang bukan transaksi (foto tidak berkaitan atau teks panjang/ngasal)**: kalau foto yang dikirim ke WA bukan struk/tidak berkaitan sama sekali dengan transaksi (misal foto pemandangan), atau pesan teksnya sangat panjang/tidak jelas maksudnya dan bukan indikasi transaksi — sistem **tidak memaksakan jadi transaksi ngawur**. AI membalas natural lewat chat WA menjelaskan bahwa itu bukan transaksi. **Ini berlaku selalu lewat balasan WA, terlepas dari posisi toggle "Balasan Otomatis WA" (ON maupun OFF)** — karena tidak ada transaksi yang perlu dikonfirmasi, jadi tidak memicu notifikasi PWA.
 
-**Cakupan pekerjaan — Pintasan Aplikasi (App Shortcuts):**
-- Kalau ikon aplikasi (yang sudah di-install ke home screen) ditekan-lama, muncul 2 pintasan:
-  - **Chat** — membuka fitur chat full-screen yang sudah ada di aplikasi (tidak berubah dari sebelumnya).
-  - **Transaksi AI** — jalur input cepat **baru**, terpisah dari fitur "Transaksi AI" yang sudah ada di halaman web (fitur web itu tetap sama persis: AI parsing → daftar hasil → tombol konfirmasi → baru tersimpan, tidak diubah). Pintasan baru ini alurnya **langsung tersimpan otomatis** begitu AI selesai memproses (tanpa daftar/konfirmasi dulu), lalu memicu notifikasi PWA yang sama seperti alur transaksi via WA di atas (dengan tombol Edit/Hapus + undo).
-- Pintasan ini hanya bisa diakses lewat tekan-lama ikon aplikasi yang sudah di-install ke home screen — **tidak perlu** disediakan jalan masuk setara dari dalam aplikasi, karena fitur "Transaksi AI" dan "Chat" versi biasa sudah ada di web.
-- Fitur **Chat** (baik versi biasa di web maupun lewat pintasan) **tidak memakai notifikasi PWA ini** — Chat sudah punya cara koreksi transaksi sendiri (reply-edit) di dalam fiturnya.
+**Cakupan pekerjaan — Pintasan Ikon Terpisah (Chat & Transaksi AI):**
+- Berbeda dari App Shortcuts (menu tekan-lama) — ini **2 ikon layar utama yang benar-benar terpisah** dari Ikon Utama (yang sudah dipasang di Fase 1), masing-masing di-install **manual satu-satu** oleh user, tidak otomatis.
+- Menu Pengaturan punya 2 tombol terpisah: **"Pasang Pintasan Chat ke Layar Utama"** dan **"Pasang Pintasan Transaksi AI ke Layar Utama"**. Menekan salah satu tombol memicu prompt install PWA khusus untuk halaman/URL fitur itu saja.
+- **Ikon Chat** (kalau dipasang): membuka langsung ke fitur chat full-screen yang sudah ada di aplikasi (tidak berubah dari sebelumnya, tidak memakai notifikasi PWA karena sudah ada cara koreksi sendiri lewat reply-edit).
+- **Ikon Transaksi AI** (kalau dipasang): jalur input cepat **baru**, terpisah dari fitur "Transaksi AI" yang sudah ada di halaman web (fitur web itu tetap sama persis: AI parsing → daftar hasil → tombol konfirmasi → baru tersimpan, tidak diubah). Ikon baru ini alurnya **langsung tersimpan otomatis** begitu AI selesai memproses (tanpa daftar/konfirmasi dulu), lalu memicu notifikasi PWA yang sama seperti alur transaksi via WA di atas (dengan tombol Edit/Hapus + undo).
+- Ketiga ikon (Utama, Chat, Transaksi AI) tetap membuka **1 aplikasi/data yang sama** di baliknya — bukan 3 akun/aplikasi berbeda.
+- Pintasan **tidak wajib** dipasang — user bebas pakai fitur "Transaksi AI" dan "Chat" versi biasa dari dalam web tanpa perlu pasang ikon tambahan apapun.
 
 **Fitur AI terkunci via WA:**
 - Kalau ada user mengirim perintah AI lewat WhatsApp padahal fitur AI-nya sedang terkunci (trial habis/belum bayar), sistem memberi tahu bahwa fitur sedang terkunci — lewat WA (kalau toggle user itu ON) atau lewat notifikasi PWA (kalau toggle OFF) — dan mengarahkan user untuk menghubungi admin.
@@ -205,7 +224,8 @@ Pengembangan dibagi 3 fase besar, berurutan — tiap fase menghasilkan sesuatu y
 - Tanya hal umum di luar transaksi (misal saldo) lewat WA saat toggle OFF: jawaban ringkas muncul lewat notifikasi PWA, bukan balasan WA.
 - Coba masuk mode terkunci (koreksi/limit/tujuan) lewat WA saat toggle OFF: fitur tidak berjalan, notifikasi PWA muncul mengarahkan ke web.
 - Pesan/notifikasi untuk fitur AI yang terkunci muncul sesuai posisi toggle user (WA kalau ON, notifikasi PWA kalau OFF).
-- Pintasan "Chat" dan "Transaksi AI" di home screen (setelah install PWA) berfungsi sesuai masing-masing alurnya.
+- Kirim foto tidak berkaitan (misal foto pemandangan) atau teks panjang/ngasal yang bukan transaksi ke WA → AI membalas natural via chat WA menjelaskan itu bukan transaksi (berlaku terlepas dari posisi toggle), tidak asal dicatat jadi transaksi ngawur, dan tidak memicu notifikasi PWA.
+- Tombol "Pasang Pintasan Chat" dan "Pasang Pintasan Transaksi AI" di menu Pengaturan masing-masing berhasil memicu prompt install terpisah; setelah dipasang, tiap ikon muncul terpisah di layar utama dan membuka langsung ke fitur terkait sesuai alurnya masing-masing.
 
 ---
 
@@ -216,6 +236,7 @@ Pengembangan dibagi 3 fase besar, berurutan — tiap fase menghasilkan sesuatu y
 **Cakupan pekerjaan — Trial:**
 - Begitu akun terverifikasi (Fase 1), masa trial otomatis aktif — fitur AI (web & WA) terbuka penuh tanpa perlu aktivasi manual dari admin. **Lama masa trial default 7 hari**, sama untuk semua user baru, dan bisa diatur manual lewat dashboard admin kalau mau diubah.
 - **Akun KaslyAI pribadi admin sendiri juga tetap ikut aturan trial & token yang sama seperti user biasa** — tidak dibebaskan otomatis, supaya admin bisa merasakan langsung pengalaman dari sudut pandang user.
+- **Perubahan lama trial tidak retroaktif**: kalau admin mengubah angka "Lama Masa Trial" di dashboard, yang terpengaruh **hanya akun baru** yang daftar setelah perubahan itu disimpan. Akun-akun yang sudah lebih dulu terdaftar tetap memakai lama trial yang berlaku saat mereka daftar (tanggal berakhir trial masing-masing akun sudah terkunci sejak awal, tidak ikut berubah).
 - Setelah masa trial lewat dan belum ada token yang dimasukkan:
   - Pencatatan transaksi manual & fitur dasar aplikasi tetap bisa dipakai sepenuhnya, gratis, **selamanya**.
   - Fitur AI (baik dipakai lewat aplikasi/web maupun lewat WhatsApp) otomatis terkunci.
@@ -239,6 +260,7 @@ Halaman terpisah (path/link berbeda) di dalam repository yang sama dengan index 
   - Berhasil login → sistem menyimpan sesi/token.
   - Setiap kali halaman mau menampilkan data, sistem mengecek dulu apakah sesi/token masih valid.
   - Data sensitif (daftar user, kode token, dll) diambil dari database lewat permintaan yang mewajibkan token valid — bukan ditaruh mentah di file HTML. Kalau sesi tidak valid/belum login, halaman tidak menampilkan data apapun dan mengarahkan ke form login.
+  - Konsisten dengan aturan multi-device di Fase 1: admin bisa login ke dashboard dari **beberapa perangkat/browser sekaligus** (misal 2 laptop bersamaan) tanpa saling logout paksa atau error — masing-masing sesi tetap valid dan bisa dipakai berbarengan.
 - 3 menu utama (tab): **Pengguna**, **Kode Token**, **Pengaturan**.
 
 **Menu Pengguna:**
@@ -247,6 +269,12 @@ Halaman terpisah (path/link berbeda) di dalam repository yang sama dengan index 
 - Daftar user, tiap baris menampilkan: nama, **nomor WA (sebagian disamarkan demi privasi**, contoh format `0812xxxxxx74`), status (badge warna: trial/habis/sudah bayar), tanggal daftar, aktif terakhir, dan kode token yang dipakai (kalau sudah bayar).
 - Tombol **"Kirim Token"** per user: begitu diklik, muncul konfirmasi ("Kirim kode token [X] ke akun [nama]?") → begitu dikonfirmasi, sistem **otomatis mengambil satu kode token yang belum dipakai dari stok** dan meng-assign ke user tersebut (admin tidak pilih manual kode mana) → tombol berubah jadi "Token Terkirim" (nonaktif). Kalau stok kosong, admin diberi pesan untuk generate kode baru dulu di menu Kode Token.
 - Tombol **"Reset WA"** per user (tersedia di semua baris, bukan hanya yang trial habis): muncul konfirmasi ("Reset sambungan nomor WA untuk [nama]? Pengguna harus verifikasi ulang.") → begitu dikonfirmasi, sambungan WA user itu direset dan dia harus verifikasi ulang.
+- Tombol **"Hapus Akun"** per user — beda dari "Reset WA" (yang cuma minta verifikasi ulang tapi **data lama tetap ada**), "Hapus Akun" ini **menghapus akun beserta seluruh datanya secara permanen**:
+  - Data yang ikut terhapus: dompet, transaksi, kategori, anggaran/limit, tujuan tabungan, utang-piutang, riwayat chat, API key pribadi milik user itu, dan seluruh data lain yang terkait akun tersebut.
+  - Karena aksi ini permanen & tidak bisa dibatalkan, konfirmasinya lebih ketat dari tombol lain: admin harus **mengetik "HAPUS"** di kolom konfirmasi dulu sebelum tombol Hapus Akun bisa ditekan (bukan cuma konfirmasi Batal/Oke biasa).
+  - **Nomor WhatsApp yang sama tetap boleh dipakai lagi** untuk mendaftar sebagai akun benar-benar baru (lewat alur Daftar normal dari awal — verifikasi WA baru, onboarding, setup dompet & kategori dari nol) — nomor itu **tidak diblokir/dikunci** selamanya.
+  - Kalau akun yang dihapus sebelumnya sudah pernah pakai kode token (status "sudah bayar"), kode token itu **tetap berstatus "sudah dipakai"** (tidak dikembalikan ke stok) — supaya konsisten dengan aturan "1 kode = 1 kali pakai selamanya" di bagian 4.
+  - Setelah dihapus, baris user itu langsung hilang dari daftar Pengguna & angka ringkasan statistik ikut menyesuaikan.
 
 **Menu Kode Token:**
 - Tombol "+ Generate Kode Token Baru" — membuat kode 8 karakter acak (huruf besar & angka), langsung masuk ke daftar teratas.
@@ -261,8 +289,12 @@ Halaman terpisah (path/link berbeda) di dalam repository yang sama dengan index 
 - User baru otomatis dapat akses penuh sejak akun terverifikasi sesuai lama trial yang berlaku saat itu, tanpa langkah tambahan.
 - Lewat masa trial tanpa token: fitur AI (web & WA) benar-benar terkunci, fitur dasar tetap jalan normal selamanya, dan pop up notifikasi trial-habis dengan kolom input kode muncul.
 - Kode token yang sudah dipakai satu akun, dicoba dipakai di akun lain: ditolak dengan pesan yang jelas.
+- Admin mengubah angka lama trial di dashboard → hanya berlaku untuk akun baru yang daftar setelahnya; akun-akun yang sudah ada sebelumnya tidak ikut berubah tanggal berakhir trialnya.
+- API key yang salah/kadaluarsa dipakai untuk fitur AI → muncul pesan ramah (bukan error mentah dari Google), dan sistem otomatis pindah ke API key lain yang tersimpan — sama seperti penanganan kuota habis.
+- Dashboard admin dibuka dari 2 perangkat berbeda secara bersamaan (login admin di keduanya) → tidak error, dua-duanya tetap bisa dipakai bersamaan.
 - Siapa pun yang membuka link dashboard admin **wajib login lewat email & password dulu** sebelum melihat data apapun; sesi tidak valid otomatis diarahkan ke form login.
-- Admin bisa: melihat & mencari daftar user (dengan nomor WA tersamar), melihat ringkasan statistik, generate kode token baru, kirim token ke user tertentu (otomatis ter-assign dari stok), reset sambungan WA user tertentu, mengatur lama trial, dan kelola API key bersama maupun API key pribadinya sendiri.
+- Admin bisa: melihat & mencari daftar user (dengan nomor WA tersamar), melihat ringkasan statistik, generate kode token baru, kirim token ke user tertentu (otomatis ter-assign dari stok), reset sambungan WA user tertentu, **menghapus akun user tertentu beserta seluruh datanya**, mengatur lama trial, dan kelola API key bersama maupun API key pribadinya sendiri.
+- Tombol "Hapus Akun" tidak bisa ditekan sebelum admin mengetik "HAPUS" di kolom konfirmasi. Begitu dihapus, akun & seluruh datanya (dompet, transaksi, kategori, budget, tujuan tabungan, utang-piutang, dll) benar-benar hilang dari database — dan nomor WA yang sama bisa langsung dipakai untuk mendaftar akun baru dari nol tanpa hambatan.
 
 ---
 
@@ -281,6 +313,13 @@ Halaman terpisah (path/link berbeda) di dalam repository yang sama dengan index 
 - **Device tanpa WhatsApp terpasang**: tidak disediakan jalur alternatif — diasumsikan semua calon pengguna aplikasi ini sudah memiliki WhatsApp aktif di device yang dipakai mendaftar.
 
 ## 9. Catatan Perubahan
+
+- **v3.0 → v3.1**: Menambahkan tombol **"Hapus Akun"** per user di tab Pengguna Dashboard Admin — beda dari "Reset WA" (data tetap ada, cuma minta verifikasi ulang), "Hapus Akun" menghapus akun **beserta seluruh datanya secara permanen** (dompet, transaksi, kategori, budget, tujuan tabungan, utang-piutang, dll), dengan konfirmasi ketik "HAPUS" karena sifatnya tidak bisa dibatalkan. Nomor WhatsApp yang akunnya dihapus **tetap boleh dipakai lagi** untuk mendaftar sebagai akun baru dari nol. Kode token yang sudah dipakai akun tsb tetap berstatus terpakai (tidak dikembalikan ke stok).
+- **v2.9 → v3.0**: Hasil audit menyeluruh checklist uji coba vs PRD (semua Fase). Perubahan utama: (1) desain "Pintasan Aplikasi" diganti total — bukan lagi 1 ikon + menu tekan-lama, tapi **3 ikon layar utama terpisah** (Ikon Utama otomatis di Fase 1, Ikon Chat & Ikon Transaksi AI dipasang manual lewat tombol di Pengaturan pada Fase 2); (2) Fase 1 sekarang eksplisit mencakup instalasi PWA (Ikon Utama) sebagai kriteria selesai; (3) ditambahkan aturan penanganan foto/teks yang bukan transaksi via WA (AI balas natural lewat chat WA, berlaku terlepas dari posisi toggle); (4) ditegaskan perubahan lama trial admin **tidak retroaktif** (cuma akun baru); (5) penanganan API key diperluas mencakup key salah/kadaluarsa, bukan cuma kuota habis; (6) ditegaskan dashboard admin mendukung login bersamaan dari beberapa perangkat, konsisten dengan aturan multi-device user biasa.
+- **v2.8 → v2.9**: Alur masuk aplikasi dirombak — layar default sekarang **Masuk** (nomor WA + kata sandi) terpisah dari **Daftar** (khusus akun baru). Saat Daftar, user membuat **kata sandi sendiri** (bukan sandi acak sistem) setelah verifikasi WA berhasil — kata sandi ini yang dipakai untuk Masuk selanjutnya, tanpa perlu verifikasi WA lagi tiap login. Akun yang sudah ada, begitu Masuk, **langsung ke halaman utama** tanpa onboarding/setup dompet/kategori. Fitur "device sama tetap login tanpa diminta ulang" tetap dipertahankan. Ditambahkan juga alur "Lupa kata sandi" yang memakai verifikasi WA untuk reset.
+
+- **v2.7 → v2.8**: Menambahkan detail dari prototipe tampilan menu baru (`prototype-menu-baru.html`) — transaksi dengan banyak kategori sekaligus (dari 1 input/struk campuran) dipecah jadi beberapa transaksi terpisah, masing-masing dengan notifikasi PWA sendiri-sendiri (bukan digabung jadi 1 notifikasi).
+- **v2.6 → v2.7**: **Fase 1 sudah dieksekusi di Antigravity IDE.** Konfirmasi provider WhatsApp = WhatsApp Business Cloud API resmi dari Meta langsung (bukan pihak ketiga), dengan nomor resmi KaslyAI **+62 812-2696-4679** dan nomor pribadi/bisnis admin **+62 896-2611-2023**. Tambahan penegasan: satu akun harus tetap bisa login bareng di beberapa device sekaligus tanpa saling logout paksa (verifikasi device baru tidak menginvalidasi sesi device lain). Ditegaskan juga: pemanggilan AI dengan API key milik user sendiri tetap wajib lewat Edge Function (server), dan migrasi data tidak langsung menghapus kolom access_code lama (dijaga sebagai cadangan sampai teruji stabil).
 
 - **v2.5 → v2.6**: Menambahkan penanganan **fitur mode terkunci WA** (koreksi saldo, limit anggaran, tujuan tabungan — percakapan multi-langkah existing) saat toggle OFF — dinonaktifkan total lewat WA (tidak diadaptasi ke notifikasi karena sifatnya percakapan panjang), user diberi tahu lewat notifikasi PWA untuk pakai fitur ini di web.
 - **v2.4 → v2.5**: Menambahkan penanganan **pertanyaan umum di luar transaksi** (misal "saldo saya berapa?") lewat WA saat toggle OFF — jawabannya tetap dikirim, lewat notifikasi PWA berisi jawaban ringkas, bukan balasan WA.
