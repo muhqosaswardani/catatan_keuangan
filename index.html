@@ -4001,7 +4001,7 @@
     #page-chat {
       display: none;
       flex-direction: column;
-      height: calc(100dvh - 64px - 72px - env(safe-area-inset-bottom));
+      height: calc(100dvh - 56px - 56px - env(safe-area-inset-bottom));
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
@@ -9993,7 +9993,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.1.1)';
+      const version = ' (v3.1.2)';
       if (status === 'syncing' && isManual) {
         label.textContent = '⟳ Sinkronisasi...' + version;
       } else if (status === 'online') {
