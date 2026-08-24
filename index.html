@@ -10110,7 +10110,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.9)';
+      const version = ' (v3.3.10)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15312,46 +15312,52 @@
     // localStorage device ini, jadi kita paksa sync dulu kalau txId belum ketemu
     // lokal -- baru openTransactionModal dipanggil, supaya field-nya selalu
     // sesuai data hasil pembacaan AI (bukan form kosong).
-    async function openTransactionModalWithSync(id) {
-      if (!id) return;
-      let tx = getTransactions().find(t => t.id === id);
-      if (!tx && currentUserId && supabaseClient) {
-        try {
-          await syncAllWithSupabase(true);
-          refreshAllViews();
-        } catch (e) {
-          console.warn('[notif] gagal sync sebelum buka mode edit:', e);
-        }
-        tx = getTransactions().find(t => t.id === id);
-      }
-      if (!tx) {
-        showToast('Transaksi ini sudah kedaluwarsa (dibatalkan otomatis krn >5 menit tidak dilengkapi) atau sudah dihapus. Silakan catat ulang manual.');
-        return;
-      }
-      openTransactionModal(id);
+    // Alias lama, dipertahankan biar caller yang masih pakai nama ini tetap jalan.
+    function openTransactionModalWithSync(id) {
+      return openTransactionModal(id);
     }
 
-    function openTransactionModal(txId, opts) {
-      document.getElementById('txId').value = txId || '';
-      document.getElementById('txDeleteBtn').style.display = txId ? 'inline-flex' : 'none';
-      document.getElementById('txModalTitle').textContent = txId ? 'Edit Transaksi' : 'Tambah Transaksi';
-
+    async function openTransactionModal(txId, opts) {
       const wallets = getWallets();
       const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
       txWalletValue = primaryWallet ? primaryWallet.id : null;
 
+      let tx = null;
       if (txId) {
-        const tx = getTransactions().find(t => t.id === txId);
-        if (tx) {
-          setTxType(tx.type, false);
-          txWalletValue = tx.walletId;
-          populateTxCategoryOptions();
-          txCategoryValue = tx.categoryId;
-          document.getElementById('txAmount').value = tx.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-          document.getElementById('txDate').value = tx.date;
-          document.getElementById('txNote').value = tx.note || '';
-          document.getElementById('txExcludeFromReport').checked = !!tx.excludeFromReport;
+        tx = getTransactions().find(t => t.id === txId);
+        // Self-healing: transaksi bisa aja baru dibuat server-side (WA webhook) atau
+        // lewat notif app dan belum sempat ke-sync ke localStorage device ini. Alih-alih
+        // langsung nampilin form Edit kosong yang menyesatkan, coba sync dulu sebelum
+        // nyerah -- jalan dari SEMUA jalur pemanggilan (klik list, notif WA, notif app,
+        // shortcut app), bukan cuma satu wrapper yang bisa ke-skip.
+        if (!tx && currentUserId && supabaseClient) {
+          try {
+            await syncAllWithSupabase(true);
+            refreshAllViews();
+          } catch (e) {
+            console.warn('[edit-tx] gagal sync sebelum buka mode edit:', e);
+          }
+          tx = getTransactions().find(t => t.id === txId);
         }
+        if (!tx) {
+          showToast('Transaksi tidak ditemukan. Mungkin sudah dihapus/kedaluwarsa, atau belum sinkron -- coba lagi sebentar.');
+          return; // Jangan buka modal Edit yang kosong
+        }
+      }
+
+      document.getElementById('txId').value = txId || '';
+      document.getElementById('txDeleteBtn').style.display = txId ? 'inline-flex' : 'none';
+      document.getElementById('txModalTitle').textContent = txId ? 'Edit Transaksi' : 'Tambah Transaksi';
+
+      if (tx) {
+        setTxType(tx.type, false);
+        txWalletValue = tx.walletId;
+        populateTxCategoryOptions();
+        txCategoryValue = tx.categoryId;
+        document.getElementById('txAmount').value = tx.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        document.getElementById('txDate').value = tx.date;
+        document.getElementById('txNote').value = tx.note || '';
+        document.getElementById('txExcludeFromReport').checked = !!tx.excludeFromReport;
       } else {
         setTxType('expense', false);
         populateTxCategoryOptions();
