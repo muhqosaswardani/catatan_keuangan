@@ -7139,6 +7139,35 @@
       </div>
     </div>
 
+    <!-- ============ MODAL: INSTAL PINTASAN CHAT MANDIRI ============ -->
+    <div class="modal-overlay" id="modalChatShortcut" style="z-index:9999;">
+      <div class="modal" style="max-width:390px;text-align:center;padding:24px 20px;">
+        <div style="width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:8px;">Instal Chat KaslyAI Mandiri</h3>
+        <p style="font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:14px;">
+          Gunakan link di bawah ini untuk membuka dan memasang ikon aplikasi Chat KaslyAI terpisah di Layar Utama HP Anda:
+        </p>
+        <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--ink);word-break:break-all;text-align:left;margin-bottom:16px;font-family:monospace;" id="chatShortcutUrlDisplay">
+          https://muhqosaswardani.github.io/catatan_keuangan/chat.html
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="btn btn-primary btn-block" onclick="openChatShortcutInBrowser()">
+            Buka Halaman Chat
+          </button>
+          <button type="button" class="btn btn-secondary btn-block" onclick="copyChatShortcutUrl()">
+            Salin Link Chat
+          </button>
+          <button type="button" class="btn btn-ghost btn-block" onclick="closeModal('modalChatShortcut')" style="margin-top:4px;">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ MODAL: CUSTOM CONFIRM DIALOG ============ -->
     <div class="modal-overlay" id="modalConfirmDialog" style="z-index:9999;">
       <div class="modal" style="max-width:380px;text-align:center;padding:24px 20px;">
@@ -10119,7 +10148,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.14)';
+      const version = ' (v3.3.15)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22697,16 +22726,28 @@ PERTANYAAN_USER:
 
     function openChatShortcutModal() {
       const chatUrl = new URL('./chat.html', location.href).href;
-      showConfirmModal({
-        title: 'Instal Pintasan Chat Mandiri',
-        text: 'Anda akan dialihkan ke halaman Chat KaslyAI Mandiri untuk memasang ikon Chat langsung ke Layar Utama HP Anda.',
-        actionText: 'Buka Halaman Chat',
-        danger: false
-      }).then(confirmed => {
-        if (confirmed) {
-          window.location.href = chatUrl;
-        }
-      });
+      const el = document.getElementById('chatShortcutUrlDisplay');
+      if (el) el.textContent = chatUrl;
+      openModal('modalChatShortcut');
+    }
+
+    function openChatShortcutInBrowser() {
+      const chatUrl = new URL('./chat.html', location.href).href;
+      window.open(chatUrl, '_blank');
+      closeModal('modalChatShortcut');
+    }
+
+    function copyChatShortcutUrl() {
+      const chatUrl = new URL('./chat.html', location.href).href;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(chatUrl).then(() => {
+          showToast('Link Chat Mandiri berhasil disalin!');
+        }).catch(() => {
+          showToast('Silakan salin link di atas.');
+        });
+      } else {
+        showToast('Link Chat: ' + chatUrl);
+      }
     }
 
     /* =========================================================
