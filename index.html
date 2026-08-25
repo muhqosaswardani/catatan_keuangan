@@ -6842,20 +6842,12 @@
       </div>
       -->
 
-        <div style="margin-top:14px;display:flex;flex-direction:column;gap:0;">
-          <!-- AKUN: buka modal berisi nama, no WhatsApp, & ganti kata sandi -->
-          <button type="button" class="settings-row-card" onclick="openModal('modalAkun')">
+          <!-- AKUN: buka modal berisi nama, no WhatsApp, status langganan/token, & ganti kata sandi -->
+          <button type="button" class="settings-row-card" onclick="openModalAkun()">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg></span>
-              <span class="sr-title">Akun <span class="sr-arrow">›</span></span>
-            </div>
-          </button>
-          <!-- STATUS AKUN & KODE TOKEN -->
-          <button type="button" class="settings-row-card" onclick="openTokenAktivasiModal()">
-            <div class="sr-row">
-              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
               <div class="sr-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>Status Akun &amp; Kode Token</span>
+                <span>Akun</span>
                 <span id="settTrialBadge" style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:100px;background:var(--accent-soft);color:var(--accent-dark);">Memeriksa…</span>
               </div>
             </div>
@@ -8004,69 +7996,7 @@
       </div>
     </div>
 
-    <!-- ==================== MODAL: STATUS AKUN & KODE TOKEN ==================== -->
-    <div class="modal-overlay modal-center" id="modalTokenAktivasi">
-      <div class="modal">
-        <div class="modal-head">
-          <h3>Status Akun &amp; Token</h3>
-          <button class="modal-close" onclick="closeModal('modalTokenAktivasi')">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div style="background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:18px;text-align:center;">
-            <div style="font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Status Langganan</div>
-            <div id="modalTokenStatusBadge" style="display:inline-block;font-size:14px;font-weight:700;padding:6px 14px;border-radius:100px;margin-bottom:8px;">Memuat…</div>
-            <div id="modalTokenStatusDesc" style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;">—</div>
-          </div>
-
-          <div id="tokenInputFormWrap">
-            <div class="field" id="fieldTokenAktivasi">
-              <label>Masukkan Kode Token Baru</label>
-              <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
-              <div class="err" id="errTokenAktivasiMsg">Kode tidak valid / sudah pernah dipakai.</div>
-            </div>
-            <button class="btn btn-primary btn-block" id="btnSubmitTokenAktivasi" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan Token</button>
-            <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
-              Hubungi Admin untuk Beli Token
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== MODAL: TRIAL HABIS ==================== -->
-    <div class="modal-overlay modal-center" id="modalTrialHabis">
-      <div class="modal">
-        <div class="modal-head">
-          <h3>Masa Trial Sudah Habis</h3>
-          <button class="modal-close" onclick="closeModal('modalTrialHabis')">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div style="text-align:center;margin-bottom:16px;">
-            <div style="width:56px;height:56px;border-radius:50%;background:var(--warn-soft);color:var(--warn);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg>
-            </div>
-            <div style="font-weight:700;font-size:15px;">Fitur AI &amp; WhatsApp terkunci</div>
-            <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.55;">
-              Tenang, catatan transaksi manual kamu tetap bisa dipakai penuh &amp; gratis selamanya. Untuk buka lagi fitur AI, masukkan kode token di bawah, atau hubungi admin.
-            </div>
-          </div>
-
-          <div class="field" id="fieldToken">
-            <label>Kode Akses / Token</label>
-            <input type="text" class="token-input" id="inpToken" maxlength="12" oninput="clearErr('fieldToken')">
-            <div class="err">Kode tidak valid / sudah pernah dipakai.</div>
-          </div>
-          <button class="btn btn-primary btn-block" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan dengan Token</button>
-          <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
-            Hubungi Admin untuk Beli Token
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== MODAL: AKUN ==================== -->
+    <!-- ==================== MODAL: AKUN & LANGGANAN ==================== -->
     <div class="modal-overlay modal-center" id="modalAkun">
       <div class="modal">
         <div class="modal-head">
@@ -8078,11 +8008,32 @@
             <label>Nama</label>
             <div id="settAkunNama" style="font-size:14.5px;font-weight:600;color:var(--ink);padding:4px 0;">Memuat…</div>
           </div>
-          <div class="field" style="margin-top:14px;">
+          <div class="field" style="margin-top:10px;">
             <label>Nomor WhatsApp</label>
             <div id="settAkunWa" style="font-size:14.5px;font-weight:600;color:var(--ink);padding:4px 0;"></div>
           </div>
-          <button type="button" class="settings-row-card" style="margin-top:18px;" onclick="openGantiPasswordModal()">
+
+          <!-- STATUS LANGGANAN & TOKEN -->
+          <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin:16px 0 14px;text-align:center;">
+            <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Status Langganan</div>
+            <div id="modalTokenStatusBadge" style="display:inline-block;font-size:13.5px;font-weight:700;padding:5px 12px;border-radius:100px;margin-bottom:6px;">Memuat…</div>
+            <div id="modalTokenStatusDesc" style="font-size:12px;color:var(--ink-soft);line-height:1.45;">—</div>
+          </div>
+
+          <div id="tokenInputFormWrap">
+            <div class="field" id="fieldTokenAktivasi" style="margin-bottom:12px;">
+              <label>Masukkan Kode Token</label>
+              <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
+              <div class="err" id="errTokenAktivasiMsg">Kode tidak valid / sudah pernah dipakai.</div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btnSubmitTokenAktivasi" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan Token</button>
+            <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')" style="margin-bottom:14px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              Hubungi Admin untuk Beli Token
+            </button>
+          </div>
+
+          <button type="button" class="settings-row-card" style="margin-top:8px;" onclick="openGantiPasswordModal()">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
               <span class="sr-title">Ganti Kata Sandi <span class="sr-arrow">›</span></span>
@@ -10497,13 +10448,15 @@
       }
     }
 
-    function openTokenAktivasiModal() {
+    function openModalAkun() {
+      renderAkunCard();
       renderTokenStatusInModal();
       clearErr('fieldTokenAktivasi');
       const inp = document.getElementById('inpTokenAktivasi');
       if (inp) inp.value = '';
-      openModal('modalTokenAktivasi');
+      openModal('modalAkun');
     }
+    const openTokenAktivasiModal = openModalAkun;
 
     function renderTokenStatusInModal() {
       const badge = document.getElementById('modalTokenStatusBadge');
@@ -10602,6 +10555,7 @@
           return;
         }
 
+        closeModal('modalAkun');
         closeModal('modalTokenAktivasi');
         closeModal('modalTrialHabis');
         userTrialStatus = 'paid';
@@ -10666,7 +10620,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.5.1)';
+      const version = ' (v3.5.2)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
