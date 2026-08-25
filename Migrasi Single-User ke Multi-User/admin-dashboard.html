@@ -1003,7 +1003,6 @@
       renderUsers(searchFilterText);
       renderTokens();
       renderSharedKeys();
-      renderPersonalKeys();
     }
 
     function renderStats() {
@@ -1167,6 +1166,30 @@
       await db.from('global_settings').upsert({ key: 'default_trial_days', value: JSON.stringify(val), updated_at: new Date().toISOString() });
       toast('Durasi trial default diperbarui: ' + val + ' hari.');
       await loadData();
+    }
+
+    function renderTokens() {
+      const wrap = document.getElementById('tokenList');
+      if (!wrap) return;
+      if (!adminTokens.length) {
+        wrap.innerHTML = '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:24px 0;">Belum ada kode token dibuat.</div>';
+        return;
+      }
+      wrap.innerHTML = adminTokens.map(t => {
+        const isUsed = t.status === 'used' || !!t.used_by;
+        const user = isUsed ? adminUsers.find(u => u.id === t.used_by) : null;
+        const createdStr = t.created_at ? new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+        const usedStr = t.used_at ? new Date(t.used_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        return `
+        <div class="token-row">
+          <div>
+            <div class="code">${t.code}</div>
+            <div class="meta">Dibuat: ${createdStr} · Durasi: ${t.duration_days || 30} hari${isUsed ? ` · Dipakai: ${user ? user.nama : 'Pengguna'} (${usedStr})` : ''}</div>
+          </div>
+          <span class="status-tag ${isUsed ? 'habis' : 'paid'}">${isUsed ? 'Terpakai' : 'Tersedia'}</span>
+        </div>
+        `;
+      }).join('');
     }
 
     function renderSharedKeys() {
