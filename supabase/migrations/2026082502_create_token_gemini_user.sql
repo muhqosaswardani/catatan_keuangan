@@ -18,19 +18,22 @@ ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS gemini_keys JSONB DEFA
 ALTER TABLE public.token_gemini_user ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow authenticated to view own gemini keys" ON public.token_gemini_user;
-CREATE POLICY "Allow authenticated to view own gemini keys" 
+DROP POLICY IF EXISTS "Allow all to view own gemini keys" ON public.token_gemini_user;
+CREATE POLICY "Allow all to view own gemini keys" 
 ON public.token_gemini_user FOR SELECT 
-TO authenticated 
-USING (auth.uid() = user_id);
+TO anon, authenticated 
+USING (true);
 
 DROP POLICY IF EXISTS "Allow authenticated to insert own gemini keys" ON public.token_gemini_user;
-CREATE POLICY "Allow authenticated to insert own gemini keys" 
+DROP POLICY IF EXISTS "Allow all to insert own gemini keys" ON public.token_gemini_user;
+CREATE POLICY "Allow all to insert own gemini keys" 
 ON public.token_gemini_user FOR INSERT 
-TO authenticated 
-WITH CHECK (auth.uid() = user_id);
+TO anon, authenticated 
+WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow authenticated to delete own gemini keys" ON public.token_gemini_user;
-CREATE POLICY "Allow authenticated to delete own gemini keys" 
+DROP POLICY IF EXISTS "Allow all to delete own gemini keys" ON public.token_gemini_user;
+CREATE POLICY "Allow all to delete own gemini keys" 
 ON public.token_gemini_user FOR DELETE 
-TO authenticated 
-USING (auth.uid() = user_id);
+TO anon, authenticated 
+USING (true);
