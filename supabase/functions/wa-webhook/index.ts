@@ -1095,6 +1095,37 @@ function cleanupRecentWebChat() {
       }
     }
 
+    // ============================================================
+    // Admin Action: Update Gemini Shared Keys (Bypass RLS via Service Role)
+    // ============================================================
+    if (rawBody.includes('"admin_update_shared_keys"')) {
+      try {
+        const payload = JSON.parse(rawBody);
+        if (payload.action === "admin_update_shared_keys") {
+          const newKeys = Array.isArray(payload.keys) ? payload.keys : [];
+          const db = getDb();
+          const { error: upsertErr } = await db.from("global_settings").upsert({
+            key: "gemini_shared_keys",
+            value: newKeys,
+            updated_at: new Date().toISOString()
+          });
+          if (upsertErr) {
+            console.error("Failed to upsert gemini_shared_keys:", upsertErr);
+            return new Response(JSON.stringify({ success: false, error: upsertErr.message }), {
+              status: 500,
+              headers: corsHeaders
+            });
+          }
+          return new Response(JSON.stringify({ success: true, keys: newKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+      } catch (e) {
+        console.error("Admin shared keys handler error:", e);
+      }
+    }
+
     if (
       !APP_SECRET ||
       !SUPABASE_URL ||

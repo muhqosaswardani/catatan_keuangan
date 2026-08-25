@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.8</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.9</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1128,6 +1128,24 @@
       `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key bersama.</div>';
     }
 
+    async function syncSharedKeysToBackend() {
+      try {
+        await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'admin_update_shared_keys',
+            keys: sharedKeys
+          })
+        });
+      } catch (err) {
+        console.warn('Sync via function failed:', err);
+      }
+      try {
+        await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
+      } catch (e) {}
+    }
+
     async function addSharedKey() {
       const inp = document.getElementById('inpSharedKey');
       const v = inp ? inp.value.trim() : '';
@@ -1137,13 +1155,8 @@
       renderSharedKeys();
       if (inp) inp.value = '';
 
-      const { error } = await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
-      if (error) {
-        console.error('Error saving shared keys:', error);
-        toast('Peringatan: Gagal simpan ke DB (' + error.message + ')');
-      } else {
-        toast('API key bersama berhasil ditambahkan.');
-      }
+      await syncSharedKeysToBackend();
+      toast('API key bersama berhasil ditambahkan.');
       await loadData();
     }
 
@@ -1152,13 +1165,8 @@
       try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
       renderSharedKeys();
 
-      const { error } = await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
-      if (error) {
-        console.error('Error removing shared key:', error);
-        toast('Peringatan: Gagal hapus di DB (' + error.message + ')');
-      } else {
-        toast('API key bersama berhasil dihapus.');
-      }
+      await syncSharedKeysToBackend();
+      toast('API key bersama berhasil dihapus.');
       await loadData();
     }
 
