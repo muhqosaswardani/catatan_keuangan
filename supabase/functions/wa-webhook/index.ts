@@ -28,12 +28,6 @@ const VERIFY_TOKEN = Deno.env.get("WA_VERIFY_TOKEN");
 const APP_SECRET = Deno.env.get("WA_APP_SECRET")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const GEMINI_API_KEYS_RAW = Deno.env.get("GEMINI_API_KEYS") ?? "";
-
-// Parse multiple Gemini API keys (comma-separated)
-const GEMINI_API_KEYS: string[] = GEMINI_API_KEYS_RAW.split(",")
-  .map((k) => k.trim())
-  .filter(Boolean);
 
 // ============================================================
 // Supabase client (service role — bypass RLS untuk edge function)
@@ -76,15 +70,6 @@ async function resolveGeminiApiKeys(
     if (!error && data && Array.isArray(data.value) && data.value.length > 0) {
       keys.push(...data.value);
     }
-  } catch (e) {
-    console.error("resolveGeminiApiKeys: error loading shared keys:", e);
-  }
-
-  // 3. Fallback ke env GEMINI_API_KEYS jika database kosong
-  if (keys.length === 0) {
-    keys.push(...GEMINI_API_KEYS);
-  }
-
   return keys;
 }
 
@@ -1101,7 +1086,6 @@ function cleanupRecentWebChat() {
       !APP_SECRET ||
       !SUPABASE_URL ||
       !SUPABASE_SERVICE_ROLE_KEY ||
-      !GEMINI_API_KEYS.length ||
       !Deno.env.get("WA_DEFAULT_WALLET_ID") ||
       !PHONE_NUMBER_ID ||
       !WA_ACCESS_TOKEN
