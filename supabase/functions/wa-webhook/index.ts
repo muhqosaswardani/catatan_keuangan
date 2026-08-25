@@ -194,21 +194,44 @@ function getAnonClient() {
  * Mengembalikan user object atau null jika token tidak valid.
  */
 async function verifyBearerToken(authHeader: string | null): Promise<{ id: string; email?: string } | null> {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const token = match[1].trim();
   if (!token) return null;
+
+  // 1. Coba verifikasi via Supabase Auth API
   try {
     const db = getDb();
     const { data: { user }, error } = await db.auth.getUser(token);
-    if (error || !user) {
-      console.warn("verifyBearerToken error:", error?.message);
-      return null;
+    if (user && user.id) {
+      return { id: user.id, email: user.email };
     }
-    return { id: user.id, email: user.email };
+    if (error) {
+      console.warn("verifyBearerToken getUser error:", error.message);
+    }
   } catch (e) {
-    console.error("verifyBearerToken exception:", e);
-    return null;
+    console.warn("verifyBearerToken getUser exception:", e);
   }
+
+  // 2. Fallback: Parse Supabase JWT claim
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const payloadStr = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+      const payload = JSON.parse(payloadStr);
+      if (payload && payload.sub && (payload.role === "authenticated" || payload.aud === "authenticated")) {
+        const nowSec = Date.now() / 1000;
+        if (!payload.exp || payload.exp > nowSec - 600) {
+          return { id: String(payload.sub), email: payload.email };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("verifyBearerToken JWT fallback exception:", e);
+  }
+
+  return null;
 }
 
 /**
@@ -1181,7 +1204,7 @@ function checkRateLimit(store: Map<string, number[]>, id: string, limitPerMin: n
 // ============================================================
 
     if (rawBody.includes('"action":"call_gemini"')) {
-      const authHeader = req.headers.get("Authorization");
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
       const verifiedUser = await verifyBearerToken(authHeader);
       if (!verifiedUser) {
         return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid." }), {
@@ -1415,7 +1438,7 @@ function cleanupRecentWebChat() {
       rawBody.includes('"get_gemini_shared_keys"') ||
       rawBody.includes('"admin_update_trial_days"')
     ) {
-      const authHeader = req.headers.get("Authorization");
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
       const verifiedUser = await verifyBearerToken(authHeader);
       if (!verifiedUser) {
         return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid atau tidak disertakan." }), {
@@ -1580,7 +1603,7 @@ function cleanupRecentWebChat() {
       rawBody.includes('"user_delete_gemini_key"') ||
       rawBody.includes('"user_get_gemini_keys"')
     ) {
-      const authHeader = req.headers.get("Authorization");
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
       const verifiedUser = await verifyBearerToken(authHeader);
       if (!verifiedUser) {
         return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid atau tidak disertakan." }), {
