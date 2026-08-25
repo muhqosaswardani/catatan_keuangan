@@ -195,13 +195,18 @@ function getAnonClient() {
  */
 async function verifyBearerToken(authHeader: string | null): Promise<{ id: string; email?: string } | null> {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7);
+  const token = authHeader.slice(7).trim();
+  if (!token) return null;
   try {
-    const client = getAnonClient();
-    const { data: { user }, error } = await client.auth.getUser(token);
-    if (error || !user) return null;
+    const db = getDb();
+    const { data: { user }, error } = await db.auth.getUser(token);
+    if (error || !user) {
+      console.warn("verifyBearerToken error:", error?.message);
+      return null;
+    }
     return { id: user.id, email: user.email };
-  } catch {
+  } catch (e) {
+    console.error("verifyBearerToken exception:", e);
     return null;
   }
 }

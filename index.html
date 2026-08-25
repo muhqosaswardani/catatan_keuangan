@@ -14935,8 +14935,24 @@
         throw new Error('Koneksi ke server belum siap. Coba muat ulang halaman.');
       }
 
-      const { data: sessionData } = await supabaseClient.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      let token = null;
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        token = sessionData?.session?.access_token;
+      } catch(e) {}
+
+      if (!token) {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+              const item = JSON.parse(localStorage.getItem(k));
+              if (item && item.access_token) { token = item.access_token; break; }
+            }
+          }
+        } catch(e) {}
+      }
+
       if (!token) {
         throw new Error('Sesi login tidak ditemukan. Silakan login ulang.');
       }
