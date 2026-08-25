@@ -69,14 +69,11 @@ async function resolveGeminiApiKeys(
     }
   }
 
-  // 2. Ambil key bersama dari user_settings admin
+  // 2. Ambil key bersama dari row dedicated access_code = "admin_shared_keys"
   try {
-    const { data: adminUser } = await db.from("users").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
-    if (adminUser?.id) {
-      const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("user_id", adminUser.id).maybeSingle();
-      if (st?.shortcut_overrides?.gemini_shared_keys && Array.isArray(st.shortcut_overrides.gemini_shared_keys)) {
-        keys.push(...st.shortcut_overrides.gemini_shared_keys);
-      }
+    const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
+    if (st?.shortcut_overrides?.gemini_shared_keys && Array.isArray(st.shortcut_overrides.gemini_shared_keys)) {
+      keys.push(...st.shortcut_overrides.gemini_shared_keys);
     }
   } catch (e) {
     console.error("resolveGeminiApiKeys: error loading shared keys:", e);
@@ -1109,19 +1106,12 @@ function cleanupRecentWebChat() {
         const db = getDb();
         if (payload.action === "admin_update_shared_keys") {
           const newKeys = Array.isArray(payload.keys) ? payload.keys : [];
-          const { data: adminUser } = await db.from("users").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
-          if (adminUser?.id) {
-            const { data: currentSt } = await db.from("user_settings").select("*").eq("user_id", adminUser.id).maybeSingle();
-            const overrides = (currentSt && typeof currentSt.shortcut_overrides === "object" && currentSt.shortcut_overrides) ? { ...currentSt.shortcut_overrides } : {};
-            overrides.gemini_shared_keys = newKeys;
-
-            await db.from("user_settings").upsert({
-              access_code: currentSt?.access_code || ("wa_" + adminUser.id),
-              user_id: adminUser.id,
-              shortcut_overrides: overrides,
-              updated_at: new Date().toISOString()
-            });
-          }
+          // Simpan di row mandiri access_code = 'admin_shared_keys' (tidak akan pernah tertimpa sync user mana pun)
+          await db.from("user_settings").upsert({
+            access_code: "admin_shared_keys",
+            shortcut_overrides: { gemini_shared_keys: newKeys },
+            updated_at: new Date().toISOString()
+          });
           return new Response(JSON.stringify({ success: true, keys: newKeys }), {
             status: 200,
             headers: corsHeaders
@@ -1129,14 +1119,8 @@ function cleanupRecentWebChat() {
         }
 
         if (payload.action === "get_gemini_shared_keys") {
-          const { data: adminUser } = await db.from("users").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
-          let keys: string[] = [];
-          if (adminUser?.id) {
-            const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("user_id", adminUser.id).maybeSingle();
-            if (st?.shortcut_overrides?.gemini_shared_keys && Array.isArray(st.shortcut_overrides.gemini_shared_keys)) {
-              keys = st.shortcut_overrides.gemini_shared_keys;
-            }
-          }
+          const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
+          const keys = st?.shortcut_overrides?.gemini_shared_keys || [];
           return new Response(JSON.stringify({ success: true, keys }), {
             status: 200,
             headers: corsHeaders
