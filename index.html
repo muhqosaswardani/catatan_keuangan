@@ -11322,8 +11322,10 @@
     function getGeminiApiKey() {
       const custom = (getSettings().geminiApiKey || '').trim();
       if (custom) return custom;
-      if (userKeys && userKeys.length > 0) return userKeys[0];
-      if (sharedKeys && sharedKeys.length > 0) return sharedKeys[0];
+      if (userKeys && userKeys.length > 0) return (typeof userKeys[0] === 'object' ? (userKeys[0].masked || userKeys[0].id) : userKeys[0]);
+      if (sharedKeys && sharedKeys.length > 0) return (typeof sharedKeys[0] === 'object' ? (sharedKeys[0].masked || sharedKeys[0].id) : sharedKeys[0]);
+      // Di mode multi-user, jika user tidak punya personal key, server otomatis fallback ke shared key & env key
+      if (supabaseClient || currentUserId) return '__server_managed__';
       return '';
     }
     function setSettingsLocalOnly(s) { localStorage.setItem(LS_KEYS.settings, JSON.stringify(s)); }
