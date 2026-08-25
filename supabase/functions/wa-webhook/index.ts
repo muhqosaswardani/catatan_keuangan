@@ -675,7 +675,7 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = {
     "Access-Control-Allow-Origin": requestOrigin,
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-web-chat",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-web-chat, x-admin-gate-code",
     "Access-Control-Allow-Credentials": "true",
     "Content-Type": "application/json"
   };
