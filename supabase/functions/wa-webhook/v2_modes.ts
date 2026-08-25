@@ -453,7 +453,15 @@ export async function handleModeKoreksiMessage(
 
     const pendingInputs = currentSession.session_data.pending_batch_inputs || [];
     if (msg.type === "image" && msg.mediaId) {
+      // Foto dari WhatsApp (diunduh via Media API pakai mediaId)
       pendingInputs.push({ type: "image", mediaId: msg.mediaId, caption: msg.caption });
+    } else if (msg.type === "image" && msg.inlineImageData && msg.inlineImageMimeType) {
+      // Foto dari Chat App (base64 langsung, tanpa mediaId WhatsApp)
+      pendingInputs.push({
+        type: "image",
+        inlineData: { data: msg.inlineImageData, mimeType: msg.inlineImageMimeType },
+        caption: msg.caption
+      });
     } else if (msg.type === "text") {
       pendingInputs.push({ type: "text", text });
     }
@@ -540,16 +548,23 @@ export async function processModeKoreksiBatch(
 
   for (const input of inputs) {
     if (input.type === "image") {
-      try {
-        const { data: bytes, mimeType } = await downloadWhatsAppMedia(input.mediaId, WA_ACCESS_TOKEN);
-        if (bytes) {
-          const b64 = safeBytesToBase64(bytes);
-          mediaParts.push({
-            inlineData: { mimeType: mimeType || "image/jpeg", data: b64 }
-          });
+      if (input.inlineData && input.inlineData.data) {
+        // Foto dari Chat App: base64 sudah tersedia langsung, tidak perlu diunduh
+        mediaParts.push({
+          inlineData: { mimeType: input.inlineData.mimeType || "image/jpeg", data: input.inlineData.data }
+        });
+      } else if (input.mediaId) {
+        try {
+          const { data: bytes, mimeType } = await downloadWhatsAppMedia(input.mediaId, WA_ACCESS_TOKEN);
+          if (bytes) {
+            const b64 = safeBytesToBase64(bytes);
+            mediaParts.push({
+              inlineData: { mimeType: mimeType || "image/jpeg", data: b64 }
+            });
+          }
+        } catch (e) {
+          console.error("Gagal download media in batch:", e);
         }
-      } catch (e) {
-        console.error("Gagal download media in batch:", e);
       }
       if (input.caption) {
         combinedText += "\n" + input.caption;

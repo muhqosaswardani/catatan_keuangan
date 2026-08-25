@@ -1369,6 +1369,17 @@ function cleanupRecentWebChat() {
           }
 
           if (webPayload.image && webPayload.image.data && webPayload.image.mimeType) {
+            // Cek dulu apakah user sedang di dalam Mode Terkunci aktif (koreksi/limit/tujuan).
+            // Kalau iya, foto HARUS tetap lewat v2 router (bukan langsung diproses sebagai
+            // transaksi normal) supaya konsisten dengan perilaku di WhatsApp bot.
+            const { session: imgSession, wasTimedOut: imgSessionTimedOut } = await getV2Session(db, msg.from);
+            if (imgSession && !imgSessionTimedOut) {
+              (msg as any).inlineImageData = webPayload.image.data;
+              (msg as any).inlineImageMimeType = webPayload.image.mimeType;
+              const handledLocked = await handleV2Message(db, resolvedKeys, msg, userId);
+              if (handledLocked) return;
+            }
+
             await handleWebChatImage(db, resolvedKeys, msg, webPayload.image.data, webPayload.image.mimeType, userId);
             return;
           }
@@ -2027,7 +2038,17 @@ function cleanupRecentWebChat() {
 
       const isMedia = msg.type === "image" || msg.type === "audio";
 
-      if (isMedia) {
+      // Cek dulu apakah user sedang di dalam Mode Terkunci aktif (koreksi/limit/tujuan).
+      // Kalau iya, foto/audio TIDAK BOLEH masuk jalur media-queue (yang akan diproses
+      // sebagai transaksi normal) — harus tetap lewat v2 router supaya locked mode
+      // (misal Mode Koreksi Saldo) yang menangani, bukan "bocor" jadi transaksi biasa.
+      let lockedSessionActive = false;
+      if (isMedia && Deno.env.get("WA_V2_ENABLED") === "true") {
+        const { session: mediaSession, wasTimedOut: mediaSessionTimedOut } = await getV2Session(db, msg.from);
+        lockedSessionActive = !!(mediaSession && !mediaSessionTimedOut);
+      }
+
+      if (isMedia && !lockedSessionActive) {
         try {
           const { error } = await db.from("wa_media_queue").upsert(
             {
