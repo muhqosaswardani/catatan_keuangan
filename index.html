@@ -9988,15 +9988,40 @@
     }
 
     async function saveKeysToDb() {
+      // 1. Simpan ke localStorage terlebih dahulu (instan render & persisten di device)
+      try {
+        localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys));
+      } catch (e) {}
+
       if (!currentUserId || !supabaseClient) return;
       try {
-        await supabaseClient.from('token_gemini_user').delete().eq('user_id', currentUserId);
-        if (userKeys.length > 0) {
-          const inserts = userKeys.map(k => ({
+        // 2. Simpan ke tabel token_gemini_user
+        try {
+          await supabaseClient.from('token_gemini_user').delete().eq('user_id', currentUserId);
+          if (userKeys.length > 0) {
+            const inserts = userKeys.map(k => ({
+              user_id: currentUserId,
+              api_key: k
+            }));
+            await supabaseClient.from('token_gemini_user').insert(inserts);
+          }
+        } catch (e) {
+          console.warn('token_gemini_user sync warning:', e);
+        }
+
+        // 3. Simpan juga ke user_settings (gemini_keys) agar pasti tersinkronisasi lintas device (PC & HP)
+        try {
+          await supabaseClient.from('user_settings').upsert({
             user_id: currentUserId,
-            api_key: k
-          }));
-          await supabaseClient.from('token_gemini_user').insert(inserts);
+            gemini_keys: userKeys,
+            updated_at: new Date().toISOString()
+          });
+        } catch (e) {
+          console.warn('user_settings gemini_keys sync warning:', e);
+        }
+
+        // 4. Update status sumber_ai di tabel users
+        if (userKeys.length > 0) {
           await supabaseClient.from('users').update({ sumber_ai: 'sendiri' }).eq('id', currentUserId);
         } else {
           await supabaseClient.from('users').update({ sumber_ai: 'gratis' }).eq('id', currentUserId);
@@ -10017,13 +10042,44 @@
     }
 
     async function loadUserKeys() {
-      if (!currentUserId || !supabaseClient) return;
+      // 1. Load dari cache lokal terlebih dahulu (instan tampil tanpa nunggu network)
       try {
-        const { data } = await supabaseClient.from('token_gemini_user').select('api_key').eq('user_id', currentUserId);
-        if (data) {
-          userKeys = data.map(r => r.api_key);
+        const cached = localStorage.getItem('fk_user_gemini_keys');
+        if (cached) {
+          userKeys = JSON.parse(cached) || [];
           renderUserKeys();
         }
+      } catch (e) {}
+
+      if (!currentUserId || !supabaseClient) return;
+      try {
+        let loaded = false;
+        // 2. Fetch dari tabel token_gemini_user
+        try {
+          const { data, error } = await supabaseClient.from('token_gemini_user').select('api_key').eq('user_id', currentUserId);
+          if (!error && data && data.length > 0) {
+            userKeys = data.map(r => r.api_key);
+            loaded = true;
+          }
+        } catch (e) {}
+
+        // 3. Jika belum dapat, coba fetch dari tabel user_settings (gemini_keys)
+        if (!loaded) {
+          try {
+            const { data: st, error: stErr } = await supabaseClient.from('user_settings').select('gemini_keys').eq('user_id', currentUserId).maybeSingle();
+            if (!stErr && st && Array.isArray(st.gemini_keys)) {
+              userKeys = st.gemini_keys;
+              loaded = true;
+            }
+          } catch (e) {}
+        }
+
+        // 4. Update cache lokal dengan data terbaru dari cloud
+        try {
+          localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys));
+        } catch (e) {}
+
+        renderUserKeys();
       } catch (err) {
         console.error('Gagal mengambil API key user:', err);
       }
@@ -10421,7 +10477,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.57)';
+      const version = ' (v3.3.58)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {

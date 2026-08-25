@@ -45,7 +45,7 @@ async function resolveGeminiApiKeys(
 ): Promise<string[]> {
   const keys: string[] = [];
 
-  // 1. Ambil key pribadi user dari tabel token_gemini_user
+  // 1. Ambil key pribadi user dari tabel token_gemini_user atau user_settings
   if (userId) {
     try {
       const { data, error } = await db
@@ -54,6 +54,15 @@ async function resolveGeminiApiKeys(
         .eq("user_id", userId);
       if (!error && data && data.length > 0) {
         keys.push(...data.map((r: { api_key: string }) => r.api_key));
+      } else {
+        const { data: st, error: stErr } = await db
+          .from("user_settings")
+          .select("gemini_keys")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (!stErr && st && Array.isArray(st.gemini_keys) && st.gemini_keys.length > 0) {
+          keys.push(...st.gemini_keys);
+        }
       }
     } catch (e) {
       console.error("resolveGeminiApiKeys: error loading user keys:", e);
