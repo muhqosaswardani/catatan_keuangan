@@ -249,6 +249,22 @@ async function isAdmin(db: ReturnType<typeof getDb>, userId: string): Promise<bo
   return data.is_admin === true || data.nomor_wa === "6289626112023";
 }
 
+/**
+ * Constant-time string comparison menggunakan SHA-256 digest buffer
+ * untuk mencegah timing attack pada verifikasi kode rahasia gate.
+ */
+async function timingSafeEqualAsync(a: string, b: string): Promise<boolean> {
+  if (!a || !b) return false;
+  const encoder = new TextEncoder();
+  const aHash = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(a)));
+  const bHash = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(b)));
+  let diff = 0;
+  for (let i = 0; i < 32; i++) {
+    diff |= aHash[i] ^ bHash[i];
+  }
+  return diff === 0;
+}
+
 // ============================================================
 // Supabase client (service role — bypass RLS untuk edge function)
 // ============================================================
@@ -1432,6 +1448,7 @@ function cleanupRecentWebChat() {
     // Langkah 3: Enkripsi saat simpan, kirim masked + ID ke browser
     // ============================================================
     if (
+      rawBody.includes('"admin_verify_gate_code"') ||
       rawBody.includes('"admin_update_shared_keys"') ||
       rawBody.includes('"admin_add_shared_key"') ||
       rawBody.includes('"admin_delete_shared_key"') ||
@@ -1475,6 +1492,48 @@ function cleanupRecentWebChat() {
           status: 403,
           headers: corsHeaders
         });
+      }
+
+      // ============================================================
+      // Gate Akses Kode Rahasia Admin Dashboard (Fail-Closed)
+      // ============================================================
+      if (payload.action !== "get_gemini_shared_keys") {
+        const ADMIN_GATE_CODE = Deno.env.get("ADMIN_DASHBOARD_ACCESS_CODE") || "";
+
+        // 1. Fail-closed: Jika secret belum diset di server, tolak total
+        if (!ADMIN_GATE_CODE) {
+          return new Response(JSON.stringify({ error: "Akses ditolak: Admin gate belum dikonfigurasi." }), {
+            status: 403,
+            headers: corsHeaders
+          });
+        }
+
+        // 2. Ekstrak submitted gate code dari header atau body
+        const submittedGateCode = req.headers.get("X-Admin-Gate-Code") ||
+                                  req.headers.get("x-admin-gate-code") ||
+                                  payload.adminGateCode ||
+                                  "";
+
+        // 3. Constant-time comparison
+        const isGateValid = submittedGateCode
+          ? await timingSafeEqualAsync(submittedGateCode, ADMIN_GATE_CODE)
+          : false;
+
+        // 4. Fail-closed: Jika kode tidak cocok, tolak
+        if (!isGateValid) {
+          return new Response(JSON.stringify({ error: "Akses ditolak" }), {
+            status: 403,
+            headers: corsHeaders
+          });
+        }
+
+        // Endpoint verifikasi gerbang kode dari frontend
+        if (payload.action === "admin_verify_gate_code") {
+          return new Response(JSON.stringify({ success: true, message: "Gate verifikasi berhasil" }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
       }
 
       try {
