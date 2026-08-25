@@ -10455,7 +10455,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.60)';
+      const version = ' (v3.3.61)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -20156,7 +20156,11 @@
             'x-web-chat': 'true',
             'Authorization': 'Bearer ' + (token || SUPABASE_KEY)
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            ...payload,
+            userGeminiKeys: userKeys,
+            sharedGeminiKeys: sharedKeys
+          }),
           signal: controller.signal
         });
         clearTimeout(timeoutId);

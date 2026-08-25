@@ -1019,7 +1019,13 @@ function cleanupRecentWebChat() {
 
       try {
         await chatContext.run({ isWebChat: true, messages: responseMessages }, async () => {
-          const resolvedKeys = await resolveGeminiApiKeys(db, userId);
+          let resolvedKeys = await resolveGeminiApiKeys(db, userId);
+          if (resolvedKeys.length === 0 && Array.isArray(webPayload.userGeminiKeys) && webPayload.userGeminiKeys.length > 0) {
+            resolvedKeys = webPayload.userGeminiKeys.filter(Boolean);
+          }
+          if (resolvedKeys.length === 0 && Array.isArray(webPayload.sharedGeminiKeys) && webPayload.sharedGeminiKeys.length > 0) {
+            resolvedKeys = webPayload.sharedGeminiKeys.filter(Boolean);
+          }
 
           if (webPayload.image && webPayload.image.data && webPayload.image.mimeType) {
             await handleWebChatImage(db, resolvedKeys, msg, webPayload.image.data, webPayload.image.mimeType, userId);
