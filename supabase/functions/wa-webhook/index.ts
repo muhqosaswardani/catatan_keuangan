@@ -1522,8 +1522,16 @@ function cleanupRecentWebChat() {
           });
         }
 
-        // Send Token to User via secure backend
+        // Send Token to User via secure backend (Pastikan token berstatus available)
         if (payload.action === "admin_send_token" && payload.code && payload.userId) {
+          const { data: tkCheck } = await db.from("tokens").select("status, used_by").eq("code", payload.code).maybeSingle();
+          if (!tkCheck || tkCheck.status !== "available" || tkCheck.used_by) {
+            return new Response(JSON.stringify({ error: "Token " + payload.code + " sudah terpakai / tidak tersedia. Harap generate token baru." }), {
+              status: 400,
+              headers: corsHeaders
+            });
+          }
+
           await db.from("tokens").update({
             status: "used",
             used_by: payload.userId,

@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.8</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.9</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1098,8 +1098,11 @@
     }
 
     async function confirmSendToken(userId, nama) {
-      const free = adminTokens.find(t => t.status === 'available' || !t.used);
-      if (!free) { toast('Stok token habis — generate token baru dulu.'); return; }
+      const free = adminTokens.find(t => t.status === 'available' && !t.used_by);
+      if (!free) {
+        toast('Stok token habis — silakan generate kode token baru terlebih dahulu.');
+        return;
+      }
       customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, async () => {
         try {
           const adminToken = await getValidAdminToken();
@@ -1112,18 +1115,21 @@
               },
               body: JSON.stringify({ action: 'admin_send_token', code: free.code, userId: userId })
             });
-            if (res.ok) {
-              toast(`Token ${free.code} dikirim ke ${nama}.`);
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.success) {
+              toast(`Token ${free.code} berhasil dikirim ke ${nama}.`);
+              await loadData();
+              return;
+            } else {
+              toast(data.error || 'Gagal mengirim token.');
               await loadData();
               return;
             }
           }
-        } catch (e) {}
-
-        await db.from('tokens').update({ status: 'used', used_by: userId, used_at: new Date().toISOString() }).eq('code', free.code);
-        await db.from('users').update({ token_dipakai: free.code, ai_locked: false }).eq('id', userId);
-        toast(`Token ${free.code} dikirim ke ${nama}.`);
-        await loadData();
+        } catch (e) {
+          console.error('Send token error:', e);
+          toast('Terjadi kesalahan koneksi.');
+        }
       }, 'Kirim Token');
     }
 
