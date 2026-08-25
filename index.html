@@ -4037,11 +4037,11 @@
     #page-chat {
       display: none;
       flex-direction: column;
-      height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+      height: calc(100dvh - 56px - env(safe-area-inset-bottom) - var(--chat-topbar-h, 0px));
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
-      padding: 0 10px 4px 10px;
+      padding: 0 10px 0 10px;
       overflow: hidden;
     }
 
@@ -4607,8 +4607,8 @@
       background: transparent;
       border: none;
       border-radius: 0;
-      margin: 4px 0 2px;
-      padding: 0;
+      margin: 4px 0 0;
+      padding: 0 0 max(8px, env(safe-area-inset-bottom));
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -10628,7 +10628,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.5.7)';
+      const version = ' (v3.5.8)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12507,11 +12507,8 @@
         const trialTopbarEl = document.getElementById('trialTopbar');
         const th = (trialTopbarEl && trialTopbarEl.offsetHeight) || 0;
         document.documentElement.style.setProperty('--chat-topbar-h', th + 'px');
+        // Cukup overflow:hidden saja — tidak perlu position:fixed yang menyebabkan visual flash/blank
         document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.top = '0';
-        document.body.style.width = '100%';
-        document.body.style.height = '100%';
       } else {
         document.body.style.overflow = '';
         document.body.style.position = '';
