@@ -269,13 +269,20 @@ async function resolveGeminiApiKeys(
     }
   }
 
-  // 2. Ambil key bersama dari row dedicated access_code = "admin_shared_keys"
+  // 2. Ambil key bersama dari global_settings / user_settings
   try {
-    const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
-    if (st?.shortcut_overrides?.gemini_shared_keys) {
-      const entries = parseStoredKeyList(st.shortcut_overrides.gemini_shared_keys);
+    const { data: gs } = await db.from("global_settings").select("value").eq("key", "gemini_shared_keys").maybeSingle();
+    if (gs && gs.value) {
+      const entries = parseStoredKeyList(gs.value);
       const decrypted = await decryptStoredKeyEntries(entries);
       keys.push(...decrypted);
+    } else {
+      const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
+      if (st?.shortcut_overrides?.gemini_shared_keys) {
+        const entries = parseStoredKeyList(st.shortcut_overrides.gemini_shared_keys);
+        const decrypted = await decryptStoredKeyEntries(entries);
+        keys.push(...decrypted);
+      }
     }
   } catch (e) {
     console.error("resolveGeminiApiKeys: error loading shared keys:", e);
@@ -1450,9 +1457,32 @@ function cleanupRecentWebChat() {
           });
         }
 
-        // Ambil data shared keys saat ini
-        const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
-        let entries = parseStoredKeyList(st?.shortcut_overrides?.gemini_shared_keys);
+        // Ambil data shared keys saat ini (cek global_settings dulu, fallback user_settings)
+        let entries: StoredKeyEntry[] = [];
+        const { data: gsData } = await db.from("global_settings").select("value").eq("key", "gemini_shared_keys").maybeSingle();
+        if (gsData && gsData.value) {
+          entries = parseStoredKeyList(gsData.value);
+        } else {
+          const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
+          entries = parseStoredKeyList(st?.shortcut_overrides?.gemini_shared_keys);
+        }
+
+        // Helper untuk simpan shared keys secara persisten
+        const saveSharedEntries = async (newList: StoredKeyEntry[]) => {
+          const { error: err1 } = await db.from("global_settings").upsert({
+            key: "gemini_shared_keys",
+            value: newList,
+            updated_at: new Date().toISOString()
+          });
+          if (err1) console.error("Error saving shared keys to global_settings:", err1);
+
+          const { error: err2 } = await db.from("user_settings").upsert({
+            access_code: "admin_shared_keys",
+            shortcut_overrides: { gemini_shared_keys: newList },
+            updated_at: new Date().toISOString()
+          });
+          if (err2) console.error("Error saving shared keys to user_settings:", err2);
+        };
 
         // Aksi: Tambah 1 shared key
         if (payload.action === "admin_add_shared_key" && typeof payload.key === "string") {
@@ -1465,11 +1495,7 @@ function cleanupRecentWebChat() {
               created_at: new Date().toISOString()
             };
             entries.push(newEntry);
-            await db.from("user_settings").upsert({
-              access_code: "admin_shared_keys",
-              shortcut_overrides: { gemini_shared_keys: entries },
-              updated_at: new Date().toISOString()
-            });
+            await saveSharedEntries(entries);
           }
           const maskedKeys = await getMaskedKeyEntries(entries);
           return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
@@ -1481,11 +1507,7 @@ function cleanupRecentWebChat() {
         // Aksi: Hapus 1 shared key berdasarkan ID unik
         if (payload.action === "admin_delete_shared_key" && typeof payload.keyId === "string") {
           entries = entries.filter((e) => e.id !== payload.keyId);
-          await db.from("user_settings").upsert({
-            access_code: "admin_shared_keys",
-            shortcut_overrides: { gemini_shared_keys: entries },
-            updated_at: new Date().toISOString()
-          });
+          await saveSharedEntries(entries);
           const maskedKeys = await getMaskedKeyEntries(entries);
           return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
             status: 200,
@@ -1508,11 +1530,7 @@ function cleanupRecentWebChat() {
               });
             }
           }
-          await db.from("user_settings").upsert({
-            access_code: "admin_shared_keys",
-            shortcut_overrides: { gemini_shared_keys: entries },
-            updated_at: new Date().toISOString()
-          });
+          await saveSharedEntries(entries);
           const maskedKeys = await getMaskedKeyEntries(entries);
           return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
             status: 200,
