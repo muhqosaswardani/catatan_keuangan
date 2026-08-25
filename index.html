@@ -6410,10 +6410,10 @@
 
     </div>
 
-    <!-- ============ TRIAL & PREMIUM TOPBAR ============ -->
-    <div class="trial-topbar" id="trialTopbar" style="display:none;">
+    <!-- ============ TRIAL & PREMIUM TOPBAR (Dihilangkan sesuai request, status dipindah ke Pengaturan) ============ -->
+    <div class="trial-topbar" id="trialTopbar" style="display:none !important;">
       <div class="app-name" style="font-weight:700;color:var(--ink);">Kasly<span class="brand-ai" style="color:var(--accent);">AI</span></div>
-      <span class="trial-chip" id="trialChip" onclick="handleTrialChipClick()" style="cursor:pointer;"></span>
+      <span class="trial-chip" id="trialChip" onclick="openTokenAktivasiModal()" style="cursor:pointer;"></span>
     </div>
 
     <!-- ============ PAGE: BERANDA ============ -->
@@ -6848,6 +6848,16 @@
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6"/></svg></span>
               <span class="sr-title">Akun <span class="sr-arrow">›</span></span>
+            </div>
+          </button>
+          <!-- STATUS AKUN & KODE TOKEN -->
+          <button type="button" class="settings-row-card" onclick="openTokenAktivasiModal()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+              <div class="sr-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Status Akun &amp; Kode Token</span>
+                <span id="settTrialBadge" style="font-size:12px;font-weight:700;padding:3px 8px;border-radius:100px;background:var(--accent-soft);color:var(--accent-dark);">Memeriksa…</span>
+              </div>
             </div>
           </button>
           <!-- DATA: buka modal pilihan Export / Import -->
@@ -7994,6 +8004,34 @@
       </div>
     </div>
 
+    <!-- ==================== MODAL: STATUS AKUN & KODE TOKEN ==================== -->
+    <div class="modal-overlay modal-center" id="modalTokenAktivasi">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Status Akun &amp; Token</h3>
+          <button class="modal-close" onclick="closeModal('modalTokenAktivasi')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:var(--surface-2);border-radius:12px;padding:16px;margin-bottom:18px;text-align:center;">
+            <div style="font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Status Langganan</div>
+            <div id="modalTokenStatusBadge" style="display:inline-block;font-size:14px;font-weight:700;padding:6px 14px;border-radius:100px;margin-bottom:8px;">Memuat…</div>
+            <div id="modalTokenStatusDesc" style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;">—</div>
+          </div>
+
+          <div class="field" id="fieldTokenAktivasi">
+            <label>Masukkan Kode Token Baru</label>
+            <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="Misal: FUKX3M4B" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
+            <div class="err" id="errTokenAktivasiMsg">Kode tidak valid / sudah pernah dipakai.</div>
+          </div>
+          <button class="btn btn-primary btn-block" id="btnSubmitTokenAktivasi" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan Token</button>
+          <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Hubungi Admin untuk Beli Token
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== MODAL: TRIAL HABIS ==================== -->
     <div class="modal-overlay modal-center" id="modalTrialHabis">
       <div class="modal">
@@ -8014,10 +8052,10 @@
 
           <div class="field" id="fieldToken">
             <label>Kode Akses / Token</label>
-            <input type="text" class="token-input" id="inpToken" maxlength="10" oninput="clearErr('fieldToken')">
+            <input type="text" class="token-input" id="inpToken" maxlength="12" oninput="clearErr('fieldToken')">
             <div class="err">Kode tidak valid / sudah pernah dipakai.</div>
           </div>
-          <button class="btn btn-primary btn-block" onclick="submitToken()" style="margin-bottom:10px;">Aktifkan dengan Token</button>
+          <button class="btn btn-primary btn-block" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan dengan Token</button>
           <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
             Hubungi Admin untuk Beli Token
@@ -10457,41 +10495,77 @@
       }
     }
 
-    function updateTrialTopbarUI() {
-      const topbar = document.getElementById('trialTopbar');
-      const chip = document.getElementById('trialChip');
-      if (!topbar || !chip) return;
+    function openTokenAktivasiModal() {
+      renderTokenStatusInModal();
+      clearErr('fieldTokenAktivasi');
+      const inp = document.getElementById('inpTokenAktivasi');
+      if (inp) inp.value = '';
+      openModal('modalTokenAktivasi');
+    }
 
-      topbar.style.display = 'flex'; // Show the topbar
+    function renderTokenStatusInModal() {
+      const badge = document.getElementById('modalTokenStatusBadge');
+      const desc = document.getElementById('modalTokenStatusDesc');
+      if (!badge || !desc) return;
 
-      if (userTrialStatus === 'habis') {
-        chip.className = 'trial-chip habis';
-        chip.innerHTML = 'Trial habis · fitur AI terkunci';
-      } else if (userTrialStatus === 'paid') {
-        chip.className = 'trial-chip paid';
-        chip.innerHTML = ICON_CHECK + ' Premium Lifetime';
+      if (userTrialStatus === 'paid') {
+        badge.style.background = 'var(--income-soft)';
+        badge.style.color = 'var(--income)';
+        badge.innerHTML = ICON_CHECK + ' Premium Lifetime';
+        desc.textContent = 'Akun Anda sudah aktif permanen (Lifetime). Seluruh fitur AI & WhatsApp aktif tanpa batas waktu.';
+      } else if (userTrialStatus === 'habis') {
+        badge.style.background = 'var(--expense-soft)';
+        badge.style.color = 'var(--expense)';
+        badge.textContent = 'Masa Trial Habis';
+        desc.textContent = 'Masa uji coba gratis telah berakhir. Masukkan kode token aktivasi di bawah untuk membuka kembali fitur AI & WhatsApp.';
       } else {
-        chip.className = 'trial-chip active';
-        chip.innerHTML = `Trial aktif · <span>${trialDaysLeft}</span> hari lagi`;
+        badge.style.background = 'var(--accent-soft)';
+        badge.style.color = 'var(--accent-dark)';
+        badge.textContent = `Trial Aktif (${trialDaysLeft} hari lagi)`;
+        desc.textContent = `Anda sedang menikmati masa uji coba gratis. Anda bisa memasukkan kode token kapan saja untuk langsung mengaktifkan status Premium Lifetime.`;
       }
+    }
+
+    function updateTrialTopbarUI() {
+      const settBadge = document.getElementById('settTrialBadge');
+      if (settBadge) {
+        if (userTrialStatus === 'paid') {
+          settBadge.style.background = 'var(--income-soft)';
+          settBadge.style.color = 'var(--income)';
+          settBadge.innerHTML = ICON_CHECK + ' Lifetime';
+        } else if (userTrialStatus === 'habis') {
+          settBadge.style.background = 'var(--expense-soft)';
+          settBadge.style.color = 'var(--expense)';
+          settBadge.textContent = 'Trial Habis';
+        } else {
+          settBadge.style.background = 'var(--accent-soft)';
+          settBadge.style.color = 'var(--accent-dark)';
+          settBadge.textContent = `Trial ${trialDaysLeft} hari`;
+        }
+      }
+      renderTokenStatusInModal();
     }
 
     function handleTrialChipClick() {
-      if (userTrialStatus === 'habis') {
-        openModal('modalTrialHabis');
-      }
+      openTokenAktivasiModal();
     }
 
-    async function submitToken() {
-      const tokenInput = document.getElementById('inpToken');
+    async function submitTokenAktivasi() {
+      const tokenInput = document.getElementById('inpTokenAktivasi') || document.getElementById('inpToken');
       const val = (tokenInput ? tokenInput.value : '').trim().toUpperCase();
-      if (!val) return;
+      if (!val) {
+        markErr('fieldTokenAktivasi');
+        markErr('fieldToken');
+        const errMsg = document.getElementById('errTokenAktivasiMsg');
+        if (errMsg) errMsg.textContent = 'Harap isi kode token terlebih dahulu.';
+        return;
+      }
 
-      const btn = document.querySelector('#modalTrialHabis .btn-primary');
-      const originalText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Memproses...';
+      const btn = document.getElementById('btnSubmitTokenAktivasi') || document.querySelector('#modalTrialHabis .btn-primary');
+      const originalText = btn ? btn.textContent : 'Aktifkan Token';
+      if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
 
+      clearErr('fieldTokenAktivasi');
       clearErr('fieldToken');
 
       try {
@@ -10502,18 +10576,18 @@
           .maybeSingle();
 
         if (tokenErr || !tokenData) {
+          markErr('fieldTokenAktivasi');
           markErr('fieldToken');
-          document.querySelector('#fieldToken .err').textContent = 'Kode tidak ditemukan / salah ketik.';
-          btn.disabled = false;
-          btn.textContent = originalText;
+          const errMsg = document.getElementById('errTokenAktivasiMsg');
+          if (errMsg) errMsg.textContent = 'Kode token tidak ditemukan / salah ketik.';
           return;
         }
 
         if (tokenData.status === 'used') {
+          markErr('fieldTokenAktivasi');
           markErr('fieldToken');
-          document.querySelector('#fieldToken .err').textContent = 'Kode ini sudah pernah dipakai akun lain.';
-          btn.disabled = false;
-          btn.textContent = originalText;
+          const errMsg = document.getElementById('errTokenAktivasiMsg');
+          if (errMsg) errMsg.textContent = 'Kode token ini sudah pernah dipakai akun lain.';
           return;
         }
 
@@ -10540,18 +10614,19 @@
 
         if (updateUserErr) throw updateUserErr;
 
+        closeModal('modalTokenAktivasi');
         closeModal('modalTrialHabis');
         userTrialStatus = 'paid';
         updateTrialTopbarUI();
-        showToast('Token valid! Fitur AI & WhatsApp aktif selamanya.');
+        showToast('Token valid! Akun Anda aktif Premium Lifetime.');
       } catch (err) {
         console.error('Gagal mengaktifkan token:', err);
         showToast('Terjadi kesalahan koneksi saat mengaktifkan token.');
       } finally {
-        btn.disabled = false;
-        btn.textContent = originalText;
+        if (btn) { btn.disabled = false; btn.textContent = originalText; }
       }
     }
+    const submitToken = submitTokenAktivasi;
 
     function openWaAdmin(context) {
       const messages = {
