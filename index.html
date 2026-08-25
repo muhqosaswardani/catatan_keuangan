@@ -8134,11 +8134,61 @@
               <button class="btn btn-primary" onclick="addUserKey()">+ Tambah</button>
             </div>
           </div>
-          <div style="margin-top:10px;padding:10px 12px;background:var(--card-sub);border-radius:10px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <span style="color:var(--ink-soft);">Belum punya API key? Gratis dari Google AI Studio.</span>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-weight:700;color:var(--primary);text-decoration:none;white-space:nowrap;">Buka Google AI Studio &rarr;</a>
+          <div class="aikey-guide-link" onclick="openModal('modalPanduanApiKey')" style="margin-top:12px;cursor:pointer;">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+            <span class="label">Belum punya key? Lihat <b>Panduan 5 Menit Ambil API Key</b></span>
+            <span class="chev">›</span>
           </div>
           <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:8px;">API Key disimpan aman secara terenkripsi dan hanya digunakan untuk memproses perintah AI akun Anda sendiri.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL: PANDUAN GEMINI API KEY ==================== -->
+    <div class="modal-overlay modal-center" id="modalPanduanApiKey">
+      <div class="modal" style="max-height:88vh;display:flex;flex-direction:column;">
+        <div class="modal-head">
+          <h3>Cara Ambil API Key Gemini</h3>
+          <button class="modal-close" onclick="closeModal('modalPanduanApiKey')">&times;</button>
+        </div>
+        <div class="modal-body" style="overflow-y:auto;text-align:left;">
+          <p style="color:var(--ink-soft);font-size:13px;margin:-4px 0 14px;text-align:left;">Gratis dari Google, cukup pakai akun Google biasa — nggak sampai 5 menit. Ikuti langkah-langkah ini:</p>
+
+          <div class="guide-step">
+            <div class="guide-step-head"><span class="guide-num">1</span><h4>Buka Google AI Studio</h4></div>
+            <p>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-step-head"><span class="guide-num">2</span><h4>Klik "Get API key" / "Create API key"</h4></div>
+            <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> atau <b>Create API key</b>.</p>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-step-head"><span class="guide-num">3</span><h4>Buat API Key Baru</h4></div>
+            <p>Pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis secara gratis.</p>
+          </div>
+
+          <div class="guide-step">
+            <div class="guide-step-head"><span class="guide-num">4</span><h4>Salin API Key-nya</h4></div>
+            <p>API key otomatis muncul diawali dengan kata <b>AIzaSy...</b>. Klik ikon salin (copy) di sampingnya.</p>
+          </div>
+
+          <div class="guide-step" style="margin-bottom:8px;">
+            <div class="guide-step-head"><span class="guide-num">5</span><h4>Tempel di Sini</h4></div>
+            <p>Tutup panduan ini, tempel API key tadi ke kolom <b>"Tambah API Key Gemini Baru"</b>, lalu klik <b>+ Tambah</b>.</p>
+          </div>
+
+          <div class="card" style="background:var(--accent-soft);box-shadow:none;margin:12px 0 16px;text-align:left;">
+            <div style="font-size:12px;color:var(--accent-dark);line-height:1.6;"><b>Aman &amp; Pribadi.</b> API key ini cuma disimpan di akun Anda sendiri untuk memproses transaksi via AI. Bisa dihapus / diganti kapan saja.</div>
+          </div>
+
+          <div style="display:flex;gap:8px;">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="btn btn-primary btn-block" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">
+              Buka Google AI Studio &rarr;
+            </a>
+            <button class="btn btn-secondary" onclick="closeModal('modalPanduanApiKey')">Tutup</button>
+          </div>
         </div>
       </div>
     </div>
@@ -10493,7 +10543,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.65)';
+      const version = ' (v3.3.66)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
