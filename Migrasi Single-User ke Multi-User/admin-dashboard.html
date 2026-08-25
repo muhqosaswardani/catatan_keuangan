@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.10</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.11</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -749,7 +749,7 @@
         <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px;">Digunakan sebagai API Key default bersama untuk semua pengguna yang tidak mengisi API Key Gemini pribadi.</p>
         <div id="sharedKeyList"></div>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <input type="text" id="inpSharedKey" name="gemini_shared_key_admin" placeholder="Tempel API Key baru…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
+          <input type="search" id="inpSharedKey" name="gemini_search_key_admin" placeholder="Tempel API Key baru (AIzaSy…)…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" role="searchbox" readonly onfocus="this.removeAttribute('readonly');"
             style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;">
           <button class="btn btn-primary btn-sm" onclick="addSharedKey()">Tambah</button>
         </div>
