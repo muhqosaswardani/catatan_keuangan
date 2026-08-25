@@ -10620,7 +10620,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.5.4)';
+      const version = ' (v3.5.5)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11158,52 +11158,6 @@
           console.warn('User settings sync warn:', sErr);
         }
 
-        // Scan and auto-generate missing transactions for active debts
-        try {
-          const currentDebts = getDebts();
-          const currentTxs = getTransactions();
-          let txsUpdated = false;
-          const newTxs = [...currentTxs];
-
-          for (const d of currentDebts) {
-            if (d.status === 'belum' || d.status === 'active') {
-              const txId = 'tx_debt_' + d.id;
-              const exists = currentTxs.some(t => t.id === txId);
-              if (!exists) {
-                const primary = getWallets().find(w => w.isPrimary) || getWallets()[0];
-                const wId = primary ? primary.id : '';
-                if (wId) {
-                  const isUtang = d.type === 'utang' || d.type === 'i_owe';
-                  const txType = isUtang ? 'income' : 'expense';
-                  const typeLabel = isUtang ? 'Utang Baru ke' : 'Piutang Baru ke';
-                  const txNote = `${typeLabel} ${d.personName}: ${d.note || ''}`.trim();
-                  const cat = getOrCreateDebtCategory(txType);
-                  newTxs.push({
-                    id: txId,
-                    walletId: wId,
-                    categoryId: cat.id,
-                    category: 'Utang Piutang',
-                    type: txType,
-                    amount: d.amount,
-                    date: d.date || todayStr(),
-                    note: txNote,
-                    updatedAt: Date.now()
-                  });
-                  txsUpdated = true;
-                }
-              }
-            }
-          }
-
-          if (txsUpdated) {
-            setTransactions(newTxs);
-            recalculateWalletBalances();
-            setTimeout(() => syncAllWithSupabase(true), 2000);
-          }
-        } catch (migErr) {
-          console.warn('Debt transaction migration err:', migErr);
-        }
-
         const afterHash = getContentHash();
         updateSyncStatusUI('online');
         if (beforeHash !== afterHash) {
@@ -11727,6 +11681,77 @@
       }
 
       localStorage.setItem('debt_case_dedup_migrated', '1');
+    }
+
+    // Migrasi self-heal: scan dan lengkapi transaksi yang hilang untuk utang/piutang aktif
+    // Dijalankan secara aman saat startup (di init) setelah initial sync & seed selesai.
+    function migrateMissingDebtTransactions() {
+      try {
+        const currentDebts = getDebts();
+        const currentTxs = getTransactions();
+        const deletedSet = new Set(getDeletedIds().map(String));
+
+        let healedList = [];
+        try {
+          healedList = JSON.parse(localStorage.getItem('fk_debt_healed_ids') || '[]');
+        } catch (e) { healedList = []; }
+        const healedSet = new Set(healedList.map(String));
+
+        let txsUpdated = false;
+        const newTxs = [...currentTxs];
+
+        for (const d of currentDebts) {
+          if (d.status === 'belum' || d.status === 'active') {
+            const txId = 'tx_debt_' + d.id;
+            // 1. Abaikan jika transaksi sengaja dihapus oleh user
+            if (deletedSet.has(txId)) continue;
+            // 2. Abaikan jika sudah pernah di-heal sebelumnya
+            if (healedSet.has(String(d.id))) continue;
+
+            const exists = currentTxs.some(t => t.id === txId);
+            if (!exists) {
+              const primary = getWallets().find(w => w.isPrimary) || getWallets()[0];
+              const wId = primary ? primary.id : '';
+              if (wId) {
+                const isUtang = d.type === 'utang' || d.type === 'i_owe';
+                const txType = isUtang ? 'income' : 'expense';
+                const typeLabel = isUtang ? 'Utang Baru ke' : 'Piutang Baru ke';
+                const person = d.personName || d.person_name || 'Tanpa Nama';
+                const txNote = `${typeLabel} ${person}: ${d.note || ''}`.trim();
+                // Gunakan localOnly = true agar tidak trigger sync liar di tengah migrasi
+                const cat = getOrCreateDebtCategory(txType, true);
+
+                newTxs.push({
+                  id: txId,
+                  walletId: wId,
+                  categoryId: cat.id,
+                  category: 'Utang Piutang',
+                  type: txType,
+                  amount: Number(d.amount) || 0,
+                  date: d.date || todayStr(),
+                  note: txNote,
+                  updatedAt: Date.now()
+                });
+                txsUpdated = true;
+                healedSet.add(String(d.id));
+              }
+            } else {
+              healedSet.add(String(d.id));
+            }
+          }
+        }
+
+        localStorage.setItem('fk_debt_healed_ids', JSON.stringify(Array.from(healedSet)));
+
+        if (txsUpdated) {
+          setTransactionsLocalOnly(newTxs);
+          recalculateWalletBalances();
+        }
+        return txsUpdated;
+      } catch (err) {
+        console.warn('Debt transaction healing err:', err);
+        return false;
+      }
     }
 
     /* =========================================================
@@ -12382,13 +12407,17 @@
       return cat;
     }
 
-    function getOrCreateDebtCategory(type) {
+    function getOrCreateDebtCategory(type, localOnly = false) {
       let cats = getCategories();
       let cat = cats.find(c => c.name === 'Utang Piutang' && c.type === type);
       if (!cat) {
-        cat = { id: uid(), name: 'Utang Piutang', type, icon: 'users', color: defaultColorForIndex(cats.length) };
+        cat = { id: uid(), name: 'Utang Piutang', type, icon: 'users', color: defaultColorForIndex(cats.length), updatedAt: Date.now() };
         cats.push(cat);
-        setCategories(cats);
+        if (localOnly) {
+          setCategoriesLocalOnly(cats);
+        } else {
+          setCategories(cats);
+        }
       }
       return cat;
     }
@@ -22972,6 +23001,11 @@ PERTANYAAN_USER:
       // datanya sudah pernah ke-sync sebelumnya. seedIfEmpty() sendiri sudah aman dipanggil berulang
       // (no-op kalau tidak ada yg berubah), dan hanya re-sync ke Supabase kalau memang ada perubahan.
       if (seedIfEmpty()) {
+        await syncAllWithSupabase(true);
+      }
+
+      // 3b. Scan & heal missing debt transactions, langsung sync jika ada pembaruan
+      if (migrateMissingDebtTransactions()) {
         await syncAllWithSupabase(true);
       }
 
