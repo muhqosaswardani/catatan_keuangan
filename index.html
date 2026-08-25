@@ -10056,6 +10056,27 @@
       return k.length > 8 ? k.slice(0, 4) + '••••' + k.slice(-4) : k;
     }
 
+    async function getValidAuthToken() {
+      if (!supabaseClient) return null;
+      let token = null;
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        token = sessionData?.session?.access_token;
+      } catch(e) {}
+      if (!token) {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+              const item = JSON.parse(localStorage.getItem(k));
+              if (item && item.access_token) { token = item.access_token; break; }
+            }
+          }
+        } catch(e) {}
+      }
+      return token;
+    }
+
     async function addUserKey() {
       const inp = document.getElementById('inpUserKey');
       const v = inp ? inp.value.trim() : '';
@@ -10070,15 +10091,13 @@
       }
       if (inp) inp.value = '';
 
-      if (!supabaseClient) return;
-      try {
-        const { data: sessionData } = await supabaseClient.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        if (!token) {
-          showToast('Sesi login tidak ditemukan. Silakan login ulang.');
-          return;
-        }
+      const token = await getValidAuthToken();
+      if (!token) {
+        showToast('Sesi login tidak ditemukan. Silakan login ulang.');
+        return;
+      }
 
+      try {
         const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
           method: 'POST',
           headers: {
@@ -10109,29 +10128,13 @@
     }
 
     async function deleteUserKey(keyId) {
-      if (!supabaseClient) return;
-      try {
-        let token = null;
-        try {
-          const { data: sessionData } = await supabaseClient.auth.getSession();
-          token = sessionData?.session?.access_token;
-        } catch(e) {}
-        if (!token) {
-          try {
-            for (let i = 0; i < localStorage.length; i++) {
-              const k = localStorage.key(i);
-              if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
-                const item = JSON.parse(localStorage.getItem(k));
-                if (item && item.access_token) { token = item.access_token; break; }
-              }
-            }
-          } catch(e) {}
-        }
-        if (!token) {
-          showToast('Sesi login tidak ditemukan. Silakan login ulang.');
-          return;
-        }
+      const token = await getValidAuthToken();
+      if (!token) {
+        showToast('Sesi login tidak ditemukan. Silakan login ulang.');
+        return;
+      }
 
+      try {
         const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
           method: 'POST',
           headers: {
@@ -10167,12 +10170,9 @@
     }
 
     async function loadUserKeys() {
-      // Langkah 6: userKeys di browser hanya menyimpan array [{ id, masked }]
-      // Nilai asli key tidak pernah dikirim ke browser
       if (!currentUserId || !supabaseClient) return;
       try {
-        const { data: sessionData } = await supabaseClient.auth.getSession();
-        const token = sessionData?.session?.access_token;
+        const token = await getValidAuthToken();
         if (token) {
           const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
             method: 'POST',
@@ -10200,25 +10200,8 @@
     }
 
     async function loadSharedKeys() {
-      // Langkah 6: sharedKeys di browser hanya menyimpan jumlah (count)
-      // Nilai asli key tidak pernah turun ke browser
       try {
-        let token = null;
-        try {
-          const { data: sessionData } = await supabaseClient.auth.getSession();
-          token = sessionData?.session?.access_token;
-        } catch(e) {}
-        if (!token) {
-          try {
-            for (let i = 0; i < localStorage.length; i++) {
-              const k = localStorage.key(i);
-              if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
-                const item = JSON.parse(localStorage.getItem(k));
-                if (item && item.access_token) { token = item.access_token; break; }
-              }
-            }
-          } catch(e) {}
-        }
+        const token = await getValidAuthToken();
         if (!token) return;
 
         const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
