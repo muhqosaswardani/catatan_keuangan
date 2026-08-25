@@ -10255,7 +10255,7 @@
       }
     }
 
-    // Log Out
+    // Log Out (Resilient Offline & Online)
     async function logoutUser() {
       if (!supabaseClient) return;
       const confirmed = await showConfirmModal({
@@ -10264,11 +10264,19 @@
         actionText: 'Ya, Log Out'
       });
       if (!confirmed) return;
-      await unsubscribeCurrentDevicePush();
-      await supabaseClient.auth.signOut();
-      // BUGFIX (v2.9.10): dulu cuma access_code yang dihapus, data (wallets/transactions/
-      // budgets/dll) masih nyangkut di localStorage dan bisa kebawa/ke-merge ke akun lain
-      // yang login berikutnya di device yang sama.
+
+      if (typeof unsubscribeCurrentDevicePush === 'function') {
+        try { await unsubscribeCurrentDevicePush(); } catch (e) {}
+      }
+      try {
+        if (navigator.onLine) {
+          await supabaseClient.auth.signOut();
+        }
+      } catch (e) {
+        console.warn('Gagal signOut ke server saat logout:', e);
+      }
+
+      // Selalu bersihkan seluruh data lokal di device ini
       Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
       localStorage.removeItem('catatan_keuangan_access_code');
       localStorage.removeItem(LS_LAST_USER_ID);
@@ -10620,7 +10628,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.5.5)';
+      const version = ' (v3.5.6)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -22888,40 +22896,62 @@ PERTANYAAN_USER:
       refreshAllViews();
       switchTabUI(currentTab);
 
-      // Enforce Supabase Auth session check
+      // Enforce Supabase Auth session check (Offline-First Resilient)
+      const cachedUserId = localStorage.getItem(LS_LAST_USER_ID);
+      const isLocalOnboarded = localStorage.getItem(LS_KEYS.onboarded) === '1';
+
       if (supabaseClient) {
         try {
           const { data: { session } } = await supabaseClient.auth.getSession();
-          if (session && session.user) {
-            currentUserId = session.user.id;
+          const activeUserId = (session && session.user) ? session.user.id : cachedUserId;
+
+          if (activeUserId) {
+            currentUserId = activeUserId;
             ensureLocalScopeForUser(currentUserId);
 
-            // Load user profile & settings to check onboarding status
-            const { data: profile } = await supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle();
-            
-            if (!profile) {
-              // Stale or deleted user session! Force sign out and redirect to promo screen!
+            // Coba fetch profile jika online
+            let profile = null;
+            let settings = null;
+            let networkFailed = false;
+
+            if (navigator.onLine) {
+              try {
+                const [profRes, setRes] = await Promise.all([
+                  supabaseClient.from('users').select('*').eq('id', currentUserId).maybeSingle(),
+                  supabaseClient.from('user_settings').select('*').eq('user_id', currentUserId).maybeSingle()
+                ]);
+                if (profRes.error) networkFailed = true;
+                else profile = profRes.data;
+
+                if (!setRes.error && setRes.data) settings = setRes.data;
+              } catch (netErr) {
+                networkFailed = true;
+              }
+            } else {
+              networkFailed = true;
+            }
+
+            // HANYA jika online, request berhasil tanpa network error, dan server secara sah mengonfirmasi user memang tidak ada di DB
+            if (!networkFailed && !profile && navigator.onLine) {
               await supabaseClient.auth.signOut();
               localStorage.removeItem('catatan_keuangan_access_code');
               localStorage.removeItem(LS_LAST_USER_ID);
               Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
-              
+
               const authOb = document.getElementById('auth-onboarding');
               if (authOb) authOb.classList.add('open');
               gotoScreen('screen-masuk');
-              return; // Halt loading dashboard
+              return;
             }
 
-            const { data: settings } = await supabaseClient.from('user_settings').select('*').eq('user_id', currentUserId).maybeSingle();
-
-            // Cache nama & nomor WA ke localStorage biar kartu "Akun" di
-            // Pengaturan bisa langsung render instan dari cache pas reload,
-            // tanpa nunggu network (sama seperti pola render data lainnya)
-            setUserProfileLocalOnly({ nama: profile.nama || '', nomor_wa: profile.nomor_wa || '' });
+            // Update cached profile jika data server didapat
+            if (profile) {
+              setUserProfileLocalOnly({ nama: profile.nama || '', nomor_wa: profile.nomor_wa || '' });
+            }
             renderAkunCard();
 
-            const isAdmin = profile.nomor_wa === '6289626112023';
-            const isOnboarded = (settings && settings.onboarded) || isAdmin;
+            const isAdmin = profile && profile.nomor_wa === '6289626112023';
+            const isOnboarded = (settings && settings.onboarded) || isAdmin || isLocalOnboarded;
 
             if (isOnboarded) {
               const authOb = document.getElementById('auth-onboarding');
@@ -22931,47 +22961,42 @@ PERTANYAAN_USER:
               autoSyncPushSubscription();
               loadAllGeminiKeys();
 
-              // Fase 2 Bagian 2: buka shortcut (mis. edit-tx dari notif) SEGERA di sini,
-              // begitu auth & currentUserId sudah pasti siap -- JANGAN nunggu full sync
-              // (syncAllWithSupabase) + migrasi-migrasi di bawah selesai dulu, karena itu
-              // yang bikin delay 1-3 detik sebelum modal edit kebuka.
               if (pendingAppShortcut) {
                 handleAppShortcutParam();
               }
             } else {
-              // Not onboarded yet! Show onboarding intro wizard
               const authOb = document.getElementById('auth-onboarding');
               if (authOb) authOb.classList.add('open');
-              
               userKeys = [];
               onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
               onboardingCategories = [];
               onboardingState.introIdx = 0;
               renderIntro();
               gotoScreen('screen-intro');
-              return; // Halt loading dashboard
+              return;
             }
+          } else {
+            // Belum pernah login sama sekali
+            const authOb = document.getElementById('auth-onboarding');
+            if (authOb) authOb.classList.add('open');
+            gotoScreen('screen-masuk');
+            return;
+          }
+        } catch (e) {
+          console.warn('Network / Auth check error, fallback ke cache lokal:', e);
+          if (cachedUserId && isLocalOnboarded) {
+            currentUserId = cachedUserId;
+            ensureLocalScopeForUser(currentUserId);
+            const authOb = document.getElementById('auth-onboarding');
+            if (authOb) authOb.classList.remove('open');
+            renderAkunCard();
+            loadAllGeminiKeys();
           } else {
             const authOb = document.getElementById('auth-onboarding');
             if (authOb) authOb.classList.add('open');
             gotoScreen('screen-masuk');
-            return; // Halt loading dashboard
+            return;
           }
-        } catch (e) {
-          // Fail-safe (bukan fail-open): error di titik ini artinya status login
-          // tidak bisa dipastikan valid. Daripada lanjut me-render dashboard tanpa
-          // currentUserId yang jelas (yang bisa jatuh ke fallback access_code lama),
-          // paksa treat sebagai "belum login" — sign out & balik ke layar Masuk.
-          console.warn('Error saat cek session Supabase, treat sebagai belum login:', e);
-          try { await supabaseClient.auth.signOut(); } catch (signOutErr) { /* abaikan, tetap lanjut redirect */ }
-          currentUserId = null;
-          localStorage.removeItem('catatan_keuangan_access_code');
-          localStorage.removeItem(LS_LAST_USER_ID);
-          Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
-          const authOb = document.getElementById('auth-onboarding');
-          if (authOb) authOb.classList.add('open');
-          gotoScreen('screen-masuk');
-          return; // Halt loading dashboard
         }
       }
 
