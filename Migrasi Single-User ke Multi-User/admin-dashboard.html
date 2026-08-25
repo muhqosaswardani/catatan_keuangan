@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.9</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.2.10</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1150,6 +1150,14 @@
       const inp = document.getElementById('inpSharedKey');
       const v = inp ? inp.value.trim() : '';
       if (!v) return;
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        toast('Peringatan: Yang Anda tempel adalah Link URL, bukan API Key Gemini.');
+        return;
+      }
+      if (/^\d+$/.test(v)) {
+        toast('Peringatan: Yang Anda tempel adalah nomor HP/angka, bukan API Key Gemini.');
+        return;
+      }
       sharedKeys.push(v);
       try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
       renderSharedKeys();

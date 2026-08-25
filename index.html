@@ -8134,6 +8134,10 @@
               <button class="btn btn-primary" onclick="addUserKey()">+ Tambah</button>
             </div>
           </div>
+          <div style="margin-top:10px;padding:10px 12px;background:var(--card-sub);border-radius:10px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="color:var(--ink-soft);">Belum punya API key? Gratis dari Google AI Studio.</span>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-weight:700;color:var(--primary);text-decoration:none;white-space:nowrap;">Buka Google AI Studio &rarr;</a>
+          </div>
           <p style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:8px;">API Key disimpan aman secara terenkripsi dan hanya digunakan untuk memproses perintah AI akun Anda sendiri.</p>
         </div>
       </div>
@@ -10032,11 +10036,19 @@
     async function addUserKey() {
       const v = document.getElementById('inpUserKey').value.trim();
       if (!v) return;
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        showToast('Itu link URL website, bukan API Key Gemini. Ambil API Key di aistudio.google.com.');
+        return;
+      }
+      if (/^\d+$/.test(v)) {
+        showToast('Itu nomor HP/angka, bukan API Key Gemini (biasanya diawali AIzaSy...).');
+        return;
+      }
       userKeys.push(v);
       document.getElementById('inpUserKey').value = '';
       await saveKeysToDb();
       renderUserKeys();
-      showToast('API Key ditambahkan.');
+      showToast('API Key Gemini ditambahkan.');
     }
 
     async function loadUserKeys() {
@@ -10476,7 +10488,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.62)';
+      const version = ' (v3.3.63)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
