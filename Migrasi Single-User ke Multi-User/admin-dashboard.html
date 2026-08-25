@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.6</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.7</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1251,7 +1251,7 @@
         <div class="token-row">
           <div>
             <div class="code">${t.code}</div>
-            <div class="meta">Dibuat: ${createdStr}${isUsed ? ` · Dipakai: ${user ? user.nama : 'Pengguna'} (${usedStr})` : ' · Status: Siap Digunakan'}</div>
+            <div class="meta">Dibuat: ${createdStr}${isUsed ? ` · Dipakai: ${user ? user.nama : 'Pengguna'} (${usedStr})` : ''}</div>
           </div>
           <span class="status-tag ${isUsed ? 'habis' : 'paid'}">${isUsed ? 'Terpakai' : 'Tersedia'}</span>
         </div>
