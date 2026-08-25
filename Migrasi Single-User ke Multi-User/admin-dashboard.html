@@ -809,7 +809,7 @@
     let adminTokens = [];
     let sharedKeys = [];
     try {
-      const cachedShared = localStorage.getItem('fk_admin_shared_keys');
+      const cachedShared = localStorage.getItem('fk_admin_shared_keys_cache');
       if (cachedShared) sharedKeys = JSON.parse(cachedShared) || [];
     } catch(e){}
     let trialDurasiHari = 7;
@@ -899,10 +899,22 @@
       document.querySelectorAll('.admin-tabs button').forEach(b => b.classList.toggle('active', b.dataset.atab === tab));
       document.querySelectorAll('.admin-panel').forEach(p => p.classList.remove('active'));
       document.getElementById('admin' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+      if (tab === 'pengaturan') {
+        renderSharedKeys();
+      }
     }
 
     async function loadData() {
       if (!db) return;
+      // 1. Render data awal dari cache instan agar tidak pernah blank saat refresh
+      try {
+        const cachedShared = localStorage.getItem('fk_admin_shared_keys_cache');
+        if (cachedShared) {
+          sharedKeys = JSON.parse(cachedShared) || [];
+          renderSharedKeys();
+        }
+      } catch(e){}
+
       // Fetch users + settings
       const { data: usersData } = await db.from('users').select('*').order('created_at', { ascending: false });
       const { data: settingsData } = await db.from('user_settings').select('*');
@@ -928,12 +940,14 @@
             if (json && Array.isArray(json.keys)) {
               // Array of { id, masked }
               sharedKeys = json.keys;
-              try { localStorage.removeItem('fk_admin_shared_keys'); } catch(e){}
-              try { localStorage.setItem('fk_shared_keys_count', JSON.stringify(json.count || json.keys.length)); } catch(e){}
+              try { localStorage.setItem('fk_admin_shared_keys_cache', JSON.stringify(sharedKeys)); } catch(e){}
+              renderSharedKeys();
             }
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error loading shared keys:', e);
+      }
 
       const now = new Date();
       adminUsers = (usersData || []).map(u => {
@@ -1194,6 +1208,7 @@
           const json = await res.json();
           if (json && Array.isArray(json.keys)) {
             sharedKeys = json.keys;
+            try { localStorage.setItem('fk_admin_shared_keys_cache', JSON.stringify(sharedKeys)); } catch(e){}
             renderSharedKeys();
             toast('API key bersama berhasil ditambahkan.');
             return;
@@ -1231,6 +1246,7 @@
           const json = await res.json();
           if (json && Array.isArray(json.keys)) {
             sharedKeys = json.keys;
+            try { localStorage.setItem('fk_admin_shared_keys_cache', JSON.stringify(sharedKeys)); } catch(e){}
             renderSharedKeys();
             toast('API key bersama berhasil dihapus.');
             return;
