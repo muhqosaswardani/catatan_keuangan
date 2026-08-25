@@ -83,7 +83,7 @@ async function resolveGeminiApiKeys(
     console.error("resolveGeminiApiKeys: error loading shared keys:", e);
   }
 
-  return keys;
+  return keys.filter((k) => typeof k === "string" && k.trim().length > 10 && !k.startsWith("http://") && !k.startsWith("https://") && !/^\d+$/.test(k));
 }
 
 async function claimIncomingMessage(

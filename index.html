@@ -10051,12 +10051,17 @@
       showToast('API Key Gemini ditambahkan.');
     }
 
+    function cleanGeminiKeyList(arr) {
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(k => typeof k === 'string' && k.trim().length > 10 && !k.startsWith('http://') && !k.startsWith('https://') && !/^\d+$/.test(k));
+    }
+
     async function loadUserKeys() {
       // 1. Load dari cache lokal terlebih dahulu (instan tampil tanpa nunggu network)
       try {
         const cached = localStorage.getItem('fk_user_gemini_keys');
         if (cached) {
-          userKeys = JSON.parse(cached) || [];
+          userKeys = cleanGeminiKeyList(JSON.parse(cached));
           renderUserKeys();
         }
       } catch (e) {}
@@ -10067,7 +10072,7 @@
         if (supabaseClient) {
           const { data: st } = await supabaseClient.from('user_settings').select('shortcut_overrides').eq('user_id', currentUserId).maybeSingle();
           if (st?.shortcut_overrides?.gemini_keys && Array.isArray(st.shortcut_overrides.gemini_keys)) {
-            userKeys = st.shortcut_overrides.gemini_keys;
+            userKeys = cleanGeminiKeyList(st.shortcut_overrides.gemini_keys);
             try { localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys)); } catch(e){}
             renderUserKeys();
             return;
@@ -10086,7 +10091,7 @@
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data.keys)) {
-            userKeys = data.keys;
+            userKeys = cleanGeminiKeyList(data.keys);
             try { localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys)); } catch(e){}
             renderUserKeys();
           }
@@ -10488,7 +10493,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.64)';
+      const version = ' (v3.3.65)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
