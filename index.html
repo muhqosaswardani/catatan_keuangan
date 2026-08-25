@@ -8020,7 +8020,7 @@
 
           <div class="field" id="fieldTokenAktivasi">
             <label>Masukkan Kode Token Baru</label>
-            <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="Misal: FUKX3M4B" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
+            <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
             <div class="err" id="errTokenAktivasiMsg">Kode tidak valid / sudah pernah dipakai.</div>
           </div>
           <button class="btn btn-primary btn-block" id="btnSubmitTokenAktivasi" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan Token</button>
@@ -10678,7 +10678,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.4.2)';
+      const version = ' (v3.4.3)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
