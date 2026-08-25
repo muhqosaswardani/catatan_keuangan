@@ -45,23 +45,23 @@ async function resolveGeminiApiKeys(
 ): Promise<string[]> {
   const keys: string[] = [];
 
-  // 1. Ambil key pribadi user dari tabel token_gemini_user atau user_settings
+  // 1. Ambil key pribadi user dari user_settings / token_gemini_user
   if (userId) {
     try {
-      const { data, error } = await db
-        .from("token_gemini_user")
-        .select("api_key")
-        .eq("user_id", userId);
-      if (!error && data && data.length > 0) {
-        keys.push(...data.map((r: { api_key: string }) => r.api_key));
+      const { data: st } = await db
+        .from("user_settings")
+        .select("shortcut_overrides")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (st?.shortcut_overrides?.gemini_keys && Array.isArray(st.shortcut_overrides.gemini_keys) && st.shortcut_overrides.gemini_keys.length > 0) {
+        keys.push(...st.shortcut_overrides.gemini_keys);
       } else {
-        const { data: st, error: stErr } = await db
-          .from("user_settings")
-          .select("gemini_keys")
-          .eq("user_id", userId)
-          .maybeSingle();
-        if (!stErr && st && Array.isArray(st.gemini_keys) && st.gemini_keys.length > 0) {
-          keys.push(...st.gemini_keys);
+        const { data: tk } = await db
+          .from("token_gemini_user")
+          .select("api_key")
+          .eq("user_id", userId);
+        if (tk && tk.length > 0) {
+          keys.push(...tk.map((r: { api_key: string }) => r.api_key));
         }
       }
     } catch (e) {
@@ -1123,6 +1123,49 @@ function cleanupRecentWebChat() {
         }
       } catch (e) {
         console.error("Admin shared keys handler error:", e);
+      }
+    }
+
+    // ============================================================
+    // User Action: Update/Get Personal Gemini Keys (Cross-device sync)
+    // ============================================================
+    if (rawBody.includes('"user_update_gemini_keys"') || rawBody.includes('"user_get_gemini_keys"')) {
+      try {
+        const payload = JSON.parse(rawBody);
+        const db = getDb();
+        if (payload.action === "user_update_gemini_keys" && payload.userId) {
+          const newKeys = Array.isArray(payload.keys) ? payload.keys : [];
+          const { data: currentSt } = await db.from("user_settings").select("*").eq("user_id", payload.userId).maybeSingle();
+          const overrides = (currentSt && typeof currentSt.shortcut_overrides === "object" && currentSt.shortcut_overrides) ? { ...currentSt.shortcut_overrides } : {};
+          overrides.gemini_keys = newKeys;
+
+          await db.from("user_settings").upsert({
+            access_code: currentSt?.access_code || ("wa_" + payload.userId),
+            user_id: payload.userId,
+            shortcut_overrides: overrides,
+            updated_at: new Date().toISOString()
+          });
+
+          await db.from("users").update({
+            sumber_ai: newKeys.length > 0 ? "sendiri" : "gratis"
+          }).eq("id", payload.userId);
+
+          return new Response(JSON.stringify({ success: true, keys: newKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        if (payload.action === "user_get_gemini_keys" && payload.userId) {
+          const { data: currentSt } = await db.from("user_settings").select("shortcut_overrides").eq("user_id", payload.userId).maybeSingle();
+          const keys = currentSt?.shortcut_overrides?.gemini_keys || [];
+          return new Response(JSON.stringify({ success: true, keys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+      } catch (e) {
+        console.error("User gemini keys handler error:", e);
       }
     }
 
