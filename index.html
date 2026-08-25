@@ -10426,16 +10426,16 @@
         if (error) throw error;
         if (!userProfile) return;
 
-        // If they use their own API key, it is unlocked/lifetime premium!
-        if (userProfile.sumber_ai === 'sendiri' || userProfile.token_dipakai) {
+        // Status paid hanya jika akun telah memakai kode token resmi
+        if (userProfile.token_dipakai) {
           userTrialStatus = 'paid';
         } else {
-          // Calculate trial days left
-          const trialStart = new Date(userProfile.trial_mulai_at).getTime();
-          const trialDurationMs = (userProfile.trial_lama_hari || 7) * 24 * 60 * 60 * 1000;
-          const timeElapsed = Date.now() - trialStart;
-          const msLeft = trialDurationMs - timeElapsed;
-          
+          // Hitung sisa hari trial sama persis dengan perhitungan di dashboard admin
+          const trialStart = userProfile.trial_mulai_at ? new Date(userProfile.trial_mulai_at).getTime() : Date.now();
+          const trialDays = userProfile.trial_lama_hari || 7;
+          const trialDurationMs = trialDays * 24 * 60 * 60 * 1000;
+          const msLeft = (trialStart + trialDurationMs) - Date.now();
+
           if (msLeft <= 0) {
             userTrialStatus = 'habis';
             trialDaysLeft = 0;
