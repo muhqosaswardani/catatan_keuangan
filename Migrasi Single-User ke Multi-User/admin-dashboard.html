@@ -912,16 +912,25 @@
       adminTokens = tokensData || [];
 
       try {
-        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_gemini_shared_keys' })
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json && Array.isArray(json.keys)) {
-            sharedKeys = json.keys;
-            try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
+        const { data: { session } } = await db.auth.getSession();
+        const adminToken = session?.access_token;
+        if (adminToken) {
+          const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ action: 'get_gemini_shared_keys' })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && typeof json.count === 'number') {
+              // Langkah 6: hanya simpan masked strings, bukan plaintext
+              sharedKeys = Array.isArray(json.masked) ? json.masked : Array(json.count).fill('••••••••••••');
+              try { localStorage.removeItem('fk_admin_shared_keys'); } catch(e){}
+              try { localStorage.setItem('fk_shared_keys_count', JSON.stringify(json.count)); } catch(e){}
+            }
           }
         }
       } catch (e) {}
@@ -1102,14 +1111,6 @@
       await loadData();
     }
 
-    function renderTokens() {
-      document.getElementById('tokenList').innerHTML = adminTokens.map(t => `
-    <div class="token-row">
-      <div><div class="code">${t.code}</div><div class="meta">${t.status === 'used' || t.used ? 'Dipakai' : 'Belum dipakai'}</div></div>
-      <span class="status-tag ${t.status === 'used' || t.used ? 'habis' : 'trial'}">${t.status === 'used' || t.used ? 'Terpakai' : 'Tersedia'}</span>
-    </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Belum ada token.</div>';
-    }
-
     async function generateToken() {
       const code = Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
       await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
@@ -1119,6 +1120,27 @@
 
     async function saveTrialDurasi() {
       const val = parseInt(document.getElementById('inpTrialDurasi').value) || 7;
+      try {
+        const { data: { session } } = await db.auth.getSession();
+        const adminToken = session?.access_token;
+        if (adminToken) {
+          const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ action: 'admin_update_trial_days', days: val })
+          });
+          if (res.ok) {
+            toast('Durasi trial default diperbarui: ' + val + ' hari.');
+            await loadData();
+            return;
+          }
+        }
+      } catch (e) {}
+
+      // Fallback update langsung
       await db.from('global_settings').upsert({ key: 'default_trial_days', value: JSON.stringify(val), updated_at: new Date().toISOString() });
       toast('Durasi trial default diperbarui: ' + val + ' hari.');
       await loadData();
@@ -1127,27 +1149,13 @@
     function renderSharedKeys() {
       const el = document.getElementById('sharedKeyList');
       if (!el) return;
-      el.innerHTML = sharedKeys.length ? sharedKeys.map((k, i) => `
-        <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="removeSharedKey(${i})">Hapus</button></div>
-      `).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key bersama.</div>';
-    }
-
-    async function syncSharedKeysToBackend() {
-      try {
-        await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'admin_update_shared_keys',
-            keys: sharedKeys
-          })
-        });
-      } catch (err) {
-        console.warn('Sync via function failed:', err);
-      }
-      try {
-        await db.from('global_settings').upsert({ key: 'gemini_shared_keys', value: sharedKeys, updated_at: new Date().toISOString() });
-      } catch (e) {}
+      el.innerHTML = sharedKeys.length ? sharedKeys.map((k) => {
+        const maskedText = (typeof k === 'object' && k && k.masked) ? k.masked : (typeof k === 'string' ? maskKey(k) : '••••••••••••');
+        const keyId = (typeof k === 'object' && k && k.id) ? k.id : '';
+        return `
+        <div class="apikey-row"><span>${maskedText}</span><button onclick="deleteSharedKey('${keyId}')">Hapus</button></div>
+        `;
+      }).join('') : '<div style="font-size:12.5px;color:var(--ink-soft);">Belum ada API key bersama.</div>';
     }
 
     async function addSharedKey() {
@@ -1162,24 +1170,77 @@
         toast('Peringatan: Yang Anda tempel adalah nomor HP/angka, bukan API Key Gemini.');
         return;
       }
-      sharedKeys.push(v);
-      try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
-      renderSharedKeys();
       if (inp) inp.value = '';
 
-      await syncSharedKeysToBackend();
-      toast('API key bersama berhasil ditambahkan.');
-      await loadData();
+      try {
+        const { data: { session } } = await db.auth.getSession();
+        const adminToken = session?.access_token;
+        if (!adminToken) {
+          toast('Sesi admin tidak ditemukan. Silakan login ulang.');
+          return;
+        }
+        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({
+            action: 'admin_add_shared_key',
+            key: v
+          })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && Array.isArray(json.keys)) {
+            sharedKeys = json.keys;
+            renderSharedKeys();
+            toast('API key bersama berhasil ditambahkan.');
+            return;
+          }
+        }
+        const errData = await res.json().catch(() => ({}));
+        toast('Gagal simpan key: ' + (errData.error || res.status));
+      } catch (err) {
+        console.warn('Add shared key failed:', err);
+        toast('Gagal terhubung ke server.');
+      }
     }
 
-    async function removeSharedKey(index) {
-      sharedKeys.splice(index, 1);
-      try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
-      renderSharedKeys();
-
-      await syncSharedKeysToBackend();
-      toast('API key bersama berhasil dihapus.');
-      await loadData();
+    async function deleteSharedKey(keyId) {
+      if (!keyId) return;
+      try {
+        const { data: { session } } = await db.auth.getSession();
+        const adminToken = session?.access_token;
+        if (!adminToken) {
+          toast('Sesi admin tidak ditemukan. Silakan login ulang.');
+          return;
+        }
+        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({
+            action: 'admin_delete_shared_key',
+            keyId: keyId
+          })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && Array.isArray(json.keys)) {
+            sharedKeys = json.keys;
+            renderSharedKeys();
+            toast('API key bersama berhasil dihapus.');
+            return;
+          }
+        }
+        toast('Gagal menghapus key.');
+      } catch (err) {
+        console.warn('Delete shared key failed:', err);
+        toast('Gagal terhubung ke server.');
+      }
     }
 
     /* Init */

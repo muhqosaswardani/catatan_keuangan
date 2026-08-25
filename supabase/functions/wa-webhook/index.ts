@@ -30,6 +30,202 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // ============================================================
+// GEMINI KEY ENCRYPTION — AES-GCM 256-bit
+// ⚠️ GEMINI_KEY_ENCRYPTION_SECRET wajib ada di Edge Function Secrets.
+// Kalau tidak ditemukan, fungsi enkripsi/dekripsi akan throw 500.
+// TIDAK ada fallback / hardcoded secret — repo ini public.
+// ============================================================
+
+function getEncryptionSecret(): string {
+  const secret = Deno.env.get("GEMINI_KEY_ENCRYPTION_SECRET");
+  if (!secret || secret.trim().length === 0) {
+    throw new Error(
+      "[FATAL] GEMINI_KEY_ENCRYPTION_SECRET tidak ditemukan di Edge Function Secrets. " +
+      "Set secret ini di Supabase Dashboard > Edge Functions > Secrets sebelum menggunakan fitur enkripsi."
+    );
+  }
+  return secret;
+}
+
+async function deriveKey(secret: string): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", enc.encode(secret), { name: "PBKDF2" }, false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: enc.encode("kaslyai-gemini-salt-v1"), iterations: 100000, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptApiKey(plaintext: string): Promise<string> {
+  const key = await deriveKey(getEncryptionSecret());
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
+  // format: base64(iv):base64(ciphertext)
+  const toB64 = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  return toB64(iv.buffer) + ":" + toB64(ciphertext);
+}
+
+async function decryptApiKey(encrypted: string): Promise<string> {
+  const parts = encrypted.split(":");
+  if (parts.length !== 2) throw new Error("Format ciphertext tidak valid");
+  const fromB64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const iv = fromB64(parts[0]);
+  const ciphertext = fromB64(parts[1]);
+  const key = await deriveKey(getEncryptionSecret());
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  return new TextDecoder().decode(plain);
+}
+
+/** Enkripsi array keys — plaintext yang sudah terenkripsi (format iv:ct) dilewati agar idempotent */
+async function encryptKeyArray(keys: string[]): Promise<string[]> {
+  const results: string[] = [];
+  for (const k of keys) {
+    // Jika sudah terformat iv:ct (sudah dienkripsi sebelumnya), lewati
+    if (/^[A-Za-z0-9+/]+=*:[A-Za-z0-9+/]+=*$/.test(k) && k.includes(":") && !k.startsWith("AIza")) {
+      results.push(k);
+    } else {
+      results.push(await encryptApiKey(k));
+    }
+  }
+  return results;
+}
+
+/** Dekripsi array keys — kembalikan plaintext untuk digunakan di server memory */
+async function decryptKeyArray(keys: string[]): Promise<string[]> {
+  const results: string[] = [];
+  for (const k of keys) {
+    try {
+      // Hanya dekripsi jika bukan plaintext AIzaSy... (fallback graceful selama migrasi)
+      if (k.startsWith("AIza") || !k.includes(":")) {
+        results.push(k); // plaintext lama sebelum enkripsi aktif
+      } else {
+        results.push(await decryptApiKey(k));
+      }
+    } catch (e) {
+      console.error("decryptKeyArray: gagal dekripsi key, skip:", e);
+    }
+  }
+  return results;
+}
+
+/** Mask key untuk dikirim ke browser: 'AIzaSy...' → 'AIza••••1234' */
+function maskApiKey(k: string): string {
+  if (k.length <= 8) return "••••";
+  return k.slice(0, 4) + "••••" + k.slice(-4);
+}
+
+// ============================================================
+// KEY ENTRY HELPERS — Penyimpanan Key dengan ID Unik
+// Browser hanya menerima [{ id, masked }], key asli tidak pernah ke browser
+// Hapus key dilakukan per-ID (bukan hapus semua)
+// ============================================================
+
+interface StoredKeyEntry {
+  id: string;
+  key: string; // encrypted base64(iv):base64(ciphertext) atau legacy plaintext
+  created_at?: string;
+}
+
+function parseStoredKeyList(rawList: any): StoredKeyEntry[] {
+  if (!Array.isArray(rawList)) return [];
+  const entries: StoredKeyEntry[] = [];
+  for (let i = 0; i < rawList.length; i++) {
+    const item = rawList[i];
+    if (typeof item === "string" && item.trim()) {
+      entries.push({
+        id: "k_" + crypto.randomUUID(),
+        key: item.trim(),
+      });
+    } else if (item && typeof item === "object" && typeof item.key === "string" && item.key.trim()) {
+      entries.push({
+        id: typeof item.id === "string" && item.id ? item.id : ("k_" + crypto.randomUUID()),
+        key: item.key.trim(),
+        created_at: item.created_at || new Date().toISOString(),
+      });
+    }
+  }
+  return entries;
+}
+
+async function decryptStoredKeyEntries(entries: StoredKeyEntry[]): Promise<string[]> {
+  const rawKeyStrings = entries.map((e) => e.key);
+  return await decryptKeyArray(rawKeyStrings);
+}
+
+async function getMaskedKeyEntries(entries: StoredKeyEntry[]): Promise<{ id: string; masked: string }[]> {
+  const result: { id: string; masked: string }[] = [];
+  for (const entry of entries) {
+    let plain = "";
+    try {
+      if (entry.key.startsWith("AIza") || !entry.key.includes(":")) {
+        plain = entry.key;
+      } else {
+        plain = await decryptApiKey(entry.key);
+      }
+    } catch {
+      plain = "AIzaSyUnknown";
+    }
+    result.push({
+      id: entry.id,
+      masked: maskApiKey(plain)
+    });
+  }
+  return result;
+}
+
+// ============================================================
+// AUTH HELPERS — verifikasi token Supabase Auth
+// ============================================================
+
+/** Buat Supabase client biasa (anon) untuk verifikasi token user */
+function getAnonClient() {
+  const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_KEY") || "";
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+}
+
+/**
+ * Verifikasi Bearer token dari header Authorization.
+ * Mengembalikan user object atau null jika token tidak valid.
+ */
+async function verifyBearerToken(authHeader: string | null): Promise<{ id: string; email?: string } | null> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7);
+  try {
+    const client = getAnonClient();
+    const { data: { user }, error } = await client.auth.getUser(token);
+    if (error || !user) return null;
+    return { id: user.id, email: user.email };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cek apakah user adalah admin berdasarkan kolom is_admin di tabel users.
+ * Kalau kolom/tabel tidak ditemukan → gagal (error), tidak diam-diam loloskan.
+ */
+async function isAdmin(db: ReturnType<typeof getDb>, userId: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("users")
+    .select("is_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw new Error("Gagal memeriksa status admin: " + error.message);
+  // ⚠️ KEPUTUSAN MANUAL DIPERLUKAN:
+  // Kolom `is_admin` sudah ada di tabel `users` (lihat migration 20260818_multiuser_migration.sql).
+  // Anda perlu set is_admin=true untuk akun admin Anda di Supabase Dashboard:
+  //   UPDATE public.users SET is_admin = true WHERE nomor_wa = '<nomor_wa_admin_anda>';
+  if (!data) return false;
+  return data.is_admin === true;
+}
+
+// ============================================================
 // Supabase client (service role — bypass RLS untuk edge function)
 // ============================================================
 
@@ -53,15 +249,19 @@ async function resolveGeminiApiKeys(
         .select("shortcut_overrides")
         .eq("user_id", userId)
         .maybeSingle();
-      if (st?.shortcut_overrides?.gemini_keys && Array.isArray(st.shortcut_overrides.gemini_keys) && st.shortcut_overrides.gemini_keys.length > 0) {
-        keys.push(...st.shortcut_overrides.gemini_keys);
+      if (st?.shortcut_overrides?.gemini_keys) {
+        const entries = parseStoredKeyList(st.shortcut_overrides.gemini_keys);
+        const decrypted = await decryptStoredKeyEntries(entries);
+        keys.push(...decrypted);
       } else {
         const { data: tk } = await db
           .from("token_gemini_user")
           .select("api_key")
           .eq("user_id", userId);
         if (tk && tk.length > 0) {
-          keys.push(...tk.map((r: { api_key: string }) => r.api_key));
+          const rawKeys = tk.map((r: { api_key: string }) => r.api_key);
+          const decrypted = await decryptKeyArray(rawKeys);
+          keys.push(...decrypted);
         }
       }
     } catch (e) {
@@ -72,8 +272,10 @@ async function resolveGeminiApiKeys(
   // 2. Ambil key bersama dari row dedicated access_code = "admin_shared_keys"
   try {
     const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
-    if (st?.shortcut_overrides?.gemini_shared_keys && Array.isArray(st.shortcut_overrides.gemini_shared_keys)) {
-      keys.push(...st.shortcut_overrides.gemini_shared_keys);
+    if (st?.shortcut_overrides?.gemini_shared_keys) {
+      const entries = parseStoredKeyList(st.shortcut_overrides.gemini_shared_keys);
+      const decrypted = await decryptStoredKeyEntries(entries);
+      keys.push(...decrypted);
     }
   } catch (e) {
     console.error("resolveGeminiApiKeys: error loading shared keys:", e);
@@ -937,6 +1139,101 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+// ============================================================
+// Langkah 5: Rate Limiting — sliding window, dual channel
+// Web App counter: berbasis user_id (dari token Supabase Auth)
+// WA Bot counter:  berbasis nomor HP pengirim
+// Kedua counter SEPENUHNYA TERPISAH — tidak berbagi kuota
+// ============================================================
+
+/** Map<identifier, [timestamps]> */
+const rateLimitWebApp = new Map<string, number[]>();
+const rateLimitWaBot  = new Map<string, number[]>();
+
+// Sesuaikan angka batas setelah mengecek rata-rata pemakaian existing
+const RATE_LIMIT_WEB_PER_MINUTE  = 30; // request/menit per user_id
+const RATE_LIMIT_WA_PER_MINUTE   = 15; // request/menit per nomor HP
+
+function checkRateLimit(store: Map<string, number[]>, id: string, limitPerMin: number): boolean {
+  const now = Date.now();
+  const windowMs = 60_000;
+  const timestamps = (store.get(id) || []).filter((t) => now - t < windowMs);
+  if (timestamps.length >= limitPerMin) {
+    store.set(id, timestamps);
+    return false; // rate limit exceeded
+  }
+  timestamps.push(now);
+  store.set(id, timestamps);
+  return true; // allowed
+}
+
+// ============================================================
+// Langkah 4: Proxy call_gemini — semua pemanggilan Gemini dari
+// browser dirutekan ke sini; API key TIDAK pernah turun ke browser
+// ============================================================
+
+    if (rawBody.includes('"action":"call_gemini"')) {
+      const authHeader = req.headers.get("Authorization");
+      const verifiedUser = await verifyBearerToken(authHeader);
+      if (!verifiedUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid." }), {
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+
+      // Rate limit: Web App channel (per user_id)
+      if (!checkRateLimit(rateLimitWebApp, verifiedUser.id, RATE_LIMIT_WEB_PER_MINUTE)) {
+        return new Response(JSON.stringify({ error: "Terlalu banyak permintaan. Coba lagi sebentar." }), {
+          status: 429,
+          headers: corsHeaders
+        });
+      }
+
+      let proxyPayload: Record<string, any>;
+      try {
+        proxyPayload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: corsHeaders });
+      }
+
+      const { parts, temperature, responseSchema, model } = proxyPayload;
+      if (!Array.isArray(parts) || parts.length === 0) {
+        return new Response(JSON.stringify({ error: "Field 'parts' wajib ada dan tidak boleh kosong." }), {
+          status: 400,
+          headers: corsHeaders
+        });
+      }
+
+      // Ambil + dekripsi API keys untuk user ini (di server — key tidak turun ke browser)
+      const db = getDb();
+      const apiKeys = await resolveGeminiApiKeys(db, verifiedUser.id);
+      if (apiKeys.length === 0) {
+        return new Response(JSON.stringify({
+          error: "Tidak ada Gemini API Key yang dikonfigurasi. Silakan tambahkan API key di Pengaturan, atau hubungi admin."
+        }), { status: 422, headers: corsHeaders });
+      }
+
+      // Import callGeminiRaw dari gemini.ts (sudah ada di Edge Function bundle)
+      const { callGeminiRaw } = await import("./gemini.ts");
+      const GEMINI_MODELS_LIST: string[] = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+
+      // Gunakan model dari payload kalau ada dan valid, fallback ke default list
+      const modelsToTry = (typeof model === "string" && model) ? [model, ...GEMINI_MODELS_LIST.filter(m => m !== model)] : GEMINI_MODELS_LIST;
+
+      // Panggil Gemini dengan rotasi key+model yang sama persis seperti logika existing
+      try {
+        const result = await callGeminiRaw(apiKeys, parts, temperature ?? 0.7, responseSchema);
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      } catch (e) {
+        console.error("call_gemini proxy error:", e);
+        return new Response(JSON.stringify({ error: String(e) }), { status: 502, headers: corsHeaders });
+      }
+    }
+
 const recentWebChatResponses = new Map<string, { timestamp: number; responseBody: string }>();
 
 function cleanupRecentWebChat() {
@@ -952,6 +1249,7 @@ function cleanupRecentWebChat() {
       cleanupRecentWebChat();
       const db = getDb();
       let webPayload: Record<string, any>;
+
       try {
         webPayload = JSON.parse(rawBody);
       } catch {
@@ -1098,79 +1396,272 @@ function cleanupRecentWebChat() {
     }
 
     // ============================================================
-    // Shared Gemini Keys Actions (Admin Update & Public Read)
+    // Shared Gemini Keys Actions (Admin Update / Add / Delete / Read)
+    // Langkah 2: Setiap action wajib verifikasi token admin
+    // Langkah 3: Enkripsi saat simpan, kirim masked + ID ke browser
     // ============================================================
-    if (rawBody.includes('"admin_update_shared_keys"') || rawBody.includes('"get_gemini_shared_keys"')) {
+    if (
+      rawBody.includes('"admin_update_shared_keys"') ||
+      rawBody.includes('"admin_add_shared_key"') ||
+      rawBody.includes('"admin_delete_shared_key"') ||
+      rawBody.includes('"get_gemini_shared_keys"') ||
+      rawBody.includes('"admin_update_trial_days"')
+    ) {
+      const authHeader = req.headers.get("Authorization");
+      const verifiedUser = await verifyBearerToken(authHeader);
+      if (!verifiedUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid atau tidak disertakan." }), {
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+      const db = getDb();
+      let adminCheck: boolean;
+      try {
+        adminCheck = await isAdmin(db, verifiedUser.id);
+      } catch (e) {
+        console.error("Admin check error:", e);
+        return new Response(JSON.stringify({ error: "Internal error: gagal verifikasi role admin." }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+      if (!adminCheck) {
+        return new Response(JSON.stringify({ error: "Forbidden: akun ini bukan admin." }), {
+          status: 403,
+          headers: corsHeaders
+        });
+      }
+
       try {
         const payload = JSON.parse(rawBody);
-        const db = getDb();
-        if (payload.action === "admin_update_shared_keys") {
-          const newKeys = Array.isArray(payload.keys) ? payload.keys : [];
-          // Simpan di row mandiri access_code = 'admin_shared_keys' (tidak akan pernah tertimpa sync user mana pun)
-          await db.from("user_settings").upsert({
-            access_code: "admin_shared_keys",
-            shortcut_overrides: { gemini_shared_keys: newKeys },
+
+        // Update trial days via secure backend (menghindari blokir RLS global_settings di client)
+        if (payload.action === "admin_update_trial_days") {
+          const val = parseInt(payload.days, 10) || 7;
+          await db.from("global_settings").upsert({
+            key: "default_trial_days",
+            value: JSON.stringify(val),
             updated_at: new Date().toISOString()
           });
-          return new Response(JSON.stringify({ success: true, keys: newKeys }), {
+          return new Response(JSON.stringify({ success: true, days: val }), {
             status: 200,
             headers: corsHeaders
           });
         }
 
+        // Ambil data shared keys saat ini
+        const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
+        let entries = parseStoredKeyList(st?.shortcut_overrides?.gemini_shared_keys);
+
+        // Aksi: Tambah 1 shared key
+        if (payload.action === "admin_add_shared_key" && typeof payload.key === "string") {
+          const rawKey = payload.key.trim();
+          if (rawKey.length > 10) {
+            const encrypted = await encryptApiKey(rawKey);
+            const newEntry: StoredKeyEntry = {
+              id: "shk_" + crypto.randomUUID(),
+              key: encrypted,
+              created_at: new Date().toISOString()
+            };
+            entries.push(newEntry);
+            await db.from("user_settings").upsert({
+              access_code: "admin_shared_keys",
+              shortcut_overrides: { gemini_shared_keys: entries },
+              updated_at: new Date().toISOString()
+            });
+          }
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Aksi: Hapus 1 shared key berdasarkan ID unik
+        if (payload.action === "admin_delete_shared_key" && typeof payload.keyId === "string") {
+          entries = entries.filter((e) => e.id !== payload.keyId);
+          await db.from("user_settings").upsert({
+            access_code: "admin_shared_keys",
+            shortcut_overrides: { gemini_shared_keys: entries },
+            updated_at: new Date().toISOString()
+          });
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Aksi: Bulk update (backward compatibility)
+        if (payload.action === "admin_update_shared_keys") {
+          const rawKeys = Array.isArray(payload.keys) ? payload.keys : [];
+          entries = [];
+          for (let i = 0; i < rawKeys.length; i++) {
+            const k = rawKeys[i];
+            if (typeof k === "string" && k.trim().length > 10) {
+              const encrypted = await encryptApiKey(k.trim());
+              entries.push({
+                id: "shk_" + crypto.randomUUID(),
+                key: encrypted,
+                created_at: new Date().toISOString()
+              });
+            }
+          }
+          await db.from("user_settings").upsert({
+            access_code: "admin_shared_keys",
+            shortcut_overrides: { gemini_shared_keys: entries },
+            updated_at: new Date().toISOString()
+          });
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Aksi: Baca shared keys (masked + ID)
         if (payload.action === "get_gemini_shared_keys") {
-          const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("access_code", "admin_shared_keys").maybeSingle();
-          const keys = st?.shortcut_overrides?.gemini_shared_keys || [];
-          return new Response(JSON.stringify({ success: true, keys }), {
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
             status: 200,
             headers: corsHeaders
           });
         }
       } catch (e) {
         console.error("Shared keys handler error:", e);
+        return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: corsHeaders });
       }
     }
 
     // ============================================================
-    // User Action: Update/Get Personal Gemini Keys (Cross-device sync)
+    // User Action: Update/Add/Delete/Get Personal Gemini Keys (Cross-device sync)
+    // Langkah 2: Verifikasi token user — userId dari token, bukan dari payload
+    // Langkah 3: Enkripsi saat simpan, selalu kirim masked + ID ke browser
     // ============================================================
-    if (rawBody.includes('"user_update_gemini_keys"') || rawBody.includes('"user_get_gemini_keys"')) {
+    if (
+      rawBody.includes('"user_update_gemini_keys"') ||
+      rawBody.includes('"user_add_gemini_key"') ||
+      rawBody.includes('"user_delete_gemini_key"') ||
+      rawBody.includes('"user_get_gemini_keys"')
+    ) {
+      const authHeader = req.headers.get("Authorization");
+      const verifiedUser = await verifyBearerToken(authHeader);
+      if (!verifiedUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid atau tidak disertakan." }), {
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+      // userId SELALU dari token yang terverifikasi, bukan dari payload (Langkah 2)
+      const userId = verifiedUser.id;
+
       try {
         const payload = JSON.parse(rawBody);
         const db = getDb();
-        if (payload.action === "user_update_gemini_keys" && payload.userId) {
-          const newKeys = Array.isArray(payload.keys) ? payload.keys : [];
-          const { data: currentSt } = await db.from("user_settings").select("*").eq("user_id", payload.userId).maybeSingle();
-          const overrides = (currentSt && typeof currentSt.shortcut_overrides === "object" && currentSt.shortcut_overrides) ? { ...currentSt.shortcut_overrides } : {};
-          overrides.gemini_keys = newKeys;
 
-          await db.from("user_settings").upsert({
-            access_code: currentSt?.access_code || ("wa_" + payload.userId),
-            user_id: payload.userId,
-            shortcut_overrides: overrides,
-            updated_at: new Date().toISOString()
-          });
+        const { data: currentSt } = await db.from("user_settings").select("*").eq("user_id", userId).maybeSingle();
+        const overrides = (currentSt && typeof currentSt.shortcut_overrides === "object" && currentSt.shortcut_overrides) ? { ...currentSt.shortcut_overrides } : {};
+        let entries = parseStoredKeyList(overrides.gemini_keys);
 
-          await db.from("users").update({
-            sumber_ai: newKeys.length > 0 ? "sendiri" : "gratis"
-          }).eq("id", payload.userId);
+        // Aksi: Tambah 1 personal key milik user
+        if (payload.action === "user_add_gemini_key" && typeof payload.key === "string") {
+          const rawKey = payload.key.trim();
+          if (rawKey.length > 10) {
+            const encrypted = await encryptApiKey(rawKey);
+            const newEntry: StoredKeyEntry = {
+              id: "usrk_" + crypto.randomUUID(),
+              key: encrypted,
+              created_at: new Date().toISOString()
+            };
+            entries.push(newEntry);
+            overrides.gemini_keys = entries;
 
-          return new Response(JSON.stringify({ success: true, keys: newKeys }), {
+            await db.from("user_settings").upsert({
+              access_code: currentSt?.access_code || ("wa_" + userId),
+              user_id: userId,
+              shortcut_overrides: overrides,
+              updated_at: new Date().toISOString()
+            });
+
+            await db.from("users").update({ sumber_ai: "sendiri" }).eq("id", userId);
+          }
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
             status: 200,
             headers: corsHeaders
           });
         }
 
-        if (payload.action === "user_get_gemini_keys" && payload.userId) {
-          const { data: currentSt } = await db.from("user_settings").select("shortcut_overrides").eq("user_id", payload.userId).maybeSingle();
-          const keys = currentSt?.shortcut_overrides?.gemini_keys || [];
-          return new Response(JSON.stringify({ success: true, keys }), {
+        // Aksi: Hapus 1 personal key milik user berdasarkan ID unik
+        if (payload.action === "user_delete_gemini_key" && typeof payload.keyId === "string") {
+          entries = entries.filter((e) => e.id !== payload.keyId);
+          overrides.gemini_keys = entries;
+
+          await db.from("user_settings").upsert({
+            access_code: currentSt?.access_code || ("wa_" + userId),
+            user_id: userId,
+            shortcut_overrides: overrides,
+            updated_at: new Date().toISOString()
+          });
+
+          await db.from("users").update({
+            sumber_ai: entries.length > 0 ? "sendiri" : "gratis"
+          }).eq("id", userId);
+
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Aksi: Bulk update personal keys (backward compatibility)
+        if (payload.action === "user_update_gemini_keys") {
+          const rawKeys = Array.isArray(payload.keys) ? payload.keys : [];
+          entries = [];
+          for (let i = 0; i < rawKeys.length; i++) {
+            const k = rawKeys[i];
+            if (typeof k === "string" && k.trim().length > 10) {
+              const encrypted = await encryptApiKey(k.trim());
+              entries.push({
+                id: "usrk_" + crypto.randomUUID(),
+                key: encrypted,
+                created_at: new Date().toISOString()
+              });
+            }
+          }
+          overrides.gemini_keys = entries;
+
+          await db.from("user_settings").upsert({
+            access_code: currentSt?.access_code || ("wa_" + userId),
+            user_id: userId,
+            shortcut_overrides: overrides,
+            updated_at: new Date().toISOString()
+          });
+
+          await db.from("users").update({
+            sumber_ai: entries.length > 0 ? "sendiri" : "gratis"
+          }).eq("id", userId);
+
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Aksi: Ambil personal keys (masked + ID)
+        if (payload.action === "user_get_gemini_keys") {
+          const maskedKeys = await getMaskedKeyEntries(entries);
+          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
             status: 200,
             headers: corsHeaders
           });
         }
       } catch (e) {
         console.error("User gemini keys handler error:", e);
+        return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: corsHeaders });
       }
     }
 
@@ -1321,9 +1812,20 @@ function cleanupRecentWebChat() {
         const waAutoReply = await isWaAutoReplyEnabled(db, userId);
         await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
           try {
+            // Langkah 5: Rate limit WA Bot channel (per nomor HP — TERPISAH dari Web App counter)
+            if (!checkRateLimit(rateLimitWaBot, msg.from, RATE_LIMIT_WA_PER_MINUTE)) {
+              await sendWhatsAppMessage(
+                PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.from,
+                "Maaf, terlalu banyak permintaan. Tunggu sebentar dan coba lagi.",
+                msg.messageId
+              );
+              return;
+            }
+
             const resolvedKeys = await resolveGeminiApiKeys(db, userId);
 
             if (Deno.env.get("WA_V2_ENABLED") === "true") {
+
               try {
                 // @ts-ignore
                 EdgeRuntime.waitUntil(

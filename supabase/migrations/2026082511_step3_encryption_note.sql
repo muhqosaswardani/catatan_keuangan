@@ -1,0 +1,41 @@
+-- Migration 2026082511_step3_encryption_note.sql
+-- Langkah 3: Catatan Enkripsi — tidak ada DDL baru di sini.
+--
+-- Enkripsi key dilakukan di layer aplikasi (Edge Function: encryptApiKey / decryptApiKey AES-GCM).
+-- Database hanya menyimpan ciphertext berformat "base64(iv):base64(ciphertext)" di kolom JSONB
+-- shortcut_overrides.gemini_keys dan shortcut_overrides.gemini_shared_keys.
+--
+-- Tidak diperlukan migrasi schema. Enkripsi aktif otomatis begitu:
+--   1. GEMINI_KEY_ENCRYPTION_SECRET di-set di Edge Function Secrets.
+--   2. Kode Langkah 2+3 (wa-webhook/index.ts) sudah live.
+--
+-- ============================================================
+-- ⚠️ DATA LAMA (plaintext keys yang sudah ada di DB):
+-- ============================================================
+-- Key yang sudah tersimpan sebelum migrasi ini masih berformat plaintext (AIzaSy...).
+-- decryptKeyArray() menangani ini dengan graceful fallback:
+--   - Jika key dimulai "AIza" atau tidak mengandung ":" → dianggap plaintext, dipakai apa adanya.
+--   - Jika berformat "iv:ct" → didekripsi dengan GEMINI_KEY_ENCRYPTION_SECRET.
+--
+-- Re-enkripsi key lama terjadi OTOMATIS saat user/admin menyimpan key berikutnya via UI.
+-- Tidak perlu script migrasi data manual.
+--
+-- ============================================================
+-- LANGKAH YANG PERLU ANDA LAKUKAN SEBELUM DEPLOY:
+-- ============================================================
+-- 1. Set secret di Supabase Dashboard → Settings → Edge Functions → Secrets:
+--    Key name : GEMINI_KEY_ENCRYPTION_SECRET
+--    Value    : <string acak ≥32 karakter — simpan di password manager, JANGAN commit ke git>
+--
+-- 2. Verifikasi secret tersimpan dengan benar sebelum deploy Edge Function.
+--
+-- 3. ⚠️ KEPUTUSAN MANUAL: Siapa akun admin?
+--    Jalankan query ini di Supabase SQL Editor setelah yakin dengan akun admin:
+--
+--    UPDATE public.users
+--    SET is_admin = true
+--    WHERE nomor_wa = '<nomor_wa_admin_anda>';  -- ganti dengan nomor WA admin yang sesungguhnya
+--
+--    Tanpa ini, admin_update_shared_keys dan get_gemini_shared_keys akan selalu return 403.
+
+SELECT 'Langkah 3: Enkripsi aktif di layer aplikasi. Lihat komentar di atas.' AS catatan;

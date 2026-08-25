@@ -10037,9 +10037,13 @@
 
     // Save user keys & check local settings
     function renderUserKeys() {
-      const html = userKeys.length ? userKeys.map((k, i) => `
-        <div class="apikey-row"><span>${maskKey(k)}</span><button onclick="event.stopPropagation();userKeys.splice(${i},1);saveKeysToDb();renderUserKeys()">Hapus</button></div>
-      `).join('') + `<div style="font-size:11px;color:var(--ink-soft);padding:4px 2px 0;">${userKeys.length} API Key Gemini Aktif</div>`
+      const html = userKeys.length ? userKeys.map((k) => {
+        const maskedText = (typeof k === 'object' && k && k.masked) ? k.masked : (typeof k === 'string' ? maskKey(k) : '••••••••••••');
+        const keyId = (typeof k === 'object' && k && k.id) ? k.id : '';
+        return `
+        <div class="apikey-row"><span>${maskedText}</span><button onclick="event.stopPropagation();deleteUserKey('${keyId}')">Hapus</button></div>
+        `;
+      }).join('') + `<div style="font-size:11px;color:var(--ink-soft);padding:4px 2px 0;">${userKeys.length} API Key Gemini Aktif</div>`
         : '<div style="font-size:12px;color:var(--ink-soft);padding:6px 0;">Belum ada API key ditambahkan.</div>';
       
       const el = document.getElementById('userKeyList');
@@ -10052,50 +10056,9 @@
       return k.length > 8 ? k.slice(0, 4) + '••••' + k.slice(-4) : k;
     }
 
-    async function saveKeysToDb() {
-      // 1. Simpan ke localStorage terlebih dahulu (instan render & persisten di device)
-      try {
-        localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys));
-      } catch (e) {}
-
-      if (!currentUserId) return;
-      try {
-        // 2. Simpan ke user_settings di Supabase
-        if (supabaseClient) {
-          const code = getAccessCode();
-          const curMeta = getShortcutMeta() || {};
-          const scMeta = { ...curMeta, gemini_keys: userKeys, updatedAt: Date.now() };
-          await supabaseClient.from('user_settings').upsert({
-            access_code: code,
-            user_id: currentUserId,
-            shortcut_overrides: scMeta,
-            updated_at: new Date().toISOString()
-          });
-
-          if (userKeys.length > 0) {
-            await supabaseClient.from('users').update({ sumber_ai: 'sendiri' }).eq('id', currentUserId);
-          } else {
-            await supabaseClient.from('users').update({ sumber_ai: 'gratis' }).eq('id', currentUserId);
-          }
-        }
-
-        // 3. Sync juga via Edge Function superuser backend
-        fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'user_update_gemini_keys',
-            userId: currentUserId,
-            keys: userKeys
-          })
-        }).catch(err => console.warn('Sync user keys via function warn:', err));
-      } catch (err) {
-        console.error('Gagal menyimpan API key ke DB:', err);
-      }
-    }
-
     async function addUserKey() {
-      const v = document.getElementById('inpUserKey').value.trim();
+      const inp = document.getElementById('inpUserKey');
+      const v = inp ? inp.value.trim() : '';
       if (!v) return;
       if (v.startsWith('http://') || v.startsWith('https://')) {
         showToast('Itu link URL website, bukan API Key Gemini. Ambil API Key di aistudio.google.com.');
@@ -10105,11 +10068,83 @@
         showToast('Itu nomor HP/angka, bukan API Key Gemini (biasanya diawali AIzaSy...).');
         return;
       }
-      userKeys.push(v);
-      document.getElementById('inpUserKey').value = '';
-      await saveKeysToDb();
-      renderUserKeys();
-      showToast('API Key Gemini ditambahkan.');
+      if (inp) inp.value = '';
+
+      if (!supabaseClient) return;
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) {
+          showToast('Sesi login tidak ditemukan. Silakan login ulang.');
+          return;
+        }
+
+        const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            action: 'user_add_gemini_key',
+            key: v
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.keys)) {
+            userKeys = data.keys;
+            try { localStorage.setItem('fk_user_gemini_keys_count', JSON.stringify(data.count)); } catch(e){}
+            renderUserKeys();
+            showToast('API Key Gemini berhasil ditambahkan.');
+            return;
+          }
+        }
+        showToast('Gagal menambahkan API key.');
+      } catch (err) {
+        console.error('Gagal menambahkan API key:', err);
+        showToast('Gagal terhubung ke server.');
+      }
+    }
+
+    async function deleteUserKey(keyId) {
+      if (!keyId || !supabaseClient) return;
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) {
+          showToast('Sesi login tidak ditemukan. Silakan login ulang.');
+          return;
+        }
+
+        const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            action: 'user_delete_gemini_key',
+            keyId: keyId
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.keys)) {
+            userKeys = data.keys;
+            try { localStorage.setItem('fk_user_gemini_keys_count', JSON.stringify(data.count)); } catch(e){}
+            renderUserKeys();
+            showToast('API Key Gemini dihapus.');
+            return;
+          }
+        }
+        showToast('Gagal menghapus API key.');
+      } catch (err) {
+        console.error('Gagal menghapus API key:', err);
+        showToast('Gagal terhubung ke server.');
+      }
     }
 
     function cleanGeminiKeyList(arr) {
@@ -10118,43 +10153,31 @@
     }
 
     async function loadUserKeys() {
-      // 1. Load dari cache lokal terlebih dahulu (instan tampil tanpa nunggu network)
+      // Langkah 6: userKeys di browser hanya menyimpan array [{ id, masked }]
+      // Nilai asli key tidak pernah dikirim ke browser
+      if (!currentUserId || !supabaseClient) return;
       try {
-        const cached = localStorage.getItem('fk_user_gemini_keys');
-        if (cached) {
-          userKeys = cleanGeminiKeyList(JSON.parse(cached));
-          renderUserKeys();
-        }
-      } catch (e) {}
-
-      if (!currentUserId) return;
-      try {
-        // 2. Fetch dari user_settings di Supabase
-        if (supabaseClient) {
-          const { data: st } = await supabaseClient.from('user_settings').select('shortcut_overrides').eq('user_id', currentUserId).maybeSingle();
-          if (st?.shortcut_overrides?.gemini_keys && Array.isArray(st.shortcut_overrides.gemini_keys)) {
-            userKeys = cleanGeminiKeyList(st.shortcut_overrides.gemini_keys);
-            try { localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys)); } catch(e){}
-            renderUserKeys();
-            return;
-          }
-        }
-
-        // 3. Fetch dari backend via Edge Function (multi-device sync PC <-> HP)
-        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'user_get_gemini_keys',
-            userId: currentUserId
-          })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.keys)) {
-            userKeys = cleanGeminiKeyList(data.keys);
-            try { localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys)); } catch(e){}
-            renderUserKeys();
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (token) {
+          const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({
+              action: 'user_get_gemini_keys',
+              userId: currentUserId
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.keys)) {
+              userKeys = data.keys;
+              try { localStorage.setItem('fk_user_gemini_keys_count', JSON.stringify(data.count)); } catch(e){}
+              renderUserKeys();
+            }
           }
         }
       } catch (err) {
@@ -10163,28 +10186,25 @@
     }
 
     async function loadSharedKeys() {
+      // Langkah 6: sharedKeys di browser hanya menyimpan jumlah (count)
+      // Nilai asli key tidak pernah turun ke browser
       try {
-        const cached = localStorage.getItem('fk_admin_shared_keys');
-        if (cached) {
-          sharedKeys = cleanGeminiKeyList(JSON.parse(cached));
-        }
-      } catch (e) {}
-
-      try {
-        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'get_gemini_shared_keys' })
         });
         if (res.ok) {
           const data = await res.json();
-          if (data && Array.isArray(data.keys)) {
-            sharedKeys = cleanGeminiKeyList(data.keys);
-            try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
+          if (data && typeof data.count === 'number') {
+            // sharedKeys sebagai array placeholder — ukurannya = jumlah key aktif
+            // Browser hanya tahu ADA berapa key, tidak tahu isinya
+            sharedKeys = Array(data.count).fill('__server_managed__');
+            try { localStorage.setItem('fk_shared_keys_count', JSON.stringify(data.count)); } catch(e){}
           }
         }
       } catch (err) {
-        console.error('Gagal mengambil shared key:', err);
+        console.error('Gagal mengambil info shared key:', err);
       }
     }
 
@@ -10567,7 +10587,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.71)';
+      const version = ' (v3.4.0)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14904,97 +14924,63 @@
       });
     }
     async function callGeminiRaw(key, parts, temperature, responseSchema) {
-      /* Rotasi otomatis untuk semua key yang tersedia (pribadi atau bersama). 
-         Jika satu key limit/quota habis (429/403) atau server error (503/404), 
-         otomatis berganti ke key berikutnya. */
-      let keysToTry = [];
-      if (userKeys && userKeys.length > 0) {
-        keysToTry = [...userKeys];
-      } else if (sharedKeys && sharedKeys.length > 0) {
-        keysToTry = [...sharedKeys];
+      /* Langkah 4: Proxy server-side — pemanggilan Gemini API dirutekan ke
+         Edge Function wa-webhook dengan action call_gemini.
+         API key tidak pernah turun ke browser atau tampil di Network Tab.
+         Rotasi key + model fallback dilakukan di server (gemini.ts: callGeminiRaw). */
+
+      if (!supabaseClient) {
+        throw new Error('Koneksi ke server belum siap. Coba muat ulang halaman.');
       }
 
-      const custom = (getSettings().geminiApiKey || '').trim();
-      if (custom && !keysToTry.includes(custom)) {
-        keysToTry.unshift(custom);
-      }
-      if (key && typeof key === 'string' && key.trim() && !keysToTry.includes(key.trim())) {
-        keysToTry.unshift(key.trim());
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        throw new Error('Sesi login tidak ditemukan. Silakan login ulang.');
       }
 
-      if (keysToTry.length === 0) {
-        throw new Error('Tidak ada Gemini API Key yang dikonfigurasi. Silakan tambahkan API key pribadi Anda di menu Pengaturan, atau hubungi admin.');
+      const proxyUrl = SUPABASE_URL + '/functions/v1/wa-webhook';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s — lebih panjang dari timeout Gemini di server (15s x max combo key+model)
+
+      let res;
+      try {
+        res = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            action: 'call_gemini',
+            parts,
+            temperature: typeof temperature === 'number' ? temperature : 0.1,
+            responseSchema: responseSchema || undefined
+          }),
+          signal: controller.signal
+        });
+      } catch (networkErr) {
+        clearTimeout(timeoutId);
+        throw new Error('Gagal menghubungi server AI: ' + (networkErr && networkErr.message ? networkErr.message : 'koneksi terputus atau timeout') + '. Pastikan HP terhubung internet.');
+      } finally {
+        clearTimeout(timeoutId);
       }
 
-      const RETRYABLE_STATUS = [403, 404, 429, 503];
-      let lastErr = null;
-      const numKeys = keysToTry.length;
-      const numModels = GEMINI_MODELS.length;
-
-      const startKeyIdx = Math.floor(Math.random() * numKeys);
-
-      for (let kCount = 0; kCount < numKeys; kCount++) {
-        const kIdx = (startKeyIdx + kCount) % numKeys;
-        const apiKey = keysToTry[kIdx];
-
-        for (let mCount = 0; mCount < numModels; mCount++) {
-          const model = GEMINI_MODELS[mCount];
-          const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(apiKey);
-          const generationConfig = {
-            responseMimeType: 'application/json',
-            temperature: (typeof temperature === 'number' ? temperature : 0.1),
-            maxOutputTokens: 1024
-          };
-          // responseSchema memaksa Gemini ikut struktur JSON persis (grammar-constrained decoding),
-          // jauh lebih kuat daripada cuma mengandalkan instruksi teks di prompt. Ini yang paling
-          // ngurangin kasus "Format respons AI tidak valid" yang muncul acak walau input sama persis.
-          if (responseSchema) {
-            generationConfig.responseSchema = responseSchema;
-          }
-          let res;
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
-          try {
-            res = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ role: 'user', parts }],
-                generationConfig
-              }),
-              signal: controller.signal
-            });
-          } catch (networkErr) {
-            lastErr = new Error('Gagal menghubungi Gemini API: ' + (networkErr && networkErr.message ? networkErr.message : 'koneksi terputus atau timeout') + '. Pastikan HP terhubung internet.');
-            continue;
-          } finally {
-            clearTimeout(timeoutId);
-          }
-
-          if (res.ok) {
-            currentApiKeyIndex = kIdx; // simpan index key yang berhasil untuk pemanggilan berikutnya
-            return await res.json();
-          }
-
-          let errText = await res.text().catch(() => '');
-          let friendly = '';
-          if (res.status === 400) friendly = 'Request tidak valid.';
-          else if (res.status === 403) friendly = 'API Key ditolak / kuota terlampaui.';
-          else if (res.status === 404) friendly = 'Model "' + model + '" tidak ditemukan.';
-          else if (res.status === 429) friendly = 'Rate limit / kuota habis.';
-          else if (res.status === 503) friendly = 'Server Gemini overload.';
-
-          lastErr = new Error('Gemini API (Key #' + (kIdx + 1) + ', ' + model + ') error ' + res.status + (friendly ? ' - ' + friendly : '') + (errText ? ' (' + errText.slice(0, 150) + ')' : ''));
-
-          if (RETRYABLE_STATUS.includes(res.status)) {
-            continue;
-          } else {
-            continue;
-          }
-        }
+      if (res.ok) {
+        return await res.json();
       }
 
-      throw lastErr || new Error('Semua API Key dan Model Gemini gagal dipanggil.');
+      let errText = '';
+      try { errText = await res.text(); } catch(e) {}
+      let friendly = '';
+      if (res.status === 401) friendly = 'Sesi habis, silakan login ulang.';
+      else if (res.status === 429) friendly = 'Terlalu banyak permintaan, tunggu sebentar.';
+      else if (res.status === 422) friendly = 'Belum ada API Key dikonfigurasi.';
+      else if (res.status === 502) friendly = 'Semua API Key dan Model Gemini gagal dipanggil.';
+      else if (res.status === 503) friendly = 'Server AI sedang tidak tersedia.';
+
+      try { const p = JSON.parse(errText); if (p.error) friendly = p.error; } catch(e) {}
+      throw new Error(friendly || ('Server error ' + res.status + (errText ? ' (' + errText.slice(0, 150) + ')' : '')));
     }
     function extractGeminiText(data) {
       const cand = data && data.candidates && data.candidates[0];
