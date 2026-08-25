@@ -5555,38 +5555,48 @@
       font-weight: 700;
     }
     .guide-step {
-      margin-bottom: 22px;
-      text-align: left;
-    }
-    .guide-step-head {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 9px;
+      gap: 12px;
+      margin-bottom: 16px;
+      text-align: left;
+      align-items: flex-start;
+    }
+    .guide-step-body {
+      flex: 1;
+      min-width: 0;
     }
     .guide-num {
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
-      background: var(--accent);
+      background: var(--primary);
       color: #fff;
-      font-size: 12.5px;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      font-family: 'Sora', sans-serif;
+      margin-top: 1px;
+      font-family: inherit;
     }
+    .guide-step h4,
     .guide-step-head h4 {
       margin: 0;
-      font-size: 14.5px;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.4;
     }
     .guide-step p {
-      font-size: 12.5px;
+      font-size: 13px;
       color: var(--ink-soft);
-      line-height: 1.6;
-      margin: 0 0 10px;
+      line-height: 1.55;
+      margin: 3px 0 0;
+    }
+    .guide-step-img-slot {
+      margin-top: 8px;
+      width: 100%;
     }
     .photo-slot {
       width: 100%;
@@ -6327,31 +6337,46 @@
         <p style="color:var(--ink-soft);font-size:13.5px;margin:-8px 0 16px;text-align:left;">Gratis dari Google, cukup pakai akun Google biasa. Ikuti langkah-langkah ini:</p>
 
         <div class="guide-step">
-          <div class="guide-step-head"><span class="guide-num">1</span><h4>Buka Google AI Studio</h4></div>
-          <p>Buka <a href="https://aistudio.google.com/app/u/8/api-keys" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+          <span class="guide-num">1</span>
+          <div class="guide-step-body">
+            <h4>Buka Google AI Studio</h4>
+            <p>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--primary);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+          </div>
         </div>
 
         <div class="guide-step">
-          <div class="guide-step-head"><span class="guide-num">2</span><h4>Klik "Get API key"</h4></div>
-          <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> (biasanya di pojok kiri atas / menu samping).</p>
+          <span class="guide-num">2</span>
+          <div class="guide-step-body">
+            <h4>Klik "Get API key"</h4>
+            <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> (biasanya di pojok kiri atas / menu samping).</p>
+          </div>
         </div>
 
         <div class="guide-step">
-          <div class="guide-step-head"><span class="guide-num">3</span><h4>Buat API Key Baru</h4></div>
-          <p>Klik <b>Create API key</b>, lalu pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis.</p>
+          <span class="guide-num">3</span>
+          <div class="guide-step-body">
+            <h4>Buat API Key Baru</h4>
+            <p>Klik <b>Create API key</b>, lalu pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis.</p>
+          </div>
         </div>
 
         <div class="guide-step">
-          <div class="guide-step-head"><span class="guide-num">4</span><h4>Salin API Key-nya</h4></div>
-          <p>API key otomatis muncul dalam bentuk deretan huruf &amp; angka. Klik ikon salin (copy) di sampingnya.</p>
+          <span class="guide-num">4</span>
+          <div class="guide-step-body">
+            <h4>Salin API Key-nya</h4>
+            <p>API key otomatis muncul dalam bentuk deretan huruf &amp; angka. Klik ikon salin (copy) di sampingnya.</p>
+          </div>
         </div>
 
-        <div class="guide-step" style="margin-bottom:8px;">
-          <div class="guide-step-head"><span class="guide-num">5</span><h4>Tempel di Sini</h4></div>
-          <p>Balik ke halaman sebelumnya, tempel API key tadi ke kolom <b>"API Key Gemini Sendiri"</b>, lalu lanjutkan pendaftaran.</p>
+        <div class="guide-step">
+          <span class="guide-num">5</span>
+          <div class="guide-step-body">
+            <h4>Tempel di Sini</h4>
+            <p>Balik ke halaman sebelumnya, tempel API key tadi ke kolom <b>"API Key Gemini Sendiri"</b>, lalu lanjutkan pendaftaran.</p>
+          </div>
         </div>
 
-        <div class="card" style="background:var(--accent-soft);box-shadow:none;margin-bottom:16px;text-align:left;">
+        <div class="card" style="background:var(--accent-soft);box-shadow:none;margin:12px 0 16px;text-align:left;">
           <div style="font-size:12.5px;color:var(--accent-dark);line-height:1.6;"><b>Aman kok.</b> API key ini dikunci rapat, cuma dipakai buat manggil AI Gemini atas nama akunmu sendiri, dan gak ada satu pun pihak lain (termasuk admin kami) yang bisa lihat isinya. Bisa dihapus / diganti kapan saja lewat menu Setting.</div>
         </div>
 
@@ -8155,28 +8180,43 @@
           <p style="color:var(--ink-soft);font-size:13.5px;margin:-4px 0 16px;text-align:left;">Gratis dari Google, cukup pakai akun Google biasa. Ikuti langkah-langkah ini:</p>
 
           <div class="guide-step">
-            <div class="guide-step-head"><span class="guide-num">1</span><h4>Buka Google AI Studio</h4></div>
-            <p>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+            <span class="guide-num">1</span>
+            <div class="guide-step-body">
+              <h4>Buka Google AI Studio</h4>
+              <p>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--primary);font-weight:700;text-decoration:underline;text-underline-offset:2px;">aistudio.google.com<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="display:inline;vertical-align:-1px;margin-left:2px;"><path d="M7 17L17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>, lalu login pakai akun Google kamu.</p>
+            </div>
           </div>
 
           <div class="guide-step">
-            <div class="guide-step-head"><span class="guide-num">2</span><h4>Klik "Get API key"</h4></div>
-            <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> (biasanya di pojok kiri atas / menu samping).</p>
+            <span class="guide-num">2</span>
+            <div class="guide-step-body">
+              <h4>Klik "Get API key"</h4>
+              <p>Di halaman Google AI Studio, cari dan klik tombol <b>Get API key</b> (biasanya di pojok kiri atas / menu samping).</p>
+            </div>
           </div>
 
           <div class="guide-step">
-            <div class="guide-step-head"><span class="guide-num">3</span><h4>Buat API Key Baru</h4></div>
-            <p>Klik <b>Create API key</b>, lalu pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis.</p>
+            <span class="guide-num">3</span>
+            <div class="guide-step-body">
+              <h4>Buat API Key Baru</h4>
+              <p>Klik <b>Create API key</b>, lalu pilih project Google Cloud yang sudah ada, atau biarkan sistem buatkan project baru otomatis.</p>
+            </div>
           </div>
 
           <div class="guide-step">
-            <div class="guide-step-head"><span class="guide-num">4</span><h4>Salin API Key-nya</h4></div>
-            <p>API key otomatis muncul dalam bentuk deretan huruf &amp; angka. Klik ikon salin (copy) di sampingnya.</p>
+            <span class="guide-num">4</span>
+            <div class="guide-step-body">
+              <h4>Salin API Key-nya</h4>
+              <p>API key otomatis muncul dalam bentuk deretan huruf &amp; angka. Klik ikon salin (copy) di sampingnya.</p>
+            </div>
           </div>
 
-          <div class="guide-step" style="margin-bottom:8px;">
-            <div class="guide-step-head"><span class="guide-num">5</span><h4>Tempel di Sini</h4></div>
-            <p>Tutup panduan ini, tempel API key tadi ke kolom <b>"Tambah API Key Gemini Baru"</b>, lalu klik <b>+ Tambah</b>.</p>
+          <div class="guide-step">
+            <span class="guide-num">5</span>
+            <div class="guide-step-body">
+              <h4>Tempel di Sini</h4>
+              <p>Tutup panduan ini, tempel API key tadi ke kolom <b>"Tambah API Key Gemini Baru"</b>, lalu klik <b>+ Tambah</b>.</p>
+            </div>
           </div>
 
           <div class="card" style="background:var(--accent-soft);box-shadow:none;margin:12px 0 16px;text-align:left;">
@@ -10556,7 +10596,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.69)';
+      const version = ' (v3.3.70)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
