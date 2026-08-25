@@ -45,6 +45,49 @@ function getDb() {
   });
 }
 
+async function resolveGeminiApiKeys(
+  db: ReturnType<typeof getDb>,
+  userId?: string,
+): Promise<string[]> {
+  const keys: string[] = [];
+
+  // 1. Ambil key pribadi user dari tabel token_gemini_user
+  if (userId) {
+    try {
+      const { data, error } = await db
+        .from("token_gemini_user")
+        .select("api_key")
+        .eq("user_id", userId);
+      if (!error && data && data.length > 0) {
+        keys.push(...data.map((r: { api_key: string }) => r.api_key));
+      }
+    } catch (e) {
+      console.error("resolveGeminiApiKeys: error loading user keys:", e);
+    }
+  }
+
+  // 2. Ambil key bersama dari tabel global_settings (key = 'gemini_shared_keys')
+  try {
+    const { data, error } = await db
+      .from("global_settings")
+      .select("value")
+      .eq("key", "gemini_shared_keys")
+      .maybeSingle();
+    if (!error && data && Array.isArray(data.value) && data.value.length > 0) {
+      keys.push(...data.value);
+    }
+  } catch (e) {
+    console.error("resolveGeminiApiKeys: error loading shared keys:", e);
+  }
+
+  // 3. Fallback ke env GEMINI_API_KEYS jika database kosong
+  if (keys.length === 0) {
+    keys.push(...GEMINI_API_KEYS);
+  }
+
+  return keys;
+}
+
 async function claimIncomingMessage(
   db: ReturnType<typeof getDb>,
   messageId: string,
@@ -978,13 +1021,15 @@ function cleanupRecentWebChat() {
 
       try {
         await chatContext.run({ isWebChat: true, messages: responseMessages }, async () => {
+          const resolvedKeys = await resolveGeminiApiKeys(db, userId);
+
           if (webPayload.image && webPayload.image.data && webPayload.image.mimeType) {
-            await handleWebChatImage(db, GEMINI_API_KEYS, msg, webPayload.image.data, webPayload.image.mimeType, userId);
+            await handleWebChatImage(db, resolvedKeys, msg, webPayload.image.data, webPayload.image.mimeType, userId);
             return;
           }
 
           // 1. Cek V2 Message router
-          const handled = await handleV2Message(db, GEMINI_API_KEYS, msg, userId);
+          const handled = await handleV2Message(db, resolvedKeys, msg, userId);
           if (handled) return;
 
           // 2. Cek reply to transaction
@@ -996,7 +1041,7 @@ function cleanupRecentWebChat() {
               .maybeSingle();
 
             if (mapping?.transaction_id) {
-              await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id, userId);
+              await handleReplyToTransaction(db, resolvedKeys, msg, mapping.transaction_id, userId);
               return;
             }
 
@@ -1007,13 +1052,13 @@ function cleanupRecentWebChat() {
               .maybeSingle();
 
             if (pending?.id) {
-              await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id, userId);
+              await handlePendingNominalReply(db, resolvedKeys, msg, pending.id, userId);
               return;
             }
           }
 
           // 3. Fallback to normal text handler
-          await handleTextMessage(db, GEMINI_API_KEYS, msg, userId);
+          await handleTextMessage(db, resolvedKeys, msg, userId);
         });
 
         const { session: activeSession, wasTimedOut } = await getV2Session(db, msg.from);
@@ -1163,7 +1208,8 @@ function cleanupRecentWebChat() {
             withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
               try {
                 await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-                await processQueuedMediaBatch(db, GEMINI_API_KEYS, msg.from, userId);
+                const resolvedKeys = await resolveGeminiApiKeys(db, userId);
+                await processQueuedMediaBatch(db, resolvedKeys, msg.from, userId);
               } catch (e) {
                 console.error("Error in background media batch processing:", e);
                 try {
@@ -1199,6 +1245,8 @@ function cleanupRecentWebChat() {
         const waAutoReply = await isWaAutoReplyEnabled(db, userId);
         await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
           try {
+            const resolvedKeys = await resolveGeminiApiKeys(db, userId);
+
             if (Deno.env.get("WA_V2_ENABLED") === "true") {
               try {
                 // @ts-ignore
@@ -1219,7 +1267,7 @@ function cleanupRecentWebChat() {
                 }).catch(() => {});
               }
 
-              const handled = await handleV2Message(db, GEMINI_API_KEYS, msg, userId);
+              const handled = await handleV2Message(db, resolvedKeys, msg, userId);
 
               try {
                 // @ts-ignore
@@ -1254,7 +1302,7 @@ function cleanupRecentWebChat() {
                 .single();
 
               if (mapping?.transaction_id) {
-                await handleReplyToTransaction(db, GEMINI_API_KEYS, msg, mapping.transaction_id, userId);
+                await handleReplyToTransaction(db, resolvedKeys, msg, mapping.transaction_id, userId);
                 return;
               }
 
@@ -1265,14 +1313,14 @@ function cleanupRecentWebChat() {
                 .single();
 
               if (pending?.id) {
-                await handlePendingNominalReply(db, GEMINI_API_KEYS, msg, pending.id, userId);
+                await handlePendingNominalReply(db, resolvedKeys, msg, pending.id, userId);
                 return;
               }
             }
 
             // ── Route berdasarkan tipe pesan ────────────────────
             if (msg.type === "text") {
-              await handleTextMessage(db, GEMINI_API_KEYS, msg, userId);
+              await handleTextMessage(db, resolvedKeys, msg, userId);
             }
           } catch (e) {
             console.error("Error processing message:", e);

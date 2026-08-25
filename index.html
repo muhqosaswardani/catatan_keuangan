@@ -9047,6 +9047,7 @@
     // Global Multi-User State
     let currentUserId = null;
     let userKeys = [];
+    let sharedKeys = [];
     const BRAND_NAME = 'KaslyAI';
     const WA_BOT_NUMBER = '6281226964679';
     let onboardingWallets = [{ nama: 'Dompet Utama', saldo: '' }];
@@ -9965,6 +9966,9 @@
             api_key: k
           }));
           await supabaseClient.from('token_gemini_user').insert(inserts);
+          await supabaseClient.from('users').update({ sumber_ai: 'sendiri' }).eq('id', currentUserId);
+        } else {
+          await supabaseClient.from('users').update({ sumber_ai: 'gratis' }).eq('id', currentUserId);
         }
       } catch (err) {
         console.error('Gagal menyimpan API key ke DB:', err);
@@ -9990,8 +9994,25 @@
           renderUserKeys();
         }
       } catch (err) {
-        console.error('Gagal mengambil API key:', err);
+        console.error('Gagal mengambil API key user:', err);
       }
+    }
+
+    async function loadSharedKeys() {
+      if (!supabaseClient) return;
+      try {
+        const { data, error } = await supabaseClient.from('global_settings').select('value').eq('key', 'gemini_shared_keys').maybeSingle();
+        if (error) throw error;
+        if (data && Array.isArray(data.value)) {
+          sharedKeys = data.value;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil shared key:', err);
+      }
+    }
+
+    async function loadAllGeminiKeys() {
+      await Promise.all([loadUserKeys(), loadSharedKeys()]);
     }
 
     // WA Auto-Reply toggler (Fase 2 Bagian 4)
@@ -10357,7 +10378,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.41)';
+      const version = ' (v3.3.42)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11049,29 +11070,13 @@
       syncAllWithSupabase(true);
     }
 
-    const GEMINI_API_KEYS = [
-      'QVEuQWI4Uk42SnZ5QzdvMkk3WmptZnByNnVCWEE5ckVDVG1VTnVrVzdKRnFIWV9JWlcwSGc=',
-      'QVEuQWI4Uk42TG54UTZlb3hrb1NJdnVpVDlseHloaWtmOE5RMGVxZ2NfdUpyTE5vdFRIZ3c=',
-      'QVEuQWI4Uk42THBPM3ZwU012ZFo3LXR2bnNxUVBseEpmbi11RjM1SW0za1J1bk1udW82Nnc=',
-      'QVEuQWI4Uk42S0FDbHhOa0VNZlRVUnFhSW16TjRqN3RpcGVNWS10QkZLVUd0Vm5XVFh5M0E=',
-      'QVEuQWI4Uk42SndVUXFOUkxwa1FRWWp5SzRwNHNlZmxwN1dwRVp3ZDFVLXpramh4ZDZHUWc=',
-      'QVEuQWI4Uk42TERjQWVHWW5WMWw3UXhMRHExX2pzSzcwOWo0cHhqRnk0c01pekZfNFdRd3c=',
-      'QVEuQWI4Uk42Sk8yeTNNNEVSU0h0bERTVl9LcEVvV2VzNk1BVnk4SE1sNDBFSkJNdnlvZUE=',
-      'QVEuQWI4Uk42SzVHeDN1aWhicklkZE5VazNaYVd3V1M3aGNLOEV0bmtIRUtKVU91X2VfT2c=',
-      'QVEuQWI4Uk42SlFuXzdXdEhlRmx5UzFNQkJwWThRNlZJSEZ0bWRLcEFPYWdLV1NWbVN1Q3c=',
-      'QVEuQWI4Uk42TGhlODJnWDVUOVJNOE4tOUpvTHFTWGVmWEZFZi03X1hSN2FyQkZCMlJ2TXc=',
-      'QVEuQWI4Uk42TDRlQWM1WFlUcHBla1N0UGNwY01rWnFkU3R0WTlEUnVETDJaUDFRcmlZeHc=',
-      'QVEuQWI4Uk42TE9QMEdQMFBudGw4SUs1WUJQWlo1YXZDN0FrdUkzYmVqWWNQWjIteUZ0T3c=',
-      'QVEuQWI4Uk42SmJJbEhGbmVueElSWGlZZXp4dXJiUlNYQnpUUE0wV1ZYeHlhMWo5TWFQVlE=',
-      'QVEuQWI4Uk42SVJEQW1jWUJPSG1hWURCSDZNNlZKRVZZaXRMYlA0Z3Q5MW1ZZG1UQm9YM1E='
-    ].map(k => atob(k));
-    let currentApiKeyIndex = 0;
-
     function getSettings() { return JSON.parse(localStorage.getItem(LS_KEYS.settings) || '{"geminiApiKey":"","sheetsWebAppUrl":""}'); }
     function getGeminiApiKey() {
       const custom = (getSettings().geminiApiKey || '').trim();
       if (custom) return custom;
-      return (GEMINI_API_KEYS && GEMINI_API_KEYS.length > 0) ? GEMINI_API_KEYS[0] : '';
+      if (userKeys && userKeys.length > 0) return userKeys[0];
+      if (sharedKeys && sharedKeys.length > 0) return sharedKeys[0];
+      return '';
     }
     function setSettingsLocalOnly(s) { localStorage.setItem(LS_KEYS.settings, JSON.stringify(s)); }
 
@@ -14661,14 +14666,26 @@
       });
     }
     async function callGeminiRaw(key, parts, temperature, responseSchema) {
-      /* Rotasi otomatis untuk semua key di GEMINI_API_KEYS. Jika satu key limit/quota habis (429/403)
-         atau server error (503/404), otomatis berganti ke key berikutnya. */
-      let keysToTry = [...GEMINI_API_KEYS];
+      /* Rotasi otomatis untuk semua key yang tersedia (pribadi atau bersama). 
+         Jika satu key limit/quota habis (429/403) atau server error (503/404), 
+         otomatis berganti ke key berikutnya. */
+      let keysToTry = [];
+      if (userKeys && userKeys.length > 0) {
+        keysToTry = [...userKeys];
+      } else if (sharedKeys && sharedKeys.length > 0) {
+        keysToTry = [...sharedKeys];
+      }
+
+      const custom = (getSettings().geminiApiKey || '').trim();
+      if (custom && !keysToTry.includes(custom)) {
+        keysToTry.unshift(custom);
+      }
       if (key && typeof key === 'string' && key.trim() && !keysToTry.includes(key.trim())) {
         keysToTry.unshift(key.trim());
       }
+
       if (keysToTry.length === 0) {
-        throw new Error('Tidak ada Gemini API Key yang dikonfigurasi.');
+        throw new Error('Tidak ada Gemini API Key yang dikonfigurasi. Silakan tambahkan API key pribadi Anda di menu Pengaturan, atau hubungi admin.');
       }
 
       const RETRYABLE_STATUS = [403, 404, 429, 503];
@@ -22550,6 +22567,7 @@ PERTANYAAN_USER:
         if (cachedUserId) {
           currentUserId = cachedUserId;
           ensureLocalScopeForUser(currentUserId);
+          loadAllGeminiKeys();
         }
       } catch (e) {}
 
@@ -22603,6 +22621,7 @@ PERTANYAAN_USER:
               localStorage.setItem(LS_KEYS.onboarded, '1');
               checkTrialStatus();
               autoSyncPushSubscription();
+              loadAllGeminiKeys();
             } else {
               // Not onboarded yet! Show onboarding intro wizard
               const authOb = document.getElementById('auth-onboarding');
