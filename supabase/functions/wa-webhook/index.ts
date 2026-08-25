@@ -1436,7 +1436,10 @@ function cleanupRecentWebChat() {
       rawBody.includes('"admin_add_shared_key"') ||
       rawBody.includes('"admin_delete_shared_key"') ||
       rawBody.includes('"get_gemini_shared_keys"') ||
-      rawBody.includes('"admin_update_trial_days"')
+      rawBody.includes('"admin_update_trial_days"') ||
+      rawBody.includes('"admin_generate_token"') ||
+      rawBody.includes('"admin_get_tokens"') ||
+      rawBody.includes('"admin_send_token"')
     ) {
       const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
       const verifiedUser = await verifyBearerToken(authHeader);
@@ -1485,6 +1488,57 @@ function cleanupRecentWebChat() {
             updated_at: new Date().toISOString()
           });
           return new Response(JSON.stringify({ success: true, days: val }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Generate Token Baru via secure backend
+        if (payload.action === "admin_generate_token") {
+          const code = Array.from({ length: 8 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+          const duration = parseInt(payload.duration_days, 10) || 30;
+          const { data: newTk, error: insErr } = await db.from("tokens").insert({
+            code: code,
+            duration_days: duration,
+            status: "available"
+          }).select().maybeSingle();
+
+          if (insErr) {
+            console.error("admin_generate_token error:", insErr);
+            return new Response(JSON.stringify({ error: insErr.message }), { status: 500, headers: corsHeaders });
+          }
+          const { data: allTokens } = await db.from("tokens").select("*").order("created_at", { ascending: false });
+          return new Response(JSON.stringify({ success: true, code, token: newTk, tokens: allTokens || [] }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Get Tokens List via secure backend
+        if (payload.action === "admin_get_tokens") {
+          const { data: allTokens } = await db.from("tokens").select("*").order("created_at", { ascending: false });
+          return new Response(JSON.stringify({ success: true, tokens: allTokens || [] }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Send Token to User via secure backend
+        if (payload.action === "admin_send_token" && payload.code && payload.userId) {
+          await db.from("tokens").update({
+            status: "used",
+            used_by: payload.userId,
+            used_at: new Date().toISOString()
+          }).eq("code", payload.code);
+
+          await db.from("users").update({
+            token_dipakai: payload.code,
+            ai_locked: false,
+            trial_lama_hari: 99999
+          }).eq("id", payload.userId);
+
+          const { data: allTokens } = await db.from("tokens").select("*").order("created_at", { ascending: false });
+          return new Response(JSON.stringify({ success: true, tokens: allTokens || [] }), {
             status: 200,
             headers: corsHeaders
           });

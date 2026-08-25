@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.1</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.2</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -927,10 +927,33 @@
       // Fetch users + settings
       const { data: usersData } = await db.from('users').select('*').order('created_at', { ascending: false });
       const { data: settingsData } = await db.from('user_settings').select('*');
-      const { data: tokensData } = await db.from('tokens').select('*').order('created_at', { ascending: false });
       const { data: globalData } = await db.from('global_settings').select('*');
 
-      adminTokens = tokensData || [];
+      // Fetch tokens via secure backend / fallback query
+      try {
+        const adminToken = await getValidAdminToken();
+        if (adminToken) {
+          const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ action: 'admin_get_tokens' })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.tokens)) {
+              adminTokens = data.tokens;
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (!adminTokens || !adminTokens.length) {
+        const { data: tokensData } = await db.from('tokens').select('*').order('created_at', { ascending: false });
+        if (tokensData) adminTokens = tokensData;
+      }
 
       try {
         const { data: { session } } = await db.auth.getSession();
@@ -1051,6 +1074,25 @@
       const free = adminTokens.find(t => t.status === 'available' || !t.used);
       if (!free) { toast('Stok token habis — generate token baru dulu.'); return; }
       customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, async () => {
+        try {
+          const adminToken = await getValidAdminToken();
+          if (adminToken) {
+            const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+              },
+              body: JSON.stringify({ action: 'admin_send_token', code: free.code, userId: userId })
+            });
+            if (res.ok) {
+              toast(`Token ${free.code} dikirim ke ${nama}.`);
+              await loadData();
+              return;
+            }
+          }
+        } catch (e) {}
+
         await db.from('tokens').update({ status: 'used', used_by: userId, used_at: new Date().toISOString() }).eq('code', free.code);
         await db.from('users').update({ token_dipakai: free.code, ai_locked: false }).eq('id', userId);
         toast(`Token ${free.code} dikirim ke ${nama}.`);
@@ -1134,9 +1176,42 @@
     }
 
     async function generateToken() {
+      try {
+        const adminToken = await getValidAdminToken();
+        if (adminToken) {
+          const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + adminToken
+            },
+            body: JSON.stringify({ action: 'admin_generate_token', duration_days: 30 })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.code) {
+              toast('Token baru dibuat: ' + data.code);
+              if (Array.isArray(data.tokens)) {
+                adminTokens = data.tokens;
+                renderTokens();
+              }
+              await loadData();
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('generateToken error:', e);
+      }
+
+      // Fallback direct insert
       const code = Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
-      await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
-      toast('Token baru dibuat: ' + code);
+      const { error } = await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
+      if (error) {
+        toast('Gagal membuat token: ' + error.message);
+      } else {
+        toast('Token baru dibuat: ' + code);
+      }
       await loadData();
     }
 
