@@ -1439,7 +1439,8 @@ function cleanupRecentWebChat() {
       rawBody.includes('"admin_update_trial_days"') ||
       rawBody.includes('"admin_generate_token"') ||
       rawBody.includes('"admin_get_tokens"') ||
-      rawBody.includes('"admin_send_token"')
+      rawBody.includes('"admin_send_token"') ||
+      rawBody.includes('"admin_revoke_token"')
     ) {
       const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
       const verifiedUser = await verifyBearerToken(authHeader);
@@ -1534,6 +1535,33 @@ function cleanupRecentWebChat() {
             ai_locked: false,
             trial_lama_hari: 99999
           }).eq("id", payload.userId);
+
+          const { data: allTokens } = await db.from("tokens").select("*").order("created_at", { ascending: false });
+          return new Response(JSON.stringify({ success: true, tokens: allTokens || [] }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Revoke Token from User and permanently delete the token from database
+        if (payload.action === "admin_revoke_token" && payload.userId) {
+          const { data: userRow } = await db.from("users").select("token_dipakai").eq("id", payload.userId).maybeSingle();
+          const tokenCode = payload.code || userRow?.token_dipakai;
+
+          let defaultDays = 7;
+          try {
+            const { data: gs } = await db.from("global_settings").select("value").eq("key", "default_trial_days").maybeSingle();
+            if (gs && gs.value) defaultDays = parseInt(typeof gs.value === "string" ? gs.value : JSON.stringify(gs.value), 10) || 7;
+          } catch (e) {}
+
+          await db.from("users").update({
+            token_dipakai: null,
+            trial_lama_hari: defaultDays
+          }).eq("id", payload.userId);
+
+          if (tokenCode) {
+            await db.from("tokens").delete().eq("code", tokenCode);
+          }
 
           const { data: allTokens } = await db.from("tokens").select("*").order("created_at", { ascending: false });
           return new Response(JSON.stringify({ success: true, tokens: allTokens || [] }), {

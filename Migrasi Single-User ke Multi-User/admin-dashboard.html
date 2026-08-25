@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.5</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.6</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1090,7 +1090,8 @@
           <div class="toggle-switch ${u.waReply ? 'on' : ''}" onclick="toggleWaReply('${u.id}', '${u.nama}')"><div class="knob"></div></div>
         </div>
       </div>
-      <div class="danger-row">
+      <div class="danger-row" style="display:flex;justify-content:space-between;align-items:center;">
+        ${u.token !== '-' ? `<button type="button" class="link-warning" style="color:var(--warn,#d97706);background:none;border:none;font-size:12.5px;font-weight:600;cursor:pointer;" onclick="confirmRevokeToken('${u.id}', '${u.nama}', '${u.token}')">Hapus Token</button>` : '<span></span>'}
         <button class="link-danger" onclick="openDeleteAccountModal('${u.id}', '${u.nama}')">Hapus Akun</button>
       </div>
     </div>`).join('') || '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:20px 0;">Tidak ada pengguna cocok.</div>';
@@ -1124,6 +1125,39 @@
         toast(`Token ${free.code} dikirim ke ${nama}.`);
         await loadData();
       }, 'Kirim Token');
+    }
+
+    async function confirmRevokeToken(userId, nama, tokenCode) {
+      customConfirm(`Hapus token (${tokenCode}) dari akun ${nama}? Status akun akan kembali menjadi Trial (dihitung sejak awal pendaftaran) dan kode token akan dihapus permanen.`, async () => {
+        try {
+          const adminToken = await getValidAdminToken();
+          if (adminToken) {
+            const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + adminToken
+              },
+              body: JSON.stringify({ action: 'admin_revoke_token', userId: userId, code: tokenCode })
+            });
+            if (res.ok) {
+              toast(`Token ${tokenCode} dicabut dari ${nama} & dihapus.`);
+              await loadData();
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Revoke token error:', e);
+        }
+
+        // Fallback
+        await db.from('users').update({ token_dipakai: null, trial_lama_hari: 7 }).eq('id', userId);
+        if (tokenCode && tokenCode !== '-') {
+          await db.from('tokens').delete().eq('code', tokenCode);
+        }
+        toast(`Token ${tokenCode} dicabut & dihapus.`);
+        await loadData();
+      }, 'Hapus Token');
     }
 
     async function toggleWaReply(userId, nama) {
@@ -1194,7 +1228,7 @@
         await db.from('debts').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
         await db.from('user_settings').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
         await db.from('push_subscriptions').delete().eq('user_id', userId);
-        await db.from('tokens').update({ status: 'available', used_by: null, used_at: null }).eq('used_by', userId);
+        await db.from('tokens').delete().eq('used_by', userId);
         await db.from('users').delete().eq('id', userId);
       }
       toast(`Akun ${nama} & seluruh datanya terhapus 100% bersih.`);

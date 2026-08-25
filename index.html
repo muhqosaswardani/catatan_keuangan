@@ -8018,16 +8018,18 @@
             <div id="modalTokenStatusDesc" style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;">—</div>
           </div>
 
-          <div class="field" id="fieldTokenAktivasi">
-            <label>Masukkan Kode Token Baru</label>
-            <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
-            <div class="err" id="errTokenAktivasiMsg">Kode tidak valid / sudah pernah dipakai.</div>
+          <div id="tokenInputFormWrap">
+            <div class="field" id="fieldTokenAktivasi">
+              <label>Masukkan Kode Token Baru</label>
+              <input type="text" class="token-input" id="inpTokenAktivasi" placeholder="" maxlength="12" oninput="clearErr('fieldTokenAktivasi')">
+              <div class="err" id="errTokenAktivasiMsg">Kode tidak valid / sudah pernah dipakai.</div>
+            </div>
+            <button class="btn btn-primary btn-block" id="btnSubmitTokenAktivasi" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan Token</button>
+            <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              Hubungi Admin untuk Beli Token
+            </button>
           </div>
-          <button class="btn btn-primary btn-block" id="btnSubmitTokenAktivasi" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan Token</button>
-          <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
-            Hubungi Admin untuk Beli Token
-          </button>
         </div>
       </div>
     </div>
@@ -10506,6 +10508,10 @@
     function renderTokenStatusInModal() {
       const badge = document.getElementById('modalTokenStatusBadge');
       const desc = document.getElementById('modalTokenStatusDesc');
+      const formWrap = document.getElementById('tokenInputFormWrap');
+      if (formWrap) {
+        formWrap.style.display = userTrialStatus === 'paid' ? 'none' : 'block';
+      }
       if (!badge || !desc) return;
 
       if (userTrialStatus === 'paid') {
@@ -10678,7 +10684,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.4.5)';
+      const version = ' (v3.4.6)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
