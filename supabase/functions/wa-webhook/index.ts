@@ -69,15 +69,14 @@ async function resolveGeminiApiKeys(
     }
   }
 
-  // 2. Ambil key bersama dari tabel global_settings (key = 'gemini_shared_keys')
+  // 2. Ambil key bersama dari user_settings admin
   try {
-    const { data, error } = await db
-      .from("global_settings")
-      .select("value")
-      .eq("key", "gemini_shared_keys")
-      .maybeSingle();
-    if (!error && data && Array.isArray(data.value) && data.value.length > 0) {
-      keys.push(...data.value);
+    const { data: adminUser } = await db.from("users").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
+    if (adminUser?.id) {
+      const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("user_id", adminUser.id).maybeSingle();
+      if (st?.shortcut_overrides?.gemini_shared_keys && Array.isArray(st.shortcut_overrides.gemini_shared_keys)) {
+        keys.push(...st.shortcut_overrides.gemini_shared_keys);
+      }
     }
   } catch (e) {
     console.error("resolveGeminiApiKeys: error loading shared keys:", e);
@@ -1102,24 +1101,25 @@ function cleanupRecentWebChat() {
     }
 
     // ============================================================
-    // Admin Action: Update Gemini Shared Keys (Bypass RLS via Service Role)
+    // Shared Gemini Keys Actions (Admin Update & Public Read)
     // ============================================================
-    if (rawBody.includes('"admin_update_shared_keys"')) {
+    if (rawBody.includes('"admin_update_shared_keys"') || rawBody.includes('"get_gemini_shared_keys"')) {
       try {
         const payload = JSON.parse(rawBody);
+        const db = getDb();
         if (payload.action === "admin_update_shared_keys") {
           const newKeys = Array.isArray(payload.keys) ? payload.keys : [];
-          const db = getDb();
-          const { error: upsertErr } = await db.from("global_settings").upsert({
-            key: "gemini_shared_keys",
-            value: newKeys,
-            updated_at: new Date().toISOString()
-          });
-          if (upsertErr) {
-            console.error("Failed to upsert gemini_shared_keys:", upsertErr);
-            return new Response(JSON.stringify({ success: false, error: upsertErr.message }), {
-              status: 500,
-              headers: corsHeaders
+          const { data: adminUser } = await db.from("users").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
+          if (adminUser?.id) {
+            const { data: currentSt } = await db.from("user_settings").select("*").eq("user_id", adminUser.id).maybeSingle();
+            const overrides = (currentSt && typeof currentSt.shortcut_overrides === "object" && currentSt.shortcut_overrides) ? { ...currentSt.shortcut_overrides } : {};
+            overrides.gemini_shared_keys = newKeys;
+
+            await db.from("user_settings").upsert({
+              access_code: currentSt?.access_code || ("wa_" + adminUser.id),
+              user_id: adminUser.id,
+              shortcut_overrides: overrides,
+              updated_at: new Date().toISOString()
             });
           }
           return new Response(JSON.stringify({ success: true, keys: newKeys }), {
@@ -1127,8 +1127,23 @@ function cleanupRecentWebChat() {
             headers: corsHeaders
           });
         }
+
+        if (payload.action === "get_gemini_shared_keys") {
+          const { data: adminUser } = await db.from("users").select("id").order("created_at", { ascending: true }).limit(1).maybeSingle();
+          let keys: string[] = [];
+          if (adminUser?.id) {
+            const { data: st } = await db.from("user_settings").select("shortcut_overrides").eq("user_id", adminUser.id).maybeSingle();
+            if (st?.shortcut_overrides?.gemini_shared_keys && Array.isArray(st.shortcut_overrides.gemini_shared_keys)) {
+              keys = st.shortcut_overrides.gemini_shared_keys;
+            }
+          }
+          return new Response(JSON.stringify({ success: true, keys }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
       } catch (e) {
-        console.error("Admin shared keys handler error:", e);
+        console.error("Shared keys handler error:", e);
       }
     }
 

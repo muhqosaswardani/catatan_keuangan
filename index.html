@@ -10152,12 +10152,25 @@
     }
 
     async function loadSharedKeys() {
-      if (!supabaseClient) return;
       try {
-        const { data, error } = await supabaseClient.from('global_settings').select('value').eq('key', 'gemini_shared_keys').maybeSingle();
-        if (error) throw error;
-        if (data && Array.isArray(data.value)) {
-          sharedKeys = data.value;
+        const cached = localStorage.getItem('fk_admin_shared_keys');
+        if (cached) {
+          sharedKeys = cleanGeminiKeyList(JSON.parse(cached));
+        }
+      } catch (e) {}
+
+      try {
+        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_gemini_shared_keys' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.keys)) {
+            sharedKeys = cleanGeminiKeyList(data.keys);
+            try { localStorage.setItem('fk_admin_shared_keys', JSON.stringify(sharedKeys)); } catch(e){}
+          }
         }
       } catch (err) {
         console.error('Gagal mengambil shared key:', err);
@@ -10543,7 +10556,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.66)';
+      const version = ' (v3.3.67)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
