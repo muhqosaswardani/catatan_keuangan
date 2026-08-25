@@ -1632,9 +1632,13 @@ function cleanupRecentWebChat() {
           });
         }
 
-        // Aksi: Hapus 1 personal key milik user berdasarkan ID unik
-        if (payload.action === "user_delete_gemini_key" && typeof payload.keyId === "string") {
-          entries = entries.filter((e) => e.id !== payload.keyId);
+        // Aksi: Hapus personal key milik user (berdasarkan ID atau legacy pop)
+        if (payload.action === "user_delete_gemini_key") {
+          if (typeof payload.keyId === "string" && payload.keyId) {
+            entries = entries.filter((e) => e.id !== payload.keyId);
+          } else {
+            entries.shift();
+          }
           overrides.gemini_keys = entries;
 
           await db.from("user_settings").upsert({
@@ -1644,10 +1648,11 @@ function cleanupRecentWebChat() {
             updated_at: new Date().toISOString()
           });
 
-          await db.from("users").update({
-            sumber_ai: entries.length > 0 ? "sendiri" : "gratis"
-          }).eq("id", userId);
-
+          if (entries.length === 0) {
+            await db.from("users").update({ sumber_ai: "bersama" }).eq("id", userId);
+          } else {
+            await db.from("users").update({ sumber_ai: "sendiri" }).eq("id", userId);
+          }
           const maskedKeys = await getMaskedKeyEntries(entries);
           return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
             status: 200,

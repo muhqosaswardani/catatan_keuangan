@@ -851,10 +851,19 @@
     async function checkSession() {
       if (!db) return;
       const { data: { session } } = await db.auth.getSession();
-      if (session) {
-        document.getElementById('authOverlay').style.display = 'none';
-        document.getElementById('adminApp').style.display = 'block';
-        await loadData();
+      if (session && session.user) {
+        // Cek apakah akun yang sedang aktif memiliki role admin
+        const { data: userRow } = await db.from('users').select('is_admin').eq('id', session.user.id).maybeSingle();
+        if (userRow && userRow.is_admin === true) {
+          document.getElementById('authOverlay').style.display = 'none';
+          document.getElementById('adminApp').style.display = 'block';
+          await loadData();
+        } else {
+          // Akun aktif adalah user biasa (bukan admin) -> arahkan login admin
+          document.getElementById('authOverlay').style.display = 'flex';
+          document.getElementById('adminApp').style.display = 'none';
+          toast('Sesi bukan admin. Silakan masuk dengan akun admin.');
+        }
       } else {
         document.getElementById('authOverlay').style.display = 'flex';
         document.getElementById('adminApp').style.display = 'none';
@@ -1187,7 +1196,11 @@
       if (inp) inp.value = '';
 
       try {
-        const { data: { session } } = await db.auth.getSession();
+        let { data: { session } } = await db.auth.getSession();
+        if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+          const { data: refreshed } = await db.auth.refreshSession();
+          session = refreshed.session || session;
+        }
         const adminToken = session?.access_token;
         if (!adminToken) {
           toast('Sesi admin tidak ditemukan. Silakan login ulang.');
@@ -1225,7 +1238,11 @@
     async function deleteSharedKey(keyId) {
       if (!keyId) return;
       try {
-        const { data: { session } } = await db.auth.getSession();
+        let { data: { session } } = await db.auth.getSession();
+        if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+          const { data: refreshed } = await db.auth.refreshSession();
+          session = refreshed.session || session;
+        }
         const adminToken = session?.access_token;
         if (!adminToken) {
           toast('Sesi admin tidak ditemukan. Silakan login ulang.');
