@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.4</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.5</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -911,6 +911,32 @@
       if (tab === 'pengaturan') {
         renderSharedKeys();
       }
+    }
+
+    async function getValidAdminToken() {
+      if (!db) return null;
+      let token = null;
+      try {
+        let { data: { session } } = await db.auth.getSession();
+        if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+          const { data: refreshed } = await db.auth.refreshSession();
+          session = refreshed.session || session;
+        }
+        token = session?.access_token || null;
+      } catch(e) {}
+
+      if (!token) {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+              const item = JSON.parse(localStorage.getItem(k));
+              if (item && item.access_token) { token = item.access_token; break; }
+            }
+          }
+        } catch(e) {}
+      }
+      return token;
     }
 
     async function loadData() {
@@ -1200,43 +1226,38 @@
     }
 
     async function generateToken() {
+      const adminToken = await getValidAdminToken();
+      if (!adminToken) {
+        toast('Sesi admin tidak ditemukan. Silakan login ulang.');
+        return;
+      }
       try {
-        const adminToken = await getValidAdminToken();
-        if (adminToken) {
-          const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + adminToken
-            },
-            body: JSON.stringify({ action: 'admin_generate_token' })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.code) {
-              toast('Token baru dibuat: ' + data.code);
-              if (Array.isArray(data.tokens)) {
-                adminTokens = data.tokens;
-                renderTokens();
-              }
-              await loadData();
-              return;
+        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken
+          },
+          body: JSON.stringify({ action: 'admin_generate_token' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.code) {
+            toast('Token baru dibuat: ' + data.code);
+            if (Array.isArray(data.tokens)) {
+              adminTokens = data.tokens;
+              renderTokens();
             }
+            await loadData();
+            return;
           }
         }
+        const errData = await res.json().catch(() => ({}));
+        toast('Gagal membuat token: ' + (errData.error || res.status));
       } catch (e) {
         console.error('generateToken error:', e);
+        toast('Gagal terhubung ke server.');
       }
-
-      // Fallback direct insert
-      const code = Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
-      const { error } = await db.from('tokens').insert({ code: code, status: 'available' });
-      if (error) {
-        toast('Gagal membuat token: ' + error.message);
-      } else {
-        toast('Token baru dibuat: ' + code);
-      }
-      await loadData();
     }
 
     async function saveTrialDurasi() {
