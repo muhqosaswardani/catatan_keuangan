@@ -10628,16 +10628,24 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.5.6)';
+      const version = ' (v3.5.7)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
         const now = new Date();
         const hh = String(now.getHours()).padStart(2, '0');
         const mm = String(now.getMinutes()).padStart(2, '0');
-        label.innerHTML = ICON_CLOUD + ' Sinkron ' + hh + ':' + mm + version;
+        const lastTime = hh + ':' + mm;
+        try { localStorage.setItem('fk_last_sync_time', lastTime); } catch (e) {}
+        label.innerHTML = ICON_CLOUD + ' Sinkron ' + lastTime + version;
       } else if (status === 'offline') {
-        label.innerHTML = ICON_WARNING + ' Offline' + version;
+        let lastTime = '';
+        try { lastTime = localStorage.getItem('fk_last_sync_time') || ''; } catch (e) {}
+        if (lastTime) {
+          label.innerHTML = ICON_WARNING + ' Offline (Sinkron ' + lastTime + ')' + version;
+        } else {
+          label.innerHTML = ICON_WARNING + ' Offline' + version;
+        }
       }
     }
 
