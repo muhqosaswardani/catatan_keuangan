@@ -10189,16 +10189,35 @@
       // Langkah 6: sharedKeys di browser hanya menyimpan jumlah (count)
       // Nilai asli key tidak pernah turun ke browser
       try {
+        let token = null;
+        try {
+          const { data: sessionData } = await supabaseClient.auth.getSession();
+          token = sessionData?.session?.access_token;
+        } catch(e) {}
+        if (!token) {
+          try {
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                const item = JSON.parse(localStorage.getItem(k));
+                if (item && item.access_token) { token = item.access_token; break; }
+              }
+            }
+          } catch(e) {}
+        }
+        if (!token) return;
+
         const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
           body: JSON.stringify({ action: 'get_gemini_shared_keys' })
         });
         if (res.ok) {
           const data = await res.json();
           if (data && typeof data.count === 'number') {
-            // sharedKeys sebagai array placeholder — ukurannya = jumlah key aktif
-            // Browser hanya tahu ADA berapa key, tidak tahu isinya
             sharedKeys = Array(data.count).fill('__server_managed__');
             try { localStorage.setItem('fk_shared_keys_count', JSON.stringify(data.count)); } catch(e){}
           }
@@ -11323,9 +11342,7 @@
       const custom = (getSettings().geminiApiKey || '').trim();
       if (custom) return custom;
       if (userKeys && userKeys.length > 0) return (typeof userKeys[0] === 'object' ? (userKeys[0].masked || userKeys[0].id) : userKeys[0]);
-      if (sharedKeys && sharedKeys.length > 0) return (typeof sharedKeys[0] === 'object' ? (sharedKeys[0].masked || sharedKeys[0].id) : sharedKeys[0]);
-      // Di mode multi-user, jika user tidak punya personal key, server otomatis fallback ke shared key & env key
-      if (supabaseClient || currentUserId) return '__server_managed__';
+      if (sharedKeys && sharedKeys.length > 0) return '__server_managed__';
       return '';
     }
     function setSettingsLocalOnly(s) { localStorage.setItem(LS_KEYS.settings, JSON.stringify(s)); }
@@ -14724,6 +14741,10 @@
           break;
         } catch (e) {
           lastParseErr = e;
+          // Jangan retry loop kalau error-nya adalah 422 / tidak ada API key
+          if (e && e.message && (e.message.includes('API Key') || e.message.includes('422') || e.message.includes('Sesi'))) {
+            throw e;
+          }
           console.warn('aiScanWithGemini: percobaan ' + attempt + '/' + MAX_ATTEMPTS + ' gagal — ' + (e && e.message));
           if (attempt < MAX_ATTEMPTS) { continue; }
         }

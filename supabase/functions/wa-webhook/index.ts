@@ -1438,7 +1438,16 @@ function cleanupRecentWebChat() {
           headers: corsHeaders
         });
       }
-      if (!adminCheck) {
+
+      let payload: Record<string, any>;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: corsHeaders });
+      }
+
+      // Aksi mutasi/ubah shared key dan setting wajib admin
+      if (payload.action !== "get_gemini_shared_keys" && !adminCheck) {
         return new Response(JSON.stringify({ error: "Forbidden: akun ini bukan admin." }), {
           status: 403,
           headers: corsHeaders
@@ -1543,13 +1552,20 @@ function cleanupRecentWebChat() {
           });
         }
 
-        // Aksi: Baca shared keys (masked + ID)
+        // Aksi: Baca shared keys (masked + ID untuk admin, count info untuk user)
         if (payload.action === "get_gemini_shared_keys") {
-          const maskedKeys = await getMaskedKeyEntries(entries);
-          return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
-            status: 200,
-            headers: corsHeaders
-          });
+          if (adminCheck) {
+            const maskedKeys = await getMaskedKeyEntries(entries);
+            return new Response(JSON.stringify({ success: true, count: entries.length, keys: maskedKeys }), {
+              status: 200,
+              headers: corsHeaders
+            });
+          } else {
+            return new Response(JSON.stringify({ success: true, count: entries.length }), {
+              status: 200,
+              headers: corsHeaders
+            });
+          }
         }
       } catch (e) {
         console.error("Shared keys handler error:", e);
