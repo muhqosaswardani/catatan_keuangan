@@ -1031,19 +1031,15 @@
     }
 
     .ai-text-wrap {
-      position: relative;
-    }
-
-    .ai-text-wrap textarea {
-      padding-right: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
     }
 
     .ai-mic-btn {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-      width: 32px;
-      height: 32px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       border: none;
       background: var(--surface);
@@ -1055,6 +1051,7 @@
       cursor: pointer;
       transition: background .15s, color .15s;
       padding: 0;
+      flex-shrink: 0;
     }
 
     .ai-mic-btn:active {
@@ -1772,7 +1769,6 @@
 
     .amount-input input {
       padding-left: 40px;
-      font-weight: 700;
     }
 
     .inline-add {
@@ -2546,6 +2542,7 @@
       grid-column: 1;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
       padding: 10px 8px;
     }
@@ -2558,7 +2555,7 @@
 
     .ai-choice-grid-camright .ai-choice-btn-cam {
       grid-column: 2;
-      grid-row: 1 / span 2;
+      grid-row: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -2567,9 +2564,9 @@
     }
 
     .ai-choice-grid-camright .ai-choice-btn-cam svg {
-      width: 26px;
-      height: 26px;
-      margin-bottom: 6px;
+      width: 22px;
+      height: 22px;
+      margin-bottom: 5px;
     }
 
     .ai-choice-grid-camright .ai-choice-btn-cam {
@@ -2578,6 +2575,42 @@
 
     .ai-choice-grid-camright .ai-choice-btn-stack {
       font-size: 12px;
+    }
+
+    /* Tombol mic: kotak di grid, persis di bawah tombol Kamera */
+    .ai-choice-grid-camright .ai-choice-btn-mic {
+      grid-column: 2;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--ink-soft);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic svg {
+      width: 19px;
+      height: 19px;
+      margin-bottom: 5px;
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic:active {
+      transform: scale(.97);
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic.recording {
+      background: #e11d48;
+      border-color: #e11d48;
+      color: #fff;
+      animation: aiMicPulse 1.2s ease-in-out infinite;
+    }
+
+    .ai-choice-grid-camright .ai-choice-btn-mic.recording svg path {
+      stroke: #fff;
     }
 
     .file-thumb.file-thumb-doc {
@@ -2730,7 +2763,8 @@
     }
 
     .scan-fields input,
-    .scan-fields select {
+    .scan-fields select,
+    .scan-fields textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 9px;
@@ -2739,6 +2773,8 @@
       font-family: inherit;
       background: var(--surface);
       color: var(--ink);
+      resize: none;
+      line-height: 1.4;
     }
 
     /* Crosscheck AI (fitur 5) */
@@ -4626,17 +4662,15 @@
     .chat-attach-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
+      background: rgba(0, 0, 0, 0.32);
       animation: fadeIn 0.15s ease-out;
     }
     .chat-attach-panel {
       position: relative;
       background: var(--surface, #ffffff);
-      border-radius: 24px 24px 0 0;
-      padding: 12px 24px max(24px, env(safe-area-inset-bottom));
-      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+      border-radius: 28px 28px 0 0;
+      padding: 14px 20px max(28px, env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.12);
       animation: slideUpAttach 0.22s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 1;
       max-width: 500px;
@@ -4649,55 +4683,52 @@
       to { transform: translateY(0); }
     }
     .chat-attach-handle {
-      width: 40px;
+      width: 36px;
       height: 4px;
-      background: var(--line, #e2e8f0);
+      background: var(--line, #d8dcdb);
       border-radius: 2px;
-      margin: 0 auto 18px;
+      margin: 0 auto 20px;
     }
     .chat-attach-grid {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      gap: 24px;
-      padding: 4px 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 4px 2px 8px;
     }
     .chat-attach-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      background: none;
-      border: none;
+      justify-content: center;
+      gap: 8px;
+      border: 1.5px dashed var(--line);
+      border-radius: var(--radius-m, 14px);
+      background: var(--surface, #ffffff);
       cursor: pointer;
-      padding: 6px 12px;
+      padding: 18px 8px;
       -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .chat-attach-item:active {
+      background: var(--surface-2, #f1f5f9);
+      transform: scale(0.98);
     }
     .chat-attach-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 18px;
+      width: auto;
+      height: auto;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-      transition: transform 0.15s ease;
+      color: var(--ink-soft, #5B6A68);
     }
-    .chat-attach-item:active .chat-attach-icon {
-      transform: scale(0.92);
-    }
-    .chat-attach-icon.gallery {
-      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-      color: #ffffff;
-    }
-    .chat-attach-icon.file {
-      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-      color: #ffffff;
+    .chat-attach-icon svg {
+      display: block;
+      stroke: var(--ink-soft, #5B6A68);
     }
     .chat-attach-item span {
-      font-size: 13.5px;
-      font-weight: 600;
-      color: var(--ink, #1e293b);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink-soft, #5B6A68);
     }
 
     .chat-attachment-preview {
@@ -7515,7 +7546,6 @@
               </svg>
             </button>
             <div class="err">Pilih kategori</div>
-            <div class="quick-chip-row" id="txCategoryQuickRow"></div>
           </div>
           <div class="field" id="txDebtBlock" style="display:none;">
             <label>Utang Piutang</label>
@@ -7549,7 +7579,6 @@
             <label>Jumlah</label>
             <div class="amount-input"><span class="prefix">Rp</span><input type="text" id="txAmount" inputmode="decimal"
                 oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off" spellcheck="false"></div>
-            <div class="quick-chip-row" id="txAmountQuickRow"></div>
             <div class="err">Jumlah harus lebih dari 0</div>
           </div>
           <div class="field">
@@ -7917,8 +7946,6 @@
           <h3>Susun Bottom Nav</h3><button class="modal-close" onclick="closeModal('modalNavConfig')">&times;</button>
         </div>
         <div class="modal-body">
-          <p style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;line-height:1.5;">Pilih maksimal 5 halaman
-            untuk navigasi utama (Beranda selalu terkunci di sana). Sisanya otomatis masuk ke tombol "Lainnya".</p>
           <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Navigasi Utama</div>
           <div id="navConfigCoreList" style="margin-bottom:18px;"></div>
           <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Lainnya</div>
@@ -8451,20 +8478,10 @@
           <div id="aiScanCaptureView">
             <div class="field" style="margin-bottom:12px;">
               <label>Teks Bebas (opsional)</label>
-              <div class="ai-text-wrap">
-                <textarea id="aiScanTextInput" rows="3" placeholder="Tulis catatan transaksinya di sini"
-                  oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off"
-                  autocorrect="off" spellcheck="false"></textarea>
-                <button type="button" class="ai-mic-btn" id="aiMicBtn" onclick="toggleAiVoiceRecording()"
-                  aria-label="Rekam suara">
-                  <svg id="aiMicIcon" width="17" height="17" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor"
-                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.8"
-                      stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-              </div>
+              <textarea id="aiScanTextInput" rows="6" style="min-height:130px;font-size:16px;"
+                placeholder="Tulis catatan transaksinya di sini"
+                oninput="onAiTextInput(this)" onkeydown="onAiScanTextKeydown(event)" autocomplete="off"
+                autocorrect="off" spellcheck="false"></textarea>
               <p class="ai-mic-hint" id="aiMicHint"></p>
             </div>
             <div class="ai-choice-grid ai-choice-grid-camright">
@@ -8494,6 +8511,16 @@
                 </svg>
                 Kamera
               </div>
+              <button type="button" class="ai-choice-btn ai-choice-btn-mic" id="aiMicBtn"
+                onclick="toggleAiVoiceRecording()" aria-label="Rekam suara">
+                <svg id="aiMicIcon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="#5B6A68"
+                    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="#5B6A68" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Rekam Suara
+              </button>
             </div>
             <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none"
               onchange="onAiFilesAdded(event)">
@@ -8815,6 +8842,10 @@
 
     const LS_LAST_USER_ID = 'catatan_keuangan_last_user_id';
     var isChatQuickMode = false;
+    // Ditulis oleh checkEarlyAppShortcut() SEBELUM query string dibersihkan dari URL,
+    // supaya handleAppShortcutParam() masih tahu shortcut & id-nya walau URL sudah bersih.
+    var pendingAppShortcut = null;
+    var pendingAppShortcutId = null;
     var prevTabBeforeChatQuick = 'beranda';
 
     // BUGFIX (v2.9.10): mencegah data lintas-akun ke-cache di device yang sama.
@@ -10177,6 +10208,18 @@
         // Re-run init to sync from scratch and show the dashboard
         await init();
 
+        // Fase 2 Bagian 1 addendum: langsung minta izin notifikasi begitu user
+        // baru selesai onboarding (first install), tanpa harus klik manual
+        // di Pengaturan > Notifikasi.
+        if (pushNotifSupported()) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            await subscribeToPush(reg, true);
+          } catch (e) {
+            console.warn('[push] gagal minta izin notif otomatis saat onboarding:', e);
+          }
+        }
+
       } catch (err) {
         console.error('Gagal menyelesaikan onboarding:', err);
         showToast(`Gagal menyimpan data: ${err.message || err}`);
@@ -10378,7 +10421,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.42)';
+      const version = ' (v3.3.57)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10527,6 +10570,34 @@
         return query.or(`access_code.eq.${code},user_id.eq.${currentUserId}`);
       }
       return query.eq('access_code', code);
+    }
+
+    // Self-heal RINGAN khusus 1 transaksi: dipakai saat openTransactionModal(id) tidak
+    // menemukan transaksi di cache lokal (mis. transaksi baru dibuat dari WA & belum sempat
+    // ke-sync ke device ini). Sebelumnya alur ini manggil syncAllWithSupabase(true) penuh
+    // (semua tabel + migrasi) yang berat & bikin delay -- di sini cukup fetch 1 baris transaksi
+    // yang dibutuhkan, jadi modal edit bisa kebuka nyaris instan.
+    async function fetchSingleTransactionAndMerge(txId) {
+      if (!supabaseClient || !navigator.onLine || !txId) return null;
+      try {
+        const code = getAccessCode();
+        const { data: row, error } = await scopeToOwner(
+          supabaseClient.from('transactions').select('*'), code
+        ).eq('id', txId).maybeSingle();
+        if (error || !row) return null;
+        const mapped = {
+          id: row.id, walletId: row.wallet_id, categoryId: row.category_id, category: row.category,
+          type: row.type, amount: Number(row.amount) || 0, date: row.date, note: row.note,
+          toWalletId: row.to_wallet_id, excludeFromReport: !!row.exclude_from_report,
+          isDraft: !!row.is_draft, updatedAt: parseSafeDate(row.updated_at)
+        };
+        const merged = mergeEntities(getTransactions(), [mapped]);
+        setTransactionsLocalOnly(merged);
+        return mapped;
+      } catch (e) {
+        console.warn('[edit-tx] gagal fetch 1 transaksi utk self-heal:', e);
+        return null;
+      }
     }
 
     let syncInFlightPromise = null;
@@ -12331,6 +12402,12 @@
        ========================================================= */
     let openModalCount = 0;
     let modalZCounter = 400; /* harus selalu di atas .onb-overlay (z-index:300) supaya keypad tidak ketutup layar onboarding */
+    // Auto-tinggikan textarea sesuai isi kontennya (dipanggil saat modal dibuka & saat user mengetik).
+    function autoResizeTextarea(ta) {
+      if (!ta || typeof ta.scrollHeight !== 'number') return;
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    }
     function openModalUI(id) {
       const el = document.getElementById(id);
       const alreadyOpen = el.classList.contains('open');
@@ -14075,7 +14152,8 @@
       document.getElementById('aiScanResultView').style.display = 'none';
       document.getElementById('aiScanAnalyzeBtn').disabled = true;
       const wallets = getWallets();
-      aiWalletValue = wallets[0] ? wallets[0].id : null;
+      const primaryAiWallet = wallets.find(w => w.isPrimary) || wallets[0];
+      aiWalletValue = primaryAiWallet ? primaryAiWallet.id : null;
       document.getElementById('aiScanWalletLabel').textContent = aiWalletValue ? walletById(aiWalletValue).name : 'Pilih dompet';
       if (opts && opts.skipOpen) { openModalUI('modalAiScan'); } else { openModal('modalAiScan'); }
     }
@@ -14307,9 +14385,12 @@
       const finish = (rows) => {
         aiScanRows = rows;
         computeAiDupFlags();
-        renderAiScanRows();
         document.getElementById('aiScanLoadingView').style.display = 'none';
+        // Tampilkan dulu container-nya SEBELUM render baris (bug fix: kalau textarea
+        // di-render & di-auto-resize saat parent masih display:none, scrollHeight-nya
+        // kebaca 0 -> field Keterangan jadi kepotong/kolaps jadi garis tipis).
         document.getElementById('aiScanResultView').style.display = 'block';
+        renderAiScanRows();
       };
       const showAiScanError = (msg) => {
         document.getElementById('aiScanLoadingView').style.display = 'none';
@@ -14392,7 +14473,7 @@
         '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. "2,5", "32,75", "1,5") — koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya "kemahalan"/"kemurahan" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) — RUMUS TETAP: "2,5"=2500, "1,5"=1500, "32,75"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. "2,5"≠2500000) kecuali user eksplisit menulis satuan "jt"/"juta" setelahnya (mis. "2,5jt"/"2,5 juta"=2500000 — beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: "wifi 2,5" → amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 — persis 2500 sesuai rumus koma-desimal-ribu). "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): "seceng"=1000, "goceng"=5000, "ceban"=10000, "noceng"=9000, "cepek"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, "cepek" sering juga berarti 100.000 — pilih yang paling masuk akal dari konteks), "goban"/"gocap"=50000, "toserba"/"nogo"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar — JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n' +
         '   - "type": "income" kalau jelas pemasukan (mis. "gaji masuk", "dapat bonus"), selain itu "expense".\n' +
         '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks (mis. cuma "nasi kuning" atau "gaji masuk" tanpa angka) → set "amount" ke 0, JANGAN MENEBAK.\n' +
-        '   - "date": default hari ini (' + todayStr() + ') kalau tidak disebutkan tanggal lain di teks.\n\n' +
+        '   - "date": WAJIB deteksi dulu apakah ada referensi waktu di teks, baru default ke hari ini (' + todayStr() + ') kalau BENAR-BENAR tidak ada kata/frasa waktu apapun disebutkan. Aturan konversi relatif ke hari ini (' + todayStr() + '): "kemarin"/"kemaren" = -1 hari; "kemarin lusa" = -2 hari; "N hari (yang) lalu" = -N hari; "seminggu lalu"/"minggu lalu" = -7 hari; "besok" = +1 hari (dipakai untuk pencatatan rencana/utang, bukan transaksi hari ini); "tadi pagi/siang/sore/malam", "barusan", "hari ini" = tetap hari ini (0). Nama hari (mis. "senin kemarin", "hari senin", "kamis lalu") = cari tanggal hari itu yang paling baru SEBELUM atau SAMA DENGAN hari ini. Tanggal eksplisit (mis. "tanggal 20", "20 agustus", "20/8") = tanggal tsb, asumsikan bulan & tahun berjalan kalau tidak disebutkan lengkap, dan kalau hasilnya jatuh di masa depan (> hari ini) mundurkan ke bulan sebelumnya. Field "date" WAJIB tetap terisi (YYYY-MM-DD) untuk setiap objek transaksi.\n\n' +
         '5. ALOKASI KATEGORI & ESTIMASI HARGA DARI SATU TOTAL TANPA RINCIAN PER ITEM (berlaku untuk foto belanjaan ATAU teks bebas yang menyebut beberapa barang beda kategori tapi HANYA memberi satu total nominal, TANPA rincian harga per barang — beda dengan kasus 1 di atas yang rinciannya memang tertulis di struk):\n' +
         '   - Kenali semua barang berbeda yang disebut/terlihat, masing-masing dengan "category" paling sesuai (JANGAN taruh semua barang di satu kategori sama demi kemudahan — ini sama pentingnya dengan total yang presisi).\n' +
         '   - PENTING — ATURAN PENGGABUNGAN PER KATEGORI (WAJIB diikuti persis): satu objek transaksi mewakili SATU KATEGORI dalam kelompok itu, BUKAN satu objek per barang. Kalau ada 2+ barang berbeda yang jatuh ke kategori YANG SAMA (mis. beras dan minyak sama-sama "Makan"), GABUNG jadi SATU objek transaksi untuk kategori itu — "amount" diisi jumlah estimasi gabungan barang-barang tsb, dan "note" digabung sebutin semua barangnya (mis. "Alfamart - Beras, Minyak"). Barang dengan kategori berbeda tetap jadi objek terpisah masing-masing.\n' +
@@ -15598,16 +15679,14 @@
         tx = getTransactions().find(t => t.id === txId);
         // Self-healing: transaksi bisa aja baru dibuat server-side (WA webhook) atau
         // lewat notif app dan belum sempat ke-sync ke localStorage device ini. Alih-alih
-        // langsung nampilin form Edit kosong yang menyesatkan, coba sync dulu sebelum
-        // nyerah -- jalan dari SEMUA jalur pemanggilan (klik list, notif WA, notif app,
-        // shortcut app), bukan cuma satu wrapper yang bisa ke-skip.
+        // langsung nampilin form Edit kosong yang menyesatkan, coba fetch transaksi itu
+        // SAJA dulu sebelum nyerah -- jalan dari SEMUA jalur pemanggilan (klik list, notif
+        // WA, notif app, shortcut app), bukan cuma satu wrapper yang bisa ke-skip.
+        // Pakai fetch 1 baris (bukan syncAllWithSupabase penuh) supaya modal edit kebuka
+        // cepat, tanpa nunggu semua tabel+migrasi ikut ke-sync dulu.
         if (!tx && currentUserId && supabaseClient) {
-          try {
-            await syncAllWithSupabase(true);
-            refreshAllViews();
-          } catch (e) {
-            console.warn('[edit-tx] gagal sync sebelum buka mode edit:', e);
-          }
+          const healed = await fetchSingleTransactionAndMerge(txId);
+          if (healed) refreshAllViews();
           tx = getTransactions().find(t => t.id === txId);
         }
         if (!tx) {
@@ -21008,7 +21087,7 @@ Keluarkan JSON dengan schema:
         '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda.\n' +
         '   - "type": "income" kalau jelas pemasukan, selain itu "expense".\n' +
         '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks → set "amount" ke 0.\n' +
-        '   - "date": default hari ini (' + todayStrVal + ') kalau tidak disebutkan tanggal lain di teks.\n\n' +
+        '   - "date": WAJIB deteksi dulu apakah ada referensi waktu di teks, baru default ke hari ini (' + todayStrVal + ') kalau BENAR-BENAR tidak ada kata/frasa waktu apapun disebutkan. Aturan konversi relatif ke hari ini (' + todayStrVal + '): "kemarin"/"kemaren" = -1 hari; "kemarin lusa" = -2 hari; "N hari (yang) lalu" = -N hari; "seminggu lalu"/"minggu lalu" = -7 hari; "besok" = +1 hari (untuk pencatatan rencana/utang); "tadi pagi/siang/sore/malam", "barusan", "hari ini" = tetap hari ini (0). Nama hari (mis. "senin kemarin", "hari senin") = tanggal hari itu yang paling baru SEBELUM atau SAMA DENGAN hari ini. Tanggal eksplisit (mis. "tanggal 20", "20 agustus") = tanggal tsb, asumsikan bulan/tahun berjalan kalau tidak lengkap, mundurkan ke bulan sebelumnya kalau hasilnya di masa depan. Field "date" WAJIB tetap terisi (YYYY-MM-DD).\n\n' +
         'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut.';
     }
 
@@ -22622,6 +22701,14 @@ PERTANYAAN_USER:
               checkTrialStatus();
               autoSyncPushSubscription();
               loadAllGeminiKeys();
+
+              // Fase 2 Bagian 2: buka shortcut (mis. edit-tx dari notif) SEGERA di sini,
+              // begitu auth & currentUserId sudah pasti siap -- JANGAN nunggu full sync
+              // (syncAllWithSupabase) + migrasi-migrasi di bawah selesai dulu, karena itu
+              // yang bikin delay 1-3 detik sebelum modal edit kebuka.
+              if (pendingAppShortcut) {
+                handleAppShortcutParam();
+              }
             } else {
               // Not onboarded yet! Show onboarding intro wizard
               const authOb = document.getElementById('auth-onboarding');
@@ -22694,8 +22781,13 @@ PERTANYAAN_USER:
       refreshAllViews();
       switchTabUI(currentTab);
 
-      // Fase 2 Bagian 2: App Shortcuts & undo transaksi yang dihapus dari notifikasi
-      handleAppShortcutParam();
+      // Fase 2 Bagian 2: undo transaksi yang dihapus dari notifikasi.
+      // (handleAppShortcutParam() sudah dipanggil lebih awal di atas, segera setelah auth
+      // siap, supaya modal edit dari shortcut/notif tidak nunggu full sync+migrasi dulu.
+      // Fallback tetap ada di sini untuk jaga-jaga kalau isOnboarded false / auth gagal.)
+      if (pendingAppShortcut) {
+        handleAppShortcutParam();
+      }
       checkNotifDeletedUndo();
 
       window.addEventListener('online', () => {
@@ -23296,6 +23388,7 @@ PERTANYAAN_USER:
           const amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
           const note = formatCleanTxNote(it && it.note);
           const categoryId = matchCategoryByName(it && it.category, type);
+          const categoryObj = categoryId ? categoryById(categoryId) : null;
           const isDraft = amount <= 0;
           const tx = {
             date: todayStr(),
@@ -23303,6 +23396,7 @@ PERTANYAAN_USER:
             amount,
             note,
             categoryId,
+            category: categoryObj ? categoryObj.name : (it && it.category) || 'Lainnya',
             walletId: wallet ? wallet.id : null,
             source: 'app',
             isDraft
@@ -23479,11 +23573,13 @@ PERTANYAAN_USER:
           return;
         }
 
+        const categoryObj = categoryId ? categoryById(categoryId) : null;
         editTransaction(id, {
           note,
           amount,
           type,
           categoryId,
+          category: categoryObj ? categoryObj.name : (tx.category || 'Lainnya'),
           walletId,
           date,
           isDraft: false
@@ -23590,6 +23686,14 @@ PERTANYAAN_USER:
       try {
         const params = new URLSearchParams(location.search);
         const shortcut = params.get('shortcut');
+        const id = params.get('id');
+        // Simpan shortcut & id ke variabel global SEBELUM URL dibersihkan di bawah,
+        // supaya handleAppShortcutParam() (dipanggil belakangan) masih bisa baca
+        // parameter aslinya walau location.search sudah dikosongkan di sini.
+        if (shortcut) {
+          pendingAppShortcut = shortcut;
+          pendingAppShortcutId = id;
+        }
         if (shortcut === 'chat') {
           isChatQuickMode = true;
           document.body.classList.add('chat-quick-mode');
@@ -23612,12 +23716,21 @@ PERTANYAAN_USER:
 
     // Dipanggil dari init() saat app dibuka lewat App Shortcut (?shortcut=chat / ?shortcut=transaksi-ai
     // / ?shortcut=edit-tx&id=...). Pintasan ini HANYA bisa dipicu lewat tekan-lama ikon PWA sesuai PRD.
+    // Baca dari pendingAppShortcut/pendingAppShortcutId (diisi checkEarlyAppShortcut() di awal init(),
+    // sebelum URL dibersihkan) alih-alih dari location.search langsung -- karena saat fungsi ini
+    // dipanggil, query string aslinya sudah keburu dihapus dari URL oleh checkEarlyAppShortcut().
+    // Fallback ke location.search tetap disediakan untuk pemanggilan dari event 'focus'/'popstate'
+    // yang bisa terjadi setelah pendingAppShortcut sudah dikonsumsi/direset.
     function handleAppShortcutParam() {
       try {
         const params = new URLSearchParams(location.search);
-        const shortcut = params.get('shortcut');
-        const id = params.get('id');
+        const shortcut = pendingAppShortcut || params.get('shortcut');
+        const id = pendingAppShortcut ? pendingAppShortcutId : params.get('id');
         if (!shortcut) return;
+
+        // Konsumsi sekali saja supaya focus/popstate berikutnya tidak memicu ulang shortcut yang sama.
+        pendingAppShortcut = null;
+        pendingAppShortcutId = null;
 
         // Bersihkan query string LANGSUNG dari URL browser agar reload/refresh tidak memicu ulang shortcut!
         try {
