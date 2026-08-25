@@ -686,7 +686,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.3</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.4.4</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1175,6 +1175,30 @@
       await loadData();
     }
 
+    function renderTokens() {
+      const wrap = document.getElementById('tokenList');
+      if (!wrap) return;
+      if (!adminTokens.length) {
+        wrap.innerHTML = '<div style="text-align:center;color:var(--ink-soft);font-size:13px;padding:24px 0;">Belum ada kode token dibuat.</div>';
+        return;
+      }
+      wrap.innerHTML = adminTokens.map(t => {
+        const isUsed = t.status === 'used' || !!t.used_by;
+        const user = isUsed ? adminUsers.find(u => u.id === t.used_by) : null;
+        const createdStr = t.created_at ? new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+        const usedStr = t.used_at ? new Date(t.used_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        return `
+        <div class="token-row">
+          <div>
+            <div class="code">${t.code}</div>
+            <div class="meta">Dibuat: ${createdStr}${isUsed ? ` · Dipakai: ${user ? user.nama : 'Pengguna'} (${usedStr})` : ' · Status: Siap Digunakan'}</div>
+          </div>
+          <span class="status-tag ${isUsed ? 'habis' : 'paid'}">${isUsed ? 'Terpakai' : 'Tersedia'}</span>
+        </div>
+        `;
+      }).join('');
+    }
+
     async function generateToken() {
       try {
         const adminToken = await getValidAdminToken();
@@ -1185,7 +1209,7 @@
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ' + adminToken
             },
-            body: JSON.stringify({ action: 'admin_generate_token', duration_days: 30 })
+            body: JSON.stringify({ action: 'admin_generate_token' })
           });
           if (res.ok) {
             const data = await res.json();
@@ -1206,7 +1230,7 @@
 
       // Fallback direct insert
       const code = Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
-      const { error } = await db.from('tokens').insert({ code: code, duration_days: 30, status: 'available' });
+      const { error } = await db.from('tokens').insert({ code: code, status: 'available' });
       if (error) {
         toast('Gagal membuat token: ' + error.message);
       } else {

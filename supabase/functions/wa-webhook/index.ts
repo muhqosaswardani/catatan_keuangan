@@ -1496,10 +1496,8 @@ function cleanupRecentWebChat() {
         // Generate Token Baru via secure backend
         if (payload.action === "admin_generate_token") {
           const code = Array.from({ length: 8 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
-          const duration = parseInt(payload.duration_days, 10) || 30;
           const { data: newTk, error: insErr } = await db.from("tokens").insert({
             code: code,
-            duration_days: duration,
             status: "available"
           }).select().maybeSingle();
 
