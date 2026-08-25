@@ -1803,9 +1803,74 @@ function cleanupRecentWebChat() {
           });
         }
       } catch (e) {
-        console.error("User gemini keys handler error:", e);
+        console.error("Personal keys handler error:", e);
         return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: corsHeaders });
       }
+    }
+
+    // ============================================================
+    // User Action: Redeem / Aktivasi Token Resmi (1 Token = 1 Kali Pakai)
+    // ============================================================
+    if (rawBody.includes('"action":"user_redeem_token"') || rawBody.includes('"user_redeem_token"')) {
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+      const verifiedUser = await verifyBearerToken(authHeader);
+      if (!verifiedUser) {
+        return new Response(JSON.stringify({ error: "Unauthorized: token sesi tidak valid." }), {
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+
+      let payload: Record<string, any>;
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: corsHeaders });
+      }
+
+      const code = (payload.code || "").trim().toUpperCase();
+      if (!code) {
+        return new Response(JSON.stringify({ error: "Kode token tidak boleh kosong." }), { status: 400, headers: corsHeaders });
+      }
+
+      const db = getDb();
+      // 1. Cek token di tabel tokens
+      const { data: tokenRow, error: tkErr } = await db.from("tokens").select("*").eq("code", code).maybeSingle();
+      if (tkErr || !tokenRow) {
+        return new Response(JSON.stringify({ error: "Kode token tidak ditemukan / salah ketik." }), { status: 404, headers: corsHeaders });
+      }
+      if (tokenRow.status !== "available" || tokenRow.used_by) {
+        return new Response(JSON.stringify({ error: "Kode token ini sudah pernah dipakai akun lain." }), { status: 400, headers: corsHeaders });
+      }
+
+      // 2. Tandai token terpakai secara eksklusif (1 token = 1 kali pakai)
+      const { error: updTkErr } = await db.from("tokens").update({
+        status: "used",
+        used_by: verifiedUser.id,
+        used_at: new Date().toISOString()
+      }).eq("code", code);
+
+      if (updTkErr) {
+        console.error("user_redeem_token error:", updTkErr);
+        return new Response(JSON.stringify({ error: "Gagal memperbarui status token." }), { status: 500, headers: corsHeaders });
+      }
+
+      // 3. Update status user menjadi Premium Lifetime
+      const { error: updUsrErr } = await db.from("users").update({
+        token_dipakai: code,
+        trial_lama_hari: 99999,
+        ai_locked: false
+      }).eq("id", verifiedUser.id);
+
+      if (updUsrErr) {
+        console.error("user_redeem_token user update error:", updUsrErr);
+        return new Response(JSON.stringify({ error: "Gagal memperbarui akun pengguna." }), { status: 500, headers: corsHeaders });
+      }
+
+      return new Response(JSON.stringify({ success: true, message: "Token berhasil diaktivasi." }), {
+        status: 200,
+        headers: corsHeaders
+      });
     }
 
     if (

@@ -10575,50 +10575,32 @@
       clearErr('fieldToken');
 
       try {
-        const { data: tokenData, error: tokenErr } = await supabaseClient
-          .from('tokens')
-          .select('*')
-          .eq('code', val)
-          .maybeSingle();
-
-        if (tokenErr || !tokenData) {
-          markErr('fieldTokenAktivasi');
-          markErr('fieldToken');
-          const errMsg = document.getElementById('errTokenAktivasiMsg');
-          if (errMsg) errMsg.textContent = 'Kode token tidak ditemukan / salah ketik.';
+        const authToken = await getValidAuthToken();
+        if (!authToken) {
+          showToast('Sesi Anda telah kedaluwarsa. Silakan refresh halaman.');
           return;
         }
 
-        if (tokenData.status === 'used') {
+        const res = await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + authToken
+          },
+          body: JSON.stringify({
+            action: 'user_redeem_token',
+            code: val
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
           markErr('fieldTokenAktivasi');
           markErr('fieldToken');
           const errMsg = document.getElementById('errTokenAktivasiMsg');
-          if (errMsg) errMsg.textContent = 'Kode token ini sudah pernah dipakai akun lain.';
+          if (errMsg) errMsg.textContent = data.error || 'Kode token tidak valid / sudah pernah dipakai.';
           return;
         }
-
-        // Update token to 'used'
-        const { error: updateTokenErr } = await supabaseClient
-          .from('tokens')
-          .update({
-            status: 'used',
-            used_by: currentUserId,
-            used_at: new Date().toISOString()
-          })
-          .eq('code', val);
-
-        if (updateTokenErr) throw updateTokenErr;
-
-        // Update user profile
-        const { error: updateUserErr } = await supabaseClient
-          .from('users')
-          .update({
-            token_dipakai: val,
-            trial_lama_hari: 99999
-          })
-          .eq('id', currentUserId);
-
-        if (updateUserErr) throw updateUserErr;
 
         closeModal('modalTokenAktivasi');
         closeModal('modalTrialHabis');
@@ -10684,7 +10666,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.4.7)';
+      const version = ' (v3.4.8)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
