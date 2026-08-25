@@ -9995,7 +9995,26 @@
 
       if (!currentUserId) return;
       try {
-        // 2. Sync ke backend via Edge Function superuser (pasti tersimpan & tersinkron ke PC/HP)
+        // 2. Simpan ke user_settings di Supabase
+        if (supabaseClient) {
+          const code = getAccessCode();
+          const curMeta = getShortcutMeta() || {};
+          const scMeta = { ...curMeta, gemini_keys: userKeys, updatedAt: Date.now() };
+          await supabaseClient.from('user_settings').upsert({
+            access_code: code,
+            user_id: currentUserId,
+            shortcut_overrides: scMeta,
+            updated_at: new Date().toISOString()
+          });
+
+          if (userKeys.length > 0) {
+            await supabaseClient.from('users').update({ sumber_ai: 'sendiri' }).eq('id', currentUserId);
+          } else {
+            await supabaseClient.from('users').update({ sumber_ai: 'gratis' }).eq('id', currentUserId);
+          }
+        }
+
+        // 3. Sync juga via Edge Function superuser backend
         fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -10005,15 +10024,6 @@
             keys: userKeys
           })
         }).catch(err => console.warn('Sync user keys via function warn:', err));
-
-        // 3. Update status sumber_ai di tabel users
-        if (supabaseClient) {
-          if (userKeys.length > 0) {
-            await supabaseClient.from('users').update({ sumber_ai: 'sendiri' }).eq('id', currentUserId);
-          } else {
-            await supabaseClient.from('users').update({ sumber_ai: 'gratis' }).eq('id', currentUserId);
-          }
-        }
       } catch (err) {
         console.error('Gagal menyimpan API key ke DB:', err);
       }
@@ -10041,7 +10051,18 @@
 
       if (!currentUserId) return;
       try {
-        // 2. Fetch dari backend via Edge Function (multi-device sync PC <-> HP)
+        // 2. Fetch dari user_settings di Supabase
+        if (supabaseClient) {
+          const { data: st } = await supabaseClient.from('user_settings').select('shortcut_overrides').eq('user_id', currentUserId).maybeSingle();
+          if (st?.shortcut_overrides?.gemini_keys && Array.isArray(st.shortcut_overrides.gemini_keys)) {
+            userKeys = st.shortcut_overrides.gemini_keys;
+            try { localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys)); } catch(e){}
+            renderUserKeys();
+            return;
+          }
+        }
+
+        // 3. Fetch dari backend via Edge Function (multi-device sync PC <-> HP)
         const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -10455,7 +10476,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.61)';
+      const version = ' (v3.3.62)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -10936,6 +10957,12 @@
               if (Number(remoteMeta.updatedAt || 0) > localMeta.updatedAt) {
                 setShortcutOverridesLocalOnly(remoteMeta);
               }
+              // Sync gemini_keys from remote if exists
+              if (remoteMeta.gemini_keys && Array.isArray(remoteMeta.gemini_keys)) {
+                userKeys = remoteMeta.gemini_keys;
+                try { localStorage.setItem('fk_user_gemini_keys', JSON.stringify(userKeys)); } catch(e){}
+                renderUserKeys();
+              }
             }
             if (remChkSettings.insight_cache && remChkSettings.insight_cache.generatedAt) {
               const localCache = getInsightCache();
@@ -10965,12 +10992,17 @@
             cekWalletScopeLocal = JSON.parse(localStorage.getItem('cek_wallet_scope') || '[]');
           } catch (e) { }
 
+          const scMeta = { ...getShortcutMeta() };
+          if (userKeys && userKeys.length > 0) {
+            scMeta.gemini_keys = userKeys;
+          }
+
           await supabaseClient.from('user_settings').upsert({
             access_code: code,
             user_id: currentUserId,
             sheets_web_app_url: (getSettings().sheetsWebAppUrl || ''),
             nav_config: (typeof getNavConfig === 'function' ? getNavConfig() : { core: [] }),
-            shortcut_overrides: getShortcutMeta(),
+            shortcut_overrides: scMeta,
             insight_cache: getInsightCache(),
             analysis_cache: getAnalysisCache(),
             onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
