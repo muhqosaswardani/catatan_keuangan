@@ -673,6 +673,33 @@
     </div>
   </div>
 
+  <!-- Gate Overlay (Kode Rahasia Admin) -->
+  <div id="gateOverlay" style="display:none;position:fixed;inset:0;background:rgba(21,37,36,0.85);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+    <div class="auth-card" style="max-width:420px;width:100%;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="brand-mark" style="overflow:hidden;border-radius:10px;width:38px;height:38px;">
+          <img src="icons/icon-192.png" alt="KaslyAI" style="width:100%;height:100%;object-fit:cover;display:block;">
+        </div>
+        <div>
+          <h2 style="margin:0;font-size:18px;">Verifikasi Akses Admin</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">Lapisan Keamanan Kode Rahasia</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;">
+        Masukkan kode akses rahasia admin untuk membuka dashboard dan mengelola sistem.
+      </p>
+      <form id="gateForm" onsubmit="handleGateSubmit(event)">
+        <div class="field">
+          <label>Kode Akses Rahasia</label>
+          <input type="password" id="gateAccessCode" required placeholder="Masukkan kode rahasia..." autocomplete="off">
+        </div>
+        <div id="gateErrorMsg" style="display:none;color:var(--expense);font-size:12px;font-weight:600;margin-bottom:12px;"></div>
+        <button type="submit" class="btn btn-primary btn-block" id="btnGateSubmit">Buka Dashboard</button>
+        <button type="button" class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="handleLogout()">Keluar Sesi</button>
+      </form>
+    </div>
+  </div>
+
   <div class="wrap" id="adminApp" style="display:none;">
 
     <div class="page-head">
@@ -686,7 +713,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.5.2</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.5.3</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -848,6 +875,107 @@
       if (cb) cb();
     };
 
+    function getAdminGateCode() {
+      return sessionStorage.getItem('admin_gate_code') || '';
+    }
+
+    function setAdminGateCode(code) {
+      if (code) {
+        sessionStorage.setItem('admin_gate_code', code);
+      } else {
+        sessionStorage.removeItem('admin_gate_code');
+      }
+    }
+
+    function showGateOverlay(errorMsg = '') {
+      const overlay = document.getElementById('gateOverlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        const errEl = document.getElementById('gateErrorMsg');
+        if (errEl) {
+          errEl.textContent = errorMsg || '';
+          errEl.style.display = errorMsg ? 'block' : 'none';
+        }
+        const inp = document.getElementById('gateAccessCode');
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
+      }
+      document.getElementById('adminApp').style.display = 'none';
+    }
+
+    function hideGateOverlay() {
+      const overlay = document.getElementById('gateOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    async function handleGateSubmit(e) {
+      if (e) e.preventDefault();
+      const inp = document.getElementById('gateAccessCode');
+      const code = inp ? inp.value.trim() : '';
+      if (!code) {
+        const errEl = document.getElementById('gateErrorMsg');
+        if (errEl) {
+          errEl.textContent = 'Kode rahasia wajib diisi.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      const btn = document.getElementById('btnGateSubmit');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Memverifikasi...';
+      }
+
+      try {
+        const adminToken = await getValidAdminToken();
+        if (!adminToken) {
+          alert('Sesi admin tidak ditemukan. Silakan login ulang.');
+          checkSession();
+          return;
+        }
+
+        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken,
+            'X-Admin-Gate-Code': code
+          },
+          body: JSON.stringify({ action: 'admin_verify_gate_code' })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          setAdminGateCode(code);
+          hideGateOverlay();
+          document.getElementById('adminApp').style.display = 'block';
+          await loadData();
+        } else {
+          setAdminGateCode('');
+          const errEl = document.getElementById('gateErrorMsg');
+          if (errEl) {
+            errEl.textContent = data.error || 'Akses ditolak: Kode rahasia tidak valid.';
+            errEl.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error('Gate verification error:', err);
+        const errEl = document.getElementById('gateErrorMsg');
+        if (errEl) {
+          errEl.textContent = 'Terjadi kesalahan koneksi saat verifikasi.';
+          errEl.style.display = 'block';
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Buka Dashboard';
+        }
+      }
+    }
+
     async function checkSession() {
       if (!db) return;
       const { data: { session } } = await db.auth.getSession();
@@ -856,16 +984,41 @@
         const { data: userRow } = await db.from('users').select('is_admin').eq('id', session.user.id).maybeSingle();
         if (userRow && userRow.is_admin === true) {
           document.getElementById('authOverlay').style.display = 'none';
-          document.getElementById('adminApp').style.display = 'block';
-          await loadData();
+
+          // Cek apakah gate code sudah ada di sessionStorage
+          const savedGate = getAdminGateCode();
+          if (savedGate) {
+            try {
+              const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + session.access_token,
+                  'X-Admin-Gate-Code': savedGate
+                },
+                body: JSON.stringify({ action: 'admin_verify_gate_code' })
+              });
+              if (res.ok) {
+                hideGateOverlay();
+                document.getElementById('adminApp').style.display = 'block';
+                await loadData();
+                return;
+              }
+            } catch (e) {}
+            setAdminGateCode('');
+          }
+
+          showGateOverlay();
         } else {
           // Akun aktif adalah user biasa (bukan admin) -> arahkan login admin
           document.getElementById('authOverlay').style.display = 'flex';
+          hideGateOverlay();
           document.getElementById('adminApp').style.display = 'none';
           toast('Sesi bukan admin. Silakan masuk dengan akun admin.');
         }
       } else {
         document.getElementById('authOverlay').style.display = 'flex';
+        hideGateOverlay();
         document.getElementById('adminApp').style.display = 'none';
       }
     }
@@ -900,6 +1053,8 @@
     }
 
     async function handleLogout() {
+      setAdminGateCode('');
+      hideGateOverlay();
       if (db) await db.auth.signOut();
       checkSession();
     }
@@ -958,12 +1113,14 @@
       // Fetch tokens via secure backend / fallback query
       try {
         const adminToken = await getValidAdminToken();
-        if (adminToken) {
+        const gateCode = getAdminGateCode();
+        if (adminToken && gateCode) {
           const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + adminToken
+              'Authorization': 'Bearer ' + adminToken,
+              'X-Admin-Gate-Code': gateCode
             },
             body: JSON.stringify({ action: 'admin_get_tokens' })
           });
@@ -971,6 +1128,13 @@
             const data = await res.json();
             if (data && Array.isArray(data.tokens)) {
               adminTokens = data.tokens;
+            }
+          } else if (res.status === 403) {
+            const errData = await res.json().catch(() => ({}));
+            if (errData.error && errData.error.includes('Akses ditolak')) {
+              setAdminGateCode('');
+              showGateOverlay('Akses ditolak: Masukkan kode rahasia admin.');
+              return;
             }
           }
         }
@@ -1106,12 +1270,14 @@
       customConfirm(`Kirim kode token ${free.code} ke akun ${nama}?`, async () => {
         try {
           const adminToken = await getValidAdminToken();
+          const gateCode = getAdminGateCode();
           if (adminToken) {
             const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + adminToken
+                'Authorization': 'Bearer ' + adminToken,
+                'X-Admin-Gate-Code': gateCode
               },
               body: JSON.stringify({ action: 'admin_send_token', code: free.code, userId: userId })
             });
@@ -1121,6 +1287,11 @@
               await loadData();
               return;
             } else {
+              if (res.status === 403) {
+                setAdminGateCode('');
+                showGateOverlay('Akses ditolak: Masukkan kode rahasia admin.');
+                return;
+              }
               toast(data.error || 'Gagal mengirim token.');
               await loadData();
               return;
@@ -1137,18 +1308,24 @@
       customConfirm(`Hapus token (${tokenCode}) dari akun ${nama}? Status akun akan kembali menjadi Trial (dihitung sejak awal pendaftaran) dan kode token akan dihapus permanen.`, async () => {
         try {
           const adminToken = await getValidAdminToken();
+          const gateCode = getAdminGateCode();
           if (adminToken) {
             const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + adminToken
+                'Authorization': 'Bearer ' + adminToken,
+                'X-Admin-Gate-Code': gateCode
               },
               body: JSON.stringify({ action: 'admin_revoke_token', userId: userId, code: tokenCode })
             });
             if (res.ok) {
               toast(`Token ${tokenCode} dicabut dari ${nama} & dihapus.`);
               await loadData();
+              return;
+            } else if (res.status === 403) {
+              setAdminGateCode('');
+              showGateOverlay('Akses ditolak: Masukkan kode rahasia admin.');
               return;
             }
           }
@@ -1267,8 +1444,13 @@
 
     async function generateToken() {
       const adminToken = await getValidAdminToken();
+      const gateCode = getAdminGateCode();
       if (!adminToken) {
         toast('Sesi admin tidak ditemukan. Silakan login ulang.');
+        return;
+      }
+      if (!gateCode) {
+        showGateOverlay('Masukkan kode rahasia admin terlebih dahulu.');
         return;
       }
       try {
@@ -1276,7 +1458,8 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + adminToken
+            'Authorization': 'Bearer ' + adminToken,
+            'X-Admin-Gate-Code': gateCode
           },
           body: JSON.stringify({ action: 'admin_generate_token' })
         });
@@ -1291,6 +1474,10 @@
             await loadData();
             return;
           }
+        } else if (res.status === 403) {
+          setAdminGateCode('');
+          showGateOverlay('Akses ditolak: Masukkan kode rahasia admin.');
+          return;
         }
         const errData = await res.json().catch(() => ({}));
         toast('Gagal membuat token: ' + (errData.error || res.status));
@@ -1305,12 +1492,14 @@
       try {
         const { data: { session } } = await db.auth.getSession();
         const adminToken = session?.access_token;
-        if (adminToken) {
+        const gateCode = getAdminGateCode();
+        if (adminToken && gateCode) {
           const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + adminToken
+              'Authorization': 'Bearer ' + adminToken,
+              'X-Admin-Gate-Code': gateCode
             },
             body: JSON.stringify({ action: 'admin_update_trial_days', days: val })
           });
@@ -1393,7 +1582,8 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + adminToken
+            'Authorization': 'Bearer ' + adminToken,
+            'X-Admin-Gate-Code': getAdminGateCode()
           },
           body: JSON.stringify({
             action: 'admin_add_shared_key',
@@ -1435,7 +1625,8 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + adminToken
+            'Authorization': 'Bearer ' + adminToken,
+            'X-Admin-Gate-Code': getAdminGateCode()
           },
           body: JSON.stringify({
             action: 'admin_delete_shared_key',
