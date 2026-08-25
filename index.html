@@ -8130,7 +8130,7 @@
           <div class="field" style="margin-top:14px;">
             <label>Tambah API Key Gemini Baru</label>
             <div class="apikey-add-row">
-              <input type="text" id="inpUserKey" placeholder="AIzaSy...">
+              <input type="text" id="inpUserKey" name="gemini_api_key_custom" placeholder="AIzaSy..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
               <button class="btn btn-primary" onclick="addUserKey()">+ Tambah</button>
             </div>
           </div>
@@ -9615,7 +9615,7 @@
           <div class="aikey-own-input" onclick="event.stopPropagation()">
             <div id="ownKeyListSlide" style="margin-bottom:8px;"></div>
             <div class="apikey-add-row">
-              <input type="text" id="inpOwnKeySlide" placeholder="Masukkan API Key Gemini...">
+              <input type="text" id="inpOwnKeySlide" name="gemini_api_key_slide" placeholder="Masukkan API Key Gemini..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other">
               <button type="button" class="btn btn-primary" onclick="addOwnKeySlide()">+ Tambah</button>
             </div>
             <div class="aikey-guide-link" onclick="openApiGuide()">
@@ -10477,7 +10477,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.3.58)';
+      const version = ' (v3.3.59)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
