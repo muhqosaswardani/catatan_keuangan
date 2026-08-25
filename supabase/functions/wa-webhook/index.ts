@@ -70,6 +70,10 @@ async function resolveGeminiApiKeys(
     if (!error && data && Array.isArray(data.value) && data.value.length > 0) {
       keys.push(...data.value);
     }
+  } catch (e) {
+    console.error("resolveGeminiApiKeys: error loading shared keys:", e);
+  }
+
   return keys;
 }
 
