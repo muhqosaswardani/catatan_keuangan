@@ -10674,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.5)';
+      const version = ' (v3.6.6)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19776,6 +19776,36 @@
     let chatFlushingPending = false;
     let isChatSending = false;
 
+    // ── Supabase Storage Signed URL Cache for Chat Images ─────
+    const chatSignedUrlCache = new Map(); // storagePath -> { url, expiresAt }
+
+    async function getChatSignedUrl(storagePath) {
+      if (!storagePath) return '';
+      if (storagePath.startsWith('data:') || storagePath.startsWith('http://') || storagePath.startsWith('https://') || storagePath.startsWith('blob:')) {
+        return storagePath;
+      }
+      const cleanPath = storagePath.replace(/^chat-ai-images\//, '');
+      const cached = chatSignedUrlCache.get(cleanPath);
+      const now = Date.now();
+      if (cached && cached.expiresAt > now + 60000) {
+        return cached.url;
+      }
+      try {
+        if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.storage) {
+          const { data, error } = await supabaseClient.storage
+            .from('chat-ai-images')
+            .createSignedUrl(cleanPath, 3600);
+          if (!error && data && data.signedUrl) {
+            chatSignedUrlCache.set(cleanPath, { url: data.signedUrl, expiresAt: now + (3500 * 1000) });
+            return data.signedUrl;
+          }
+        }
+      } catch (e) {
+        console.warn('[chat] Gagal generate signed URL:', cleanPath, e);
+      }
+      return '';
+    }
+
     // ── Offline-queue helpers ─────────────────────────────────
     function getChatPendingQueue() {
       try { return JSON.parse(localStorage.getItem('fk_chat_pending') || '[]'); } catch(e) { return []; }
@@ -19984,7 +20014,19 @@
         const imgClass = hasImage ? ' has-image' : '';
 
         if (msg.image) {
-          content += `<img src="${msg.image}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
+          const imgPath = String(msg.image);
+          if (imgPath.startsWith('data:') || imgPath.startsWith('http://') || imgPath.startsWith('https://') || imgPath.startsWith('blob:')) {
+            content += `<img src="${imgPath}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
+          } else {
+            const cleanPath = imgPath.replace(/^chat-ai-images\//, '');
+            const cached = chatSignedUrlCache.get(cleanPath);
+            const now = Date.now();
+            if (cached && cached.expiresAt > now + 60000) {
+              content += `<img src="${cached.url}" alt="Attachment" style="cursor: pointer;" onclick="openChatLightbox(this.src, event)">`;
+            } else {
+              content += `<img class="chat-img-lazy" data-storage-path="${escapeHtml(cleanPath)}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='100%25' height='100%25' fill='%231e293b'/%3E%3C/svg%3E" alt="Attachment" style="cursor: pointer; min-height: 80px;" onclick="openChatLightbox(this.src, event)">`;
+            }
+          }
         }
 
         // Pending / failed status indicator (like WhatsApp clock / retry)
@@ -20057,6 +20099,18 @@
 
       // Inject HTML
       container.innerHTML = html;
+
+      // Resolve lazy signed URLs for chat images from Supabase Storage
+      container.querySelectorAll('.chat-img-lazy').forEach(async imgEl => {
+        const path = imgEl.getAttribute('data-storage-path');
+        if (path) {
+          const signedUrl = await getChatSignedUrl(path);
+          if (signedUrl) {
+            imgEl.src = signedUrl;
+            imgEl.classList.remove('chat-img-lazy');
+          }
+        }
+      });
 
       if (shouldScrollBottom) {
         // Instantly jump to bottom — disable scroll-behavior animation sementara
@@ -20377,27 +20431,51 @@
       toggleChatActionBtn();
 
       try {
-        let imageBase64ForDisplay = null;
+        let imagePathForDisplay = null;
         let imageDataForServer = null;
         let imageMimeType = null;
+        const msgId = 'msg_web_' + uid();
 
         if (file) {
           try {
             const part = await fileToGenerativePart(file);
-            imageBase64ForDisplay = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
             imageDataForServer = part.inlineData.data;
             imageMimeType = part.inlineData.mimeType;
+
+            // Upload directly to Supabase Storage bucket 'chat-ai-images'
+            let ext = 'jpg';
+            if (imageMimeType.includes('png')) ext = 'png';
+            else if (imageMimeType.includes('webp')) ext = 'webp';
+            const userFolder = `wa_${currentUserId}`;
+            const storagePath = `${userFolder}/${msgId}.${ext}`;
+
+            try {
+              if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.storage) {
+                const { error: upErr } = await supabaseClient.storage
+                  .from('chat-ai-images')
+                  .upload(storagePath, file, { contentType: imageMimeType, upsert: true });
+
+                if (!upErr) {
+                  imagePathForDisplay = storagePath;
+                } else {
+                  console.warn('[chat] Upload storage failed, fallback base64:', upErr);
+                  imagePathForDisplay = `data:${imageMimeType};base64,${imageDataForServer}`;
+                }
+              } else {
+                imagePathForDisplay = `data:${imageMimeType};base64,${imageDataForServer}`;
+              }
+            } catch (upEx) {
+              console.warn('[chat] Storage upload exception, fallback base64:', upEx);
+              imagePathForDisplay = `data:${imageMimeType};base64,${imageDataForServer}`;
+            }
           } catch (e) {
             console.error(e);
             showToast('Gagal memproses lampiran foto');
           }
         }
 
-        // Build message ID dulu sebelum append agar bisa track status
-        const msgId = 'msg_web_' + uid();
-
         // Append user bubble langsung (status: pending)
-        appendChatBubble('user', text, Date.now(), imageBase64ForDisplay, null, null, msgId, replyTo, true /* pending */);
+        appendChatBubble('user', text, Date.now(), imagePathForDisplay, null, null, msgId, replyTo, true /* pending */);
 
         // Build payload
         const { data: sessionData } = await supabaseClient.auth.getSession();
