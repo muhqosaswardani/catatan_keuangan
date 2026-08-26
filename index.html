@@ -10456,10 +10456,8 @@
         if (error) throw error;
         if (!userProfile) return;
 
-        // Status admin & paid
-        if (userProfile.nomor_wa === '6289626112023' || userProfile.is_admin === true) {
-          userTrialStatus = 'paid';
-        } else if (userProfile.token_dipakai) {
+        // Status paid hanya jika akun telah memakai kode token resmi
+        if (userProfile.token_dipakai) {
           userTrialStatus = 'paid';
         } else if (!userProfile.trial_mulai_at) {
           userTrialStatus = 'habis';
@@ -10674,7 +10672,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.0)';
+      const version = ' (v3.6.1)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {

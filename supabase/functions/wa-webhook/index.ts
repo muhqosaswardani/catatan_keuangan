@@ -506,12 +506,15 @@ async function isUserTrialExpired(db: any, userId: string): Promise<boolean> {
       .maybeSingle();
 
     if (error || !user) return false;
-    if (user.is_admin || isOwner(user.nomor_wa) || user.nomor_wa === "6289626112023" || user.token_dipakai) {
-      return false; // Active paid / admin / lifetime
+    if (user.token_dipakai) {
+      return false; // Active paid
+    }
+    if (!user.trial_mulai_at) {
+      return true; // Trial expired
     }
 
-    const trialStart = user.trial_mulai_at ? new Date(user.trial_mulai_at).getTime() : Date.now();
-    const trialDays = user.trial_lama_hari || 7;
+    const trialStart = new Date(user.trial_mulai_at).getTime();
+    const trialDays = Number(user.trial_lama_hari) || 7;
     const trialDurationMs = trialDays * 24 * 60 * 60 * 1000;
     const msLeft = (trialStart + trialDurationMs) - Date.now();
 
