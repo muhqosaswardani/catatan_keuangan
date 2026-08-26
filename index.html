@@ -8363,13 +8363,15 @@
         <div class="modal-body"> <input type="hidden" id="recId">
           <div class="type-toggle" id="recKindToggle" style="margin-bottom:10px;">
             <button type="button" data-kind="checklist" class="active"
-              onclick="setRecFormKind('checklist')">Checklist</button>
+              onclick="setRecFormKind('checklist')">Tagihan Tetap</button>
             <button type="button" data-kind="installment" onclick="setRecFormKind('installment')">Cicilan</button>
           </div>
-          <div class="type-toggle">
-            <button type="button" data-type="expense" class="active"
-              onclick="setRecFormType('expense')">Pengeluaran</button>
-            <button type="button" data-type="income" onclick="setRecFormType('income')">Pemasukan</button>
+          <div class="field">
+            <label>Jenis</label>
+            <select id="recTypeSelect" onchange="setRecFormType(this.value)">
+              <option value="expense">Pengeluaran</option>
+              <option value="income">Pemasukan</option>
+            </select>
           </div>
           <div class="field">
             <label>Nama</label>
@@ -10735,7 +10737,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.13)';
+      const version = ' (v3.6.14)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19510,8 +19512,7 @@
     }
     function setRecFormType(type) {
       currentRecFormType = type;
-      document.querySelectorAll('#modalRecurringForm .type-toggle:not(#recKindToggle):not(#recRepeatModeToggle) button')
-        .forEach(b => b.classList.toggle('active', b.dataset.type === type));
+      document.getElementById('recTypeSelect').value = type;
       const cats = getCategories().filter(c => c.type === type);
       if (!cats.some(c => c.id === recCategoryValue)) recCategoryValue = cats[0] ? cats[0].id : null;
       updateRecCategoryLabel();
@@ -19584,7 +19585,7 @@
       // Ganti jenis item (checklist/cicilan) hanya bisa dipilih saat tambah baru — item existing tetap sesuai jenis semula
       document.getElementById('recKindToggle').style.opacity = id ? '.5' : '1';
       document.getElementById('recKindToggle').style.pointerEvents = id ? 'none' : 'auto';
-      document.querySelectorAll('#modalRecurringForm .type-toggle:not(#recKindToggle):not(#recRepeatModeToggle) button').forEach(b => b.classList.toggle('active', b.dataset.type === currentRecFormType));
+      document.getElementById('recTypeSelect').value = currentRecFormType;
       setRecFormKind(currentRecFormKind);
       setRecFormRepeatMode(currentRecFormRepeatMode);
       updateRecWalletLabel();
