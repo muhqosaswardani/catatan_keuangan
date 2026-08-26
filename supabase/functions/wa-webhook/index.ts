@@ -17,7 +17,7 @@ import {
   WA_ACCESS_TOKEN,
 } from "./handlers.ts";
 import { handleV2Message } from "./v2_router.ts";
-import { sendWhatsAppMessage, markAsRead, withTypingIndicator, isWaAutoReplyEnabled, chatContext, ChatContextMessage } from "./whatsapp.ts";
+import { sendWhatsAppMessage, sendPushNotification, sendUserResponse, markAsRead, withTypingIndicator, isWaAutoReplyEnabled, chatContext, ChatContextMessage } from "./whatsapp.ts";
 import { getV2Session } from "./v2_db.ts";
 
 // ============================================================
@@ -2089,15 +2089,25 @@ function cleanupRecentWebChat() {
         console.log(`User ${userId} (${msg.from}) trial is expired. Sending trial expired notification.`);
         const expiredMessage = "⚠️ *Masa Trial AI KaslyAI Sudah Habis*\n\nFitur pencatatan otomatis via AI & asisten WhatsApp untuk akun Anda saat ini terkunci.\n\nTenang, catatan transaksi manual di aplikasi web tetap bisa dipakai penuh & gratis selamanya.\n\nUntuk mengaktifkan kembali fitur AI & asisten WhatsApp (Lifetime), silakan hubungi admin di wa.me/6289626112023 untuk mendapatkan kode token aktivasi.";
 
+        const waAutoReply = await isWaAutoReplyEnabled(db, userId);
         await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
-          await sendWhatsAppMessage(
+          await sendUserResponse(
+            db,
             PHONE_NUMBER_ID,
             WA_ACCESS_TOKEN,
+            SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY,
+            userId,
             msg.from,
             expiredMessage,
             msg.messageId,
+            {
+              title: "Masa Trial AI Habis",
+              body: "Fitur AI & asisten WhatsApp terkunci. Masukkan token di aplikasi atau hubungi admin.",
+              data: { type: "trial_expired" }
+            }
           );
-        }, true);
+        }, waAutoReply);
         continue;
       }
 
@@ -2175,11 +2185,22 @@ function cleanupRecentWebChat() {
           try {
             // Langkah 5: Rate limit WA Bot channel (per nomor HP — TERPISAH dari Web App counter)
             if (!checkRateLimit(rateLimitWaBot, msg.from, RATE_LIMIT_WA_PER_MINUTE)) {
-              await sendWhatsAppMessage(
-                PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.from,
-                "Maaf, terlalu banyak permintaan. Tunggu sebentar dan coba lagi.",
-                msg.messageId
-              );
+              if (waAutoReply) {
+                await sendWhatsAppMessage(
+                  PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.from,
+                  "Maaf, terlalu banyak permintaan. Tunggu sebentar dan coba lagi.",
+                  msg.messageId
+                );
+              } else {
+                await sendPushNotification(
+                  SUPABASE_URL,
+                  SUPABASE_SERVICE_ROLE_KEY,
+                  userId,
+                  "Terlalu Banyak Permintaan",
+                  "Tunggu sebentar dan coba lagi.",
+                  { type: "rate_limited" }
+                );
+              }
               return;
             }
 
@@ -2279,13 +2300,24 @@ function cleanupRecentWebChat() {
               }).catch(() => {});
             }
             try {
-              await sendWhatsAppMessage(
-                PHONE_NUMBER_ID,
-                WA_ACCESS_TOKEN,
-                msg.from,
-                "Maaf, ada kesalahan internal. Coba lagi ya.",
-                msg.messageId,
-              );
+              if (waAutoReply) {
+                await sendWhatsAppMessage(
+                  PHONE_NUMBER_ID,
+                  WA_ACCESS_TOKEN,
+                  msg.from,
+                  "Maaf, ada kesalahan internal. Coba lagi ya.",
+                  msg.messageId,
+                );
+              } else {
+                await sendPushNotification(
+                  SUPABASE_URL,
+                  SUPABASE_SERVICE_ROLE_KEY,
+                  userId,
+                  "Kesalahan Internal",
+                  "Maaf, ada kesalahan saat memproses pesan. Coba lagi ya.",
+                  { type: "internal_error" }
+                );
+              }
             } catch {}
           }
         }, waAutoReply);
