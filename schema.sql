@@ -52,11 +52,17 @@ CREATE TABLE IF NOT EXISTS public.recurring_items (
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     amount NUMERIC DEFAULT 0,
-    wallet_id TEXT,
+    wallet_id TEXT, -- FK -> wallets(id) ON DELETE SET NULL (lihat migrations/20260827_installment_recurring_items.sql)
     category_id TEXT,
     day_of_month INT,
     active BOOLEAN DEFAULT TRUE,
     last_confirmed_date TEXT,
+    kind TEXT NOT NULL DEFAULT 'checklist', -- 'checklist' atau 'installment'
+    repeat_mode TEXT, -- 'count' atau 'until_date', hanya relevan jika kind='installment'
+    total_occurrences INT, -- dipakai jika repeat_mode='count'
+    paid_occurrences INT NOT NULL DEFAULT 0,
+    end_date TEXT, -- 'YYYY-MM-DD', dipakai jika repeat_mode='until_date'
+    completed_at TIMESTAMPTZ, -- diisi otomatis saat cicilan lunas
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

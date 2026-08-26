@@ -1369,6 +1369,27 @@
       text-decoration: line-through;
     }
 
+    .rec-status-lunas {
+      color: var(--income);
+    }
+
+    .rec-installment-progress {
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .rec-installment-progress .progress-track {
+      height: 7px;
+    }
+
+    .rec-installment-progress .rec-installment-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--ink-soft);
+      margin-top: 4px;
+    }
+
     .rec-item-muted {
       opacity: .5;
     }
@@ -6759,20 +6780,32 @@
           <div class="eyebrow">Pengingat &amp; Shortcut</div>
           <h1>Checklist</h1>
         </div>
-        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:13px;gap:4px;"
-          onclick="openRecurringHistory()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          Riwayat
-        </button>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:8px;">
+          <button type="button" class="btn btn-ghost btn-sm" style="font-size:13px;gap:4px;"
+            onclick="openRecurringHistory()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Riwayat
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" style="padding:6px;" title="Tanggal siklus / gajian"
+            onclick="openRecurringResetSettings()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="section" style="margin-top:16px;">
         <div class="section-head">
-          <h2>Pengingat Berulang</h2><a href="javascript:void(0)" onclick="openRecurringResetSettings()">Atur Reset</a>
+          <h2>Pengingat Berulang</h2>
         </div>
         <div id="recurringManageList"></div>
         <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="openRecurringForm(null)">+ Tambah
@@ -7488,16 +7521,17 @@
     <div class="modal-overlay" id="modalRecurringResetSettings">
       <div class="modal">
         <div class="modal-head">
-          <h3>Atur Reset Tagihan</h3><button class="modal-close"
+          <h3>Tanggal Siklus / Gajian</h3><button class="modal-close"
             onclick="closeModal('modalRecurringResetSettings')">&times;</button>
         </div>
         <div class="modal-body">
           <div class="field">
             <label>Reset status setiap tanggal</label>
             <select id="recResetDayInput"></select>
-            <p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;">Begitu tanggal ini lewat tiap bulan, semua
-              tagihan yang sudah ditandai bayar akan kembali perlu dibayar (siklus baru), berapa pun tanggal jatuh tempo
-              masing-masing.</p>
+            <p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;">Tanggal ini jadi acuan kapan siklus
+              bulanan mulai ulang (mis. tanggal gajian). Begitu tanggal ini lewat tiap bulan, semua item — checklist
+              maupun cicilan — yang sudah ditandai bayar akan kembali perlu dibayar (siklus baru), dan jadi acuan
+              hitung mundur "sisa Nx lagi" untuk item cicilan.</p>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-primary btn-block"
@@ -8327,6 +8361,11 @@
             onclick="closeModal('modalRecurringForm')">&times;</button>
         </div>
         <div class="modal-body"> <input type="hidden" id="recId">
+          <div class="type-toggle" id="recKindToggle" style="margin-bottom:10px;">
+            <button type="button" data-kind="checklist" class="active"
+              onclick="setRecFormKind('checklist')">Checklist</button>
+            <button type="button" data-kind="installment" onclick="setRecFormKind('installment')">Cicilan</button>
+          </div>
           <div class="type-toggle">
             <button type="button" data-type="expense" class="active"
               onclick="setRecFormType('expense')">Pengeluaran</button>
@@ -8372,6 +8411,28 @@
           <div class="field">
             <label>Tanggal jatuh tempo tiap bulan</label>
             <select id="recDayOfMonth"></select>
+          </div>
+          <div id="recInstallmentFields" style="display:none;">
+            <div class="field">
+              <label>Mode Batas Cicilan</label>
+              <div class="type-toggle" id="recRepeatModeToggle">
+                <button type="button" data-repeat-mode="count" class="active"
+                  onclick="setRecFormRepeatMode('count')">Jumlah kali</button>
+                <button type="button" data-repeat-mode="until_date"
+                  onclick="setRecFormRepeatMode('until_date')">Sampai tanggal</button>
+              </div>
+            </div>
+            <div class="field" id="recTotalOccurrencesField">
+              <label>Total cicilan (kali)</label>
+              <input type="text" id="recTotalOccurrences" inputmode="numeric" autocomplete="off" autocorrect="off"
+                spellcheck="false">
+              <div class="err">Total cicilan harus lebih dari 0</div>
+            </div>
+            <div class="field" id="recEndDateField" style="display:none;">
+              <label>Berakhir pada</label>
+              <input type="date" id="recEndDate" autocomplete="off" autocorrect="off" spellcheck="false">
+              <div class="err">Pilih tanggal berakhir</div>
+            </div>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-primary btn-block" onclick="submitRecurringForm()">Simpan</button>
@@ -10674,7 +10735,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.12)';
+      const version = ' (v3.6.13)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11018,6 +11079,9 @@
             walletId: r.wallet_id, categoryId: r.category_id,
             dayOfMonth: r.day_of_month, active: r.active !== false,
             lastConfirmedDate: r.last_confirmed_date || null,
+            kind: r.kind || 'checklist', repeatMode: r.repeat_mode || null,
+            totalOccurrences: r.total_occurrences || null, paidOccurrences: r.paid_occurrences || 0,
+            endDate: r.end_date || null, completedAt: r.completed_at || null,
             updatedAt: parseSafeDate(r.updated_at)
           }));
           const merged = mergeEntities(getRecurring(), mapped);
@@ -11027,6 +11091,9 @@
             wallet_id: r.walletId, category_id: r.categoryId || null,
             day_of_month: r.dayOfMonth, active: r.active !== false,
             last_confirmed_date: r.lastConfirmedDate || null,
+            kind: r.kind || 'checklist', repeat_mode: r.repeatMode || null,
+            total_occurrences: r.totalOccurrences || null, paid_occurrences: r.paidOccurrences || 0,
+            end_date: r.endDate || null, completed_at: r.completedAt || null,
             updated_at: new Date(r.updatedAt || Date.now()).toISOString()
           }));
           if (pushRecs3.length > 0) await supabaseClient.from('recurring_items').upsert(pushRecs3);
@@ -12373,6 +12440,18 @@
       item.nextDue = computeInitialDueDate(item.dayOfMonth, todayStr());
       item.active = true;
       item.history = [];
+      item.createdAt = item.createdAt || todayStr();
+      item.kind = item.kind || 'checklist';
+      if (item.kind === 'installment') {
+        item.paidOccurrences = 0;
+        item.completedAt = null;
+      } else {
+        item.repeatMode = null;
+        item.totalOccurrences = null;
+        item.paidOccurrences = 0;
+        item.endDate = null;
+        item.completedAt = null;
+      }
       list.push(item);
       setRecurring(list);
       return item;
@@ -12389,6 +12468,57 @@
       }
       list[idx] = merged;
       setRecurring(list);
+    }
+    // ---- Cicilan (installment) ----
+    // Hitung progres cicilan: sisa berapa kali/hari lagi, persentase pelunasan, dan label ringkas.
+    function installmentProgress(item) {
+      if (item.repeatMode === 'until_date') {
+        const resetDay = getRecurringResetDay();
+        const createdStart = recurringPeriodStart((item.createdAt || todayStr()).slice(0, 10), resetDay);
+        const endStart = recurringPeriodStart(item.endDate, resetDay);
+        const currentStart = recurringPeriodStart(todayStr(), resetDay);
+        const monthsBetween = (aStr, bStr) => {
+          const a = new Date(aStr + 'T00:00:00'), b = new Date(bStr + 'T00:00:00');
+          return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+        };
+        const cyclesTotal = Math.max(1, monthsBetween(createdStart, endStart) + 1);
+        const cyclesElapsed = Math.min(cyclesTotal, Math.max(0, monthsBetween(createdStart, currentStart) + 1));
+        const remaining = Math.max(0, cyclesTotal - cyclesElapsed);
+        const pct = Math.min(100, (cyclesElapsed / cyclesTotal) * 100);
+        return { remaining, pct, label: 'berakhir ' + item.endDate };
+      }
+      // mode 'count' (default)
+      const total = item.totalOccurrences || 0;
+      const paid = item.paidOccurrences || 0;
+      const remaining = Math.max(0, total - paid);
+      const pct = total > 0 ? Math.min(100, (paid / total) * 100) : 0;
+      return { remaining, pct, label: 'sisa ' + remaining + 'x lagi' };
+    }
+    // Cek & tandai satu item cicilan lunas kalau sudah mencapai batasnya. Return true kalau statusnya berubah.
+    function checkInstallmentAutoComplete(item) {
+      if (item.kind !== 'installment' || item.completedAt) return false;
+      let done = false;
+      if (item.repeatMode === 'count') {
+        done = (item.paidOccurrences || 0) >= (item.totalOccurrences || 0) && (item.totalOccurrences || 0) > 0;
+      } else if (item.repeatMode === 'until_date') {
+        const resetDay = getRecurringResetDay();
+        const currentStart = recurringPeriodStart(todayStr(), resetDay);
+        done = !!item.endDate && currentStart > item.endDate;
+      }
+      if (done) {
+        item.completedAt = new Date().toISOString();
+        item.active = false;
+        return true;
+      }
+      return false;
+    }
+    // Jalankan pengecekan auto-complete untuk semua item cicilan aktif (dipanggil saat init & saat reset siklus diubah).
+    function checkAllInstallmentsAutoComplete() {
+      const list = getRecurring();
+      let changed = false;
+      list.forEach(item => { if (checkInstallmentAutoComplete(item)) changed = true; });
+      if (changed) setRecurring(list);
+      return changed;
     }
     function deleteRecurringItem(id) {
       recordDeletion(id);
@@ -12422,6 +12552,10 @@
       item.history.push({ date: payload.date, amount: payload.amount, txId: tx.id });
       item.lastPaidPeriod = recurringPeriodStart(payload.date, getRecurringResetDay());
       item.nextDue = advanceDueDateOneMonth(item.dayOfMonth, item.nextDue);
+      if (item.kind === 'installment') {
+        item.paidOccurrences = (item.paidOccurrences || 0) + 1;
+        checkInstallmentAutoComplete(item);
+      }
       setRecurring(list);
       return tx;
     }
@@ -15294,7 +15428,7 @@
       // --- Tagihan Berulang ---
       const recurring = getRecurring();
       if (recurring.length > 0) {
-        const activeRecurring = recurring.filter(r => r.active && recurringStatus(r) !== 'akan-datang');
+        const activeRecurring = recurring.filter(r => r.active && !r.completedAt && recurringStatus(r) !== 'akan-datang');
         if (activeRecurring.length > 0) {
           lines.push('\n=== TAGIHAN BERULANG (CHECKLIST) ===');
           let terlambat = [], jatuhTempo = [], sudahBayar = [], belumBayar = [];
@@ -15595,7 +15729,7 @@
       // --- Tagihan Berulang ---
       const recurring = getRecurring();
       if (recurring.length > 0) {
-        const activeRecurring = recurring.filter(r => r.active && recurringStatus(r) !== 'akan-datang');
+        const activeRecurring = recurring.filter(r => r.active && !r.completedAt && recurringStatus(r) !== 'akan-datang');
         if (activeRecurring.length > 0) {
           lines.push('\\n=== TAGIHAN BERULANG ===');
           activeRecurring.forEach(r => {
@@ -19174,9 +19308,12 @@
        PENGINGAT TRANSAKSI BERULANG — UI
        ========================================================= */
     let currentRecFormType = 'expense';
+    let currentRecFormKind = 'checklist';
+    let currentRecFormRepeatMode = 'count';
     let recWalletValue = null, recCategoryValue = null, recConfirmWalletValue = null;
 
     function recStatusLabel(item) {
+      if (item.kind === 'installment' && item.completedAt) return { text: 'Lunas', cls: 'lunas' };
       const s = recurringStatus(item);
       if (s === 'nonaktif') return { text: 'Nonaktif', cls: 'nonaktif' };
       if (s === 'sudah-dibayar') return { text: 'Sudah Dibayar', cls: 'akan-datang' };
@@ -19287,22 +19424,38 @@
         wrap.innerHTML = '<div class="empty-note" style="padding:8px 0;font-size:13px;color:var(--ink-soft);">Belum ada item berulang.</div>';
         return;
       }
-      // Urutkan: perlu aksi (terlambat/jatuh tempo) dulu paling atas, baru belum bayar, baru yang sudah dibayar periode ini/akan datang & nonaktif di bawah.
+      // Urutkan: perlu aksi (terlambat/jatuh tempo) dulu paling atas, baru belum bayar, baru yang sudah dibayar periode ini/akan datang & nonaktif di bawah, cicilan Lunas paling bawah.
       const rank = { 'terlambat': 0, 'jatuh-tempo': 1, 'belum-bayar': 2, 'akan-datang': 3, 'sudah-dibayar': 3, 'nonaktif': 4 };
+      const isLunas = item => item.kind === 'installment' && !!item.completedAt;
       const list = all.slice().sort((a, b) => {
+        const la = isLunas(a), lb = isLunas(b);
+        if (la !== lb) return la ? 1 : -1;
         const ra = rank[recurringStatus(a)], rb = rank[recurringStatus(b)];
         if (ra !== rb) return ra - rb;
         return a.nextDue < b.nextDue ? -1 : (a.nextDue > b.nextDue ? 1 : 0);
       });
       wrap.innerHTML = list.map(item => {
+        const lunas = isLunas(item);
         const st = recStatusLabel(item);
         const s = recurringStatus(item);
         const wallet = walletById(item.walletId);
         const cat = categoryById(item.categoryId);
-        const canPay = item.active && s !== 'sudah-dibayar';
+        const canPay = !lunas && item.active && s !== 'sudah-dibayar';
         const needsAction = (s === 'terlambat' || s === 'jatuh-tempo');
-        const isPendingThisPeriod = (s === 'terlambat' || s === 'jatuh-tempo' || s === 'belum-bayar');
+        const isPendingThisPeriod = !lunas && (s === 'terlambat' || s === 'jatuh-tempo' || s === 'belum-bayar');
         const payBtnClass = needsAction ? 'btn-primary' : 'btn-ghost';
+        let progressHtml = '';
+        if (item.kind === 'installment') {
+          const prog = installmentProgress(item);
+          const totalAmount = item.repeatMode === 'count' && item.totalOccurrences
+            ? item.amount * item.totalOccurrences : null;
+          const paidAmount = item.amount * (item.paidOccurrences || 0);
+          const subTotal = totalAmount ? `${formatRupiah(paidAmount)} / ${formatRupiah(totalAmount)}` : '';
+          progressHtml = `<div class="rec-installment-progress">
+        <div class="progress-track"><div class="progress-fill${lunas ? ' pace-green' : ''}" style="width:${prog.pct}%;"></div></div>
+        <div class="rec-installment-meta"><span>${lunas ? 'Lunas' : prog.label}</span>${subTotal ? `<span>${subTotal}</span>` : ''}</div>
+      </div>`;
+        }
         return `<div class="tx-item rec-item${isPendingThisPeriod ? '' : ' rec-item-muted'}" style="flex-wrap:wrap;cursor:default;">
       <div class="tx-icon ${item.type}">${cat ? iconSvgMarkup(cat.icon, 20) : ''}</div>
       <div class="tx-body">
@@ -19310,10 +19463,11 @@
         <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} · tgl ${item.dayOfMonth} tiap bulan · <span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
       </div>
       <div class="tx-amt ${item.type}">${formatRupiah(item.amount)}</div>
+      ${progressHtml}
       <div style="width:100%;display:flex;gap:8px;margin-top:8px;">
         ${canPay ? `<button type="button" class="btn ${payBtnClass} btn-sm" style="flex:1;" onclick="openRecurringConfirmModal('${item.id}')">${item.type === 'income' ? 'Sudah Terima' : 'Bayar'}</button>` : ''}
         <button type="button" class="btn btn-ghost btn-sm" style="flex:1;" onclick="openRecurringForm('${item.id}')">Edit</button>
-        <button type="button" class="btn btn-ghost btn-sm" style="flex:1;" onclick="toggleRecurringActiveUI('${item.id}', ${!item.active})">${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+        ${lunas ? '' : `<button type="button" class="btn btn-ghost btn-sm" style="flex:1;" onclick="toggleRecurringActiveUI('${item.id}', ${!item.active})">${item.active ? 'Nonaktifkan' : 'Aktifkan'}</button>`}
       </div>
     </div>`;
       }).join('');
@@ -19349,16 +19503,29 @@
       setSettings(s);
       closeModal('modalRecurringResetSettings');
       adjustLegacyRecurringItems();
+      checkAllInstallmentsAutoComplete();
       renderRecurringManageList();
       renderRecurringHomeAlert();
-      showToast('Tanggal reset tagihan disimpan');
+      showToast('Tanggal siklus disimpan');
     }
     function setRecFormType(type) {
       currentRecFormType = type;
-      document.querySelectorAll('#modalRecurringForm .type-toggle button').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+      document.querySelectorAll('#modalRecurringForm .type-toggle:not(#recKindToggle):not(#recRepeatModeToggle) button')
+        .forEach(b => b.classList.toggle('active', b.dataset.type === type));
       const cats = getCategories().filter(c => c.type === type);
       if (!cats.some(c => c.id === recCategoryValue)) recCategoryValue = cats[0] ? cats[0].id : null;
       updateRecCategoryLabel();
+    }
+    function setRecFormKind(kind) {
+      currentRecFormKind = kind;
+      document.querySelectorAll('#recKindToggle button').forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
+      document.getElementById('recInstallmentFields').style.display = kind === 'installment' ? 'block' : 'none';
+    }
+    function setRecFormRepeatMode(mode) {
+      currentRecFormRepeatMode = mode;
+      document.querySelectorAll('#recRepeatModeToggle button').forEach(b => b.classList.toggle('active', b.dataset.repeatMode === mode));
+      document.getElementById('recTotalOccurrencesField').style.display = mode === 'count' ? 'block' : 'none';
+      document.getElementById('recEndDateField').style.display = mode === 'until_date' ? 'block' : 'none';
     }
     function updateRecWalletLabel() {
       const w = walletById(recWalletValue);
@@ -19396,6 +19563,10 @@
           document.getElementById('recName').value = item.name;
           document.getElementById('recAmount').value = item.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
           populateRecDayOfMonthOptions(item.dayOfMonth);
+          currentRecFormKind = item.kind || 'checklist';
+          currentRecFormRepeatMode = item.repeatMode || 'count';
+          document.getElementById('recTotalOccurrences').value = item.totalOccurrences || '';
+          document.getElementById('recEndDate').value = item.endDate || '';
         }
       } else {
         currentRecFormType = 'expense';
@@ -19405,8 +19576,17 @@
         document.getElementById('recName').value = '';
         document.getElementById('recAmount').value = '';
         populateRecDayOfMonthOptions(todayDayOfMonth());
+        currentRecFormKind = 'checklist';
+        currentRecFormRepeatMode = 'count';
+        document.getElementById('recTotalOccurrences').value = '';
+        document.getElementById('recEndDate').value = '';
       }
-      document.querySelectorAll('#modalRecurringForm .type-toggle button').forEach(b => b.classList.toggle('active', b.dataset.type === currentRecFormType));
+      // Ganti jenis item (checklist/cicilan) hanya bisa dipilih saat tambah baru — item existing tetap sesuai jenis semula
+      document.getElementById('recKindToggle').style.opacity = id ? '.5' : '1';
+      document.getElementById('recKindToggle').style.pointerEvents = id ? 'none' : 'auto';
+      document.querySelectorAll('#modalRecurringForm .type-toggle:not(#recKindToggle):not(#recRepeatModeToggle) button').forEach(b => b.classList.toggle('active', b.dataset.type === currentRecFormType));
+      setRecFormKind(currentRecFormKind);
+      setRecFormRepeatMode(currentRecFormRepeatMode);
       updateRecWalletLabel();
       updateRecCategoryLabel();
       openModal('modalRecurringForm');
@@ -19420,15 +19600,41 @@
       const categoryId = recCategoryValue;
       const amount = parseRupiahInput(document.getElementById('recAmount').value);
       const dayOfMonth = parseInt(document.getElementById('recDayOfMonth').value, 10);
+      const id = document.getElementById('recId').value;
+      const existing = id ? getRecurring().find(r => r.id === id) : null;
       let valid = true;
       if (!name) { document.getElementById('recName').closest('.field').classList.add('invalid'); valid = false; }
       if (!walletId) { document.getElementById('recWalletField').classList.add('invalid'); valid = false; }
       if (!categoryId) { document.getElementById('recCategoryField').classList.add('invalid'); valid = false; }
       if (!(amount > 0)) { document.getElementById('recAmount').closest('.field').classList.add('invalid'); valid = false; }
+
+      const payload = { name, type: currentRecFormType, walletId, categoryId, amount, dayOfMonth };
+      payload.kind = currentRecFormKind;
+      if (currentRecFormKind === 'installment') {
+        payload.repeatMode = currentRecFormRepeatMode;
+        if (currentRecFormRepeatMode === 'count') {
+          const total = parseInt(document.getElementById('recTotalOccurrences').value, 10);
+          const paidSoFar = existing ? (existing.paidOccurrences || 0) : 0;
+          if (!(total > 0) || total < paidSoFar) {
+            document.getElementById('recTotalOccurrencesField').classList.add('invalid');
+            valid = false;
+          } else {
+            payload.totalOccurrences = total;
+            payload.endDate = null;
+          }
+        } else {
+          const endDate = document.getElementById('recEndDate').value;
+          if (!endDate) {
+            document.getElementById('recEndDateField').classList.add('invalid');
+            valid = false;
+          } else {
+            payload.endDate = endDate;
+            payload.totalOccurrences = null;
+          }
+        }
+      }
       if (!valid) { showToast('Lengkapi form terlebih dahulu'); return; }
 
-      const id = document.getElementById('recId').value;
-      const payload = { name, type: currentRecFormType, walletId, categoryId, amount, dayOfMonth };
       if (id) {
         updateRecurringItem(id, payload);
         showToast('Item berulang diperbarui');
@@ -23212,6 +23418,7 @@ PERTANYAAN_USER:
 
       // 4. Render ulang seluruh tampilan jika ada pembaruan data dari Supabase
       adjustLegacyRecurringItems();
+      checkAllInstallmentsAutoComplete();
       activateDuePendingTransactions(); // cairkan transaksi "masa depan" yang tanggalnya udah tiba
       refreshAllViews();
       switchTabUI(currentTab);
