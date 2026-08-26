@@ -66,6 +66,8 @@
       --info: #2F6FED;
       --info-dark: #1E4FB8;
       --info-soft: #E7EEFE;
+      --wa: #128C7E;
+      --wa-dark: #075E54;
       --radius-l: 20px;
       --radius-m: 14px;
       --radius-s: 10px;
@@ -5121,11 +5123,16 @@
       line-height: 1.5;
     }
     .btn-wa {
-      background: var(--wa);
+      background: var(--wa, #128C7E);
       color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
     .btn-wa:hover {
-      background: var(--wa-dark);
+      background: var(--wa-dark, #075E54);
+      color: #fff;
     }
     .wa-check-row {
       display: flex;
@@ -10672,7 +10679,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.1)';
+      const version = ' (v3.6.2)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
