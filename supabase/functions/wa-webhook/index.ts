@@ -1391,6 +1391,10 @@ function cleanupRecentWebChat() {
         });
       }
 
+      // Update "aktif terakhir" tiap kali user pakai fitur AI di web app (fire-and-forget)
+      db.from("users").update({ last_active_at: new Date().toISOString() }).eq("id", userId)
+        .then(() => {}, () => {});
+
       if (await isUserTrialExpired(db, userId)) {
         return new Response(JSON.stringify({
           success: false,
@@ -2042,6 +2046,12 @@ function cleanupRecentWebChat() {
         userId = user.id;
       } else if (isOwner(msg.from)) {
         userId = "da7b12d5-e9df-46cc-a4ba-f3a748c08412"; // Fallback to static admin UUID
+      }
+
+      // Update "aktif terakhir" tiap kali ada pesan masuk dari user yang teridentifikasi (fire-and-forget)
+      if (userId) {
+        db.from("users").update({ last_active_at: new Date().toISOString() }).eq("id", userId)
+          .then(() => {}, () => {});
       }
 
       if (!(await claimIncomingMessage(db, msg.messageId, userId || undefined))) {

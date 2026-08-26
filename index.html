@@ -10674,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.11)';
+      const version = ' (v3.6.12)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23098,6 +23098,12 @@ PERTANYAAN_USER:
                 else profile = profRes.data;
 
                 if (!setRes.error && setRes.data) settings = setRes.data;
+
+                // Update "aktif terakhir" tiap kali app dibuka & profil berhasil dimuat (fire-and-forget)
+                if (profile) {
+                  supabaseClient.from('users').update({ last_active_at: new Date().toISOString() }).eq('id', currentUserId)
+                    .then(() => {}, () => {});
+                }
               } catch (netErr) {
                 networkFailed = true;
               }
