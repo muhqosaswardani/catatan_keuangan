@@ -371,6 +371,34 @@
       font-weight: 800;
       letter-spacing: .04em;
       font-size: 14.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .token-row .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 7px;
+      background: var(--bg, #eef2f1);
+      color: var(--ink-soft);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s, color .15s;
+    }
+
+    .token-row .copy-btn:hover {
+      background: var(--accent, #10b981);
+      color: #fff;
+    }
+
+    .token-row .copy-btn svg {
+      width: 13px;
+      height: 13px;
     }
 
     .token-row .meta {
@@ -713,7 +741,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.5.4</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.5.5</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -841,6 +869,39 @@
     } catch(e){}
     let trialDurasiHari = 7;
     let searchFilterText = '';
+
+    function copyTokenCode(code) {
+      const done = () => toast(`Kode ${code} berhasil disalin`);
+      const fail = () => toast('Gagal menyalin, salin manual: ' + code);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(done).catch(() => {
+          // fallback lama untuk browser/webview yang blokir clipboard API
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = code;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            done();
+          } catch (e) { fail(); }
+        });
+      } else {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = code;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          done();
+        } catch (e) { fail(); }
+      }
+    }
 
     function toast(msg) {
       const t = document.getElementById('toast');
@@ -1532,7 +1593,7 @@
         return `
         <div class="token-row">
           <div>
-            <div class="code">${t.code}</div>
+            <div class="code">${t.code}<button type="button" class="copy-btn" onclick="copyTokenCode('${t.code}')" title="Salin kode token" aria-label="Salin kode token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div>
             <div class="meta">Dibuat: ${createdStr} · Durasi: ${t.duration_days || 30} hari${isUsed ? ` · Dipakai: ${user ? user.nama : 'Pengguna'} (${usedStr})` : ''}</div>
           </div>
           <span class="status-tag ${isUsed ? 'habis' : 'paid'}">${isUsed ? 'Terpakai' : 'Tersedia'}</span>
