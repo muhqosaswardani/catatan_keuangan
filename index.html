@@ -10463,19 +10463,18 @@
         if (error) throw error;
         if (!userProfile) return;
 
-        // Admin, is_admin, atau akun dengan token aktivasi selalu berstatus 'paid' (akses penuh)
-        if (userProfile.nomor_wa === '6289626112023' || userProfile.is_admin || userProfile.token_dipakai) {
+        // 1. Status paid (lifetime) HANYA jika akun memiliki token_dipakai aktif
+        if (userProfile.token_dipakai) {
           userTrialStatus = 'paid';
           trialDaysLeft = 999;
-        } else if (!userProfile.trial_mulai_at) {
-          userTrialStatus = 'active';
-          trialDaysLeft = Number(userProfile.trial_lama_hari) || 7;
         } else {
-          // Hitung sisa hari trial
-          const trialStart = new Date(userProfile.trial_mulai_at).getTime();
+          // 2. Jika tidak ada token (atau token dihapus di dashboard admin), hitung masa trial
+          const trialStart = userProfile.trial_mulai_at
+            ? new Date(userProfile.trial_mulai_at)
+            : new Date(userProfile.created_at || Date.now());
           const trialDays = Number(userProfile.trial_lama_hari) || 7;
-          const trialDurationMs = trialDays * 24 * 60 * 60 * 1000;
-          const msLeft = (trialStart + trialDurationMs) - Date.now();
+          const expiryTime = trialStart.getTime() + (trialDays * 24 * 60 * 60 * 1000);
+          const msLeft = expiryTime - Date.now();
 
           if (msLeft <= 0) {
             userTrialStatus = 'habis';
@@ -10675,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.8)';
+      const version = ' (v3.6.9)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
