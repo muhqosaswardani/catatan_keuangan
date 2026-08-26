@@ -11,18 +11,15 @@ CREATE TABLE IF NOT EXISTS public.tokens (
     used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- Index for fast token lookups
 CREATE INDEX IF NOT EXISTS idx_tokens_code ON public.tokens(code);
 CREATE INDEX IF NOT EXISTS idx_tokens_status ON public.tokens(status);
-
 -- 2. Table: public.global_settings
 CREATE TABLE IF NOT EXISTS public.global_settings (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
 -- Seed default global settings if not exists
 INSERT INTO public.global_settings (key, value)
 VALUES 
@@ -30,34 +27,28 @@ VALUES
     ('gemini_shared_keys', '[]'::jsonb),
     ('admin_private_keys', '[]'::jsonb)
 ON CONFLICT (key) DO NOTHING;
-
 -- 3. Enhance public.users table
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_mulai_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_lama_hari INT DEFAULT 7;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS token_dipakai TEXT REFERENCES public.tokens(code) ON DELETE SET NULL;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();
-
 -- Enable RLS
 ALTER TABLE public.tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.global_settings ENABLE ROW LEVEL SECURITY;
-
 -- Allow authenticated users to view & redeem tokens
 CREATE POLICY "Allow authenticated to view available tokens" 
 ON public.tokens FOR SELECT 
 TO authenticated 
 USING (true);
-
 CREATE POLICY "Allow authenticated to update token redemption" 
 ON public.tokens FOR UPDATE 
 TO authenticated 
 USING (status = 'available');
-
 -- Allow authenticated users to view global_settings
 CREATE POLICY "Allow authenticated to view global settings" 
 ON public.tokens FOR SELECT 
 TO authenticated 
 USING (true);
-
 -- Function for permanent account deletion with full cascade
 CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id UUID)
 RETURNS VOID

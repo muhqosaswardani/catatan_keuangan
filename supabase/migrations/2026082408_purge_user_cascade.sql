@@ -37,5 +37,4 @@ BEGIN
   DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO service_role, postgres, authenticated;

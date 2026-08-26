@@ -3,6 +3,5 @@
 
 -- 1. Toggle Balasan Otomatis WA per-user (default: true / ON)
 ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS wa_auto_reply BOOLEAN DEFAULT true;
-
 -- 2. Status Fitur AI locked per-user (default: false / tidak terkunci)
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS ai_locked BOOLEAN DEFAULT false;

@@ -17,24 +17,17 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS user_agent TEXT;
-
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
-
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "push_subscriptions_select_own" ON public.push_subscriptions;
 CREATE POLICY "push_subscriptions_select_own" ON public.push_subscriptions
     FOR SELECT USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "push_subscriptions_insert_own" ON public.push_subscriptions;
 CREATE POLICY "push_subscriptions_insert_own" ON public.push_subscriptions
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "push_subscriptions_delete_own" ON public.push_subscriptions;
 CREATE POLICY "push_subscriptions_delete_own" ON public.push_subscriptions
     FOR DELETE USING (auth.uid() = user_id);
-
 GRANT SELECT, INSERT, DELETE ON TABLE public.push_subscriptions TO authenticated;
 GRANT ALL ON TABLE public.push_subscriptions TO service_role, postgres;

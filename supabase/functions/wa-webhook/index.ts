@@ -496,6 +496,32 @@ async function getUserByWa(db: any, nomorWa: string) {
   return data;
 }
 
+async function isUserTrialExpired(db: any, userId: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const { data: user, error } = await db
+      .from("users")
+      .select("trial_mulai_at, trial_lama_hari, token_dipakai, is_admin, nomor_wa")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error || !user) return false;
+    if (user.is_admin || isOwner(user.nomor_wa) || user.nomor_wa === "6289626112023" || user.token_dipakai) {
+      return false; // Active paid / admin / lifetime
+    }
+
+    const trialStart = user.trial_mulai_at ? new Date(user.trial_mulai_at).getTime() : Date.now();
+    const trialDays = user.trial_lama_hari || 7;
+    const trialDurationMs = trialDays * 24 * 60 * 60 * 1000;
+    const msLeft = (trialStart + trialDurationMs) - Date.now();
+
+    return msLeft <= 0;
+  } catch (err) {
+    console.error("isUserTrialExpired check error:", err);
+    return false;
+  }
+}
+
 async function initializeUserData(db: any, userId: string) {
   const accessCode = "wa_" + userId;
 
@@ -1254,6 +1280,12 @@ function checkRateLimit(store: Map<string, number[]>, id: string, limitPerMin: n
 
       // Ambil + dekripsi API keys untuk user ini (di server — key tidak turun ke browser)
       const db = getDb();
+      if (await isUserTrialExpired(db, verifiedUser.id)) {
+        return new Response(JSON.stringify({
+          error: "trial_expired",
+          message: "Masa trial fitur AI Anda sudah habis. Silakan aktifkan token untuk melanjutkan."
+        }), { status: 403, headers: corsHeaders });
+      }
       const apiKeys = await resolveGeminiApiKeys(db, verifiedUser.id);
       if (apiKeys.length === 0) {
         return new Response(JSON.stringify({
@@ -1353,6 +1385,18 @@ function cleanupRecentWebChat() {
         return new Response(JSON.stringify({ error: "Unauthorized. Mohon login terlebih dahulu." }), {
           status: 401,
           headers: corsHeaders
+        });
+      }
+
+      if (await isUserTrialExpired(db, userId)) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "trial_expired",
+          message: "Masa trial fitur AI Anda sudah habis. Silakan aktifkan token untuk melanjutkan.",
+          messages: [{ text: "⚠️ Masa trial fitur AI sudah habis. Masukkan kode token atau hubungi admin di WhatsApp untuk mengaktifkan kembali." }]
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
 
@@ -2033,6 +2077,24 @@ function cleanupRecentWebChat() {
       if (!userId) {
         // Sesuai PRD Fase 2: Pesan dari nomor tak dikenal / belum terverifikasi diabaikan total tanpa balasan
         console.log(`Unregistered WA number ignored: ${msg.from}`);
+        continue;
+      }
+
+      // Cek apakah masa trial user sudah habis
+      const isTrialExpired = await isUserTrialExpired(db, userId);
+      if (isTrialExpired) {
+        console.log(`User ${userId} (${msg.from}) trial is expired. Sending trial expired notification.`);
+        const expiredMessage = "⚠️ *Masa Trial AI KaslyAI Sudah Habis*\n\nFitur pencatatan otomatis via AI & asisten WhatsApp untuk akun Anda saat ini terkunci.\n\nTenang, catatan transaksi manual di aplikasi web tetap bisa dipakai penuh & gratis selamanya.\n\nUntuk mengaktifkan kembali fitur AI & asisten WhatsApp (Lifetime), silakan hubungi admin di wa.me/6289626112023 untuk mendapatkan kode token aktivasi.";
+
+        await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
+          await sendWhatsAppMessage(
+            PHONE_NUMBER_ID,
+            WA_ACCESS_TOKEN,
+            msg.from,
+            expiredMessage,
+            msg.messageId,
+          );
+        }, true);
         continue;
       }
 

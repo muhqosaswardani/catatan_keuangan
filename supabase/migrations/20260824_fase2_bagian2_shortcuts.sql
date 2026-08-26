@@ -5,7 +5,6 @@
 -- Tandai transaksi hasil "Transaksi AI Cepat" yang nominalnya belum jelas dari AI
 -- (butuh dilengkapi user lewat notifikasi "Lengkapi" / kartu hasil di layar).
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS is_draft BOOLEAN DEFAULT false;
-
 -- Snapshot transaksi terakhir yang dihapus lewat tombol "Hapus" di notifikasi push
 -- (dieksekusi Service Worker tanpa membuka app). Dipakai index.html untuk menawarkan
 -- "Undo" saat app dibuka lagi. Diisi ulang (overwrite) tiap ada penghapusan baru dari

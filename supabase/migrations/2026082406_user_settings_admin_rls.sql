@@ -5,12 +5,10 @@ CREATE POLICY "Allow authenticated to view all user_settings"
     ON public.user_settings FOR SELECT
     TO authenticated
     USING (true);
-
 CREATE POLICY "Allow authenticated to update all user_settings"
     ON public.user_settings FOR UPDATE
     TO authenticated
     USING (true);
-
 CREATE POLICY "Allow authenticated to insert all user_settings"
     ON public.user_settings FOR INSERT
     TO authenticated

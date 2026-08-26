@@ -6,5 +6,4 @@
 
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_setup_token TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_setup_expires_at TIMESTAMPTZ;
-
 CREATE INDEX IF NOT EXISTS idx_users_password_setup_token ON public.users(password_setup_token);

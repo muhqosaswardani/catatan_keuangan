@@ -7995,6 +7995,38 @@
       </div>
     </div>
 
+    <!-- ==================== MODAL: TRIAL HABIS ==================== -->
+    <div class="modal-overlay modal-center" id="modalTrialHabis">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Masa Trial Sudah Habis</h3>
+          <button class="modal-close" onclick="closeModal('modalTrialHabis')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="width:56px;height:56px;border-radius:50%;background:var(--warn-soft);color:var(--warn);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg>
+            </div>
+            <div style="font-weight:700;font-size:15px;">Fitur AI &amp; WhatsApp terkunci</div>
+            <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.55;">
+              Tenang, catatan transaksi manual kamu tetap bisa dipakai penuh &amp; gratis selamanya. Untuk buka lagi fitur AI, masukkan kode token di bawah, atau hubungi admin.
+            </div>
+          </div>
+
+          <div class="field" id="fieldToken">
+            <label>Kode Akses / Token</label>
+            <input type="text" class="token-input" id="inpToken" maxlength="12" placeholder="" style="text-transform:uppercase;" oninput="clearErr('fieldToken')">
+            <div class="err" id="errTokenMsg">Kode tidak valid / sudah pernah dipakai.</div>
+          </div>
+          <button class="btn btn-primary btn-block" id="btnSubmitTokenTrial" onclick="submitTokenAktivasi()" style="margin-bottom:10px;">Aktifkan dengan Token</button>
+          <button class="btn btn-wa btn-block" onclick="openWaAdmin('token')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-12.34 7.6L4 20l1.02-4.3A8.5 8.5 0 1 1 21 11.5Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Hubungi Admin untuk Beli Token
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== MODAL: AKUN & LANGGANAN ==================== -->
     <div class="modal-overlay modal-center" id="modalAkun">
       <div class="modal">
@@ -10408,8 +10440,8 @@
       }
     }
 
-    let userTrialStatus = 'active'; // 'active', 'habis', 'paid'
-    let trialDaysLeft = 7;
+    let userTrialStatus = localStorage.getItem('kaslyai_user_trial_status') || 'active'; // 'active', 'habis', 'paid'
+    let trialDaysLeft = parseInt(localStorage.getItem('kaslyai_trial_days_left') || '7', 10);
 
     async function checkTrialStatus() {
       if (!currentUserId || !supabaseClient) return;
@@ -10417,20 +10449,25 @@
       try {
         const { data: userProfile, error } = await supabaseClient
           .from('users')
-          .select('trial_mulai_at, trial_lama_hari, sumber_ai, token_dipakai')
+          .select('trial_mulai_at, trial_lama_hari, sumber_ai, token_dipakai, nomor_wa, is_admin')
           .eq('id', currentUserId)
           .maybeSingle();
 
         if (error) throw error;
         if (!userProfile) return;
 
-        // Status paid hanya jika akun telah memakai kode token resmi
-        if (userProfile.token_dipakai) {
+        // Status admin & paid
+        if (userProfile.nomor_wa === '6289626112023' || userProfile.is_admin === true) {
           userTrialStatus = 'paid';
+        } else if (userProfile.token_dipakai) {
+          userTrialStatus = 'paid';
+        } else if (!userProfile.trial_mulai_at) {
+          userTrialStatus = 'habis';
+          trialDaysLeft = 0;
         } else {
-          // Hitung sisa hari trial sama persis dengan perhitungan di dashboard admin
-          const trialStart = userProfile.trial_mulai_at ? new Date(userProfile.trial_mulai_at).getTime() : Date.now();
-          const trialDays = userProfile.trial_lama_hari || 7;
+          // Hitung sisa hari trial
+          const trialStart = new Date(userProfile.trial_mulai_at).getTime();
+          const trialDays = Number(userProfile.trial_lama_hari) || 7;
           const trialDurationMs = trialDays * 24 * 60 * 60 * 1000;
           const msLeft = (trialStart + trialDurationMs) - Date.now();
 
@@ -10442,6 +10479,11 @@
             trialDaysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
           }
         }
+
+        try {
+          localStorage.setItem('kaslyai_user_trial_status', userTrialStatus);
+          localStorage.setItem('kaslyai_trial_days_left', String(trialDaysLeft));
+        } catch (e) {}
 
         // Update UI
         updateTrialTopbarUI();
@@ -10522,12 +10564,14 @@
       if (!val) {
         markErr('fieldTokenAktivasi');
         markErr('fieldToken');
-        const errMsg = document.getElementById('errTokenAktivasiMsg');
-        if (errMsg) errMsg.textContent = 'Harap isi kode token terlebih dahulu.';
+        const errMsg1 = document.getElementById('errTokenAktivasiMsg');
+        if (errMsg1) errMsg1.textContent = 'Harap isi kode token terlebih dahulu.';
+        const errMsg2 = document.getElementById('errTokenMsg');
+        if (errMsg2) errMsg2.textContent = 'Harap isi kode token terlebih dahulu.';
         return;
       }
 
-      const btn = document.getElementById('btnSubmitTokenAktivasi') || document.querySelector('#modalTrialHabis .btn-primary');
+      const btn = document.getElementById('btnSubmitTokenAktivasi') || document.getElementById('btnSubmitTokenTrial') || document.querySelector('#modalTrialHabis .btn-primary');
       const originalText = btn ? btn.textContent : 'Aktifkan Token';
       if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
 
@@ -10557,8 +10601,11 @@
         if (!res.ok || !data.success) {
           markErr('fieldTokenAktivasi');
           markErr('fieldToken');
-          const errMsg = document.getElementById('errTokenAktivasiMsg');
-          if (errMsg) errMsg.textContent = data.error || 'Kode token tidak valid / sudah pernah dipakai.';
+          const errorMsg = data.error || 'Kode token tidak valid / sudah pernah dipakai.';
+          const errMsg1 = document.getElementById('errTokenAktivasiMsg');
+          if (errMsg1) errMsg1.textContent = errorMsg;
+          const errMsg2 = document.getElementById('errTokenMsg');
+          if (errMsg2) errMsg2.textContent = errorMsg;
           return;
         }
 
@@ -10627,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.5.9)';
+      const version = ' (v3.6.0)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12527,7 +12574,12 @@
       if (tab === 'tujuan') renderGoals();
       if (tab === 'utang') renderDebts();
       if (tab === 'settings') renderSettings();
-      if (tab === 'chat') renderChat(true);
+      if (tab === 'chat') {
+        renderChat(true);
+        if (userTrialStatus === 'habis') {
+          setTimeout(() => openModal('modalTrialHabis'), 100);
+        }
+      }
     }
 
     /* opts.push = true: dipakai khusus untuk navigasi "drilldown" (mis. tap kategori di
@@ -12545,8 +12597,7 @@
         if (btn) btn.style.display = 'none';
       }
       if (tab === 'chat' && userTrialStatus === 'habis') {
-        openModal('modalTrialHabis');
-        return;
+        setTimeout(() => openModal('modalTrialHabis'), 50);
       }
       const prevTab = currentTab;
       const push = !!(opts && opts.push);
@@ -12661,6 +12712,7 @@
     }
     function openModalUI(id) {
       const el = document.getElementById(id);
+      if (!el) return;
       const alreadyOpen = el.classList.contains('open');
       modalZCounter++;
       el.style.zIndex = modalZCounter; /* modal yang dibuka belakangan selalu tampil di atas modal yang sudah terbuka */
@@ -12670,11 +12722,9 @@
         document.body.classList.add('modal-lock');
       }
       // Auto-resize any multi-line textareas in the modal
-      if (el) {
-        setTimeout(() => {
-          el.querySelectorAll('textarea:not(.oneline-ta)').forEach(autoResizeTextarea);
-        }, 50);
-      }
+      setTimeout(() => {
+        el.querySelectorAll('textarea:not(.oneline-ta)').forEach(autoResizeTextarea);
+      }, 50);
     }
     function openModal(id) {
       const el = document.getElementById(id);
@@ -12936,7 +12986,6 @@
 
       if (isRealDrag) {
         if (dir === 'up') {
-          if (!getGeminiApiKey()) { showToast('Gemini API Key tidak ditemukan'); return; }
           openAiScanModal();
         } else {
           chooseAddTransaction();
@@ -14379,11 +14428,6 @@
 
     function chooseAddAI() {
       closeModalUI('modalAddChoice');
-      if (userTrialStatus === 'habis') {
-        openModal('modalTrialHabis');
-        return;
-      }
-      if (!getGeminiApiKey()) { showToast('Gemini API Key tidak ditemukan'); return; }
       openAiScanModal({ skipOpen: true });
       navReplaceTop({ type: 'modal', id: 'modalAiScan' });
     }
@@ -14407,6 +14451,9 @@
       aiWalletValue = primaryAiWallet ? primaryAiWallet.id : null;
       document.getElementById('aiScanWalletLabel').textContent = aiWalletValue ? walletById(aiWalletValue).name : 'Pilih dompet';
       if (opts && opts.skipOpen) { openModalUI('modalAiScan'); } else { openModal('modalAiScan'); }
+      if (userTrialStatus === 'habis') {
+        setTimeout(() => openModal('modalTrialHabis'), 100);
+      }
     }
     function onAiFilesAdded(e) {
       const files = Array.from(e.target.files || []);
@@ -14458,6 +14505,10 @@
     // (tidak perlu klik "Analisis dengan AI" manual) — audio diperlakukan sebagai transkrip VN,
     // mengikuti aturan pemecahan multi-transaksi yang sudah ada di prompt (lihat poin 4 promptText).
     async function toggleAiVoiceRecording() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (aiMicRecording) { stopAiVoiceRecording(); return; }
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         showToast('Mic butuh HTTPS. Buka halaman ini via link https:// (bukan file:// atau http://)');
@@ -14517,6 +14568,10 @@
 
     // ==== Rekam suara Helper untuk Cross-check AI ====
     async function toggleCcAiVoiceRecording() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (ccAiMicRecording) { stopCcAiVoiceRecording(); return; }
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         showToast('Mic butuh HTTPS. Buka halaman ini via link https:// (bukan file:// atau http://)');
@@ -14627,6 +14682,10 @@
       reader.readAsDataURL(blob);
     }
     function startAiScanAnalysis() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       const hasText = (aiScanTextValue || '').trim().length > 0;
       if (aiCaptureFiles.length === 0 && !hasText && !aiVoiceAudioPart) return;
       document.getElementById('aiScanCaptureView').style.display = 'none';
@@ -15002,6 +15061,10 @@
       });
     }
     async function callGeminiRaw(key, parts, temperature, responseSchema) {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        throw new Error('Masa trial fitur AI sudah habis. Silakan aktifkan token untuk melanjutkan.');
+      }
       /* Langkah 4: Proxy server-side — pemanggilan Gemini API dirutekan ke
          Edge Function wa-webhook dengan action call_gemini.
          API key tidak pernah turun ke browser atau tampil di Network Tab.
@@ -15325,6 +15388,7 @@
     // tanpa manggil API lagi.
     function checkAndRenderInsight() {
       renderInsightUI();
+      if (userTrialStatus === 'habis') return;
       if (insightLoading) return;
       const key = getGeminiApiKey();
       if (!key) return;
@@ -15335,6 +15399,10 @@
       }
     }
     function manualRefreshInsight() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       const key = getGeminiApiKey();
       if (!key) { showToast('Gemini API Key tidak ditemukan'); return; }
       if (insightLoading) return;
@@ -20180,6 +20248,10 @@
     let chatRecordedChunks = [];
 
     function handleChatAction() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       const btn = document.getElementById('chatActionBtn');
       if (!btn) return;
 
@@ -20231,6 +20303,10 @@
 
     // Send user message
     async function sendChatMessage() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (isChatSending) return;
       const input = document.getElementById('chatInputText');
       if (!input) return;
@@ -23424,6 +23500,9 @@ PERTANYAAN_USER:
         resetTxaiQuickScreen();
         openModal('modalTxaiQuick');
       }
+      if (userTrialStatus === 'habis') {
+        setTimeout(() => openModal('modalTrialHabis'), 50);
+      }
     }
     function closeTxaiQuickScreen() {
       const editStep = document.getElementById('txaiQuickStepEdit');
@@ -23455,6 +23534,7 @@ PERTANYAAN_USER:
       document.getElementById('txaiQuickStepLoading').style.display = 'none';
       document.getElementById('txaiQuickStepResult').style.display = 'none';
       document.getElementById('txaiQuickStepEdit').style.display = 'none';
+      document.getElementById('txaiQuickErrorBox').style.display = 'none';
     }
     function handleTxaiQuickFiles(fileList) {
       const files = Array.from(fileList || []);
@@ -23486,6 +23566,10 @@ PERTANYAAN_USER:
     }
 
     async function toggleTxaiQuickVoiceRecording() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (txaiQuickMicRecording) { stopTxaiQuickVoiceRecording(); return; }
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         showToast('Mic butuh HTTPS. Buka halaman ini via link https:// (bukan file:// atau http://)');
@@ -23635,6 +23719,10 @@ PERTANYAAN_USER:
     let lastProcessedTxaiQuickTxs = [];
 
     async function processTxaiQuick() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (txaiQuickFiles.length === 0 && !(document.getElementById('txaiQuickText').value || '').trim() && !txaiQuickAudioPart) return;
       document.getElementById('txaiQuickStepInput').style.display = 'none';
       document.getElementById('txaiQuickStepLoading').style.display = 'block';

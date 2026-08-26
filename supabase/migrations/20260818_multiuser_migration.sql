@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     last_active_at TIMESTAMPTZ DEFAULT NOW()
 );
-
 -- 2. Create public.verifikasi_wa table
 CREATE TABLE IF NOT EXISTS public.verifikasi_wa (
     kode TEXT PRIMARY KEY, -- 20-character unique verification code
@@ -27,7 +26,6 @@ CREATE TABLE IF NOT EXISTS public.verifikasi_wa (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes')
 );
-
 -- 3. Create public.tokens table
 CREATE TABLE IF NOT EXISTS public.tokens (
     code TEXT PRIMARY KEY, -- 8-character token code
@@ -36,12 +34,10 @@ CREATE TABLE IF NOT EXISTS public.tokens (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     used_at TIMESTAMPTZ
 );
-
 -- 4. Enable RLS on new tables
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verifikasi_wa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tokens ENABLE ROW LEVEL SECURITY;
-
 -- 5. Lockdown public.verifikasi_wa (No public/authenticated access policies)
 -- By leaving no policies on public.verifikasi_wa, only the service role key can read/write to it.
 
@@ -49,16 +45,13 @@ ALTER TABLE public.tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own profile"
     ON public.users FOR SELECT
     USING (auth.uid() = id);
-
 CREATE POLICY "Users can update their own profile"
     ON public.users FOR UPDATE
     USING (auth.uid() = id);
-
 -- 7. Add RLS Policies for public.tokens
 CREATE POLICY "Anyone can view token availability"
     ON public.tokens FOR SELECT
     USING (true);
-
 -- 8. Add user_id column to existing tables for RLS scoping (keeping access_code for rollback fallback)
 ALTER TABLE public.wallets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.users(id) ON DELETE CASCADE;
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.users(id) ON DELETE CASCADE;
@@ -73,7 +66,6 @@ ALTER TABLE public.wa_pending_transactions ADD COLUMN IF NOT EXISTS user_id UUID
 ALTER TABLE public.wa_media_queue ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.users(id) ON DELETE CASCADE;
 ALTER TABLE public.wa_processed_messages ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.users(id) ON DELETE CASCADE;
 ALTER TABLE public.wa_mode_sessions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.users(id) ON DELETE CASCADE;
-
 -- 9. Add indexes for user_id to ensure fast queries
 CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON public.wallets(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON public.transactions(user_id);
@@ -83,7 +75,6 @@ CREATE INDEX IF NOT EXISTS idx_recurring_user_id ON public.recurring_items(user_
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON public.savings_goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_debts_user_id ON public.debt_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_mode_sessions_user_id ON public.wa_mode_sessions(user_id);
-
 -- 10. Configure RLS on existing tables (Enable and add policy if not present)
 ALTER TABLE public.wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
@@ -98,35 +89,25 @@ ALTER TABLE public.wa_pending_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wa_media_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wa_processed_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wa_mode_sessions ENABLE ROW LEVEL SECURITY;
-
 -- Dynamic Policy Creator Helpers (DROP first to prevent duplication)
 DROP POLICY IF EXISTS "User wallets policy" ON public.wallets;
 CREATE POLICY "User wallets policy" ON public.wallets USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User transactions policy" ON public.transactions;
 CREATE POLICY "User transactions policy" ON public.transactions USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User categories policy" ON public.categories;
 CREATE POLICY "User categories policy" ON public.categories USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User budgets policy" ON public.budgets;
 CREATE POLICY "User budgets policy" ON public.budgets USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User recurring items policy" ON public.recurring_items;
 CREATE POLICY "User recurring items policy" ON public.recurring_items USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User savings goals policy" ON public.savings_goals;
 CREATE POLICY "User savings goals policy" ON public.savings_goals USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User debt entries policy" ON public.debt_entries;
 CREATE POLICY "User debt entries policy" ON public.debt_entries USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User settings policy" ON public.user_settings;
 CREATE POLICY "User settings policy" ON public.user_settings USING (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "User wa_mode_sessions policy" ON public.wa_mode_sessions;
 CREATE POLICY "User wa_mode_sessions policy" ON public.wa_mode_sessions USING (auth.uid() = user_id);
-
 -- 11. Create admin user in auth.users & public.users, and link legacy 'ak_jc3lbk4' data to them.
 DO $$
 DECLARE

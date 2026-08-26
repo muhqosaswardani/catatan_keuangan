@@ -16,7 +16,6 @@ AS $$
     WHERE id = auth.uid() AND is_admin = true
   );
 $$;
-
 -- ============================================================
 -- 2. Trigger Anti Self-Privilege Escalation pada public.users
 --    (Menggunakan auth.role() agar akurat di dalam SECURITY DEFINER)
@@ -34,13 +33,11 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS trg_prevent_client_is_admin_update ON public.users;
 CREATE TRIGGER trg_prevent_client_is_admin_update
   BEFORE UPDATE ON public.users
   FOR EACH ROW
   EXECUTE FUNCTION public.prevent_client_is_admin_update();
-
 -- ============================================================
 -- 3. Dynamic Drop: Bersihkan 100% Policy Aktif di pg_policies
 -- ============================================================
@@ -56,19 +53,16 @@ BEGIN
         EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
     END LOOP;
 END $$;
-
 -- ============================================================
 -- 4. Tabel public.users — RLS Ketat
 -- ============================================================
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
 -- User baca miliknya sendiri ATAU Admin baca semua
 CREATE POLICY "Users can view own or admin all"
   ON public.users
   FOR SELECT
   TO authenticated
   USING (auth.uid() = id OR public.is_admin() = true);
-
 -- User update miliknya sendiri ATAU Admin update user lain
 CREATE POLICY "Users can update own or admin all"
   ON public.users
@@ -76,19 +70,16 @@ CREATE POLICY "Users can update own or admin all"
   TO authenticated
   USING (auth.uid() = id OR public.is_admin() = true)
   WITH CHECK (auth.uid() = id OR public.is_admin() = true);
-
 -- HANYA Admin yang boleh delete user
 CREATE POLICY "Admin can delete users"
   ON public.users
   FOR DELETE
   TO authenticated
   USING (public.is_admin() = true);
-
 -- ============================================================
 -- 5. Tabel public.user_settings — RLS Ketat
 -- ============================================================
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
-
 -- SELECT: Milik sendiri ATAU Admin (kecuali row rahasia admin_shared_keys)
 CREATE POLICY "Users view own or admin all settings"
   ON public.user_settings
@@ -98,7 +89,6 @@ CREATE POLICY "Users view own or admin all settings"
     (auth.uid() = user_id OR public.is_admin() = true)
     AND access_code != 'admin_shared_keys'
   );
-
 -- INSERT: Milik sendiri ATAU Admin
 CREATE POLICY "Users insert own or admin all settings"
   ON public.user_settings
@@ -108,7 +98,6 @@ CREATE POLICY "Users insert own or admin all settings"
     (auth.uid() = user_id OR public.is_admin() = true)
     AND access_code != 'admin_shared_keys'
   );
-
 -- UPDATE: Milik sendiri ATAU Admin
 CREATE POLICY "Users update own or admin all settings"
   ON public.user_settings
@@ -122,12 +111,10 @@ CREATE POLICY "Users update own or admin all settings"
     (auth.uid() = user_id OR public.is_admin() = true)
     AND access_code != 'admin_shared_keys'
   );
-
 -- ============================================================
 -- 6. Tabel public.tokens — Tutup Total dari Client
 -- ============================================================
 ALTER TABLE public.tokens ENABLE ROW LEVEL SECURITY;
-
 -- Tutup total client access: Seluruh transaksi token HANYA lewat wa-webhook (service_role)
 CREATE POLICY "Deny all client access to tokens"
   ON public.tokens
