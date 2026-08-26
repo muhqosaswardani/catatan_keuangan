@@ -10674,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.10)';
+      const version = ' (v3.6.11)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -24229,8 +24229,13 @@ PERTANYAAN_USER:
       }
     }
 
-    window.addEventListener('focus', () => { handleAppShortcutParam(); });
-    window.addEventListener('popstate', () => { handleAppShortcutParam(); });
+    window.addEventListener('focus', () => {
+      // Hanya proses jika ada parameter shortcut di URL saat app difokuskan
+      const params = new URLSearchParams(location.search);
+      if (params.get('shortcut')) {
+        handleAppShortcutParam();
+      }
+    });
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', (event) => {
