@@ -10674,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.9)';
+      const version = ' (v3.6.10)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -24141,19 +24141,26 @@ PERTANYAAN_USER:
           pendingAppShortcutId = id;
         }
         const cachedTrial = localStorage.getItem('kaslyai_user_trial_status');
-        if (shortcut === 'chat') {
-          if (cachedTrial !== 'habis') {
-            isChatQuickMode = true;
-            document.body.classList.add('chat-quick-mode');
-            currentTab = 'chat';
-          }
-        } else if (shortcut === 'transaksi-ai') {
-          if (cachedTrial !== 'habis') {
-            const modal = document.getElementById('modalTxaiQuick');
-            if (modal) {
-              modal.classList.add('open');
-              modal.style.zIndex = '500';
+        if (shortcut === 'chat' || shortcut === 'transaksi-ai') {
+          if (cachedTrial === 'habis') {
+            const modalHabis = document.getElementById('modalTrialHabis');
+            if (modalHabis) {
+              modalHabis.classList.add('open');
+              modalHabis.style.zIndex = '600';
               document.body.classList.add('modal-lock');
+            }
+          } else {
+            if (shortcut === 'chat') {
+              isChatQuickMode = true;
+              document.body.classList.add('chat-quick-mode');
+              currentTab = 'chat';
+            } else if (shortcut === 'transaksi-ai') {
+              const modal = document.getElementById('modalTxaiQuick');
+              if (modal) {
+                modal.classList.add('open');
+                modal.style.zIndex = '500';
+                document.body.classList.add('modal-lock');
+              }
             }
           }
         }
@@ -24192,8 +24199,13 @@ PERTANYAAN_USER:
 
         if (shortcut === 'chat') {
           if (userTrialStatus === 'habis') {
+            if (isChatQuickMode) {
+              isChatQuickMode = false;
+              document.body.classList.remove('chat-quick-mode');
+            }
             openModal('modalTrialHabis');
           } else {
+            closeModalUI('modalTrialHabis');
             openChatQuickMode();
           }
         } else if (shortcut === 'transaksi-ai') {
@@ -24201,6 +24213,7 @@ PERTANYAAN_USER:
             closeModalUI('modalTxaiQuick');
             openModal('modalTrialHabis');
           } else {
+            closeModalUI('modalTrialHabis');
             openTxaiQuickScreen(true);
           }
         } else if (shortcut === 'edit-tx') {
