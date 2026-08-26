@@ -10463,12 +10463,13 @@
         if (error) throw error;
         if (!userProfile) return;
 
-        // Status paid hanya jika akun telah memakai kode token resmi
-        if (userProfile.token_dipakai) {
+        // Admin, is_admin, atau akun dengan token aktivasi selalu berstatus 'paid' (akses penuh)
+        if (userProfile.nomor_wa === '6289626112023' || userProfile.is_admin || userProfile.token_dipakai) {
           userTrialStatus = 'paid';
+          trialDaysLeft = 999;
         } else if (!userProfile.trial_mulai_at) {
-          userTrialStatus = 'habis';
-          trialDaysLeft = 0;
+          userTrialStatus = 'active';
+          trialDaysLeft = Number(userProfile.trial_lama_hari) || 7;
         } else {
           // Hitung sisa hari trial
           const trialStart = new Date(userProfile.trial_mulai_at).getTime();
@@ -10674,7 +10675,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.7)';
+      const version = ' (v3.6.8)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -24140,12 +24141,21 @@ PERTANYAAN_USER:
           pendingAppShortcut = shortcut;
           pendingAppShortcutId = id;
         }
+        const cachedTrial = localStorage.getItem('kaslyai_user_trial_status');
         if (shortcut === 'chat') {
-          const cachedTrial = localStorage.getItem('kaslyai_user_trial_status');
           if (cachedTrial !== 'habis') {
             isChatQuickMode = true;
             document.body.classList.add('chat-quick-mode');
             currentTab = 'chat';
+          }
+        } else if (shortcut === 'transaksi-ai') {
+          if (cachedTrial !== 'habis') {
+            const modal = document.getElementById('modalTxaiQuick');
+            if (modal) {
+              modal.classList.add('open');
+              modal.style.zIndex = '500';
+              document.body.classList.add('modal-lock');
+            }
           }
         }
         if (shortcut) {
@@ -24189,6 +24199,7 @@ PERTANYAAN_USER:
           }
         } else if (shortcut === 'transaksi-ai') {
           if (userTrialStatus === 'habis') {
+            closeModalUI('modalTxaiQuick');
             openModal('modalTrialHabis');
           } else {
             openTxaiQuickScreen(true);
