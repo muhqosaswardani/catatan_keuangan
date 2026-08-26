@@ -10674,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.6)';
+      const version = ' (v3.6.7)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23134,10 +23134,6 @@ PERTANYAAN_USER:
               checkTrialStatus();
               autoSyncPushSubscription();
               loadAllGeminiKeys();
-
-              if (pendingAppShortcut) {
-                handleAppShortcutParam();
-              }
             } else {
               const authOb = document.getElementById('auth-onboarding');
               if (authOb) authOb.classList.add('open');
@@ -24151,12 +24147,6 @@ PERTANYAAN_USER:
             document.body.classList.add('chat-quick-mode');
             currentTab = 'chat';
           }
-        } else if (shortcut === 'transaksi-ai') {
-          setTimeout(() => {
-            if (typeof openTxaiQuickScreen === 'function') {
-              openTxaiQuickScreen();
-            }
-          }, 0);
         }
         if (shortcut) {
           try {
@@ -24201,10 +24191,7 @@ PERTANYAAN_USER:
           if (userTrialStatus === 'habis') {
             openModal('modalTrialHabis');
           } else {
-            const modal = document.getElementById('modalTxaiQuick');
-            if (!modal || !modal.classList.contains('open')) {
-              openTxaiQuickScreen();
-            }
+            openTxaiQuickScreen(true);
           }
         } else if (shortcut === 'edit-tx') {
           if (id) {
