@@ -10674,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.4)';
+      const version = ' (v3.6.5)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12594,7 +12594,8 @@
         if (btn) btn.style.display = 'none';
       }
       if (tab === 'chat' && userTrialStatus === 'habis') {
-        setTimeout(() => openModal('modalTrialHabis'), 50);
+        openModal('modalTrialHabis');
+        return;
       }
       const prevTab = currentTab;
       const push = !!(opts && opts.push);
@@ -14464,10 +14465,11 @@
       const primaryAiWallet = wallets.find(w => w.isPrimary) || wallets[0];
       aiWalletValue = primaryAiWallet ? primaryAiWallet.id : null;
       document.getElementById('aiScanWalletLabel').textContent = aiWalletValue ? walletById(aiWalletValue).name : 'Pilih dompet';
-      if (opts && opts.skipOpen) { openModalUI('modalAiScan'); } else { openModal('modalAiScan'); }
       if (userTrialStatus === 'habis') {
-        setTimeout(() => openModal('modalTrialHabis'), 100);
+        openModal('modalTrialHabis');
+        return;
       }
+      if (opts && opts.skipOpen) { openModalUI('modalAiScan'); } else { openModal('modalAiScan'); }
     }
     function onAiFilesAdded(e) {
       const files = Array.from(e.target.files || []);
@@ -23508,14 +23510,15 @@ PERTANYAAN_USER:
     let txaiQuickMicChunks = [];
 
     function openTxaiQuickScreen(forceReset) {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       const modal = document.getElementById('modalTxaiQuick');
       const isOpen = modal && modal.classList.contains('open');
       if (!isOpen || forceReset) {
         resetTxaiQuickScreen();
         openModal('modalTxaiQuick');
-      }
-      if (userTrialStatus === 'habis') {
-        setTimeout(() => openModal('modalTrialHabis'), 50);
       }
     }
     function closeTxaiQuickScreen() {
@@ -24028,6 +24031,10 @@ PERTANYAAN_USER:
     }
 
     function openChatQuickMode() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
       if (currentTab !== 'chat') {
         prevTabBeforeChatQuick = currentTab || 'beranda';
       }
@@ -24060,9 +24067,12 @@ PERTANYAAN_USER:
           pendingAppShortcutId = id;
         }
         if (shortcut === 'chat') {
-          isChatQuickMode = true;
-          document.body.classList.add('chat-quick-mode');
-          currentTab = 'chat';
+          const cachedTrial = localStorage.getItem('kaslyai_user_trial_status');
+          if (cachedTrial !== 'habis') {
+            isChatQuickMode = true;
+            document.body.classList.add('chat-quick-mode');
+            currentTab = 'chat';
+          }
         } else if (shortcut === 'transaksi-ai') {
           setTimeout(() => {
             if (typeof openTxaiQuickScreen === 'function') {
@@ -24104,11 +24114,19 @@ PERTANYAAN_USER:
         } catch (uErr) {}
 
         if (shortcut === 'chat') {
-          openChatQuickMode();
+          if (userTrialStatus === 'habis') {
+            openModal('modalTrialHabis');
+          } else {
+            openChatQuickMode();
+          }
         } else if (shortcut === 'transaksi-ai') {
-          const modal = document.getElementById('modalTxaiQuick');
-          if (!modal || !modal.classList.contains('open')) {
-            openTxaiQuickScreen();
+          if (userTrialStatus === 'habis') {
+            openModal('modalTrialHabis');
+          } else {
+            const modal = document.getElementById('modalTxaiQuick');
+            if (!modal || !modal.classList.contains('open')) {
+              openTxaiQuickScreen();
+            }
           }
         } else if (shortcut === 'edit-tx') {
           if (id) {
