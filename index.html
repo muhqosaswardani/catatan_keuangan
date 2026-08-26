@@ -10679,7 +10679,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.2)';
+      const version = ' (v3.6.3)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12744,6 +12744,23 @@
       el.style.zIndex = '';
       openModalCount = Math.max(0, openModalCount - 1);
       if (openModalCount === 0) { document.body.classList.remove('modal-lock'); modalZCounter = 400; }
+      if (id === 'modalTrialHabis') {
+        if (currentTab === 'chat') {
+          switchTab('beranda');
+        }
+        const aiScan = document.getElementById('modalAiScan');
+        if (aiScan && aiScan.classList.contains('open')) {
+          closeModalUI('modalAiScan');
+          const idx = navStack.findIndex(e => e.type === 'modal' && e.id === 'modalAiScan');
+          if (idx !== -1) navStack.splice(idx, 1);
+        }
+        const txaiQuick = document.getElementById('modalTxaiQuick');
+        if (txaiQuick && txaiQuick.classList.contains('open')) {
+          closeModalUI('modalTxaiQuick');
+          const idx = navStack.findIndex(e => e.type === 'modal' && e.id === 'modalTxaiQuick');
+          if (idx !== -1) navStack.splice(idx, 1);
+        }
+      }
       if (id === 'modalKeypad') {
         resetKeypadPad();
         const input = document.getElementById(keypadTargetId);
