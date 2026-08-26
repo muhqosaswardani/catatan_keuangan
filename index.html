@@ -10492,11 +10492,6 @@
 
         // Update UI
         updateTrialTopbarUI();
-
-        // Enforce lock: if trial is expired, show popup
-        if (userTrialStatus === 'habis') {
-          openModal('modalTrialHabis');
-        }
       } catch (err) {
         console.error('Gagal mengecek status trial:', err);
       }
@@ -10679,7 +10674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.3)';
+      const version = ' (v3.6.4)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12581,9 +12576,6 @@
       if (tab === 'settings') renderSettings();
       if (tab === 'chat') {
         renderChat(true);
-        if (userTrialStatus === 'habis') {
-          setTimeout(() => openModal('modalTrialHabis'), 100);
-        }
       }
     }
 
