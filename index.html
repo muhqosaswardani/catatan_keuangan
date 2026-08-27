@@ -6942,9 +6942,9 @@
               </div>
             </div>
           </button>
-          <!-- TESTING (Fase 2 Bagian 1) — hapus tombol ini setelah semua bagian Fase 2 selesai & stabil -->
+          <!-- TESTING (Fase 2 Bagian 1) — disembunyikan sesuai preferensi pengguna -->
           <button type="button" class="settings-row-card" id="settNotifTestRow"
-            style="display:none;" onclick="sendTestNotification()">
+            style="display:none !important;" onclick="sendTestNotification()">
             <div class="sr-row">
               <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/></svg></span>
               <span class="sr-title">Kirim Notifikasi Uji Coba (Tombol Edit) <span class="sr-arrow">›</span></span>
@@ -10778,7 +10778,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.17)';
+      const version = ' (v3.6.18)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23596,7 +23596,7 @@ PERTANYAAN_USER:
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         statusEl.textContent = sub ? 'Aktif' : 'Nonaktif, klik untuk aktifkan';
-        if (testRow) testRow.style.display = sub ? '' : 'none';
+        if (testRow) testRow.style.display = 'none';
       } catch (e) {
         statusEl.textContent = 'Nonaktif, klik untuk aktifkan';
         if (testRow) testRow.style.display = 'none';
