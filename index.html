@@ -9037,16 +9037,21 @@
         </div>
         <div class="modal-body">
           <p style="font-size:13px;color:var(--ink-soft);line-height:1.5;margin:0 0 14px;">
-            Tindakan ini akan menghapus <b>seluruh</b> dompet, transaksi, budget, dan pengaturan secara permanen dan
-            tidak bisa dibatalkan.
+            Tindakan ini akan menghapus <b>seluruh</b> dompet, transaksi, kategori, budget, dan pengaturan akun kamu secara permanen.
           </p>
           <div class="field" id="resetConfirmField">
-            <label>Masukkan Password Konfirmasi Reset</label>
-            <input type="password" id="resetConfirmInput" autocomplete="off" autocapitalize="off" spellcheck="false"
-              placeholder="Masukkan password konfirmasi" oninput="validateResetConfirmInput()">
-            <div class="err">Password konfirmasi salah.</div>
+            <label>Masukkan Kata Sandi Akun Kamu</label>
+            <div class="pw-wrap" style="position:relative;">
+              <input type="password" id="resetConfirmInput" autocomplete="current-password" autocapitalize="off" spellcheck="false"
+                placeholder="Kata sandi akun KaslyAI" oninput="validateResetConfirmInput()" style="padding-right:40px;">
+              <button type="button" class="toggle-pw" onclick="togglePw('resetConfirmInput', this)" aria-label="Lihat kata sandi" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink-soft);padding:4px;">
+                <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+                <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2"/></svg>
+              </button>
+            </div>
+            <div class="err" id="resetConfirmErr">Kata sandi akun salah.</div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-actions" style="margin-top:16px;">
             <button type="button" class="btn btn-danger btn-block" id="resetConfirmBtn" onclick="confirmResetAllData()"
               disabled>Hapus Semua Data</button>
             <button type="button" class="btn btn-ghost btn-block" style="margin-top:8px;"
@@ -11453,7 +11458,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.29)';
+      const version = ' (v3.6.30)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19703,10 +19708,12 @@
       e.target.value = '';
     }
 
-    const RESET_CONFIRM_WORD = 'rND92kG.=R*K_qi';
     function openResetConfirm() {
       const input = document.getElementById('resetConfirmInput');
       input.value = '';
+      input.type = 'password';
+      const errEl = document.getElementById('resetConfirmErr');
+      if (errEl) errEl.textContent = 'Kata sandi akun salah.';
       document.getElementById('resetConfirmField').classList.remove('invalid');
       document.getElementById('resetConfirmBtn').disabled = true;
       openModal('modalResetConfirm');
@@ -19717,50 +19724,104 @@
     }
     function validateResetConfirmInput() {
       const input = document.getElementById('resetConfirmInput');
-      const match = input.value.trim() === RESET_CONFIRM_WORD;
-      document.getElementById('resetConfirmBtn').disabled = !match;
-      document.getElementById('resetConfirmField').classList.toggle('invalid', input.value.length > 0 && !match);
+      const val = input.value.trim();
+      document.getElementById('resetConfirmBtn').disabled = val.length < 6;
+      document.getElementById('resetConfirmField').classList.remove('invalid');
     }
     async function confirmResetAllData() {
       const input = document.getElementById('resetConfirmInput');
-      if (input.value.trim() !== RESET_CONFIRM_WORD) return;
+      const password = input.value.trim();
+      if (!password) return;
 
-      // Block all sync operations immediately so no background sync can restore data during reset
+      const btn = document.getElementById('resetConfirmBtn');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Memverifikasi kata sandi...';
+
+      // 1. Verifikasi Kata Sandi Akun via Supabase Auth
+      if (supabaseClient) {
+        try {
+          let email = null;
+          const { data: sessionData } = await supabaseClient.auth.getSession();
+          if (sessionData?.session?.user?.email) {
+            email = sessionData.session.user.email;
+          } else {
+            const p = getUserProfile();
+            if (p && p.nomor_wa) {
+              email = `${normalizeWaNumber(p.nomor_wa)}@kaslyai.local`;
+            }
+          }
+
+          if (email) {
+            const { error: reauthErr } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (reauthErr) {
+              const errEl = document.getElementById('resetConfirmErr');
+              if (errEl) errEl.textContent = 'Kata sandi akun salah. Masukkan kata sandi login akun kamu.';
+              document.getElementById('resetConfirmField').classList.add('invalid');
+              btn.disabled = false;
+              btn.textContent = originalText;
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Gagal verifikasi password reset:', e);
+        }
+      }
+
+      // 2. Kata Sandi Benar -> Lanjut Hapus Semua Data
+      btn.textContent = 'Menghapus data...';
       isResettingData = true;
       isSyncingData = true;
 
       const code = getAccessCode(); // KEEP the same access code so other devices on the same link detect the reset
       const resetAt = new Date().toISOString();
 
-      if (supabaseClient && navigator.onLine && code) {
+      if (supabaseClient && navigator.onLine && (code || currentUserId)) {
         try {
           showToast('Menghapus data di server...');
-          // Step 1: Delete all user data tables (scoped by access_code OR user_id, so legacy
-          // pre-migration rows tied to this account via user_id get wiped too, not left orphaned)
-          await Promise.all([
-            scopeToOwner(supabaseClient.from('wallets').delete(), code),
-            scopeToOwner(supabaseClient.from('transactions').delete(), code),
-            scopeToOwner(supabaseClient.from('categories').delete(), code),
-            scopeToOwner(supabaseClient.from('budgets').delete(), code),
-            scopeToOwner(supabaseClient.from('savings_goals').delete(), code),
-            scopeToOwner(supabaseClient.from('debt_entries').delete(), code),
-            scopeToOwner(supabaseClient.from('recurring_items').delete(), code),
-            scopeToOwner(supabaseClient.from('user_settings').delete(), code)
-          ]);
-          // Step 2: Write a reset_at SIGNAL so all other devices on this access code detect the reset within 3 seconds
-          await supabaseClient.from('user_settings').upsert({
-            access_code: code,
-            user_id: currentUserId,
-            reset_at: resetAt,
-            updated_at: resetAt
-          });
-          showToast('Data server berhasil dihapus');
+          const delPromises = [];
+          if (currentUserId) {
+            delPromises.push(
+              supabaseClient.from('wallets').delete().eq('user_id', currentUserId),
+              supabaseClient.from('transactions').delete().eq('user_id', currentUserId),
+              supabaseClient.from('categories').delete().eq('user_id', currentUserId),
+              supabaseClient.from('budgets').delete().eq('user_id', currentUserId),
+              supabaseClient.from('savings_goals').delete().eq('user_id', currentUserId),
+              supabaseClient.from('debt_entries').delete().eq('user_id', currentUserId),
+              supabaseClient.from('recurring_items').delete().eq('user_id', currentUserId),
+              supabaseClient.from('user_settings').delete().eq('user_id', currentUserId)
+            );
+          }
+          if (code) {
+            delPromises.push(
+              supabaseClient.from('wallets').delete().eq('access_code', code),
+              supabaseClient.from('transactions').delete().eq('access_code', code),
+              supabaseClient.from('categories').delete().eq('access_code', code),
+              supabaseClient.from('budgets').delete().eq('access_code', code),
+              supabaseClient.from('savings_goals').delete().eq('access_code', code),
+              supabaseClient.from('debt_entries').delete().eq('access_code', code),
+              supabaseClient.from('recurring_items').delete().eq('access_code', code)
+            );
+          }
+          await Promise.all(delPromises);
+
+          if (code || currentUserId) {
+            await supabaseClient.from('user_settings').upsert({
+              access_code: code || ('wa_' + currentUserId),
+              user_id: currentUserId,
+              reset_at: resetAt,
+              updated_at: resetAt
+            }, { onConflict: 'access_code' });
+          }
+          showToast('Data server berhasil di-reset');
         } catch (err) {
           console.warn('Supabase reset err:', err);
           showToast('Gagal hapus data server, coba lagi');
+          btn.disabled = false;
+          btn.textContent = originalText;
           isResettingData = false;
           isSyncingData = false;
-          return; // Don't reload if Supabase delete failed
+          return;
         }
       }
 
@@ -19769,6 +19830,7 @@
       // Clear all local data but KEEP access code and URL so all linked devices stay on the same sync link
       Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
 
+      closeResetConfirm();
       location.reload();
     }
 
