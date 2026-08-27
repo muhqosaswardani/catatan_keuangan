@@ -7994,7 +7994,7 @@
                 <svg class="icon-vn-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 <svg class="icon-vn-pause" style="display:none;" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
               </button>
-              <input type="range" class="chat-vn-preview-seek" id="vnPreviewSeek" min="0" max="100" value="0" oninput="seekVnPreview(this.value)">
+              <input type="range" class="chat-vn-preview-seek" id="vnPreviewSeek" min="0" max="100" step="any" value="0" oninput="seekVnPreview(this.value)">
               <div class="chat-vn-preview-time-inline">
                 <span id="vnPreviewCur">0:00</span>
                 <span class="vn-time-sep">/</span>
@@ -11774,7 +11774,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.41)';
+      const version = ' (v3.6.42)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21447,7 +21447,7 @@
                   <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 </button>
                 <div class="chat-audio-main">
-                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" step="any" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
                   <div class="chat-audio-info">
                     <span class="chat-audio-time" id="cur_${audioId}">${durStr || '0:00'}</span>
                     ${timeInsideAudio}
@@ -21470,7 +21470,7 @@
                   <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 </button>
                 <div class="chat-audio-main">
-                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" step="any" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
                   <div class="chat-audio-info">
                     <span class="chat-audio-time" id="cur_${audioId}">${durStr || '0:00'}</span>
                     ${timeInsideAudio}
@@ -21797,21 +21797,59 @@
     }
 
     // ── Review Player Functions (Sebelum kirim - 60fps smooth) ─
+    // ── Review Player Functions (Sebelum kirim - Ultra-Smooth Interpolated 60fps) ─
     let vnPreviewRaf = null;
-
-    function _vnPreviewRafTick() {
-      const audio = document.getElementById('chatVnPreviewAudio');
-      if (!audio || audio.paused || audio.ended) {
-        vnPreviewRaf = null;
-        return;
-      }
-      _updateVnPreviewProgressRaw(audio);
-      vnPreviewRaf = requestAnimationFrame(_vnPreviewRafTick);
-    }
+    let vnPreviewClock = null;
 
     function _startVnPreviewRaf() {
       _stopVnPreviewRaf();
-      vnPreviewRaf = requestAnimationFrame(_vnPreviewRafTick);
+      const audio = document.getElementById('chatVnPreviewAudio');
+      if (!audio) return;
+
+      const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) && audio.duration < 3600 ? audio.duration : 0);
+
+      vnPreviewClock = {
+        startPerf: performance.now(),
+        startAudioTime: audio.currentTime || 0,
+        totalDur: totalDur,
+        lastAudioTime: audio.currentTime || 0
+      };
+
+      const tick = () => {
+        const a = document.getElementById('chatVnPreviewAudio');
+        if (!a || a.paused || a.ended) {
+          vnPreviewRaf = null;
+          vnPreviewClock = null;
+          return;
+        }
+
+        if (vnPreviewClock) {
+          if (Math.abs(a.currentTime - vnPreviewClock.lastAudioTime) > 0.08) {
+            vnPreviewClock.startPerf = performance.now();
+            vnPreviewClock.startAudioTime = a.currentTime;
+            vnPreviewClock.lastAudioTime = a.currentTime;
+          }
+
+          const elapsedSec = (performance.now() - vnPreviewClock.startPerf) / 1000;
+          const current = Math.min(vnPreviewClock.totalDur || 9999, Math.max(0, vnPreviewClock.startAudioTime + elapsedSec));
+
+          const seek = document.getElementById('vnPreviewSeek');
+          const cur = document.getElementById('vnPreviewCur');
+          const dur = document.getElementById('vnPreviewDur');
+
+          if (seek && vnPreviewClock.totalDur > 0) {
+            const pct = Math.min(100, Math.max(0, (current / vnPreviewClock.totalDur) * 100));
+            seek.value = pct;
+            seek.style.setProperty('--prog', pct.toFixed(3) + '%');
+          }
+          if (cur) cur.textContent = formatDurationSec(current);
+          if (dur && vnPreviewClock.totalDur > 0) dur.textContent = formatDurationSec(vnPreviewClock.totalDur);
+        }
+
+        vnPreviewRaf = requestAnimationFrame(tick);
+      };
+
+      vnPreviewRaf = requestAnimationFrame(tick);
     }
 
     function _stopVnPreviewRaf() {
@@ -21819,25 +21857,7 @@
         cancelAnimationFrame(vnPreviewRaf);
         vnPreviewRaf = null;
       }
-    }
-
-    function _updateVnPreviewProgressRaw(audio) {
-      if (!audio) audio = document.getElementById('chatVnPreviewAudio');
-      const seek = document.getElementById('vnPreviewSeek');
-      const cur = document.getElementById('vnPreviewCur');
-      const dur = document.getElementById('vnPreviewDur');
-      if (!audio || !seek) return;
-
-      const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
-      const current = audio.currentTime || 0;
-
-      if (totalDur > 0) {
-        const pct = Math.min(100, (current / totalDur) * 100);
-        seek.value = pct;
-        seek.style.setProperty('--prog', pct.toFixed(2) + '%');
-      }
-      if (cur) cur.textContent = formatDurationSec(current);
-      if (dur) dur.textContent = formatDurationSec(totalDur);
+      vnPreviewClock = null;
     }
 
     function toggleVnPreviewPlay() {
@@ -21864,7 +21884,20 @@
 
     function updateVnPreviewProgress() {
       if (!vnPreviewRaf) {
-        _updateVnPreviewProgressRaw(null);
+        const audio = document.getElementById('chatVnPreviewAudio');
+        const seek = document.getElementById('vnPreviewSeek');
+        const cur = document.getElementById('vnPreviewCur');
+        const dur = document.getElementById('vnPreviewDur');
+        if (!audio || !seek) return;
+        const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
+        const current = audio.currentTime || 0;
+        if (totalDur > 0) {
+          const pct = Math.min(100, (current / totalDur) * 100);
+          seek.value = pct;
+          seek.style.setProperty('--prog', pct.toFixed(3) + '%');
+        }
+        if (cur) cur.textContent = formatDurationSec(current);
+        if (dur && totalDur > 0) dur.textContent = formatDurationSec(totalDur);
       }
     }
 
@@ -21873,9 +21906,17 @@
       if (!audio) return;
       const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
       if (totalDur > 0) {
-        audio.currentTime = (val / 100) * totalDur;
+        const newTime = (Number(val) / 100) * totalDur;
+        audio.currentTime = newTime;
+        if (vnPreviewClock) {
+          vnPreviewClock.startPerf = performance.now();
+          vnPreviewClock.startAudioTime = newTime;
+          vnPreviewClock.lastAudioTime = newTime;
+        }
         const seek = document.getElementById('vnPreviewSeek');
-        if (seek) seek.style.setProperty('--prog', Number(val).toFixed(2) + '%');
+        if (seek) seek.style.setProperty('--prog', Number(val).toFixed(3) + '%');
+        const cur = document.getElementById('vnPreviewCur');
+        if (cur) cur.textContent = formatDurationSec(newTime);
       }
     }
 
@@ -21894,22 +21935,66 @@
       if (cur) cur.textContent = '0:00';
     }
 
-    // ── Bubble Player Functions (Dalam chat history) ───────────
-    const chatAudioRafMap = {}; // audioId -> animFrameId
-
-    function _chatAudioRafTick(audioId, forcedDuration) {
-      const audio = document.getElementById(audioId);
-      if (!audio || audio.paused || audio.ended) {
-        delete chatAudioRafMap[audioId];
-        return;
-      }
-      _updateChatAudioProgressRaw(audioId, forcedDuration, audio);
-      chatAudioRafMap[audioId] = requestAnimationFrame(() => _chatAudioRafTick(audioId, forcedDuration));
-    }
+    // ── Bubble Player Functions (Dalam chat history - Ultra-Smooth Interpolated 60fps) ─
+    const chatAudioRafMap = {};
+    const chatAudioClockMap = {};
 
     function _startChatAudioRaf(audioId, forcedDuration) {
       _stopChatAudioRaf(audioId);
-      chatAudioRafMap[audioId] = requestAnimationFrame(() => _chatAudioRafTick(audioId, forcedDuration));
+      const audio = document.getElementById(audioId);
+      if (!audio) return;
+
+      let totalDur = Number(forcedDuration) || 0;
+      if (!totalDur || isNaN(totalDur) || totalDur <= 0) {
+        if (audio.duration && isFinite(audio.duration) && audio.duration < 3600) {
+          totalDur = audio.duration;
+        }
+      }
+
+      chatAudioClockMap[audioId] = {
+        startPerf: performance.now(),
+        startAudioTime: audio.currentTime || 0,
+        totalDur: totalDur,
+        lastAudioTime: audio.currentTime || 0
+      };
+
+      const tick = () => {
+        const a = document.getElementById(audioId);
+        if (!a || a.paused || a.ended) {
+          delete chatAudioRafMap[audioId];
+          delete chatAudioClockMap[audioId];
+          return;
+        }
+
+        const clock = chatAudioClockMap[audioId];
+        if (clock) {
+          if (Math.abs(a.currentTime - clock.lastAudioTime) > 0.08) {
+            clock.startPerf = performance.now();
+            clock.startAudioTime = a.currentTime;
+            clock.lastAudioTime = a.currentTime;
+          }
+
+          const elapsedSec = (performance.now() - clock.startPerf) / 1000;
+          const current = Math.min(clock.totalDur || 9999, Math.max(0, clock.startAudioTime + elapsedSec));
+
+          const seek = document.getElementById('seek_' + audioId);
+          const cur = document.getElementById('cur_' + audioId);
+
+          if (seek && clock.totalDur > 0) {
+            const pct = Math.min(100, Math.max(0, (current / clock.totalDur) * 100));
+            seek.value = pct;
+            seek.style.setProperty('--prog', pct.toFixed(3) + '%');
+          }
+
+          if (cur) {
+            cur.textContent = formatDurationSec(current);
+          }
+        }
+
+        chatAudioRafMap[audioId] = requestAnimationFrame(tick);
+      };
+
+      chatAudioRafMap[audioId] = requestAnimationFrame(tick);
     }
 
     function _stopChatAudioRaf(audioId) {
@@ -21917,6 +22002,7 @@
         cancelAnimationFrame(chatAudioRafMap[audioId]);
         delete chatAudioRafMap[audioId];
       }
+      delete chatAudioClockMap[audioId];
     }
 
     function toggleChatAudioPlay(audioId, event, forcedDuration) {
@@ -21979,7 +22065,7 @@
       }
     }
 
-    // Raw progress update (dipanggil oleh RAF tick maupun ontimeupdate)
+    // Raw progress update fallback (ontimeupdate)
     function _updateChatAudioProgressRaw(audioId, forcedDuration, audio) {
       if (!audio) audio = document.getElementById(audioId);
       const seek = document.getElementById('seek_' + audioId);
@@ -21998,15 +22084,13 @@
       if (totalDur > 0) {
         const pct = Math.min(100, (current / totalDur) * 100);
         seek.value = pct;
-        // Update CSS gradient fill var for smooth track fill
-        seek.style.setProperty('--prog', pct.toFixed(2) + '%');
+        seek.style.setProperty('--prog', pct.toFixed(3) + '%');
         if (dur) dur.textContent = formatDurationSec(totalDur);
       }
       if (cur) cur.textContent = formatDurationSec(current);
     }
 
     function updateChatAudioProgress(audioId, forcedDuration) {
-      // Fallback dari ontimeupdate (jika RAF belum jalan)
       if (!chatAudioRafMap[audioId]) {
         _updateChatAudioProgressRaw(audioId, forcedDuration, null);
       }
@@ -22025,10 +22109,18 @@
       }
 
       if (totalDur > 0) {
-        audio.currentTime = (val / 100) * totalDur;
-        // Immediately update track fill on seek
+        const newTime = (Number(val) / 100) * totalDur;
+        audio.currentTime = newTime;
+        const clock = chatAudioClockMap[audioId];
+        if (clock) {
+          clock.startPerf = performance.now();
+          clock.startAudioTime = newTime;
+          clock.lastAudioTime = newTime;
+        }
         const seek = document.getElementById('seek_' + audioId);
-        if (seek) seek.style.setProperty('--prog', Number(val).toFixed(2) + '%');
+        if (seek) seek.style.setProperty('--prog', Number(val).toFixed(3) + '%');
+        const cur = document.getElementById('cur_' + audioId);
+        if (cur) cur.textContent = formatDurationSec(newTime);
       }
     }
 
