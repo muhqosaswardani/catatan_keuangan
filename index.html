@@ -10154,6 +10154,11 @@
       }
     }
 
+    // SVG helpers untuk intro slides (tanpa emoji)
+    const SVG_CHECK = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline-block;vertical-align:middle;margin-right:3px;flex-shrink:0;"><circle cx="12" cy="12" r="10" fill="var(--accent)" opacity=".18"/><circle cx="12" cy="12" r="10" stroke="var(--accent)" stroke-width="1.8"/><path d="M7 12.5l3.5 3.5 6.5-7" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const SVG_CARD  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline-block;vertical-align:middle;margin-right:3px;flex-shrink:0;"><rect x="2" y="5" width="20" height="14" rx="2" stroke="var(--accent)" stroke-width="1.8"/><path d="M2 10h20" stroke="var(--accent)" stroke-width="1.8"/><rect x="5" y="14" width="4" height="2" rx="1" fill="var(--accent)"/></svg>`;
+    const SVG_CHART = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline-block;vertical-align:middle;margin-right:3px;flex-shrink:0;"><rect x="3" y="12" width="4" height="9" rx="1" fill="var(--accent)" opacity=".7"/><rect x="10" y="7" width="4" height="14" rx="1" fill="var(--accent)" opacity=".9"/><rect x="17" y="3" width="4" height="18" rx="1" fill="var(--accent)"/></svg>`;
+
     // Intro Carousel Slides (6 Slide: 1 Welcome + 4 Fitur + 1 Setup API Key)
     const introSlides = [
       // 0. Selamat Datang (slide awal, tetap kaya sebelumnya)
@@ -10201,9 +10206,21 @@
                 <div style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;font-style:italic;">"tadi beli bensin 30rb pakai e-wallet"</div>
                 <span class="tm">09:12</span>
               </div>
-              <div class="wa-bub in">✅ Dicatat: <b>Bensin — Rp30.000</b><br><span style="font-size:11px;color:var(--ink-soft);">Kategori: Transport • Dompet: E-Wallet</span><span class="tm">09:12</span></div>
+              <div class="wa-bub in">
+                <span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;font-weight:700;color:var(--accent-dark);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="var(--accent)" opacity=".2"/><path d="M7 12.5l3.5 3.5 6.5-7" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Dicatat: Bensin — Rp30.000
+                </span><br>
+                <span style="font-size:11px;color:var(--ink-soft);">Kategori: Transport • Dompet: E-Wallet</span><span class="tm">09:12</span>
+              </div>
               <div class="wa-bub out">keluar 25rb makan bakso bayar tunai<span class="tm">09:14</span></div>
-              <div class="wa-bub in">✅ Dicatat: <b>Makan Siang — Rp25.000</b><br><span style="font-size:11px;color:var(--ink-soft);">Kategori: Makanan • Dompet: Tunai</span><span class="tm">09:14</span></div>
+              <div class="wa-bub in">
+                <span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;font-weight:700;color:var(--accent-dark);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="var(--accent)" opacity=".2"/><path d="M7 12.5l3.5 3.5 6.5-7" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Dicatat: Makan Siang — Rp25.000
+                </span><br>
+                <span style="font-size:11px;color:var(--ink-soft);">Kategori: Makanan • Dompet: Tunai</span><span class="tm">09:14</span>
+              </div>
             </div>
           </div>
         </div>
@@ -10212,7 +10229,7 @@
       // 2. Scan Foto Struk Belanja (Multi-Kategori & Banyak Item)
       () => `
         <div class="card" style="padding:20px 18px 22px;">
-          <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">2. Scan Foto Struk & Deteksi Banyak Item</h3>
+          <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">2. Scan Foto Struk &amp; Deteksi Banyak Item</h3>
           <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin:0 0 14px;text-align:left;">Foto struk belanjaan mini market, resto, atau invoice panjang. AI membaca semua item dan membagi per kategori secara otomatis.</p>
           <div class="intro-visual wa-mock">
             <div class="wa-mock-head">
@@ -10225,10 +10242,13 @@
                 <div><b>Foto Struk Indomaret.jpg</b><br><span style="font-size:10px;opacity:.8;">Total 3 item belanjaan</span><span class="tm">11:20</span></div>
               </div>
               <div class="wa-bub in">
-                ✅ Berhasil deteksi <b>3 kategori transaksi</b>:<br>
-                1. Beras & Minyak (Groceries) — <b>Rp52.000</b><br>
-                2. Sabun Mandi (Kebutuhan Rumah) — <b>Rp18.500</b><br>
-                3. Snack & Kopi (Jajan) — <b>Rp15.000</b><br>
+                <span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:4px;font-weight:700;color:var(--accent-dark);">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="var(--accent)" opacity=".2"/><path d="M7 12.5l3.5 3.5 6.5-7" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Berhasil deteksi 3 kategori transaksi:
+                </span><br>
+                1. Beras &amp; Minyak (Groceries) — <b>Rp52.000</b><br>
+                2. Sabun Mandi (Keb. Rumah) — <b>Rp18.500</b><br>
+                3. Snack &amp; Kopi (Jajan) — <b>Rp15.000</b><br>
                 <div style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);font-size:11.5px;"><b>Total Rp85.500</b> tersimpan rapi!</div>
                 <span class="tm">11:20</span>
               </div>
@@ -10240,7 +10260,7 @@
       // 3. Cek Saldo & Tanya Bebas Keuangan
       () => `
         <div class="card" style="padding:20px 18px 22px;">
-          <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">3. Cek Saldo & Tanya Bebas Keuangan</h3>
+          <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">3. Cek Saldo &amp; Tanya Bebas Keuangan</h3>
           <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin:0 0 14px;text-align:left;">Tanya saldo dompet, cek sisa anggaran bulan ini, atau minta analisa pengeluaran langsung dari chat WhatsApp kapan saja.</p>
           <div class="intro-visual wa-mock">
             <div class="wa-mock-head">
@@ -10249,9 +10269,22 @@
             </div>
             <div class="wa-mock-body">
               <div class="wa-bub out">saldo dompet utama berapa sekarang?<span class="tm">14:05</span></div>
-              <div class="wa-bub in">💳 Saldo <b>Dompet Utama</b> kamu saat ini: <b>Rp1.450.000</b>.<span class="tm">14:05</span></div>
+              <div class="wa-bub in">
+                <span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="var(--accent)" stroke-width="1.8"/><path d="M2 10h20" stroke="var(--accent)" stroke-width="1.8"/><rect x="5" y="14" width="4" height="2" rx="1" fill="var(--accent)"/></svg>
+                  Saldo <b>Dompet Utama</b> kamu saat ini:
+                </span>
+                <b style="color:var(--accent-dark);">Rp1.450.000</b><span class="tm">14:05</span>
+              </div>
               <div class="wa-bub out">sisa budget makan bulan ini masih aman?<span class="tm">14:06</span></div>
-              <div class="wa-bub in">📊 Anggaran <b>Makanan</b> tersisa <b>Rp350.000</b> dari batas Rp1.200.000 (Terpakai 70%, aman untuk minggu ini).<span class="tm">14:06</span></div>
+              <div class="wa-bub in">
+                <span style="display:inline-flex;align-items:center;gap:4px;margin-bottom:2px;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="9" rx="1" fill="var(--accent)" opacity=".6"/><rect x="10" y="7" width="4" height="14" rx="1" fill="var(--accent)" opacity=".8"/><rect x="17" y="3" width="4" height="18" rx="1" fill="var(--accent)"/></svg>
+                  Anggaran <b>Makanan</b> tersisa:
+                </span>
+                <b style="color:var(--accent-dark);">Rp350.000</b> dari batas Rp1.200.000<br>
+                <span style="font-size:10.5px;color:var(--ink-soft);">Terpakai 70% — aman untuk minggu ini.</span><span class="tm">14:06</span>
+              </div>
             </div>
           </div>
         </div>
@@ -10276,8 +10309,22 @@
                 <div class="dash-bar" style="height:35%"></div><div class="dash-bar hi" style="height:70%"></div><div class="dash-bar" style="height:45%"></div><div class="dash-bar hi" style="height:85%"></div><div class="dash-bar" style="height:30%"></div><div class="dash-bar hi" style="height:60%"></div><div class="dash-bar" style="height:40%"></div>
               </div>
               <div style="margin-top:10px;">
-                <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--expense-soft);">🍔</span>Makan Siang</div><span class="amt minus">-Rp25.000</span></div>
-                <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--income-soft);">💼</span>Gaji Bulanan</div><span class="amt plus">+Rp3.200.000</span></div>
+                <div class="dash-tx">
+                  <div class="cat">
+                    <span class="ic" style="background:var(--expense-soft);display:flex;align-items:center;justify-content:center;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 11h18M3 11V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4M3 11v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6M12 7v10M8 7v10M16 7v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>Makan Siang
+                  </div>
+                  <span class="amt minus">-Rp25.000</span>
+                </div>
+                <div class="dash-tx">
+                  <div class="cat">
+                    <span class="ic" style="background:var(--income-soft);display:flex;align-items:center;justify-content:center;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 7V5a2 2 0 0 0-4 0v2M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M12 12v4M10 14h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>Gaji Bulanan
+                  </div>
+                  <span class="amt plus">+Rp3.200.000</span>
+                </div>
               </div>
             </div>
           </div>
@@ -10289,7 +10336,9 @@
         <div class="card" style="padding:20px 18px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
             <div>
-              <div style="font-size:30px;line-height:1;margin-bottom:6px;">🔑</div>
+              <div style="width:40px;height:40px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
               <h2 style="font-size:17px;margin:0;text-align:left;">Soal AI-nya, Mau Pakai Apa?</h2>
             </div>
             <button class="icon-btn" onclick="openModal('modalInfoAiKey')" aria-label="Info" style="flex-shrink:0;">
@@ -11335,7 +11384,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.22)';
+      const version = ' (v3.6.23)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
