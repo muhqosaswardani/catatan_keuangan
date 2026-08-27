@@ -7879,7 +7879,7 @@
               <img src="icons/icon-192.png" alt="KaslyAI" style="width:100%;height:100%;object-fit:cover;display:block;">
             </div>
             <h1 style="margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:4px;letter-spacing:-.01em;">
-              <span>Chat</span> <span>Kasly</span><span class="brand-ai" style="color:#10b981;font-family:'Sora',sans-serif;font-weight:800;">AI</span>
+              <span>Chat</span> <span>Kasly<span class="brand-ai" style="color:#10b981;font-family:'Sora',sans-serif;font-weight:800;">AI</span></span>
             </h1>
           </div>
         </div>
@@ -11774,7 +11774,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.40)';
+      const version = ' (v3.6.41)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
