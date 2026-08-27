@@ -66,7 +66,7 @@ async function handleHelpCommand(waChatId: string, messageId: string): Promise<v
 - Edit/Tambah/Hapus dapat ditulis natural (contoh: 'edit 1 1jt', 'hapus 2').
 
 *Fitur Teks Bebas (Langsung ketik perintah):*
-- Checklist: 'bayar cicilan motor', 'lunasin kuliah' (menandai checklist lunas).
+- Tagihan: 'bayar cicilan motor', 'lunasin kuliah' (menandai tagihan lunas).
 - Transfer: 'transfer dari utama ke tabungan 500rb', 'pindahin 100rb ke gopay'.
 - Utang-Piutang: 'pinjam ke Budi 100rb', 'bayar utang Budi 50rb'.
 - Laporan/Query: Tambahkan tanda tanya '?' di akhir kalimat untuk bertanya apa saja (contoh: 'anggaran makan sisa berapa?', 'pengeluaran terbesar bulan ini?').

@@ -1786,8 +1786,9 @@
       top: 50%;
       transform: translateY(-50%);
       color: var(--ink-soft);
-      font-weight: 700;
+      font-weight: 400;
       font-size: 15px;
+      font-family: inherit;
     }
 
     .amount-input input {
@@ -6058,7 +6059,7 @@
           <path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"
             stroke-linejoin="round" />
         </svg>
-        <span>Checklist</span>
+        <span>Tagihan</span>
       </button>
       <button class="nav-item" data-tab="tujuan" onclick="switchTab('tujuan')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -6778,7 +6779,7 @@
       <div class="topbar" style="display:flex;align-items:flex-start;justify-content:space-between;">
         <div>
           <div class="eyebrow">Pengingat &amp; Shortcut</div>
-          <h1>Checklist</h1>
+          <h1>Tagihan</h1>
         </div>
         <div style="display:flex;align-items:center;gap:4px;margin-top:8px;">
           <button type="button" class="btn btn-ghost btn-sm" style="font-size:13px;gap:4px;"
@@ -7527,11 +7528,14 @@
         <div class="modal-body">
           <div class="field">
             <label>Reset status setiap tanggal</label>
-            <select id="recResetDayInput"></select>
-            <p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;">Tanggal ini jadi acuan kapan siklus
-              bulanan mulai ulang (mis. tanggal gajian). Begitu tanggal ini lewat tiap bulan, semua item — checklist
-              maupun cicilan — yang sudah ditandai bayar akan kembali perlu dibayar (siklus baru), dan jadi acuan
-              hitung mundur "sisa Nx lagi" untuk item cicilan.</p>
+            <button type="button" class="picker-btn" id="recResetDayBtn" onclick="openRecResetDayPicker()">
+              <span id="recResetDayLabel">Tanggal 25</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+            <p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;">Tanggal acuan siklus baru setiap bulan (mis. tanggal gajian). Status tagihan yang sudah dibayar akan direset otomatis untuk periode berikutnya.</p>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-primary btn-block"
@@ -8363,15 +8367,18 @@
         <div class="modal-body"> <input type="hidden" id="recId">
           <div class="type-toggle" id="recKindToggle" style="margin-bottom:10px;">
             <button type="button" data-kind="checklist" class="active"
-              onclick="setRecFormKind('checklist')">Tagihan Tetap</button>
+              onclick="setRecFormKind('checklist')">Tagihan</button>
             <button type="button" data-kind="installment" onclick="setRecFormKind('installment')">Cicilan</button>
           </div>
-          <div class="field">
+          <div class="field" id="recTypeField">
             <label>Jenis</label>
-            <select id="recTypeSelect" onchange="setRecFormType(this.value)">
-              <option value="expense">Pengeluaran</option>
-              <option value="income">Pemasukan</option>
-            </select>
+            <button type="button" class="picker-btn" id="recTypeBtn" onclick="openRecTypePicker()">
+              <span id="recTypeLabel">Pengeluaran</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
           </div>
           <div class="field">
             <label>Nama</label>
@@ -8410,9 +8417,15 @@
                 spellcheck="false"></div>
             <div class="err">Jumlah harus lebih dari 0</div>
           </div>
-          <div class="field">
+          <div class="field" id="recDayOfMonthField">
             <label>Tanggal jatuh tempo tiap bulan</label>
-            <select id="recDayOfMonth"></select>
+            <button type="button" class="picker-btn" id="recDayOfMonthBtn" onclick="openRecDayOfMonthPicker()">
+              <span id="recDayOfMonthLabel">Tanggal 1</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
           </div>
           <div id="recInstallmentFields" style="display:none;">
             <div class="field">
@@ -10622,8 +10635,23 @@
     }
 
     async function submitTokenAktivasi() {
-      const tokenInput = document.getElementById('inpTokenAktivasi') || document.getElementById('inpToken');
-      const val = (tokenInput ? tokenInput.value : '').trim().toUpperCase();
+      const inpTrial = document.getElementById('inpToken');
+      const inpAktivasi = document.getElementById('inpTokenAktivasi');
+      const modalTrial = document.getElementById('modalTrialHabis');
+      const modalAkun = document.getElementById('modalAkun');
+
+      let val = '';
+      if (modalTrial && modalTrial.classList.contains('open')) {
+        val = (inpTrial ? inpTrial.value : '').trim().toUpperCase();
+      } else if (modalAkun && modalAkun.classList.contains('open')) {
+        val = (inpAktivasi ? inpAktivasi.value : '').trim().toUpperCase();
+      } else {
+        // Fallback: utamakan input yang terisi
+        const valTrial = (inpTrial ? inpTrial.value : '').trim().toUpperCase();
+        const valAktivasi = (inpAktivasi ? inpAktivasi.value : '').trim().toUpperCase();
+        val = valTrial || valAktivasi;
+      }
+
       if (!val) {
         markErr('fieldTokenAktivasi');
         markErr('fieldToken');
@@ -10676,7 +10704,15 @@
         closeModal('modalTokenAktivasi');
         closeModal('modalTrialHabis');
         userTrialStatus = 'paid';
+        trialDaysLeft = 999;
+        try {
+          localStorage.setItem('kaslyai_user_trial_status', 'paid');
+          localStorage.setItem('kaslyai_trial_days_left', '999');
+        } catch (e) {}
         updateTrialTopbarUI();
+        if (typeof checkTrialStatus === 'function') {
+          checkTrialStatus();
+        }
         showToast('Token valid! Akun Anda aktif Premium Lifetime.');
       } catch (err) {
         console.error('Gagal mengaktifkan token:', err);
@@ -10737,7 +10773,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.14)';
+      const version = ' (v3.6.16)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11519,7 +11555,7 @@
       transaksi: { label: 'Transaksi', icon: '<path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
       budget: { label: 'Anggaran', icon: '<path d="M12 3v9l7 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>' },
       crosscheck: { label: 'Cek', icon: '<path d="M4 12.5l5 5L20 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>' },
-      checklist: { label: 'Checklist', icon: '<rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>' },
+      checklist: { label: 'Tagihan', icon: '<rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13l2 2 4-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>' },
       tujuan: { label: 'Tujuan', icon: '<path d="M6 3v18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6 4h11l-2.5 4L17 12H6" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
       utang: { label: 'Utang', icon: '<path d="M4 7h13M17 7l-3-3M17 7l-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 17H7M7 17l3-3M7 17l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
       chat: { label: 'Chat', icon: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
@@ -15432,7 +15468,7 @@
       if (recurring.length > 0) {
         const activeRecurring = recurring.filter(r => r.active && !r.completedAt && recurringStatus(r) !== 'akan-datang');
         if (activeRecurring.length > 0) {
-          lines.push('\n=== TAGIHAN BERULANG (CHECKLIST) ===');
+          lines.push('\n=== TAGIHAN BERULANG ===');
           let terlambat = [], jatuhTempo = [], sudahBayar = [], belumBayar = [];
           activeRecurring.forEach(r => {
             const s = recurringStatus(r);
@@ -19313,6 +19349,7 @@
     let currentRecFormKind = 'checklist';
     let currentRecFormRepeatMode = 'count';
     let recWalletValue = null, recCategoryValue = null, recConfirmWalletValue = null;
+    let recDayOfMonthValue = 1, recResetDayValue = 25;
 
     function recStatusLabel(item) {
       if (item.kind === 'installment' && item.completedAt) return { text: 'Lunas', cls: 'lunas' };
@@ -19475,31 +19512,58 @@
       }).join('');
     }
 
-    function populateRecDayOfMonthOptions(selected) {
-      const sel = document.getElementById('recDayOfMonth');
-      sel.innerHTML = '';
-      for (let d = 1; d <= 31; d++) {
-        const opt = document.createElement('option');
-        opt.value = d; opt.textContent = 'Tanggal ' + d;
-        if (d === selected) opt.selected = true;
-        sel.appendChild(opt);
-      }
+    function updateRecTypeLabel() {
+      const el = document.getElementById('recTypeLabel');
+      if (el) el.textContent = currentRecFormType === 'income' ? 'Pemasukan' : 'Pengeluaran';
     }
+    function openRecTypePicker() {
+      const options = [
+        { value: 'expense', label: 'Pengeluaran' },
+        { value: 'income', label: 'Pemasukan' }
+      ];
+      openPicker('Pilih Jenis', options, currentRecFormType, v => {
+        setRecFormType(v);
+      });
+    }
+
+    function updateRecDayOfMonthLabel() {
+      const el = document.getElementById('recDayOfMonthLabel');
+      if (el) el.textContent = 'Tanggal ' + recDayOfMonthValue;
+    }
+    function openRecDayOfMonthPicker() {
+      const options = [];
+      for (let d = 1; d <= 31; d++) {
+        options.push({ value: d, label: 'Tanggal ' + d });
+      }
+      openPicker('Pilih Tanggal Jatuh Tempo', options, recDayOfMonthValue, v => {
+        recDayOfMonthValue = v;
+        updateRecDayOfMonthLabel();
+      });
+    }
+
+    function updateRecResetDayLabel() {
+      const el = document.getElementById('recResetDayLabel');
+      if (el) el.textContent = 'Tanggal ' + recResetDayValue;
+    }
+    function openRecResetDayPicker() {
+      const options = [];
+      for (let d = 1; d <= 31; d++) {
+        options.push({ value: d, label: 'Tanggal ' + d });
+      }
+      openPicker('Pilih Tanggal Siklus / Gajian', options, recResetDayValue, v => {
+        recResetDayValue = v;
+        updateRecResetDayLabel();
+      });
+    }
+
     // ---- Modal: Atur Reset Tagihan Berulang ----
     function openRecurringResetSettings() {
-      const sel = document.getElementById('recResetDayInput');
-      sel.innerHTML = '';
-      const current = getRecurringResetDay();
-      for (let d = 1; d <= 31; d++) {
-        const opt = document.createElement('option');
-        opt.value = d; opt.textContent = 'Tanggal ' + d;
-        if (d === current) opt.selected = true;
-        sel.appendChild(opt);
-      }
+      recResetDayValue = getRecurringResetDay();
+      updateRecResetDayLabel();
       openModal('modalRecurringResetSettings');
     }
     function saveRecurringResetSettings() {
-      const d = parseInt(document.getElementById('recResetDayInput').value, 10);
+      const d = recResetDayValue;
       const s = getSettings();
       s.recurringResetDay = (d >= 1 && d <= 31) ? d : 25;
       setSettings(s);
@@ -19512,7 +19576,7 @@
     }
     function setRecFormType(type) {
       currentRecFormType = type;
-      document.getElementById('recTypeSelect').value = type;
+      updateRecTypeLabel();
       const cats = getCategories().filter(c => c.type === type);
       if (!cats.some(c => c.id === recCategoryValue)) recCategoryValue = cats[0] ? cats[0].id : null;
       updateRecCategoryLabel();
@@ -19563,7 +19627,8 @@
           recCategoryValue = item.categoryId;
           document.getElementById('recName').value = item.name;
           document.getElementById('recAmount').value = item.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-          populateRecDayOfMonthOptions(item.dayOfMonth);
+          recDayOfMonthValue = item.dayOfMonth || 1;
+          updateRecDayOfMonthLabel();
           currentRecFormKind = item.kind || 'checklist';
           currentRecFormRepeatMode = item.repeatMode || 'count';
           document.getElementById('recTotalOccurrences').value = item.totalOccurrences || '';
@@ -19576,7 +19641,8 @@
         recCategoryValue = cats[0] ? cats[0].id : null;
         document.getElementById('recName').value = '';
         document.getElementById('recAmount').value = '';
-        populateRecDayOfMonthOptions(todayDayOfMonth());
+        recDayOfMonthValue = todayDayOfMonth();
+        updateRecDayOfMonthLabel();
         currentRecFormKind = 'checklist';
         currentRecFormRepeatMode = 'count';
         document.getElementById('recTotalOccurrences').value = '';
@@ -19585,7 +19651,7 @@
       // Ganti jenis item (checklist/cicilan) hanya bisa dipilih saat tambah baru — item existing tetap sesuai jenis semula
       document.getElementById('recKindToggle').style.opacity = id ? '.5' : '1';
       document.getElementById('recKindToggle').style.pointerEvents = id ? 'none' : 'auto';
-      document.getElementById('recTypeSelect').value = currentRecFormType;
+      updateRecTypeLabel();
       setRecFormKind(currentRecFormKind);
       setRecFormRepeatMode(currentRecFormRepeatMode);
       updateRecWalletLabel();
@@ -19600,7 +19666,7 @@
       const walletId = recWalletValue;
       const categoryId = recCategoryValue;
       const amount = parseRupiahInput(document.getElementById('recAmount').value);
-      const dayOfMonth = parseInt(document.getElementById('recDayOfMonth').value, 10);
+      const dayOfMonth = recDayOfMonthValue;
       const id = document.getElementById('recId').value;
       const existing = id ? getRecurring().find(r => r.id === id) : null;
       let valid = true;
@@ -20099,7 +20165,7 @@
         chatHistory.push({
           id: 'msg_welcome',
           sender: 'bot',
-          text: 'Halo! Saya adalah asisten keuangan pribadimu.\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- `koreksi` : Penyesuaian saldo dompet.\n- `limit` / `anggaran` : Kelola limit anggaran bulanan.\n- `tujuan` / `goals` : Kelola tujuan tabungan keuangan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Checklist: "bayar cicilan motor" untuk melunasi checklist.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya `?` di akhir kalimat untuk bertanya apa saja.',
+          text: 'Halo! Saya adalah asisten keuangan pribadimu.\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- `koreksi` : Penyesuaian saldo dompet.\n- `limit` / `anggaran` : Kelola limit anggaran bulanan.\n- `tujuan` / `goals` : Kelola tujuan tabungan keuangan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Tagihan: "bayar cicilan motor" untuk melunasi tagihan.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya `?` di akhir kalimat untuk bertanya apa saja.',
           timestamp: Date.now()
         });
         localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
@@ -20986,7 +21052,7 @@
         return;
       }
       if (cleaned === 'help' || cleaned === 'bantuan' || cleaned === 'menu') {
-        appendChatBubble('bot', `*Pusat Bantuan Catatan Keuangan Bot*\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- \`koreksi\` : Penyesuaian saldo dompet.\n- \`limit\` / \`anggaran\` : Kelola limit anggaran bulanan.\n- \`tujuan\` / \`goals\` : Kelola tujuan tabungan keuangan.\n\n*Sub-perintah dalam Mode Terkunci:*\n- \`ya\` / \`oke\` : Konfirmasi aksi final mode.\n- \`batal\` : Keluar tanpa menyimpan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Checklist: "bayar cicilan motor" untuk melunasi checklist.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya \`?\` di akhir kalimat untuk bertanya apa saja.`, Date.now());
+        appendChatBubble('bot', `*Pusat Bantuan Catatan Keuangan Bot*\n\n*Menu Mode Terkunci (Ketik kata eksak untuk masuk):*\n- \`koreksi\` : Penyesuaian saldo dompet.\n- \`limit\` / \`anggaran\` : Kelola limit anggaran bulanan.\n- \`tujuan\` / \`goals\` : Kelola tujuan tabungan keuangan.\n\n*Sub-perintah dalam Mode Terkunci:*\n- \`ya\` / \`oke\` : Konfirmasi aksi final mode.\n- \`batal\` : Keluar tanpa menyimpan.\n\n*Fitur Teks Bebas:*\n- Catat transaksi biasa (misal: "makan bakso 15rb").\n- Tagihan: "bayar cicilan motor" untuk melunasi tagihan.\n- Transfer: "transfer dari utama ke tabungan 500rb".\n- Utang: "pinjam ke Budi 100rb" atau "bayar utang Budi 50rb".\n- Laporan/Query: Tambahkan tanda tanya \`?\` di akhir kalimat untuk bertanya apa saja.`, Date.now());
         return;
       }
 

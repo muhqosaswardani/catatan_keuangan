@@ -28,7 +28,7 @@ export async function parseV2Intent(
   const prompt = `
 Analisis teks pesan masuk dari user WhatsApp berikut dan tentukan intent/maksud aksinya.
 Aksi teks bebas yang didukung:
-1. "checklist" - Menandai tagihan berulang/checklist bulanan sebagai lunas/dibayar (misal: "bayar kuliah", "lunasin cicilan motor").
+1. "checklist" - Menandai tagihan berulang bulanan sebagai lunas/dibayar (misal: "bayar kuliah", "lunasin cicilan motor").
 2. "transfer" - Transfer uang antar dompet/rekening (misal: "transfer dari utama ke tabungan 500rb", "pindahin 100k ke gopay").
 3. "debt" - Catat utang baru, piutang baru, cicilan, atau pelunasan utang/piutang ke seseorang (misal: "pinjam ke Budi 100rb", "bayar utang Budi 50rb", "Sari utang ke aku 30k").
 4. "query" - Pertanyaan/permintaan informasi mengenai laporan keuangan, detail transaksi, budget, saldo, tagihan, dll (misal: "cek saldo", "berapa pengeluaran makan bulan ini", "apakah ada tagihan jatuh tempo?", "daftar pengeluaran gojek", "selisih bulan lalu").
