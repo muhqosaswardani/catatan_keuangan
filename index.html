@@ -10325,14 +10325,9 @@
       }
     }
 
-    function addOwnKeySlide() {
+    async function addOwnKeySlide() {
       const inp = document.getElementById('inpOwnKeySlide');
-      const v = inp.value.trim();
-      if (!v) return;
-      userKeys.push(v);
-      inp.value = '';
-      renderUserKeys();
-      showToast('API Key ditambahkan.');
+      if (inp) await processAddGeminiKey(inp.value, inp);
     }
 
     function openApiGuide() {
@@ -10687,9 +10682,8 @@
       return token;
     }
 
-    async function addUserKey() {
-      const inp = document.getElementById('inpUserKey');
-      const v = inp ? inp.value.trim() : '';
+    async function processAddGeminiKey(keyVal, inputEl) {
+      const v = (keyVal || '').trim();
       if (!v) return;
       if (v.startsWith('http://') || v.startsWith('https://')) {
         showToast('Itu link URL website, bukan API Key Gemini. Ambil API Key di aistudio.google.com.');
@@ -10699,11 +10693,19 @@
         showToast('Itu nomor HP/angka, bukan API Key Gemini (biasanya diawali AIzaSy...).');
         return;
       }
-      if (inp) inp.value = '';
+      if (v.length < 10) {
+        showToast('Format API Key Gemini terlalu pendek / tidak valid.');
+        return;
+      }
+
+      if (inputEl) inputEl.value = '';
 
       const token = await getValidAuthToken();
       if (!token) {
-        showToast('Sesi login tidak ditemukan. Silakan login ulang.');
+        // Jika belum ada sesi token backend aktif, simpan lokal sementara
+        userKeys.push({ id: 'local_' + Date.now(), masked: maskKey(v), raw: v });
+        renderUserKeys();
+        showToast('API Key Gemini ditambahkan.');
         return;
       }
 
@@ -10737,10 +10739,17 @@
       }
     }
 
+    async function addUserKey() {
+      const inp = document.getElementById('inpUserKey');
+      if (inp) await processAddGeminiKey(inp.value, inp);
+    }
+
     async function deleteUserKey(keyId) {
       const token = await getValidAuthToken();
       if (!token) {
-        showToast('Sesi login tidak ditemukan. Silakan login ulang.');
+        userKeys = userKeys.filter(k => (k && k.id) ? k.id !== keyId : k !== keyId);
+        renderUserKeys();
+        showToast('API Key Gemini dihapus.');
         return;
       }
 
@@ -10772,6 +10781,29 @@
         console.error('Gagal menghapus API key:', err);
         showToast('Gagal terhubung ke server.');
       }
+    }
+
+    async function saveKeysToDb() {
+      if (userKeys && userKeys.length > 0) {
+        const token = await getValidAuthToken();
+        if (token) {
+          for (const k of userKeys) {
+            if (typeof k === 'object' && k && k.raw) {
+              try {
+                await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                  },
+                  body: JSON.stringify({ action: 'user_add_gemini_key', key: k.raw })
+                });
+              } catch(e){}
+            }
+          }
+        }
+      }
+      await loadUserKeys();
     }
 
     function cleanGeminiKeyList(arr) {
@@ -11278,7 +11310,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.20)';
+      const version = ' (v3.6.21)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
