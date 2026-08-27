@@ -1567,6 +1567,11 @@ function cleanupRecentWebChat() {
                   const cleanPath = imgPath.replace(/^chat-ai-images\//, "");
                   filesToDelete.push(cleanPath);
                 }
+                const audioPath = item?.audio;
+                if (audioPath && typeof audioPath === "string" && !audioPath.startsWith("data:") && !audioPath.startsWith("blob:")) {
+                  const cleanAudioPath = audioPath.replace(/^chat-ai-images\//, "");
+                  filesToDelete.push(cleanAudioPath);
+                }
               } else {
                 keptChat.push(item);
               }

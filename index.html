@@ -4945,6 +4945,193 @@
     .chat-btn-action.is-send .icon-send { display: flex; }
     .chat-btn-action.is-send .icon-mic { display: none; }
 
+    /* ── Voice Note Recording Bar (menggantikan input field saat rekam) ── */
+    .chat-vn-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 12px;
+      background: var(--surface, #ffffff);
+      border-radius: 24px;
+      flex: 1;
+      min-height: 44px;
+      border: 1px solid var(--border, rgba(0,0,0,0.08));
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      animation: fadeIn 0.15s ease-out;
+    }
+    .chat-vn-bar.active { display: flex; }
+
+    /* Tombol batal rekam (X) — kiri */
+    .chat-vn-cancel {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg, #f1f5f9);
+      color: var(--ink-soft, #64748b);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s, background 0.15s, color 0.15s;
+    }
+    .chat-vn-cancel:hover {
+      background: var(--expense-soft, #FBE7E5);
+      color: var(--expense, #C4453B);
+    }
+    .chat-vn-cancel:active { transform: scale(0.92); }
+
+    /* Waveform animasi dinamis */
+    .chat-vn-waveform {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3.5px;
+      overflow: hidden;
+      height: 26px;
+    }
+    .chat-vn-waveform .vn-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--accent, #0f766e);
+      animation: vnWave 0.6s ease-in-out infinite alternate;
+      min-height: 4px;
+    }
+    .chat-vn-waveform .vn-bar:nth-child(1) { animation-delay: 0.05s; }
+    .chat-vn-waveform .vn-bar:nth-child(2) { animation-delay: 0.18s; }
+    .chat-vn-waveform .vn-bar:nth-child(3) { animation-delay: 0.10s; }
+    .chat-vn-waveform .vn-bar:nth-child(4) { animation-delay: 0.25s; }
+    .chat-vn-waveform .vn-bar:nth-child(5) { animation-delay: 0.14s; }
+    .chat-vn-waveform .vn-bar:nth-child(6) { animation-delay: 0.30s; }
+    .chat-vn-waveform .vn-bar:nth-child(7) { animation-delay: 0.08s; }
+    .chat-vn-waveform .vn-bar:nth-child(8) { animation-delay: 0.22s; }
+    .chat-vn-waveform .vn-bar:nth-child(9) { animation-delay: 0.16s; }
+    .chat-vn-waveform .vn-bar:nth-child(10) { animation-delay: 0.28s; }
+    .chat-vn-waveform .vn-bar:nth-child(11) { animation-delay: 0.12s; }
+    .chat-vn-waveform .vn-bar:nth-child(12) { animation-delay: 0.20s; }
+
+    @keyframes vnWave {
+      0% { height: 4px; opacity: 0.4; }
+      100% { height: 22px; opacity: 1; }
+    }
+
+    /* Timer durasi rekam */
+    .chat-vn-timer {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--expense, #ef4444);
+      font-variant-numeric: tabular-nums;
+      min-width: 38px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── Voice Note Review Bar (setelah selesai rekam, sebelum kirim) ── */
+    .chat-vn-review {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--surface, #ffffff);
+      border-radius: 24px;
+      flex: 1;
+      min-height: 44px;
+      border: 1px solid var(--border, rgba(0,0,0,0.08));
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      animation: fadeIn 0.15s ease-out;
+    }
+    .chat-vn-review.active { display: flex; }
+
+    .chat-vn-discard-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: none;
+      background: var(--expense-soft, #FBE7E5);
+      color: var(--expense, #C4453B);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .chat-vn-discard-btn:active { transform: scale(0.92); }
+
+    .chat-field-wrap.vn-mode { display: none !important; }
+
+    /* ── Audio Player Bubble dalam chat ── */
+    .chat-audio-player {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 4px;
+      min-width: 220px;
+      max-width: 280px;
+      width: 100%;
+    }
+    .chat-audio-play-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent, #0f766e);
+      color: #fff;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, background 0.2s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+    .chat-audio-play-btn:hover { background: var(--accent-dark, #0d5f58); }
+    .chat-audio-play-btn:active { transform: scale(0.92); }
+
+    .chat-audio-progress-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .chat-audio-progress {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(0,0,0,0.15);
+      cursor: pointer;
+      outline: none;
+    }
+    .chat-audio-progress::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent, #0f766e);
+      cursor: pointer;
+    }
+    .chat-audio-duration {
+      font-size: 11px;
+      color: var(--ink-soft, #64748b);
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      line-height: 1;
+    }
+    .chat-bubble.user .chat-audio-progress {
+      background: rgba(0,0,0,0.18);
+    }
+    .chat-bubble.user .chat-audio-duration {
+      color: rgba(15, 23, 42, 0.7);
+    }
+
+
     /* =========================================================
        ONBOARDING / AUTH SCREENS STYLING
        ========================================================= */
@@ -7687,8 +7874,37 @@
           <input type="file" id="chatCameraInput" style="display:none;" accept="image/*" capture="environment"
             onchange="handleChatFileSelect(event)">
 
+          <!-- Panel rekam aktif (menggantikan field teks saat rekam) -->
+          <div id="chatVnBar" class="chat-vn-bar">
+            <button type="button" class="chat-vn-cancel" onclick="cancelChatVoiceNote()" title="Batal rekam">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <div class="chat-vn-waveform" id="chatVnWaveform">
+              <div class="vn-bar"></div><div class="vn-bar"></div><div class="vn-bar"></div>
+              <div class="vn-bar"></div><div class="vn-bar"></div><div class="vn-bar"></div>
+              <div class="vn-bar"></div><div class="vn-bar"></div><div class="vn-bar"></div>
+              <div class="vn-bar"></div><div class="vn-bar"></div><div class="vn-bar"></div>
+            </div>
+            <span class="chat-vn-timer" id="chatVnTimer">0:00</span>
+          </div>
+
+          <!-- Panel review (setelah rekam selesai, sebelum kirim) -->
+          <div id="chatVnReview" class="chat-vn-review">
+            <button type="button" class="chat-vn-discard-btn" onclick="discardChatVoiceNote()" title="Hapus rekaman">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14H6L5 6"></path>
+                <path d="M10 11v6M14 11v6"></path>
+              </svg>
+            </button>
+            <audio id="chatVnPreviewAudio" controls preload="metadata" style="flex:1;height:32px;min-width:0;"></audio>
+          </div>
+
           <!-- Rounded input field (WA style) -->
-          <div class="chat-field-wrap">
+          <div class="chat-field-wrap" id="chatFieldWrap">
             <!-- File/Gallery button (left) -->
             <button type="button" class="chat-btn-file" onclick="toggleChatAttachMenu()"
               title="Lampirkan file atau foto">
@@ -7714,7 +7930,7 @@
             </button>
           </div>
 
-          <!-- Action button: Mic (default) / Send (when typing) -->
+          <!-- Action button: Mic (default) / Send (when typing or review) -->
           <button type="button" class="chat-btn-action" id="chatActionBtn" onclick="handleChatAction()" title="Pesan suara">
             <!-- Mic icon (default) -->
             <span class="icon-mic">
@@ -7725,7 +7941,7 @@
                 <line x1="8" y1="23" x2="16" y2="23"/>
               </svg>
             </span>
-            <!-- Send icon (when typing) -->
+            <!-- Send icon (when typing or review) -->
             <span class="icon-send">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -11458,7 +11674,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.36)';
+      const version = ' (v3.6.37)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21079,7 +21295,9 @@
         let msgText = String(rawText || '');
         if (msgText === '[object Object]') msgText = '';
         const hasImage = !!msg.image;
+        const hasAudio = !!msg.audio;
         const imgClass = hasImage ? ' has-image' : '';
+        const audioClass = hasAudio ? ' has-audio' : '';
 
         if (msg.image) {
           const imgPath = String(msg.image);
@@ -21094,6 +21312,54 @@
             } else {
               content += `<img class="chat-img-lazy" data-storage-path="${escapeHtml(cleanPath)}" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Crect width='100%25' height='100%25' fill='%231e293b'/%3E%3C/svg%3E" alt="Attachment" style="cursor: pointer; min-height: 80px;" onclick="openChatLightbox(this.src, event)">`;
             }
+          }
+        }
+
+        if (msg.audio) {
+          const audioPath = String(msg.audio);
+          const durStr = msg.audioDuration ? formatDurationSec(msg.audioDuration) : '';
+          const audioId = 'chat_audio_' + (msg.id || uid()).replace(/[^a-zA-Z0-9_]/g, '_');
+          
+          if (audioPath.startsWith('data:') || audioPath.startsWith('http://') || audioPath.startsWith('https://') || audioPath.startsWith('blob:')) {
+            content += `
+              <div class="chat-audio-player" id="player_${audioId}">
+                <audio id="${audioId}" src="${audioPath}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}')" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
+                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event)" title="Putar pesan suara">
+                  <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                </button>
+                <div class="chat-audio-progress-wrap">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event)" onclick="event.stopPropagation()">
+                  <div class="chat-audio-duration">
+                    <span id="cur_${audioId}">0:00</span>
+                    <span id="dur_${audioId}">${durStr || '0:00'}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            const cleanPath = audioPath.replace(/^chat-ai-images\//, '');
+            const cached = chatSignedUrlCache.get(cleanPath);
+            const now = Date.now();
+            const srcUrl = (cached && cached.expiresAt > now + 60000) ? cached.url : '';
+            const lazyClass = srcUrl ? '' : ' chat-audio-lazy';
+            
+            content += `
+              <div class="chat-audio-player${lazyClass}" data-storage-path="${escapeHtml(cleanPath)}" id="player_${audioId}">
+                <audio id="${audioId}" src="${srcUrl}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}')" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
+                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event)" title="Putar pesan suara">
+                  <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                </button>
+                <div class="chat-audio-progress-wrap">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event)" onclick="event.stopPropagation()">
+                  <div class="chat-audio-duration">
+                    <span id="cur_${audioId}">0:00</span>
+                    <span id="dur_${audioId}">${durStr || '0:00'}</span>
+                  </div>
+                </div>
+              </div>
+            `;
           }
         }
 
@@ -21122,8 +21388,8 @@
           // bukan selalu turun ke baris baru di bawah teks.
           content += `<div class="chat-bubble-text">${textHtml}${timeHtml}</div>`;
         } else {
-          // Tidak ada teks (mis. bubble gambar saja) — waktu tetap sebagai
-          // elemen terpisah, diposisikan lewat .chat-bubble.has-image .time
+          // Tidak ada teks (mis. bubble gambar / audio saja) — waktu tetap sebagai
+          // elemen terpisah, diposisikan lewat .chat-bubble.has-image / .has-audio .time
           content += timeHtml;
         }
 
@@ -21162,7 +21428,7 @@
         const clarifyAttr = isClarify ? ` data-clarify="true"` : '';
         const msgIdAttr = ` data-msg-id="${msg.id}"`;
 
-        html += `<div class="chat-bubble ${alignClass}${txClass}${imgClass}"${txAttr}${clarifyAttr}${msgIdAttr} onclick="handleChatBubbleClick(this)">${badgeHtml}${content}${actionHintHtml}</div>`;
+        html += `<div class="chat-bubble ${alignClass}${txClass}${imgClass}${audioClass}"${txAttr}${clarifyAttr}${msgIdAttr} onclick="handleChatBubbleClick(this)">${badgeHtml}${content}${actionHintHtml}</div>`;
       });
 
       // Inject HTML
@@ -21176,6 +21442,21 @@
           if (signedUrl) {
             imgEl.src = signedUrl;
             imgEl.classList.remove('chat-img-lazy');
+          }
+        }
+      });
+
+      // Resolve lazy signed URLs for chat audio from Supabase Storage
+      container.querySelectorAll('.chat-audio-lazy').forEach(async playerEl => {
+        const path = playerEl.getAttribute('data-storage-path');
+        if (path) {
+          const signedUrl = await getChatSignedUrl(path);
+          if (signedUrl) {
+            const audioEl = playerEl.querySelector('audio');
+            if (audioEl) {
+              audioEl.src = signedUrl;
+            }
+            playerEl.classList.remove('chat-audio-lazy');
           }
         }
       });
@@ -21366,12 +21647,284 @@
       toggleChatActionBtn();
     }
 
-    // Toggle action button: mic (empty) <-> send (has text/file)
+    // ── Voice Note State & Helpers ─────────────────────────────
+    let chatVnMediaRecorder = null;
+    let chatVnRecordedChunks = [];
+    let chatVnStream = null;
+    let chatVnBlob = null;
+    let chatVnDuration = 0;
+    let chatVnTimerInterval = null;
+    let chatVnStartTime = 0;
+    let currentlyPlayingChatAudioId = null;
+
+    function formatDurationSec(sec) {
+      if (!sec || isNaN(sec)) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function toggleChatAudioPlay(audioId, event) {
+      if (event) event.stopPropagation();
+      const audio = document.getElementById(audioId);
+      const btn = document.getElementById('playBtn_' + audioId);
+      if (!audio || !btn) return;
+
+      const playIcon = btn.querySelector('.icon-audio-play');
+      const pauseIcon = btn.querySelector('.icon-audio-pause');
+
+      // Pause audio lain yang sedang berputar
+      if (currentlyPlayingChatAudioId && currentlyPlayingChatAudioId !== audioId) {
+        const prevAudio = document.getElementById(currentlyPlayingChatAudioId);
+        const prevBtn = document.getElementById('playBtn_' + currentlyPlayingChatAudioId);
+        if (prevAudio) prevAudio.pause();
+        if (prevBtn) {
+          const prevPlay = prevBtn.querySelector('.icon-audio-play');
+          const prevPause = prevBtn.querySelector('.icon-audio-pause');
+          if (prevPlay) prevPlay.style.display = 'block';
+          if (prevPause) prevPause.style.display = 'none';
+        }
+      }
+
+      if (audio.paused) {
+        // Jika URL belum terisi (lazy), coba ambil signed URL
+        const player = document.getElementById('player_' + audioId);
+        if ((!audio.src || audio.src === window.location.href) && player) {
+          const path = player.getAttribute('data-storage-path');
+          if (path) {
+            getChatSignedUrl(path).then(url => {
+              if (url) {
+                audio.src = url;
+                audio.play().then(() => {
+                  currentlyPlayingChatAudioId = audioId;
+                  if (playIcon) playIcon.style.display = 'none';
+                  if (pauseIcon) pauseIcon.style.display = 'block';
+                });
+              }
+            });
+            return;
+          }
+        }
+
+        audio.play().then(() => {
+          currentlyPlayingChatAudioId = audioId;
+          if (playIcon) playIcon.style.display = 'none';
+          if (pauseIcon) pauseIcon.style.display = 'block';
+        }).catch(err => {
+          console.warn('[chat audio] play error:', err);
+        });
+      } else {
+        audio.pause();
+        currentlyPlayingChatAudioId = null;
+        if (playIcon) playIcon.style.display = 'block';
+        if (pauseIcon) pauseIcon.style.display = 'none';
+      }
+    }
+
+    function updateChatAudioProgress(audioId) {
+      const audio = document.getElementById(audioId);
+      const seek = document.getElementById('seek_' + audioId);
+      const cur = document.getElementById('cur_' + audioId);
+      const dur = document.getElementById('dur_' + audioId);
+      if (!audio || !seek) return;
+
+      if (!isNaN(audio.duration) && audio.duration > 0) {
+        const pct = (audio.currentTime / audio.duration) * 100;
+        seek.value = pct;
+        if (cur) cur.textContent = formatDurationSec(audio.currentTime);
+        if (dur) dur.textContent = formatDurationSec(audio.duration);
+      }
+    }
+
+    function seekChatAudio(audioId, val, event) {
+      if (event) event.stopPropagation();
+      const audio = document.getElementById(audioId);
+      if (!audio || isNaN(audio.duration)) return;
+      audio.currentTime = (val / 100) * audio.duration;
+    }
+
+    function onChatAudioEnded(audioId) {
+      const btn = document.getElementById('playBtn_' + audioId);
+      const seek = document.getElementById('seek_' + audioId);
+      const cur = document.getElementById('cur_' + audioId);
+      if (btn) {
+        const playIcon = btn.querySelector('.icon-audio-play');
+        const pauseIcon = btn.querySelector('.icon-audio-pause');
+        if (playIcon) playIcon.style.display = 'block';
+        if (pauseIcon) pauseIcon.style.display = 'none';
+      }
+      if (seek) seek.value = 0;
+      if (cur) cur.textContent = '0:00';
+      if (currentlyPlayingChatAudioId === audioId) {
+        currentlyPlayingChatAudioId = null;
+      }
+    }
+
+    function onChatAudioError(audioId) {
+      const player = document.getElementById('player_' + audioId);
+      if (player) {
+        const path = player.getAttribute('data-storage-path');
+        if (path) {
+          chatSignedUrlCache.delete(path);
+        }
+      }
+      onChatAudioEnded(audioId);
+    }
+
+    function startChatVoiceNote() {
+      if (userTrialStatus === 'habis') {
+        openModal('modalTrialHabis');
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+        showToast('Perekam audio tidak didukung di browser ini.');
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          chatVnStream = stream;
+          chatVnRecordedChunks = [];
+
+          let mimeType = '';
+          const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg'];
+          for (const c of candidates) {
+            if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) {
+              mimeType = c;
+              break;
+            }
+          }
+
+          try {
+            chatVnMediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+          } catch(e) {
+            chatVnMediaRecorder = new MediaRecorder(stream);
+          }
+
+          chatVnMediaRecorder.ondataavailable = e => {
+            if (e.data && e.data.size > 0) {
+              chatVnRecordedChunks.push(e.data);
+            }
+          };
+
+          chatVnMediaRecorder.onstop = () => {
+            if (chatVnStream) {
+              chatVnStream.getTracks().forEach(t => t.stop());
+              chatVnStream = null;
+            }
+            clearInterval(chatVnTimerInterval);
+
+            if (chatVnRecordedChunks.length === 0) {
+              cancelChatVoiceNote();
+              return;
+            }
+
+            const recordedType = chatVnMediaRecorder.mimeType || mimeType || 'audio/webm';
+            chatVnBlob = new Blob(chatVnRecordedChunks, { type: recordedType });
+
+            // Masuk mode review (waveform hilang, audio review player muncul)
+            const fieldWrap = document.getElementById('chatFieldWrap');
+            const vnBar = document.getElementById('chatVnBar');
+            const vnReview = document.getElementById('chatVnReview');
+            const previewAudio = document.getElementById('chatVnPreviewAudio');
+
+            if (fieldWrap) fieldWrap.classList.add('vn-mode');
+            if (vnBar) vnBar.classList.remove('active');
+            if (vnReview) vnReview.classList.add('active');
+
+            if (previewAudio) {
+              previewAudio.src = URL.createObjectURL(chatVnBlob);
+            }
+
+            toggleChatActionBtn();
+          };
+
+          // Tampilkan bar rekam aktif (gaya WA: field teks hilang)
+          const fieldWrap = document.getElementById('chatFieldWrap');
+          const vnBar = document.getElementById('chatVnBar');
+          const vnReview = document.getElementById('chatVnReview');
+          const timerEl = document.getElementById('chatVnTimer');
+          const actionBtn = document.getElementById('chatActionBtn');
+
+          if (fieldWrap) fieldWrap.classList.add('vn-mode');
+          if (vnReview) vnReview.classList.remove('active');
+          if (vnBar) vnBar.classList.add('active');
+          if (timerEl) timerEl.textContent = '0:00';
+          if (actionBtn) actionBtn.classList.add('recording');
+
+          chatVnStartTime = Date.now();
+          chatVnDuration = 0;
+          chatVnMediaRecorder.start(100);
+
+          chatVnTimerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - chatVnStartTime) / 1000);
+            chatVnDuration = elapsed;
+            if (timerEl) timerEl.textContent = formatDurationSec(elapsed);
+            if (elapsed >= 120) { // Maksimal 2 menit
+              stopChatVoiceNote();
+            }
+          }, 500);
+        })
+        .catch(err => {
+          console.error('Mic access denied:', err);
+          showToast('Izin mikrofon ditolak. Aktifkan izin mikrofon di browser.');
+        });
+    }
+
+    function stopChatVoiceNote() {
+      const actionBtn = document.getElementById('chatActionBtn');
+      if (actionBtn) actionBtn.classList.remove('recording');
+
+      if (chatVnMediaRecorder && chatVnMediaRecorder.state === 'recording') {
+        chatVnMediaRecorder.stop();
+      }
+    }
+
+    function cancelChatVoiceNote() {
+      const actionBtn = document.getElementById('chatActionBtn');
+      if (actionBtn) actionBtn.classList.remove('recording');
+
+      if (chatVnMediaRecorder && chatVnMediaRecorder.state === 'recording') {
+        chatVnMediaRecorder.onstop = null;
+        chatVnMediaRecorder.stop();
+      }
+      if (chatVnStream) {
+        chatVnStream.getTracks().forEach(t => t.stop());
+        chatVnStream = null;
+      }
+      clearInterval(chatVnTimerInterval);
+      chatVnRecordedChunks = [];
+      chatVnBlob = null;
+      chatVnDuration = 0;
+
+      const fieldWrap = document.getElementById('chatFieldWrap');
+      const vnBar = document.getElementById('chatVnBar');
+      const vnReview = document.getElementById('chatVnReview');
+      if (fieldWrap) fieldWrap.classList.remove('vn-mode');
+      if (vnBar) vnBar.classList.remove('active');
+      if (vnReview) vnReview.classList.remove('active');
+
+      toggleChatActionBtn();
+    }
+
+    function discardChatVoiceNote() {
+      const previewAudio = document.getElementById('chatVnPreviewAudio');
+      if (previewAudio) {
+        previewAudio.pause();
+        if (previewAudio.src && previewAudio.src.startsWith('blob:')) {
+          URL.revokeObjectURL(previewAudio.src);
+        }
+        previewAudio.src = '';
+      }
+      cancelChatVoiceNote();
+    }
+
+    // Toggle action button: mic (empty) <-> send (has text/file/voice note)
     function toggleChatActionBtn() {
       const input = document.getElementById('chatInputText');
       const btn = document.getElementById('chatActionBtn');
       if (!btn) return;
-      const hasContent = (input && input.value.trim().length > 0) || chatSelectedFile;
+      const hasContent = (input && input.value.trim().length > 0) || chatSelectedFile || chatVnBlob;
       if (hasContent) {
         btn.classList.add('is-send');
         btn.title = 'Kirim';
@@ -21380,10 +21933,6 @@
         btn.title = 'Pesan suara';
       }
     }
-
-    // Handle action button click (send or start VN)
-    let chatMediaRecorder = null;
-    let chatRecordedChunks = [];
 
     function handleChatAction() {
       if (userTrialStatus === 'habis') {
@@ -21394,49 +21943,16 @@
       if (!btn) return;
 
       if (btn.classList.contains('is-send')) {
-        // Send mode → send message
         sendChatMessage();
         return;
       }
 
-      // Mic mode → toggle voice recording
-      if (chatMediaRecorder && chatMediaRecorder.state === 'recording') {
-        // Stop recording
-        chatMediaRecorder.stop();
-        btn.classList.remove('recording');
+      if (chatVnMediaRecorder && chatVnMediaRecorder.state === 'recording') {
+        stopChatVoiceNote();
         return;
       }
 
-      // Start recording
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          chatRecordedChunks = [];
-          chatMediaRecorder = new MediaRecorder(stream);
-          chatMediaRecorder.ondataavailable = e => {
-            if (e.data.size > 0) chatRecordedChunks.push(e.data);
-          };
-          chatMediaRecorder.onstop = () => {
-            stream.getTracks().forEach(t => t.stop());
-            btn.classList.remove('recording');
-            if (chatRecordedChunks.length === 0) return;
-            const blob = new Blob(chatRecordedChunks, { type: 'audio/webm' });
-            const file = new File([blob], 'voice_note.webm', { type: 'audio/webm' });
-            chatSelectedFile = file;
-            const preview = document.getElementById('chatAttachmentPreview');
-            const nameEl = document.getElementById('chatAttachmentName');
-            if (preview && nameEl) {
-              nameEl.textContent = 'Pesan suara (' + Math.round(blob.size / 1024) + ' KB)';
-              preview.style.display = 'flex';
-            }
-            toggleChatActionBtn();
-          };
-          chatMediaRecorder.start();
-          btn.classList.add('recording');
-        })
-        .catch(err => {
-          console.error('Mic access denied:', err);
-          showToast('Izin mikrofon ditolak. Aktifkan izin mikrofon di browser.');
-        });
+      startChatVoiceNote();
     }
 
     // Send user message
@@ -21451,8 +21967,10 @@
 
       const text = input.value.trim();
       const file = chatSelectedFile;
+      const currentVnBlob = chatVnBlob;
+      const currentVnDuration = chatVnDuration;
 
-      if (!text && !file) return;
+      if (!text && !file && !currentVnBlob) return;
 
       isChatSending = true;
 
@@ -21495,16 +22013,72 @@
       // Clear inputs immediately for smooth UI response
       input.value = '';
       clearChatAttachment();
-      cancelChatReply(); // Close quote banner and clear variables immediately!
+      if (currentVnBlob) {
+        discardChatVoiceNote();
+      }
+      cancelChatReply();
       toggleChatActionBtn();
 
       try {
         let imagePathForDisplay = null;
         let imageDataForServer = null;
         let imageMimeType = null;
+        let audioPathForDisplay = null;
+        let audioDataForServer = null;
+        let audioMimeType = null;
         const msgId = 'msg_web_' + uid();
 
-        if (file) {
+        // 1. Handle Voice Note
+        if (currentVnBlob) {
+          try {
+            audioMimeType = currentVnBlob.type || 'audio/webm';
+            let ext = 'webm';
+            if (audioMimeType.includes('mp4')) ext = 'mp4';
+            else if (audioMimeType.includes('ogg')) ext = 'ogg';
+
+            const userFolder = `wa_${currentUserId}`;
+            const storagePath = `${userFolder}/${msgId}.${ext}`;
+
+            // Convert blob to base64 for Gemini server processing
+            const reader = new FileReader();
+            const b64Promise = new Promise((resolve) => {
+              reader.onloadend = () => {
+                const b64 = (reader.result || '').split(',')[1] || '';
+                resolve(b64);
+              };
+            });
+            reader.readAsDataURL(currentVnBlob);
+            audioDataForServer = await b64Promise;
+
+            // Upload directly to Supabase Storage bucket 'chat-ai-images'
+            try {
+              if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.storage) {
+                const { error: upErr } = await supabaseClient.storage
+                  .from('chat-ai-images')
+                  .upload(storagePath, currentVnBlob, { contentType: audioMimeType, upsert: true });
+
+                if (!upErr) {
+                  audioPathForDisplay = storagePath;
+                } else {
+                  console.warn('[chat vn] Upload storage failed, fallback base64:', upErr);
+                  audioPathForDisplay = `data:${audioMimeType};base64,${audioDataForServer}`;
+                }
+              } else {
+                audioPathForDisplay = `data:${audioMimeType};base64,${audioDataForServer}`;
+              }
+            } catch (upEx) {
+              console.warn('[chat vn] Storage upload exception, fallback base64:', upEx);
+              audioPathForDisplay = `data:${audioMimeType};base64,${audioDataForServer}`;
+            }
+          } catch (vnErr) {
+            console.error('Gagal memproses pesan suara:', vnErr);
+            showToast('Gagal memproses pesan suara');
+          }
+
+          // Append user bubble langsung (status: pending) dengan audio
+          appendChatBubble('user', text, Date.now(), null, null, null, msgId, replyTo, true /* pending */, audioPathForDisplay, currentVnDuration);
+
+        } else if (file) {
           try {
             const part = await fileToGenerativePart(file);
             imageDataForServer = part.inlineData.data;
@@ -21540,10 +22114,13 @@
             console.error(e);
             showToast('Gagal memproses lampiran foto');
           }
-        }
 
-        // Append user bubble langsung (status: pending)
-        appendChatBubble('user', text, Date.now(), imagePathForDisplay, null, null, msgId, replyTo, true /* pending */);
+          // Append user bubble langsung (status: pending) dengan foto
+          appendChatBubble('user', text, Date.now(), imagePathForDisplay, null, null, msgId, replyTo, true /* pending */);
+        } else {
+          // Text only
+          appendChatBubble('user', text, Date.now(), null, null, null, msgId, replyTo, true /* pending */);
+        }
 
         // Build payload
         const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -21562,6 +22139,8 @@
 
         if (imageDataForServer && imageMimeType) {
           payload.image = { data: imageDataForServer, mimeType: imageMimeType };
+        } else if (audioDataForServer && audioMimeType) {
+          payload.image = { data: audioDataForServer, mimeType: audioMimeType };
         }
 
         if (!navigator.onLine) {
@@ -21583,9 +22162,7 @@
     // Kirim satu payload ke Edge Function dan update status bubble
     async function dispatchChatPayload(msgId, payload, token) {
       showChatTyping();
-      // Timeout eksplisit 45 detik (dinaikkan dari 25 detik — sebelumnya lebih pendek
-      // dari batas terpanjang yang mungkin dipakai proses AI di server, jadi balasan bisa
-      // "hilang" di app walau transaksi sudah berhasil tersimpan di server)
+      // Timeout eksplisit 45 detik
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
@@ -21612,7 +22189,6 @@
           console.error('Edge Function error:', response.status, errText);
           let userErr = 'Maaf, terjadi kesalahan server. Coba lagi ya.';
           try { const p = JSON.parse(errText); if (p.error) userErr = 'Maaf: ' + p.error; } catch(e) {}
-          // Server error bukan network error — hapus dari queue & tandai failed
           removePendingByMsgId(msgId);
           markBubbleFailed(msgId);
           appendChatBubble('bot', userErr, Date.now());
@@ -21717,11 +22293,10 @@
       }
     }
 
-    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo, isPending) {
+    function appendChatBubble(sender, text, timestamp, imageBase64, txId, isClarify, srvMsgId, replyTo, isPending, audioPath, audioDuration) {
       if (sender === 'bot') {
         hideChatTyping();
       }
-      // isBotClarify hanya dari parameter yang dikirim server — JANGAN deteksi dari teks
       const isBotClarify = !!isClarify;
 
       chatHistory.push({
@@ -21730,6 +22305,8 @@
         text,
         timestamp,
         image: imageBase64 || null,
+        audio: audioPath || null,
+        audioDuration: audioDuration || null,
         txId: txId || null,
         isClarify: isBotClarify,
         replyTo: replyTo || null,
