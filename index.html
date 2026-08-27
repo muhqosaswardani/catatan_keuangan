@@ -6716,7 +6716,7 @@
           <div id="introSlides"></div>
         </div>
         <div class="screen-footer">
-          <div class="step-dots"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="step-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
           <div style="display:flex;gap:10px;">
             <button class="btn btn-ghost" onclick="introBack()" id="introBackBtn" style="flex:0 0 auto;">Kembali</button>
             <button class="btn btn-primary btn-block" onclick="introNext()" id="introNextBtn">Lanjut</button>
@@ -10154,12 +10154,37 @@
       }
     }
 
-    // Intro Carousel Slides (5 Slide: 4 Fitur + 1 Setup API Key)
+    // Intro Carousel Slides (6 Slide: 1 Welcome + 4 Fitur + 1 Setup API Key)
     const introSlides = [
+      // 0. Selamat Datang (slide awal, tetap kaya sebelumnya)
+      () => `
+        <div class="brand-row" style="justify-content:center;margin-bottom:20px;">
+          <div class="brand-mark" style="overflow:hidden;border-radius:16px;">
+            <img src="icons/icon-192.png" alt="KaslyAI" style="width:100%;height:100%;object-fit:cover;display:block;">
+          </div>
+          <div class="brand-title" style="font-size:24px;">Kasly<span class="brand-ai">AI</span></div>
+        </div>
+        <h2 style="text-align:center;font-size:18px;margin:0 0 8px;">Selamat Datang, ${onboardingState.nama || ''}!</h2>
+        <p style="text-align:center;color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin:0 0 20px;">Yuk kenalan sebentar dengan fitur asisten keuangan otomatis yang terhubung ke WhatsApp kamu ini.</p>
+        <div class="intro-visual browser-mock">
+          <div class="browser-mock-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="url">kaslyai.app/dashboard</span>
+          </div>
+          <div class="browser-mock-body">
+            <div class="dash-card-row">
+              <div class="dash-stat income"><div class="l">Masuk</div><div class="v">Rp 8.5M</div></div>
+              <div class="dash-stat expense"><div class="l">Keluar</div><div class="v">Rp 2.4M</div></div>
+            </div>
+            <div class="dash-bar-wrap"><div class="dash-bar" style="height:30%"></div><div class="dash-bar" style="height:50%"></div><div class="dash-bar hi" style="height:90%"></div><div class="dash-bar" style="height:40%"></div></div>
+          </div>
+        </div>
+      `,
+
       // 1. Kirim Transaksi via WhatsApp (Teks & Rekaman Suara / Voice Note)
       () => `
         <div class="card" style="padding:20px 18px 22px;">
-          <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">1. Catat Transaksi via Teks & Voice Note</h3>
+          <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">1. Catat Transaksi via Teks &amp; Voice Note</h3>
           <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin:0 0 14px;text-align:left;">Bisa ketik pesan teks santai atau kirim rekaman suara (VN). AI otomatis paham nominal, kategori, dan dompet yang dipakai.</p>
           <div class="intro-visual wa-mock">
             <div class="wa-mock-head">
@@ -11310,7 +11335,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.21)';
+      const version = ' (v3.6.22)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
