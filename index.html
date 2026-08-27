@@ -11458,7 +11458,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.34)';
+      const version = ' (v3.6.35)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -11993,7 +11993,7 @@
             scMeta.gemini_keys = userKeys;
           }
 
-          await supabaseClient.from('user_settings').upsert({
+          const settingsPayload = {
             access_code: code,
             user_id: currentUserId,
             sheets_web_app_url: (getSettings().sheetsWebAppUrl || ''),
@@ -12003,9 +12003,27 @@
             analysis_cache: getAnalysisCache(),
             onboarded: localStorage.getItem(LS_KEYS.onboarded) ? true : false,
             cek_wallet_scope: cekWalletScopeLocal,
-            deleted_ids: mergedDeleted,
-            updated_at: new Date().toISOString()
-          });
+            deleted_ids: mergedDeleted
+          };
+
+          function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              hash = ((hash << 5) - hash) + str.charCodeAt(i);
+              hash |= 0;
+            }
+            return hash.toString(36);
+          }
+
+          const settingsPayloadHash = simpleHash(JSON.stringify(settingsPayload));
+          const lastPushedHash = localStorage.getItem('last_pushed_user_settings_hash');
+          if (!remChkSettings || settingsPayloadHash !== lastPushedHash) {
+            await supabaseClient.from('user_settings').upsert({
+              ...settingsPayload,
+              updated_at: new Date().toISOString()
+            });
+            localStorage.setItem('last_pushed_user_settings_hash', settingsPayloadHash);
+          }
         } catch (sErr) {
           console.warn('User settings sync warn:', sErr);
         }
