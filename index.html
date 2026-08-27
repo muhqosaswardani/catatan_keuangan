@@ -11120,9 +11120,13 @@
           updated_at: new Date().toISOString()
         };
 
-        // Try cleaning old data first (silently ignore if restricted by RLS)
+        // Try cleaning old data first to ensure completely clean state
+        try { await supabaseClient.from('transactions').delete().eq('user_id', currentUserId); } catch(e){}
+        try { await supabaseClient.from('transactions').delete().eq('access_code', 'wa_' + currentUserId); } catch(e){}
         try { await supabaseClient.from('wallets').delete().eq('user_id', currentUserId); } catch(e){}
+        try { await supabaseClient.from('wallets').delete().eq('access_code', 'wa_' + currentUserId); } catch(e){}
         try { await supabaseClient.from('categories').delete().eq('user_id', currentUserId); } catch(e){}
+        try { await supabaseClient.from('categories').delete().eq('access_code', 'wa_' + currentUserId); } catch(e){}
 
         // Batch upload using upsert to avoid duplicate key violations
         if (wallets.length > 0) {
@@ -11145,6 +11149,12 @@
 
         // Save Gemini API Keys to DB if user added them
         await saveKeysToDb();
+
+        // Update local state directly so UI displays exact clean data
+        setWalletsLocalOnly(wallets);
+        setTransactionsLocalOnly(transactions);
+        setCategoriesLocalOnly(categories);
+        setDeletedIds([]);
 
         // Update local settings & hide overlay
         localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
@@ -11443,7 +11453,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.28)';
+      const version = ' (v3.6.29)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
