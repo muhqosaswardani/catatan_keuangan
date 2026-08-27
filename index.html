@@ -5154,7 +5154,10 @@
       border-radius: 2px;
       -webkit-appearance: none;
       appearance: none;
-      background: rgba(0,0,0,0.15);
+      background: linear-gradient(to right,
+        var(--accent, #0f766e) var(--prog, 0%),
+        rgba(0,0,0,0.15) var(--prog, 0%)
+      );
       cursor: pointer;
       outline: none;
       min-width: 0;
@@ -5181,7 +5184,10 @@
     }
     .chat-audio-duration .aud-time-sep { opacity: 0.45; }
     .chat-bubble.user .chat-audio-progress {
-      background: rgba(0,0,0,0.18);
+      background: linear-gradient(to right,
+        rgba(255,255,255,0.7) var(--prog, 0%),
+        rgba(0,0,0,0.18) var(--prog, 0%)
+      );
     }
     .chat-bubble.user .chat-audio-duration {
       color: rgba(15, 23, 42, 0.65);
@@ -11744,7 +11750,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.38)';
+      const version = ' (v3.6.39)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21831,6 +21837,30 @@
     }
 
     // ── Bubble Player Functions (Dalam chat history) ───────────
+    const chatAudioRafMap = {}; // audioId -> animFrameId
+
+    function _chatAudioRafTick(audioId, forcedDuration) {
+      const audio = document.getElementById(audioId);
+      if (!audio || audio.paused || audio.ended) {
+        delete chatAudioRafMap[audioId];
+        return;
+      }
+      _updateChatAudioProgressRaw(audioId, forcedDuration, audio);
+      chatAudioRafMap[audioId] = requestAnimationFrame(() => _chatAudioRafTick(audioId, forcedDuration));
+    }
+
+    function _startChatAudioRaf(audioId, forcedDuration) {
+      _stopChatAudioRaf(audioId);
+      chatAudioRafMap[audioId] = requestAnimationFrame(() => _chatAudioRafTick(audioId, forcedDuration));
+    }
+
+    function _stopChatAudioRaf(audioId) {
+      if (chatAudioRafMap[audioId]) {
+        cancelAnimationFrame(chatAudioRafMap[audioId]);
+        delete chatAudioRafMap[audioId];
+      }
+    }
+
     function toggleChatAudioPlay(audioId, event, forcedDuration) {
       if (event) event.stopPropagation();
       const audio = document.getElementById(audioId);
@@ -21866,6 +21896,7 @@
                   currentlyPlayingChatAudioId = audioId;
                   if (playIcon) playIcon.style.display = 'none';
                   if (pauseIcon) pauseIcon.style.display = 'block';
+                  _startChatAudioRaf(audioId, forcedDuration);
                 });
               }
             });
@@ -21877,19 +21908,22 @@
           currentlyPlayingChatAudioId = audioId;
           if (playIcon) playIcon.style.display = 'none';
           if (pauseIcon) pauseIcon.style.display = 'block';
+          _startChatAudioRaf(audioId, forcedDuration);
         }).catch(err => {
           console.warn('[chat audio] play error:', err);
         });
       } else {
         audio.pause();
+        _stopChatAudioRaf(audioId);
         currentlyPlayingChatAudioId = null;
         if (playIcon) playIcon.style.display = 'block';
         if (pauseIcon) pauseIcon.style.display = 'none';
       }
     }
 
-    function updateChatAudioProgress(audioId, forcedDuration) {
-      const audio = document.getElementById(audioId);
+    // Raw progress update (dipanggil oleh RAF tick maupun ontimeupdate)
+    function _updateChatAudioProgressRaw(audioId, forcedDuration, audio) {
+      if (!audio) audio = document.getElementById(audioId);
       const seek = document.getElementById('seek_' + audioId);
       const cur = document.getElementById('cur_' + audioId);
       const dur = document.getElementById('dur_' + audioId);
@@ -21904,11 +21938,20 @@
 
       const current = audio.currentTime || 0;
       if (totalDur > 0) {
-        const pct = (current / totalDur) * 100;
-        seek.value = Math.min(100, pct);
+        const pct = Math.min(100, (current / totalDur) * 100);
+        seek.value = pct;
+        // Update CSS gradient fill var for smooth track fill
+        seek.style.setProperty('--prog', pct.toFixed(2) + '%');
         if (dur) dur.textContent = formatDurationSec(totalDur);
       }
       if (cur) cur.textContent = formatDurationSec(current);
+    }
+
+    function updateChatAudioProgress(audioId, forcedDuration) {
+      // Fallback dari ontimeupdate (jika RAF belum jalan)
+      if (!chatAudioRafMap[audioId]) {
+        _updateChatAudioProgressRaw(audioId, forcedDuration, null);
+      }
     }
 
     function seekChatAudio(audioId, val, event, forcedDuration) {
@@ -21925,10 +21968,14 @@
 
       if (totalDur > 0) {
         audio.currentTime = (val / 100) * totalDur;
+        // Immediately update track fill on seek
+        const seek = document.getElementById('seek_' + audioId);
+        if (seek) seek.style.setProperty('--prog', Number(val).toFixed(2) + '%');
       }
     }
 
     function onChatAudioEnded(audioId) {
+      _stopChatAudioRaf(audioId);
       const btn = document.getElementById('playBtn_' + audioId);
       const seek = document.getElementById('seek_' + audioId);
       const cur = document.getElementById('cur_' + audioId);
@@ -21938,7 +21985,7 @@
         if (playIcon) playIcon.style.display = 'block';
         if (pauseIcon) pauseIcon.style.display = 'none';
       }
-      if (seek) seek.value = 0;
+      if (seek) { seek.value = 0; seek.style.setProperty('--prog', '0%'); }
       if (cur) cur.textContent = '0:00';
       if (currentlyPlayingChatAudioId === audioId) {
         currentlyPlayingChatAudioId = null;
@@ -21946,6 +21993,7 @@
     }
 
     function onChatAudioError(audioId) {
+      _stopChatAudioRaf(audioId);
       const player = document.getElementById('player_' + audioId);
       if (player) {
         const path = player.getAttribute('data-storage-path');
