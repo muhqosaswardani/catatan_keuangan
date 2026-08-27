@@ -2393,6 +2393,20 @@
       font-size: 13px;
       font-weight: 700;
       color: var(--accent-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .daily-allowance .da-remaining {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.85;
+    }
+
+    .daily-allowance .da-perday {
+      font-weight: 800;
+      font-size: 13px;
     }
 
     .daily-allowance.over {
@@ -11774,7 +11788,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.42)';
+      const version = ' (v3.6.43)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13636,8 +13650,14 @@
 
     function calculateBudgetStatus(categoryId, monthStr) {
       monthStr = monthStr || currentMonthStr();
+      // Cari nama kategori sebagai fallback untuk transaksi lama yang hanya punya t.category (string)
+      const cat = categoryById(categoryId);
+      const catName = cat ? cat.name : null;
       const txs = getTransactions().filter(t =>
-        t.type === 'expense' && t.categoryId === categoryId && t.date.slice(0, 7) === monthStr && !t.excludeFromReport
+        t.type === 'expense' &&
+        (t.categoryId === categoryId || (!t.categoryId && catName && t.category === catName)) &&
+        t.date.slice(0, 7) === monthStr &&
+        !t.excludeFromReport
       );
       const spent = txs.reduce((s, t) => s + t.amount, 0);
       const b = getEffectiveBudget(categoryId, monthStr);
@@ -18480,24 +18500,26 @@
           } else {
             fillClass = status.spent > status.limit ? 'pace-red' : 'pace-green';
           }
+          // "Terpakai" di header, "Tersisa + /hari" di pill bawah
+          const spentHtml = `<div class="amt-remaining">Terpakai ${formatRupiah(status.spent)}</div>`;
           let allowanceHtml = '';
           if (info.isCurrent) {
             if (status.remaining < 0) {
-              allowanceHtml = `<div class="daily-allowance over">Lebih ${formatRupiah(Math.abs(status.remaining))}</div>`;
+              allowanceHtml = `<div class="daily-allowance over"><span class="da-remaining">Tersisa ${formatRupiah(0)}</span><span class="da-perday">Lebih ${formatRupiah(Math.abs(status.remaining))}</span></div>`;
             } else if (info.remainingDays > 0) {
               const perDay = status.remaining / info.remainingDays;
-              allowanceHtml = `<div class="daily-allowance">${formatRupiah(perDay)}/hari</div>`;
+              allowanceHtml = `<div class="daily-allowance"><span class="da-remaining">Tersisa ${formatRupiah(status.remaining)}</span><span class="da-perday">${formatRupiah(perDay)}/hari</span></div>`;
+            } else {
+              // Hari terakhir bulan, tidak ada hari tersisa untuk hitung /hari
+              allowanceHtml = `<div class="daily-allowance ${status.remaining < 0 ? 'over' : ''}"><span class="da-remaining">Tersisa ${formatRupiah(Math.max(0, status.remaining))}</span></div>`;
             }
           }
-          const remainingHtml = status.remaining < 0
-            ? `<div class="amt-remaining over">Lebih ${formatRupiah(Math.abs(status.remaining))}</div>`
-            : `<div class="amt-remaining">Tersisa ${formatRupiah(status.remaining)}</div>`;
           return `<div class="budget-item" onclick="openBudgetLimitModal('${c.id}','${c.name}')">
       <div class="row1">
         <div class="cat-name">${c.name}</div>
         <div class="amt-col">
           <div class="amt-limit">${formatRupiah(status.limit)}</div>
-          ${remainingHtml}
+          ${spentHtml}
         </div>
       </div>
       <div class="progress-track-wrap">
