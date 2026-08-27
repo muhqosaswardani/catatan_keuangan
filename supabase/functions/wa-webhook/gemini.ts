@@ -149,6 +149,13 @@ export function buildTransactionPrompt(
     '   - Hitung nilai "amount" bersih untuk kategori tersebut. Caranya: hitung subtotal harga barang dalam kategori tersebut, lalu kurangi diskon barang tersebut, dan TAMBAHKAN PPN/Pajak secara proporsional. Pastikan jika jumlah "amount" dari semua kategori pengeluaran ini dijumlahkan, hasilnya cocok 100% dengan Grand Total (Total Bayar) yang tertera di struk belanja.\n' +
     '   - Berikan "note" berupa deskripsi ringkas berisi nama toko diikuti rincian barang dalam kategori tersebut (misal: "Alfamart - Makan (Abon)" atau "Alfamart - Jajan (Mentos)").\n' +
     '   - Tetapkan tanggal "date" (YYYY-MM-DD) sesuai tanggal transaksi di struk belanja.\n\n' +
+    '1.5. JIKA DOKUMEN ADALAH SCREENSHOT PESANAN E-COMMERCE ATAU FOOD/DELIVERY APP (ATURAN PRIORITAS — CEK INI SEBELUM KASUS 1):\n' +
+    '   - Kenali platform dari tampilan UI, logo, atau elemen khas: Shopee, Tokopedia, Lazada, Bukalapak, Blibli, TikTok Shop, Shopee Food, GoFood, GrabFood, MaxFood, Traveloka Eats, dsb.\n' +
+    '   - ATURAN MUTLAK: Untuk semua jenis screenshot dari platform e-commerce/food delivery di atas, WAJIB buat HANYA SATU (1) objek transaksi saja, dengan "amount" = Grand Total / Total Bayar yang tertera (biasanya di bagian paling bawah, sering disebut "Total Pembayaran", "Total Bayar", "Grand Total", atau yang sudah termasuk pajak). JANGAN pecah menjadi beberapa transaksi.\n' +
+    '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Admin, Ongkos Kirim, Ongkir, Biaya Platform, PPN, Pajak, Biaya Asuransi, Biaya Proteksi Keamanan, atau biaya tambahan lainnya yang merupakan bagian dari satu pesanan. Semua biaya ini sudah TERMASUK dalam satu Grand Total.\n' +
+    '   - "note" diisi dengan nama barang/menu utama yang dipesan (bukan nama platform-nya). Contoh: "Paket Donatsu Donat Susu" (bukan "Shopee Food"). Jika ada banyak item, sebutkan yang paling dominan atau ringkas jadi "[item utama] dan lainnya".\n' +
+    '   - "category" dipilih sesuai jenis barang/menu yang dipesan: makanan/minuman → kategori "Makan"/"Jajan" yang sesuai; barang fisik → kategori barang tsb ("Belanja", "Elektronik", dll); jika tidak jelas → "Lainnya".\n' +
+    '   - Contoh: screenshot Shopee Food subtotal Rp50.000 + ongkir Rp1.500 + biaya layanan Rp1.500 = total Rp53.000 → SATU transaksi: amount=53000, note="Paket Donatsu Donat Susu", category="Jajan". BUKAN 3 transaksi terpisah.\n\n' +
     '2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n' +
     '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
     '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
