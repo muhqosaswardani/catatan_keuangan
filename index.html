@@ -6810,7 +6810,7 @@
         </div>
         <div id="recurringManageList"></div>
         <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="openRecurringForm(null)">+ Tambah
-          Item Berulang</button>
+          Tagihan</button>
       </div>
     </div>
 
@@ -8361,15 +8361,10 @@
     <div class="modal-overlay" id="modalRecurringForm">
       <div class="modal">
         <div class="modal-head">
-          <h3 id="recFormTitle">Tambah Item Berulang</h3><button class="modal-close"
+          <h3 id="recFormTitle">Tambah Tagihan</h3><button class="modal-close"
             onclick="closeModal('modalRecurringForm')">&times;</button>
         </div>
         <div class="modal-body"> <input type="hidden" id="recId">
-          <div class="type-toggle" id="recKindToggle" style="margin-bottom:10px;">
-            <button type="button" data-kind="checklist" class="active"
-              onclick="setRecFormKind('checklist')">Tagihan</button>
-            <button type="button" data-kind="installment" onclick="setRecFormKind('installment')">Cicilan</button>
-          </div>
           <div class="field" id="recTypeField">
             <label>Jenis</label>
             <button type="button" class="picker-btn" id="recTypeBtn" onclick="openRecTypePicker()">
@@ -8427,6 +8422,16 @@
               </svg>
             </button>
           </div>
+          <div class="field" id="recLimitTypeField">
+            <label>Batas Waktu / Cicilan</label>
+            <button type="button" class="picker-btn" id="recLimitTypeBtn" onclick="openRecLimitTypePicker()">
+              <span id="recLimitTypeLabel">Tanpa batas (Rutin bulanan)</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
           <div id="recInstallmentFields" style="display:none;">
             <div class="field">
               <label>Mode Batas Cicilan</label>
@@ -8453,7 +8458,7 @@
             <button type="button" class="btn btn-primary btn-block" onclick="submitRecurringForm()">Simpan</button>
           </div>
           <button type="button" class="btn btn-ghost btn-block" id="recDeleteBtn"
-            style="margin-top:8px;color:var(--expense);display:none;" onclick="deleteCurrentRecurringItem()">Hapus Item
+            style="margin-top:8px;color:var(--expense);display:none;" onclick="deleteCurrentRecurringItem()">Hapus Tagihan
             Ini</button>
         </div>
       </div>
@@ -10773,7 +10778,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.16)';
+      const version = ' (v3.6.17)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19460,7 +19465,7 @@
       const wrap = document.getElementById('recurringManageList');
       const all = getRecurring();
       if (all.length === 0) {
-        wrap.innerHTML = '<div class="empty-note" style="padding:8px 0;font-size:13px;color:var(--ink-soft);">Belum ada item berulang.</div>';
+        wrap.innerHTML = '<div class="empty-note" style="padding:8px 0;font-size:13px;color:var(--ink-soft);">Belum ada tagihan.</div>';
         return;
       }
       // Urutkan: perlu aksi (terlambat/jatuh tempo) dulu paling atas, baru belum bayar, baru yang sudah dibayar periode ini/akan datang & nonaktif di bawah, cicilan Lunas paling bawah.
@@ -19581,10 +19586,28 @@
       if (!cats.some(c => c.id === recCategoryValue)) recCategoryValue = cats[0] ? cats[0].id : null;
       updateRecCategoryLabel();
     }
+    function updateRecLimitTypeLabel() {
+      const el = document.getElementById('recLimitTypeLabel');
+      if (el) {
+        el.textContent = currentRecFormKind === 'installment'
+          ? 'Ada batas waktu / Cicilan'
+          : 'Tanpa batas (Rutin bulanan)';
+      }
+    }
+    function openRecLimitTypePicker() {
+      const options = [
+        { value: 'checklist', label: 'Tanpa batas (Rutin bulanan)' },
+        { value: 'installment', label: 'Ada batas waktu / Cicilan' }
+      ];
+      openPicker('Pilih Batas Waktu / Cicilan', options, currentRecFormKind, v => {
+        setRecFormKind(v);
+      });
+    }
     function setRecFormKind(kind) {
       currentRecFormKind = kind;
-      document.querySelectorAll('#recKindToggle button').forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
-      document.getElementById('recInstallmentFields').style.display = kind === 'installment' ? 'block' : 'none';
+      updateRecLimitTypeLabel();
+      const inst = document.getElementById('recInstallmentFields');
+      if (inst) inst.style.display = kind === 'installment' ? 'block' : 'none';
     }
     function setRecFormRepeatMode(mode) {
       currentRecFormRepeatMode = mode;
@@ -19616,7 +19639,7 @@
     function openRecurringForm(id) {
       document.getElementById('recId').value = id || '';
       document.getElementById('recDeleteBtn').style.display = id ? 'inline-flex' : 'none';
-      document.getElementById('recFormTitle').textContent = id ? 'Edit Item Berulang' : 'Tambah Item Berulang';
+      document.getElementById('recFormTitle').textContent = id ? 'Edit Tagihan' : 'Tambah Tagihan';
       clearInvalid('modalRecurringForm');
       const wallets = getWallets();
       if (id) {
@@ -19648,9 +19671,6 @@
         document.getElementById('recTotalOccurrences').value = '';
         document.getElementById('recEndDate').value = '';
       }
-      // Ganti jenis item (checklist/cicilan) hanya bisa dipilih saat tambah baru — item existing tetap sesuai jenis semula
-      document.getElementById('recKindToggle').style.opacity = id ? '.5' : '1';
-      document.getElementById('recKindToggle').style.pointerEvents = id ? 'none' : 'auto';
       updateRecTypeLabel();
       setRecFormKind(currentRecFormKind);
       setRecFormRepeatMode(currentRecFormRepeatMode);
@@ -19704,10 +19724,10 @@
 
       if (id) {
         updateRecurringItem(id, payload);
-        showToast('Item berulang diperbarui');
+        showToast('Tagihan diperbarui');
       } else {
         addRecurringItem(payload);
-        showToast('Item berulang ditambahkan');
+        showToast('Tagihan ditambahkan');
       }
       closeModal('modalRecurringForm');
       renderRecurringManageList();
@@ -19729,8 +19749,8 @@
       const id = document.getElementById('recId').value;
       if (!id) return;
       const confirmed = await showConfirmModal({
-        title: 'Hapus Transaksi Berulang',
-        text: 'Hapus item berulang ini? Riwayat transaksi yang sudah tercatat sebelumnya tidak akan terhapus.',
+        title: 'Hapus Tagihan',
+        text: 'Hapus tagihan ini? Riwayat transaksi yang sudah tercatat sebelumnya tidak akan terhapus.',
         actionText: 'Ya, Hapus'
       });
       if (!confirmed) return;
@@ -19739,7 +19759,7 @@
       closeModal('modalRecurringForm');
       renderRecurringManageList();
       renderRecurringHomeAlert();
-      showToast('Item berulang dihapus');
+      showToast('Tagihan dihapus');
     }
 
     function openRecurringConfirmModal(id) {
