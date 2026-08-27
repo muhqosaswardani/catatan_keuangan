@@ -1505,6 +1505,126 @@ function cleanupRecentWebChat() {
     }
 
     // ============================================================
+    // Cron Maintenance: Purge Expired Chat History (>60 hari) & Storage Files
+    // Dipanggil otomatis oleh pg_cron via pg_net dengan header Bearer CRON_SECRET
+    // ============================================================
+    if (rawBody.includes('"purge_expired_chat_history"')) {
+      const authHeader = req.headers.get("Authorization") || req.headers.get("authorization") || "";
+      const cronSecret = Deno.env.get("CRON_SECRET") || "";
+
+      const expectedBearer = "Bearer " + cronSecret;
+      if (!cronSecret || authHeader !== expectedBearer) {
+        console.warn("[purge_expired_chat_history] Unauthorized cron request attempt.");
+        return new Response(JSON.stringify({ error: "Unauthorized: cron secret tidak valid." }), {
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+
+      let payload: Record<string, any> = {};
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: corsHeaders });
+      }
+
+      if (payload.action === "purge_expired_chat_history") {
+        const db = getDb();
+        const cutoffMs = Date.now() - (60 * 24 * 60 * 60 * 1000); // 60 hari yang lalu
+        let totalPurgedMessages = 0;
+        let totalDeletedFiles = 0;
+        let totalAffectedUsers = 0;
+
+        try {
+          const { data: rows, error: fetchErr } = await db
+            .from("user_settings")
+            .select("user_id, access_code, nav_config")
+            .not("nav_config", "is", null);
+
+          if (fetchErr) {
+            console.error("[purge_expired_chat_history] Fetch user_settings error:", fetchErr);
+            return new Response(JSON.stringify({ error: "Gagal mengambil data user_settings: " + fetchErr.message }), {
+              status: 500,
+              headers: corsHeaders
+            });
+          }
+
+          for (const row of rows || []) {
+            const navConfig = row.nav_config;
+            if (!navConfig || !Array.isArray(navConfig.chatHistory) || navConfig.chatHistory.length === 0) {
+              continue;
+            }
+
+            const keptChat: any[] = [];
+            const filesToDelete: string[] = [];
+
+            for (const item of navConfig.chatHistory) {
+              const itemTs = Number(item?.timestamp) || 0;
+              if (itemTs > 0 && itemTs < cutoffMs) {
+                totalPurgedMessages++;
+                const imgPath = item?.image;
+                if (imgPath && typeof imgPath === "string" && !imgPath.startsWith("data:")) {
+                  const cleanPath = imgPath.replace(/^chat-ai-images\//, "");
+                  filesToDelete.push(cleanPath);
+                }
+              } else {
+                keptChat.push(item);
+              }
+            }
+
+            if (keptChat.length < navConfig.chatHistory.length) {
+              // 1. Hapus file fisik via Storage API
+              if (filesToDelete.length > 0) {
+                try {
+                  const { error: remErr } = await db.storage.from("chat-ai-images").remove(filesToDelete);
+                  if (!remErr) {
+                    totalDeletedFiles += filesToDelete.length;
+                  } else {
+                    console.warn(`[purge_expired_chat_history] Storage remove error for user ${row.user_id || row.access_code}:`, remErr);
+                  }
+                } catch (stErr) {
+                  console.warn(`[purge_expired_chat_history] Storage exception for user ${row.user_id || row.access_code}:`, stErr);
+                }
+              }
+
+              // 2. Update JSON nav_config di DB
+              const updatedNavConfig = { ...navConfig, chatHistory: keptChat };
+              const updateQuery = row.user_id
+                ? db.from("user_settings").update({ nav_config: updatedNavConfig }).eq("user_id", row.user_id)
+                : db.from("user_settings").update({ nav_config: updatedNavConfig }).eq("access_code", row.access_code);
+
+              const { error: updErr } = await updateQuery;
+              if (!updErr) {
+                totalAffectedUsers++;
+              } else {
+                console.error(`[purge_expired_chat_history] Update nav_config error for user ${row.user_id || row.access_code}:`, updErr);
+              }
+            }
+          }
+
+          console.log(`[purge_expired_chat_history] Success! Purged: ${totalPurgedMessages} msgs, Deleted ${totalDeletedFiles} files, Affected ${totalAffectedUsers} users.`);
+          return new Response(JSON.stringify({
+            success: true,
+            purgedMessages: totalPurgedMessages,
+            deletedFiles: totalDeletedFiles,
+            affectedUsers: totalAffectedUsers,
+            cutoffTimestamp: cutoffMs
+          }), {
+            status: 200,
+            headers: corsHeaders
+          });
+
+        } catch (purgeEx: any) {
+          console.error("[purge_expired_chat_history] Exception:", purgeEx);
+          return new Response(JSON.stringify({ error: "Exception saat purge: " + (purgeEx?.message || String(purgeEx)) }), {
+            status: 500,
+            headers: corsHeaders
+          });
+        }
+      }
+    }
+
+    // ============================================================
     // Shared Gemini Keys Actions (Admin Update / Add / Delete / Read)
     // Langkah 2: Setiap action wajib verifikasi token admin
     // Langkah 3: Enkripsi saat simpan, kirim masked + ID ke browser
