@@ -9541,7 +9541,7 @@
       }
       // Immediately trigger sync in background if online to propagate deletions
       if (typeof syncAllWithSupabase === 'function') {
-        syncAllWithSupabase(true);
+        scheduleSync();
       }
     }
 
@@ -11458,7 +11458,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.33)';
+      const version = ' (v3.6.34)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12027,11 +12027,17 @@
         hasSyncedAtLeastOnce = true;
         if (isSyncNeededAgain) {
           isSyncNeededAgain = false;
-          setTimeout(() => syncAllWithSupabase(true), 100);
+          scheduleSync(3000);
         }
         if (typeof resolveSyncInFlight === 'function') resolveSyncInFlight();
         syncInFlightPromise = null;
       }
+    }
+
+    let syncDebounceTimer = null;
+    function scheduleSync(delayMs = 3000) {
+      clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(() => syncAllWithSupabase(true), delayMs);
     }
 
     let confirmModalResolver = null;
@@ -12130,7 +12136,7 @@
     function setWallets(w) {
       w = (w || []).map(item => ({ updatedAt: Date.now(), ...item }));
       setWalletsLocalOnly(w);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getTransactions() { return JSON.parse(localStorage.getItem(LS_KEYS.transactions) || '[]'); }
@@ -12138,7 +12144,7 @@
     function setTransactions(t) {
       t = (t || []).map(item => ({ updatedAt: Date.now(), ...item }));
       setTransactionsLocalOnly(t);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getCategories() { return JSON.parse(localStorage.getItem(LS_KEYS.categories) || '[]'); }
@@ -12146,7 +12152,7 @@
     function setCategories(c) {
       c = (c || []).map(item => ({ updatedAt: Date.now(), ...item }));
       setCategoriesLocalOnly(c);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getBudgets() { return JSON.parse(localStorage.getItem(LS_KEYS.budgets) || '[]'); }
@@ -12154,7 +12160,7 @@
     function setBudgets(b) {
       b = (b || []).map(item => ({ ...item, updatedAt: Date.now() }));
       setBudgetsLocalOnly(b);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getSettings() { return JSON.parse(localStorage.getItem(LS_KEYS.settings) || '{"geminiApiKey":"","sheetsWebAppUrl":""}'); }
@@ -12172,7 +12178,7 @@
     function setUserProfileLocalOnly(p) { localStorage.setItem(LS_KEYS.userProfile, JSON.stringify(p || {})); }
     function setSettings(s) {
       setSettingsLocalOnly(s);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getRecurring() { return JSON.parse(localStorage.getItem(LS_KEYS.recurring) || '[]'); }
@@ -12180,14 +12186,14 @@
     function setRecurring(r) {
       r = (r || []).map(item => ({ ...item, updatedAt: Date.now() }));
       setRecurringLocalOnly(r);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getInsightCache() { return JSON.parse(localStorage.getItem(LS_KEYS.insights) || '{"text":"","generatedAt":0}'); }
     function setInsightCacheLocalOnly(i) { localStorage.setItem(LS_KEYS.insights, JSON.stringify(i)); }
     function setInsightCache(i) {
       setInsightCacheLocalOnly(i);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     // Shortcut kategori manual disimpan dengan timestamp (updatedAt) agar sinkronisasi tidak pernah
@@ -12210,7 +12216,7 @@
     }
     function setShortcutOverrides(ids) {
       setShortcutOverridesLocalOnly({ ids, updatedAt: Date.now() });
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getGoals() { return JSON.parse(localStorage.getItem(LS_KEYS.goals) || '[]'); }
@@ -12218,7 +12224,7 @@
     function setGoals(g) {
       g = (g || []).map(item => ({ updatedAt: Date.now(), ...item }));
       setGoalsLocalOnly(g);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function getDebts() { return JSON.parse(localStorage.getItem(LS_KEYS.debts) || '[]'); }
@@ -12226,7 +12232,7 @@
     function setDebts(d) {
       d = (d || []).map(item => ({ ...item, updatedAt: Date.now() }));
       setDebtsLocalOnly(d);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     /* =========================================================
@@ -12354,7 +12360,7 @@
       }
       setNavConfigLocalOnly(merged);
       if (typeof renderBottomNav === 'function') renderBottomNav();
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
     function navOtherPages(core) { return ALL_PAGES_ORDER.filter(t => !core.includes(t)); }
     function pageIconSvg(tab, size) {
@@ -12455,7 +12461,7 @@
         }
 
         setWalletsLocalOnly(updated);
-        syncAllWithSupabase(true);
+        scheduleSync();
       }
 
       localStorage.setItem('wallets_redesign_migrated', '1');
@@ -12918,7 +12924,7 @@
       if (!tx.pending) {
         applyBalanceDelta(tx.walletId, tx.type === 'income' ? tx.amount : -tx.amount);
       }
-      syncAllWithSupabase(true);
+      scheduleSync();
       return tx;
     }
 
@@ -12949,7 +12955,7 @@
           applyBalanceDelta(merged.walletId, merged.type === 'income' ? merged.amount : -merged.amount);
         }
       }
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function deleteTransaction(id) {
@@ -12975,7 +12981,7 @@
       }
       txs.splice(idx, 1);
       setTransactionsLocalOnly(txs);
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function addTransfer(transfer) {
@@ -12991,7 +12997,7 @@
         applyBalanceDelta(transfer.walletId, -transfer.amount);
         applyBalanceDelta(transfer.toWalletId, transfer.amount);
       }
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     // Dipanggil saat app dibuka / fokus / tiap beberapa detik: cek transaksi "masa depan" (pending)
@@ -13014,7 +13020,7 @@
       });
       if (changed) {
         setTransactionsLocalOnly(txs);
-        syncAllWithSupabase(true);
+        scheduleSync();
         refreshAllViews();
       }
       return changed;
@@ -17174,7 +17180,7 @@
       setDebts(debts);
 
       recalculateWalletBalances();
-      syncAllWithSupabase(true);
+      scheduleSync();
       showToast('Catatan ' + (debtType === 'utang' ? 'utang' : 'piutang') + ' baru tersimpan');
     }
 
@@ -17243,7 +17249,7 @@
       }
 
       recalculateWalletBalances();
-      syncAllWithSupabase(true);
+      scheduleSync();
       showToast(toastMsg);
     }
 
@@ -17266,7 +17272,7 @@
       setTransactions([...getTransactions(), txRecord]);
 
       recalculateWalletBalances();
-      syncAllWithSupabase(true);
+      scheduleSync();
       showToast('Tercatat. Sisa sekarang: ' + formatRupiah(dbEntry.amount));
     }
 
@@ -17930,7 +17936,7 @@
       setDebts(debts);
 
       recalculateWalletBalances();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       closeModal('modalDebtForm');
       renderDebts();
@@ -17966,7 +17972,7 @@
       setTransactions(getTransactions().filter(t => t.id !== txId));
 
       recalculateWalletBalances();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       closeModal('modalDebtForm');
       showToast('Catatan dihapus');
@@ -18237,7 +18243,7 @@
 
     function setCcWalletsScope(ids) {
       localStorage.setItem('cek_wallet_scope', JSON.stringify(ids || []));
-      syncAllWithSupabase(true);
+      scheduleSync();
     }
 
     function renderCrosscheck() {
@@ -22014,7 +22020,7 @@ Teks user: "${text}"
 
       recalculateWalletBalances();
       refreshAllViews();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       appendChatBubble('bot', `Berhasil membatalkan transaksi terakhir:\n*"${lastTx.note}" ${formatRupiah(lastTx.amount)}*`, Date.now());
     }
@@ -22215,7 +22221,7 @@ Keluarkan JSON dengan schema:
 
       recalculateWalletBalances();
       refreshAllViews();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       const wName = wallets.find(w => w.id === walletId)?.name || 'Dompet';
       appendChatBubble('bot', `Berhasil membayar tagihan *"${target.name}"* sebesar *${formatRupiah(target.amount)}* menggunakan *${wName}*!`, Date.now(), null, txId);
@@ -22267,7 +22273,7 @@ Keluarkan JSON dengan schema:
 
       recalculateWalletBalances();
       refreshAllViews();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       appendChatBubble('bot', `Berhasil memindahkan dana sebesar *${formatRupiah(amount)}* dari *${sourceW.name}* ke *${destW.name}*!`, Date.now(), null, txId);
       return true;
@@ -22389,7 +22395,7 @@ Keluarkan JSON dengan schema:
 
         recalculateWalletBalances();
         refreshAllViews();
-        syncAllWithSupabase(true);
+        scheduleSync();
 
         const label = existingEntry
           ? `Berhasil menambah *${debtType === 'utang' ? 'utang' : 'piutang'}* ke *${displayName}*`
@@ -22468,7 +22474,7 @@ Keluarkan JSON dengan schema:
 
       recalculateWalletBalances();
       refreshAllViews();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       appendChatBubble('bot', resultMsg, Date.now(), null, txId);
     }
@@ -22503,7 +22509,7 @@ Keluarkan JSON dengan schema:
 
           recalculateWalletBalances();
           refreshAllViews();
-          syncAllWithSupabase(true);
+          scheduleSync();
 
           const wallets = getWallets();
           const wName = wallets.find(w => w.id === pendingTx.wallet_id)?.name || 'Dompet';
@@ -22658,7 +22664,7 @@ Keluarkan JSON dengan schema:
 
         recalculateWalletBalances();
         refreshAllViews();
-        syncAllWithSupabase(true);
+        scheduleSync();
 
         const wName = wallets.find(w => w.id === targetWalletId)?.name || 'Dompet';
         appendChatBubble('bot', `Catat: *"${it.note}"* sebesar *${formatRupiah(amount)}* (${wName})`, Date.now(), null, txId);
@@ -22753,7 +22759,7 @@ Keluarkan JSON dengan schema:
 
         recalculateWalletBalances();
         refreshAllViews();
-        syncAllWithSupabase(true);
+        scheduleSync();
 
         appendChatBubble('bot', `Berhasil memproses foto belanja:\nCatat *"${it.note}"* sebesar *${formatRupiah(amount)}* (${primaryW.name})`, Date.now(), null, txId);
       }
@@ -22916,7 +22922,7 @@ Keluarkan JSON dengan schema:
         setTransactionsLocalOnly(txs);
         recalculateWalletBalances();
         refreshAllViews();
-        syncAllWithSupabase(true);
+        scheduleSync();
 
         chatSession = null;
         saveChatStateToNavConfig();
@@ -23468,7 +23474,7 @@ Keluarkan JSON dengan schema:
 
       recalculateWalletBalances();
       refreshAllViews();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       const { text: updatedText } = await renderChatGoalsList();
       appendChatBubble('bot', `Ada lagi yang mau disesuaikan? Ketik 'batal' jika sudah selesai.\n\n` + updatedText, Date.now());
@@ -23537,7 +23543,7 @@ Keluarkan JSON dengan schema:
 
             recalculateWalletBalances();
             refreshAllViews();
-            syncAllWithSupabase(true);
+            scheduleSync();
 
             appendChatBubble('bot', `Catatan utang ${debtData.personName} sebesar ${formatRupiah(debtData.amount)} berhasil dihapus.`, Date.now());
           } else {
@@ -23666,7 +23672,7 @@ Keluarkan JSON dengan schema:
 
         recalculateWalletBalances();
         refreshAllViews();
-        syncAllWithSupabase(true);
+        scheduleSync();
 
         appendChatBubble('bot', `Transaksi dihapus:\n"${txData.note}" ${formatRupiah(txData.amount)} (${txData.date})`, Date.now());
         return;
@@ -23709,7 +23715,7 @@ Keluarkan JSON dengan schema:
       setTransactionsLocalOnly(txs);
       recalculateWalletBalances();
       refreshAllViews();
-      syncAllWithSupabase(true);
+      scheduleSync();
 
       const wName = wallets.find(w => w.id === tx.wallet_id)?.name || 'Dompet';
       appendChatBubble('bot', `Transaksi diubah:\n*"${tx.note}"* sebesar *${formatRupiah(tx.amount)}* (${wName})`, Date.now(), null, tx.id);
@@ -24281,12 +24287,18 @@ PERTANYAAN_USER:
       checkNotifDeletedUndo();
 
       window.addEventListener('online', () => {
-        syncAllWithSupabase(true);
+        scheduleSync();
         // Auto-flush antrian pesan Chat yang pending saat koneksi pulih
         setTimeout(() => { if (typeof flushPendingChatMessages === 'function') flushPendingChatMessages(); }, 1000);
       });
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));
-      window.addEventListener('focus', () => { syncAllWithSupabase(true); activateDuePendingTransactions(); });
+      window.addEventListener('focus', () => {
+        const lastSync = Number(localStorage.getItem('last_sync_at') || 0);
+        if (Date.now() - lastSync > 30000) {
+          scheduleSync(1000);
+        }
+        activateDuePendingTransactions();
+      });
 
       // Setup auto-trigger keypad for amount inputs on mobile
       setupAmountKeypadAutoTrigger();
