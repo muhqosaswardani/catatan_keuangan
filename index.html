@@ -11788,7 +11788,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.44)';
+      const version = ' (v3.6.45)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -18508,10 +18508,10 @@
           let allowanceHtml = '';
           if (info.isCurrent) {
             if (status.remaining < 0) {
-              allowanceHtml = `<div class="daily-allowance over"><span class="da-remaining">Tersisa ${formatRupiah(0)}</span><span class="da-perday">Lebih ${formatRupiah(Math.abs(status.remaining))}</span></div>`;
+              allowanceHtml = `<div class="daily-allowance over"><span class="da-perday">Lebih ${formatRupiah(Math.abs(status.remaining))}</span><span class="da-remaining">Tersisa ${formatRupiah(0)}</span></div>`;
             } else if (info.remainingDays > 0) {
               const perDay = status.remaining / info.remainingDays;
-              allowanceHtml = `<div class="daily-allowance"><span class="da-remaining">Tersisa ${formatRupiah(status.remaining)}</span><span class="da-perday">${formatRupiah(perDay)}/hari</span></div>`;
+              allowanceHtml = `<div class="daily-allowance"><span class="da-perday">${formatRupiah(perDay)}/hari</span><span class="da-remaining">Tersisa ${formatRupiah(status.remaining)}</span></div>`;
             } else {
               // Hari terakhir bulan, tidak ada hari tersisa untuk hitung /hari
               allowanceHtml = `<div class="daily-allowance ${status.remaining < 0 ? 'over' : ''}"><span class="da-remaining">Tersisa ${formatRupiah(Math.max(0, status.remaining))}</span></div>`;
