@@ -1519,7 +1519,8 @@ function cleanupRecentWebChat() {
       rawBody.includes('"admin_generate_token"') ||
       rawBody.includes('"admin_get_tokens"') ||
       rawBody.includes('"admin_send_token"') ||
-      rawBody.includes('"admin_revoke_token"')
+      rawBody.includes('"admin_revoke_token"') ||
+      rawBody.includes('"admin_delete_user"')
     ) {
       const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
       const verifiedUser = await verifyBearerToken(authHeader);
@@ -1694,6 +1695,72 @@ function cleanupRecentWebChat() {
 
           const { data: allTokens } = await db.from("tokens").select("*").order("created_at", { ascending: false });
           return new Response(JSON.stringify({ success: true, tokens: allTokens || [] }), {
+            status: 200,
+            headers: corsHeaders
+          });
+        }
+
+        // Delete User Account Permanently (Hapus Akun & Seluruh Datanya)
+        if (payload.action === "admin_delete_user" && (payload.targetUserId || payload.userId)) {
+          const targetId = payload.targetUserId || payload.userId;
+          if (targetId === verifiedUser.id) {
+            return new Response(JSON.stringify({ error: "Tidak dapat menghapus akun admin sendiri." }), {
+              status: 400,
+              headers: corsHeaders
+            });
+          }
+
+          const targetAccessCode = "wa_" + targetId;
+
+          // 1. Unlink token jika akun ini sedang memakai token
+          await db.from("tokens").update({
+            status: "available",
+            used_by: null,
+            used_at: null
+          }).eq("used_by", targetId);
+
+          // 2. Hapus operasional WhatsApp
+          await db.from("wa_message_transactions").delete().eq("user_id", targetId);
+          await db.from("wa_pending_transactions").delete().eq("user_id", targetId);
+          await db.from("wa_media_queue").delete().eq("user_id", targetId);
+          await db.from("wa_mode_sessions").delete().eq("user_id", targetId);
+          await db.from("wa_logs").delete().eq("user_id", targetId);
+
+          // 3. Hapus data transaksi & master data pengguna
+          await db.from("transactions").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("categories").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("wallets").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("budgets").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("savings_goals").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("debt_entries").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("user_settings").delete().or(`user_id.eq.${targetId},access_code.eq.${targetAccessCode}`);
+          await db.from("push_subscriptions").delete().eq("user_id", targetId);
+
+          // 4. Hapus file foto chat di storage jika ada
+          try {
+            const { data: files } = await db.storage.from("chat-ai-images").list(targetAccessCode);
+            if (files && files.length > 0) {
+              const paths = files.map((f: any) => `${targetAccessCode}/${f.name}`);
+              await db.storage.from("chat-ai-images").remove(paths);
+            }
+          } catch (e) {
+            console.error("Error removing user storage files:", e);
+          }
+
+          // 5. Hapus dari tabel public.users
+          const { error: delUserErr } = await db.from("users").delete().eq("id", targetId);
+          if (delUserErr) {
+            console.error("Error deleting from public.users:", delUserErr);
+          }
+
+          // 6. Hapus dari auth.users via Supabase Admin API
+          try {
+            await db.auth.admin.deleteUser(targetId);
+          } catch (e) {
+            console.error("Error deleting user from auth.users:", e);
+          }
+
+          return new Response(JSON.stringify({ success: true, message: "Akun berhasil dihapus permanen beserta seluruh datanya." }), {
             status: 200,
             headers: corsHeaders
           });

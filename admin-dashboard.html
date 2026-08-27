@@ -740,7 +740,7 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.5.6</span>
+      <span class="version-tag" id="adminVersionBadge" style="font-size:11px;font-weight:700;background:var(--accent-soft);color:var(--accent-dark);padding:4px 10px;border-radius:100px;letter-spacing:.02em;">v3.5.7</span>
       <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Keluar</button>
     </div>
     </div>
@@ -1465,23 +1465,56 @@
       const nama = _deleteTargetNama;
       closeDeleteAccountModal();
 
-      const { error } = await db.rpc('admin_delete_user', { target_user_id: userId });
-      if (error) {
-        console.error('Error rpc admin_delete_user:', error);
-        const code = 'wa_' + userId;
-        await db.from('transactions').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('categories').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('wallets').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('budgets').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('savings_goals').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('debts').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('user_settings').delete().or(`user_id.eq.${userId},access_code.eq.${code}`);
-        await db.from('push_subscriptions').delete().eq('user_id', userId);
-        await db.from('tokens').delete().eq('used_by', userId);
-        await db.from('users').delete().eq('id', userId);
+      const adminToken = await getValidAdminToken();
+      const gateCode = getAdminGateCode();
+      if (!adminToken) {
+        toast('Sesi admin tidak ditemukan. Silakan login ulang.');
+        return;
       }
-      toast(`Akun ${nama} & seluruh datanya terhapus 100% bersih.`);
-      await loadData();
+      if (!gateCode) {
+        showGateOverlay('Masukkan kode rahasia admin terlebih dahulu.');
+        return;
+      }
+
+      toast(`Sedang menghapus akun ${nama}...`);
+
+      try {
+        const res = await fetch('https://qdoduglbejcazjufvfkf.supabase.co/functions/v1/wa-webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + adminToken,
+            'X-Admin-Gate-Code': gateCode
+          },
+          body: JSON.stringify({
+            action: 'admin_delete_user',
+            targetUserId: userId
+          })
+        });
+
+        if (res.ok) {
+          toast(`Akun ${nama} & seluruh datanya berhasil dihapus 100% bersih.`);
+          await loadData();
+          return;
+        } else if (res.status === 403) {
+          setAdminGateCode('');
+          showGateOverlay('Akses ditolak: Masukkan kode rahasia admin.');
+          return;
+        }
+
+        const errData = await res.json().catch(() => ({}));
+        // Fallback: coba via database RPC jika edge function sedang dalam masa deploy
+        const { error: rpcErr } = await db.rpc('admin_delete_user', { target_user_id: userId });
+        if (!rpcErr) {
+          toast(`Akun ${nama} & seluruh datanya berhasil dihapus.`);
+          await loadData();
+        } else {
+          toast('Gagal menghapus akun: ' + (errData.error || rpcErr.message));
+        }
+      } catch (e) {
+        console.error('Error deleting user:', e);
+        toast('Gagal menghapus akun: Kesalahan koneksi.');
+      }
     }
 
     function renderTokens() {
