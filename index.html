@@ -11788,7 +11788,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.43)';
+      const version = ' (v3.6.44)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13650,12 +13650,15 @@
 
     function calculateBudgetStatus(categoryId, monthStr) {
       monthStr = monthStr || currentMonthStr();
-      // Cari nama kategori sebagai fallback untuk transaksi lama yang hanya punya t.category (string)
+      // Ambil nama kategori — dipakai sebagai fallback matching agar konsisten dengan
+      // cara laporan menghitung (laporan grouping by t.category string, bukan t.categoryId).
+      // Ini menangani kasus transaksi lama / pasca-migrasi yang punya categoryId berbeda
+      // dari ID kategori saat ini, tapi nama kategorinya sama.
       const cat = categoryById(categoryId);
       const catName = cat ? cat.name : null;
       const txs = getTransactions().filter(t =>
         t.type === 'expense' &&
-        (t.categoryId === categoryId || (!t.categoryId && catName && t.category === catName)) &&
+        (t.categoryId === categoryId || (catName && t.category === catName)) &&
         t.date.slice(0, 7) === monthStr &&
         !t.excludeFromReport
       );
