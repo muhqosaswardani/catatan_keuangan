@@ -4982,7 +4982,7 @@
     }
     .chat-vn-cancel:active { transform: scale(0.92); }
 
-    /* Waveform animasi dinamis */
+    /* Waveform visualizer dinamis (Web Audio API) */
     .chat-vn-waveform {
       flex: 1;
       display: flex;
@@ -4996,34 +4996,20 @@
       width: 3px;
       border-radius: 2px;
       background: var(--accent, #0f766e);
-      animation: vnWave 0.6s ease-in-out infinite alternate;
+      height: 4px;
+      opacity: 0.45;
+      transition: height 0.08s ease, opacity 0.08s ease;
       min-height: 4px;
-    }
-    .chat-vn-waveform .vn-bar:nth-child(1) { animation-delay: 0.05s; }
-    .chat-vn-waveform .vn-bar:nth-child(2) { animation-delay: 0.18s; }
-    .chat-vn-waveform .vn-bar:nth-child(3) { animation-delay: 0.10s; }
-    .chat-vn-waveform .vn-bar:nth-child(4) { animation-delay: 0.25s; }
-    .chat-vn-waveform .vn-bar:nth-child(5) { animation-delay: 0.14s; }
-    .chat-vn-waveform .vn-bar:nth-child(6) { animation-delay: 0.30s; }
-    .chat-vn-waveform .vn-bar:nth-child(7) { animation-delay: 0.08s; }
-    .chat-vn-waveform .vn-bar:nth-child(8) { animation-delay: 0.22s; }
-    .chat-vn-waveform .vn-bar:nth-child(9) { animation-delay: 0.16s; }
-    .chat-vn-waveform .vn-bar:nth-child(10) { animation-delay: 0.28s; }
-    .chat-vn-waveform .vn-bar:nth-child(11) { animation-delay: 0.12s; }
-    .chat-vn-waveform .vn-bar:nth-child(12) { animation-delay: 0.20s; }
-
-    @keyframes vnWave {
-      0% { height: 4px; opacity: 0.4; }
-      100% { height: 22px; opacity: 1; }
+      max-height: 24px;
     }
 
     /* Timer durasi rekam */
     .chat-vn-timer {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--expense, #ef4444);
       font-variant-numeric: tabular-nums;
-      min-width: 38px;
+      min-width: 36px;
       text-align: right;
       flex-shrink: 0;
     }
@@ -5033,20 +5019,23 @@
       display: none;
       align-items: center;
       gap: 8px;
-      padding: 6px 12px;
+      padding: 4px 10px;
       background: var(--surface, #ffffff);
       border-radius: 24px;
       flex: 1;
+      min-width: 0;
       min-height: 44px;
       border: 1px solid var(--border, rgba(0,0,0,0.08));
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
       animation: fadeIn 0.15s ease-out;
+      box-sizing: border-box;
+      overflow: hidden;
     }
     .chat-vn-review.active { display: flex; }
 
     .chat-vn-discard-btn {
-      width: 34px;
-      height: 34px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: none;
       background: var(--expense-soft, #FBE7E5);
@@ -5059,6 +5048,58 @@
       transition: transform 0.15s, background 0.15s;
     }
     .chat-vn-discard-btn:active { transform: scale(0.92); }
+
+    .chat-vn-preview-play-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent, #0f766e);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.15s, background 0.2s;
+    }
+    .chat-vn-preview-play-btn:hover { background: var(--accent-dark, #0d5f58); }
+    .chat-vn-preview-play-btn:active { transform: scale(0.92); }
+
+    .chat-vn-preview-track-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .chat-vn-preview-seek {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(0,0,0,0.15);
+      cursor: pointer;
+      outline: none;
+    }
+    .chat-vn-preview-seek::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent, #0f766e);
+      cursor: pointer;
+    }
+    .chat-vn-preview-time {
+      font-size: 10.5px;
+      color: var(--ink-soft, #64748b);
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      line-height: 1;
+    }
 
     .chat-field-wrap.vn-mode { display: none !important; }
 
@@ -7894,13 +7935,24 @@
           <!-- Panel review (setelah rekam selesai, sebelum kirim) -->
           <div id="chatVnReview" class="chat-vn-review">
             <button type="button" class="chat-vn-discard-btn" onclick="discardChatVoiceNote()" title="Hapus rekaman">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6l-1 14H6L5 6"></path>
                 <path d="M10 11v6M14 11v6"></path>
               </svg>
             </button>
-            <audio id="chatVnPreviewAudio" controls preload="metadata" style="flex:1;height:32px;min-width:0;"></audio>
+            <audio id="chatVnPreviewAudio" preload="metadata" ontimeupdate="updateVnPreviewProgress()" onended="onVnPreviewEnded()"></audio>
+            <button type="button" class="chat-vn-preview-play-btn" id="vnPreviewPlayBtn" onclick="toggleVnPreviewPlay()" title="Putar rekaman">
+              <svg class="icon-vn-play" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg class="icon-vn-pause" style="display:none;" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+            <div class="chat-vn-preview-track-wrap">
+              <input type="range" class="chat-vn-preview-seek" id="vnPreviewSeek" min="0" max="100" value="0" oninput="seekVnPreview(this.value)">
+              <div class="chat-vn-preview-time">
+                <span id="vnPreviewCur">0:00</span>
+                <span id="vnPreviewDur">0:00</span>
+              </div>
+            </div>
           </div>
 
           <!-- Rounded input field (WA style) -->
@@ -21317,19 +21369,20 @@
 
         if (msg.audio) {
           const audioPath = String(msg.audio);
-          const durStr = msg.audioDuration ? formatDurationSec(msg.audioDuration) : '';
+          const forcedDur = Number(msg.audioDuration) || 0;
+          const durStr = forcedDur ? formatDurationSec(forcedDur) : '';
           const audioId = 'chat_audio_' + (msg.id || uid()).replace(/[^a-zA-Z0-9_]/g, '_');
           
           if (audioPath.startsWith('data:') || audioPath.startsWith('http://') || audioPath.startsWith('https://') || audioPath.startsWith('blob:')) {
             content += `
               <div class="chat-audio-player" id="player_${audioId}">
-                <audio id="${audioId}" src="${audioPath}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}')" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
-                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event)" title="Putar pesan suara">
+                <audio id="${audioId}" src="${audioPath}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}', ${forcedDur})" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
+                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event, ${forcedDur})" title="Putar pesan suara">
                   <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 </button>
                 <div class="chat-audio-progress-wrap">
-                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event)" onclick="event.stopPropagation()">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
                   <div class="chat-audio-duration">
                     <span id="cur_${audioId}">0:00</span>
                     <span id="dur_${audioId}">${durStr || '0:00'}</span>
@@ -21346,13 +21399,13 @@
             
             content += `
               <div class="chat-audio-player${lazyClass}" data-storage-path="${escapeHtml(cleanPath)}" id="player_${audioId}">
-                <audio id="${audioId}" src="${srcUrl}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}')" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
-                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event)" title="Putar pesan suara">
+                <audio id="${audioId}" src="${srcUrl}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}', ${forcedDur})" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
+                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event, ${forcedDur})" title="Putar pesan suara">
                   <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 </button>
                 <div class="chat-audio-progress-wrap">
-                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event)" onclick="event.stopPropagation()">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
                   <div class="chat-audio-duration">
                     <span id="cur_${audioId}">0:00</span>
                     <span id="dur_${audioId}">${durStr || '0:00'}</span>
@@ -21657,6 +21710,37 @@
     let chatVnStartTime = 0;
     let currentlyPlayingChatAudioId = null;
 
+    // Web Audio API Visualizer State
+    let chatVnAudioCtx = null;
+    let chatVnAnalyser = null;
+    let chatVnAnimFrame = null;
+    let chatVnSource = null;
+
+    function cleanupVnAudioContext() {
+      if (chatVnAnimFrame) {
+        cancelAnimationFrame(chatVnAnimFrame);
+        chatVnAnimFrame = null;
+      }
+      if (chatVnSource) {
+        try { chatVnSource.disconnect(); } catch(e) {}
+        chatVnSource = null;
+      }
+      if (chatVnAnalyser) {
+        try { chatVnAnalyser.disconnect(); } catch(e) {}
+        chatVnAnalyser = null;
+      }
+      if (chatVnAudioCtx && chatVnAudioCtx.state !== 'closed') {
+        try { chatVnAudioCtx.close(); } catch(e) {}
+        chatVnAudioCtx = null;
+      }
+      // Reset waveform bars to idle state
+      const bars = document.querySelectorAll('#chatVnWaveform .vn-bar');
+      bars.forEach(bar => {
+        bar.style.height = '4px';
+        bar.style.opacity = '0.45';
+      });
+    }
+
     function formatDurationSec(sec) {
       if (!sec || isNaN(sec)) return '0:00';
       const m = Math.floor(sec / 60);
@@ -21664,7 +21748,70 @@
       return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    function toggleChatAudioPlay(audioId, event) {
+    // ── Review Player Functions (Sebelum kirim) ────────────────
+    function toggleVnPreviewPlay() {
+      const audio = document.getElementById('chatVnPreviewAudio');
+      const btn = document.getElementById('vnPreviewPlayBtn');
+      if (!audio || !btn) return;
+
+      const playIcon = btn.querySelector('.icon-vn-play');
+      const pauseIcon = btn.querySelector('.icon-vn-pause');
+
+      if (audio.paused) {
+        audio.play().then(() => {
+          if (playIcon) playIcon.style.display = 'none';
+          if (pauseIcon) pauseIcon.style.display = 'block';
+        }).catch(err => console.warn('[VN Preview] play error:', err));
+      } else {
+        audio.pause();
+        if (playIcon) playIcon.style.display = 'block';
+        if (pauseIcon) pauseIcon.style.display = 'none';
+      }
+    }
+
+    function updateVnPreviewProgress() {
+      const audio = document.getElementById('chatVnPreviewAudio');
+      const seek = document.getElementById('vnPreviewSeek');
+      const cur = document.getElementById('vnPreviewCur');
+      const dur = document.getElementById('vnPreviewDur');
+      if (!audio || !seek) return;
+
+      const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
+      const current = audio.currentTime || 0;
+
+      if (totalDur > 0) {
+        const pct = (current / totalDur) * 100;
+        seek.value = Math.min(100, pct);
+      }
+      if (cur) cur.textContent = formatDurationSec(current);
+      if (dur) dur.textContent = formatDurationSec(totalDur);
+    }
+
+    function seekVnPreview(val) {
+      const audio = document.getElementById('chatVnPreviewAudio');
+      if (!audio) return;
+      const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
+      if (totalDur > 0) {
+        audio.currentTime = (val / 100) * totalDur;
+      }
+    }
+
+    function onVnPreviewEnded() {
+      const btn = document.getElementById('vnPreviewPlayBtn');
+      const seek = document.getElementById('vnPreviewSeek');
+      const cur = document.getElementById('vnPreviewCur');
+      if (btn) {
+        const playIcon = btn.querySelector('.icon-vn-play');
+        const pauseIcon = btn.querySelector('.icon-vn-pause');
+        if (playIcon) playIcon.style.display = 'block';
+        if (pauseIcon) pauseIcon.style.display = 'none';
+      }
+      if (seek) seek.value = 0;
+      if (cur) cur.textContent = '0:00';
+    }
+
+    // ── Bubble Player Functions (Dalam chat history) ───────────
+    function toggleChatAudioPlay(audioId, event, forcedDuration) {
       if (event) event.stopPropagation();
       const audio = document.getElementById(audioId);
       const btn = document.getElementById('playBtn_' + audioId);
@@ -21721,26 +21868,44 @@
       }
     }
 
-    function updateChatAudioProgress(audioId) {
+    function updateChatAudioProgress(audioId, forcedDuration) {
       const audio = document.getElementById(audioId);
       const seek = document.getElementById('seek_' + audioId);
       const cur = document.getElementById('cur_' + audioId);
       const dur = document.getElementById('dur_' + audioId);
       if (!audio || !seek) return;
 
-      if (!isNaN(audio.duration) && audio.duration > 0) {
-        const pct = (audio.currentTime / audio.duration) * 100;
-        seek.value = pct;
-        if (cur) cur.textContent = formatDurationSec(audio.currentTime);
-        if (dur) dur.textContent = formatDurationSec(audio.duration);
+      let totalDur = Number(forcedDuration) || 0;
+      if (!totalDur || isNaN(totalDur) || totalDur <= 0) {
+        if (audio.duration && isFinite(audio.duration) && audio.duration < 3600) {
+          totalDur = audio.duration;
+        }
       }
+
+      const current = audio.currentTime || 0;
+      if (totalDur > 0) {
+        const pct = (current / totalDur) * 100;
+        seek.value = Math.min(100, pct);
+        if (dur) dur.textContent = formatDurationSec(totalDur);
+      }
+      if (cur) cur.textContent = formatDurationSec(current);
     }
 
-    function seekChatAudio(audioId, val, event) {
+    function seekChatAudio(audioId, val, event, forcedDuration) {
       if (event) event.stopPropagation();
       const audio = document.getElementById(audioId);
-      if (!audio || isNaN(audio.duration)) return;
-      audio.currentTime = (val / 100) * audio.duration;
+      if (!audio) return;
+
+      let totalDur = Number(forcedDuration) || 0;
+      if (!totalDur || isNaN(totalDur) || totalDur <= 0) {
+        if (audio.duration && isFinite(audio.duration) && audio.duration < 3600) {
+          totalDur = audio.duration;
+        }
+      }
+
+      if (totalDur > 0) {
+        audio.currentTime = (val / 100) * totalDur;
+      }
     }
 
     function onChatAudioEnded(audioId) {
@@ -21771,6 +21936,7 @@
       onChatAudioEnded(audioId);
     }
 
+    // ── Record Voice Note Functions ────────────────────────────
     function startChatVoiceNote() {
       if (userTrialStatus === 'habis') {
         openModal('modalTrialHabis');
@@ -21808,6 +21974,8 @@
           };
 
           chatVnMediaRecorder.onstop = () => {
+            cleanupVnAudioContext();
+
             if (chatVnStream) {
               chatVnStream.getTracks().forEach(t => t.stop());
               chatVnStream = null;
@@ -21822,11 +21990,14 @@
             const recordedType = chatVnMediaRecorder.mimeType || mimeType || 'audio/webm';
             chatVnBlob = new Blob(chatVnRecordedChunks, { type: recordedType });
 
-            // Masuk mode review (waveform hilang, audio review player muncul)
+            // Masuk mode review (waveform hilang, custom review player muncul)
             const fieldWrap = document.getElementById('chatFieldWrap');
             const vnBar = document.getElementById('chatVnBar');
             const vnReview = document.getElementById('chatVnReview');
             const previewAudio = document.getElementById('chatVnPreviewAudio');
+            const previewDur = document.getElementById('vnPreviewDur');
+            const previewCur = document.getElementById('vnPreviewCur');
+            const previewSeek = document.getElementById('vnPreviewSeek');
 
             if (fieldWrap) fieldWrap.classList.add('vn-mode');
             if (vnBar) vnBar.classList.remove('active');
@@ -21835,6 +22006,9 @@
             if (previewAudio) {
               previewAudio.src = URL.createObjectURL(chatVnBlob);
             }
+            if (previewDur) previewDur.textContent = formatDurationSec(chatVnDuration);
+            if (previewCur) previewCur.textContent = '0:00';
+            if (previewSeek) previewSeek.value = 0;
 
             toggleChatActionBtn();
           };
@@ -21851,6 +22025,52 @@
           if (vnBar) vnBar.classList.add('active');
           if (timerEl) timerEl.textContent = '0:00';
           if (actionBtn) actionBtn.classList.add('recording');
+
+          // Setup real-time audio visualizer via Web Audio API
+          try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+              chatVnAudioCtx = new AudioContextClass();
+              if (chatVnAudioCtx.state === 'suspended') {
+                chatVnAudioCtx.resume();
+              }
+              chatVnSource = chatVnAudioCtx.createMediaStreamSource(stream);
+              chatVnAnalyser = chatVnAudioCtx.createAnalyser();
+              chatVnAnalyser.fftSize = 64;
+              chatVnAnalyser.smoothingTimeConstant = 0.55;
+              chatVnSource.connect(chatVnAnalyser);
+
+              const bufferLength = chatVnAnalyser.frequencyBinCount;
+              const dataArray = new Uint8Array(bufferLength);
+              const bars = document.querySelectorAll('#chatVnWaveform .vn-bar');
+
+              function animateWaveform() {
+                if (!chatVnAnalyser) return;
+                chatVnAnalyser.getByteFrequencyData(dataArray);
+
+                const count = bars.length;
+                const step = Math.max(1, Math.floor(bufferLength / count));
+
+                bars.forEach((bar, idx) => {
+                  let sum = 0;
+                  let samples = 0;
+                  for (let j = idx * step; j < (idx + 1) * step && j < bufferLength; j++) {
+                    sum += dataArray[j];
+                    samples++;
+                  }
+                  const avg = samples > 0 ? (sum / samples) : 0; // 0..255
+                  const height = Math.max(4, Math.min(24, Math.round(4 + (avg / 255) * 20)));
+                  bar.style.height = height + 'px';
+                  bar.style.opacity = (0.45 + (avg / 255) * 0.55).toFixed(2);
+                });
+
+                chatVnAnimFrame = requestAnimationFrame(animateWaveform);
+              }
+              animateWaveform();
+            }
+          } catch(ae) {
+            console.warn('[VN Visualizer] Web Audio API fallback:', ae);
+          }
 
           chatVnStartTime = Date.now();
           chatVnDuration = 0;
@@ -21884,6 +22104,8 @@
       const actionBtn = document.getElementById('chatActionBtn');
       if (actionBtn) actionBtn.classList.remove('recording');
 
+      cleanupVnAudioContext();
+
       if (chatVnMediaRecorder && chatVnMediaRecorder.state === 'recording') {
         chatVnMediaRecorder.onstop = null;
         chatVnMediaRecorder.stop();
@@ -21915,6 +22137,13 @@
           URL.revokeObjectURL(previewAudio.src);
         }
         previewAudio.src = '';
+      }
+      const btn = document.getElementById('vnPreviewPlayBtn');
+      if (btn) {
+        const playIcon = btn.querySelector('.icon-vn-play');
+        const pauseIcon = btn.querySelector('.icon-vn-pause');
+        if (playIcon) playIcon.style.display = 'block';
+        if (pauseIcon) pauseIcon.style.display = 'none';
       }
       cancelChatVoiceNote();
     }
