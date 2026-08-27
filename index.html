@@ -5081,7 +5081,10 @@
       border-radius: 2px;
       -webkit-appearance: none;
       appearance: none;
-      background: rgba(0,0,0,0.14);
+      background: linear-gradient(to right,
+        var(--accent, #0f766e) var(--prog, 0%),
+        rgba(0,0,0,0.14) var(--prog, 0%)
+      );
       cursor: pointer;
       outline: none;
       min-width: 0;
@@ -5112,15 +5115,21 @@
 
     .chat-field-wrap.vn-mode { display: none !important; }
 
-    /* ── Audio Player Bubble dalam chat ── */
+    /* Bubble khusus pesan suara (Voice Note) */
+    .chat-bubble.has-audio {
+      padding: 6px 10px 5px 10px;
+      min-width: 210px;
+      max-width: 82%;
+    }
+
+    /* ── Audio Player Bubble dalam chat (gaya WhatsApp) ── */
     .chat-audio-player {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 6px 4px;
-      min-width: 200px;
-      max-width: 280px;
+      padding: 2px 0;
       width: 100%;
+      box-sizing: border-box;
     }
     .chat-audio-play-btn {
       width: 36px;
@@ -5135,21 +5144,22 @@
       align-items: center;
       justify-content: center;
       transition: transform 0.15s, background 0.2s;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.12);
     }
     .chat-audio-play-btn:hover { background: var(--accent-dark, #0d5f58); }
     .chat-audio-play-btn:active { transform: scale(0.92); }
 
-    /* Slider + waktu inline satu baris */
-    .chat-audio-progress-wrap {
+    /* Kolom kanan: slider di atas, baris info di bawah */
+    .chat-audio-main {
       flex: 1;
       display: flex;
-      align-items: center;
-      gap: 8px;
+      flex-direction: column;
+      gap: 4px;
       min-width: 0;
+      padding-top: 2px;
     }
     .chat-audio-progress {
-      flex: 1;
+      width: 100%;
       height: 4px;
       border-radius: 2px;
       -webkit-appearance: none;
@@ -5170,27 +5180,41 @@
       background: var(--accent, #0f766e);
       cursor: pointer;
     }
-    /* Waktu inline: "0:02 / 0:05" di kanan slider */
-    .chat-audio-duration {
-      font-size: 11px;
-      color: var(--ink-soft, #64748b);
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      line-height: 1;
-    }
-    .chat-audio-duration .aud-time-sep { opacity: 0.45; }
     .chat-bubble.user .chat-audio-progress {
       background: linear-gradient(to right,
         rgba(255,255,255,0.7) var(--prog, 0%),
         rgba(0,0,0,0.18) var(--prog, 0%)
       );
     }
-    .chat-bubble.user .chat-audio-duration {
+
+    /* Baris bawah dalam player: waktu kiri, jam pesan kanan (sejajar) */
+    .chat-audio-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-width: 0;
+      line-height: 1;
+    }
+    .chat-audio-time {
+      font-size: 11px;
+      color: var(--ink-soft, #64748b);
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+    .chat-bubble.user .chat-audio-time {
       color: rgba(15, 23, 42, 0.65);
+    }
+    .chat-audio-info .time {
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: 9.5px;
+      opacity: 0.8;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+      float: none !important;
     }
 
 
@@ -11750,7 +11774,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.39)';
+      const version = ' (v3.6.40)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21391,57 +21415,6 @@
           }
         }
 
-        if (msg.audio) {
-          const audioPath = String(msg.audio);
-          const forcedDur = Number(msg.audioDuration) || 0;
-          const durStr = forcedDur ? formatDurationSec(forcedDur) : '';
-          const audioId = 'chat_audio_' + (msg.id || uid()).replace(/[^a-zA-Z0-9_]/g, '_');
-          
-          if (audioPath.startsWith('data:') || audioPath.startsWith('http://') || audioPath.startsWith('https://') || audioPath.startsWith('blob:')) {
-            content += `
-              <div class="chat-audio-player" id="player_${audioId}">
-                <audio id="${audioId}" src="${audioPath}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}', ${forcedDur})" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
-                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event, ${forcedDur})" title="Putar pesan suara">
-                  <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                </button>
-                <div class="chat-audio-progress-wrap">
-                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
-                  <div class="chat-audio-duration">
-                    <span id="cur_${audioId}">0:00</span>
-                    <span class="aud-time-sep">/</span>
-                    <span id="dur_${audioId}">${durStr || '0:00'}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-          } else {
-            const cleanPath = audioPath.replace(/^chat-ai-images\//, '');
-            const cached = chatSignedUrlCache.get(cleanPath);
-            const now = Date.now();
-            const srcUrl = (cached && cached.expiresAt > now + 60000) ? cached.url : '';
-            const lazyClass = srcUrl ? '' : ' chat-audio-lazy';
-            
-            content += `
-              <div class="chat-audio-player${lazyClass}" data-storage-path="${escapeHtml(cleanPath)}" id="player_${audioId}">
-                <audio id="${audioId}" src="${srcUrl}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}', ${forcedDur})" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
-                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event, ${forcedDur})" title="Putar pesan suara">
-                  <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                </button>
-                <div class="chat-audio-progress-wrap">
-                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
-                  <div class="chat-audio-duration">
-                    <span id="cur_${audioId}">0:00</span>
-                    <span class="aud-time-sep">/</span>
-                    <span id="dur_${audioId}">${durStr || '0:00'}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-          }
-        }
-
         // Pending / failed status indicator (like WhatsApp clock / retry)
         let statusHtml = '';
         if (isUser) {
@@ -21454,6 +21427,59 @@
           }
         }
         const timeHtml = `<span class="time">${formatTime(msg.timestamp)}${statusHtml}</span>`;
+        let timeInsideAudio = '';
+        if (msg.audio && !msgText.trim()) {
+          timeInsideAudio = timeHtml;
+        }
+
+        if (msg.audio) {
+          const audioPath = String(msg.audio);
+          const forcedDur = Number(msg.audioDuration) || 0;
+          const durStr = forcedDur ? formatDurationSec(forcedDur) : '';
+          const audioId = 'chat_audio_' + (msg.id || uid()).replace(/[^a-zA-Z0-9_]/g, '_');
+          
+          if (audioPath.startsWith('data:') || audioPath.startsWith('http://') || audioPath.startsWith('https://') || audioPath.startsWith('blob:')) {
+            content += `
+              <div class="chat-audio-player" data-duration="${durStr || '0:00'}" id="player_${audioId}">
+                <audio id="${audioId}" src="${audioPath}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}', ${forcedDur})" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
+                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event, ${forcedDur})" title="Putar pesan suara">
+                  <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                </button>
+                <div class="chat-audio-main">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
+                  <div class="chat-audio-info">
+                    <span class="chat-audio-time" id="cur_${audioId}">${durStr || '0:00'}</span>
+                    ${timeInsideAudio}
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            const cleanPath = audioPath.replace(/^chat-ai-images\//, '');
+            const cached = chatSignedUrlCache.get(cleanPath);
+            const now = Date.now();
+            const srcUrl = (cached && cached.expiresAt > now + 60000) ? cached.url : '';
+            const lazyClass = srcUrl ? '' : ' chat-audio-lazy';
+            
+            content += `
+              <div class="chat-audio-player${lazyClass}" data-duration="${durStr || '0:00'}" data-storage-path="${escapeHtml(cleanPath)}" id="player_${audioId}">
+                <audio id="${audioId}" src="${srcUrl}" preload="metadata" ontimeupdate="updateChatAudioProgress('${audioId}', ${forcedDur})" onended="onChatAudioEnded('${audioId}')" onerror="onChatAudioError('${audioId}')"></audio>
+                <button type="button" class="chat-audio-play-btn" id="playBtn_${audioId}" onclick="toggleChatAudioPlay('${audioId}', event, ${forcedDur})" title="Putar pesan suara">
+                  <svg class="icon-audio-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="icon-audio-pause" style="display:none;" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                </button>
+                <div class="chat-audio-main">
+                  <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
+                  <div class="chat-audio-info">
+                    <span class="chat-audio-time" id="cur_${audioId}">${durStr || '0:00'}</span>
+                    ${timeInsideAudio}
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
 
         if (msgText.trim()) {
           // Format text with bold backticks/asterisks
@@ -21462,13 +21488,9 @@
             .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
             .replace(/`(.*?)`/g, '<code>$1</code>');
 
-          // Waktu ditaruh sebagai child terakhir di dalam teks (bukan sibling di
-          // luar) supaya bisa float mengikuti baris terakhir teks, gaya WhatsApp —
-          // bukan selalu turun ke baris baru di bawah teks.
           content += `<div class="chat-bubble-text">${textHtml}${timeHtml}</div>`;
-        } else {
-          // Tidak ada teks (mis. bubble gambar / audio saja) — waktu tetap sebagai
-          // elemen terpisah, diposisikan lewat .chat-bubble.has-image / .has-audio .time
+        } else if (!msg.audio) {
+          // Tidak ada teks dan BUKAN audio (mis. bubble gambar saja) — waktu tetap di luar
           content += timeHtml;
         }
 
@@ -21774,7 +21796,50 @@
       return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    // ── Review Player Functions (Sebelum kirim) ────────────────
+    // ── Review Player Functions (Sebelum kirim - 60fps smooth) ─
+    let vnPreviewRaf = null;
+
+    function _vnPreviewRafTick() {
+      const audio = document.getElementById('chatVnPreviewAudio');
+      if (!audio || audio.paused || audio.ended) {
+        vnPreviewRaf = null;
+        return;
+      }
+      _updateVnPreviewProgressRaw(audio);
+      vnPreviewRaf = requestAnimationFrame(_vnPreviewRafTick);
+    }
+
+    function _startVnPreviewRaf() {
+      _stopVnPreviewRaf();
+      vnPreviewRaf = requestAnimationFrame(_vnPreviewRafTick);
+    }
+
+    function _stopVnPreviewRaf() {
+      if (vnPreviewRaf) {
+        cancelAnimationFrame(vnPreviewRaf);
+        vnPreviewRaf = null;
+      }
+    }
+
+    function _updateVnPreviewProgressRaw(audio) {
+      if (!audio) audio = document.getElementById('chatVnPreviewAudio');
+      const seek = document.getElementById('vnPreviewSeek');
+      const cur = document.getElementById('vnPreviewCur');
+      const dur = document.getElementById('vnPreviewDur');
+      if (!audio || !seek) return;
+
+      const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
+      const current = audio.currentTime || 0;
+
+      if (totalDur > 0) {
+        const pct = Math.min(100, (current / totalDur) * 100);
+        seek.value = pct;
+        seek.style.setProperty('--prog', pct.toFixed(2) + '%');
+      }
+      if (cur) cur.textContent = formatDurationSec(current);
+      if (dur) dur.textContent = formatDurationSec(totalDur);
+    }
+
     function toggleVnPreviewPlay() {
       const audio = document.getElementById('chatVnPreviewAudio');
       const btn = document.getElementById('vnPreviewPlayBtn');
@@ -21787,30 +21852,20 @@
         audio.play().then(() => {
           if (playIcon) playIcon.style.display = 'none';
           if (pauseIcon) pauseIcon.style.display = 'block';
+          _startVnPreviewRaf();
         }).catch(err => console.warn('[VN Preview] play error:', err));
       } else {
         audio.pause();
+        _stopVnPreviewRaf();
         if (playIcon) playIcon.style.display = 'block';
         if (pauseIcon) pauseIcon.style.display = 'none';
       }
     }
 
     function updateVnPreviewProgress() {
-      const audio = document.getElementById('chatVnPreviewAudio');
-      const seek = document.getElementById('vnPreviewSeek');
-      const cur = document.getElementById('vnPreviewCur');
-      const dur = document.getElementById('vnPreviewDur');
-      if (!audio || !seek) return;
-
-      const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
-      const current = audio.currentTime || 0;
-
-      if (totalDur > 0) {
-        const pct = (current / totalDur) * 100;
-        seek.value = Math.min(100, pct);
+      if (!vnPreviewRaf) {
+        _updateVnPreviewProgressRaw(null);
       }
-      if (cur) cur.textContent = formatDurationSec(current);
-      if (dur) dur.textContent = formatDurationSec(totalDur);
     }
 
     function seekVnPreview(val) {
@@ -21819,10 +21874,13 @@
       const totalDur = (chatVnDuration > 0) ? chatVnDuration : (audio.duration && isFinite(audio.duration) ? audio.duration : 0);
       if (totalDur > 0) {
         audio.currentTime = (val / 100) * totalDur;
+        const seek = document.getElementById('vnPreviewSeek');
+        if (seek) seek.style.setProperty('--prog', Number(val).toFixed(2) + '%');
       }
     }
 
     function onVnPreviewEnded() {
+      _stopVnPreviewRaf();
       const btn = document.getElementById('vnPreviewPlayBtn');
       const seek = document.getElementById('vnPreviewSeek');
       const cur = document.getElementById('vnPreviewCur');
@@ -21832,7 +21890,7 @@
         if (playIcon) playIcon.style.display = 'block';
         if (pauseIcon) pauseIcon.style.display = 'none';
       }
-      if (seek) seek.value = 0;
+      if (seek) { seek.value = 0; seek.style.setProperty('--prog', '0%'); }
       if (cur) cur.textContent = '0:00';
     }
 
@@ -21986,7 +22044,9 @@
         if (pauseIcon) pauseIcon.style.display = 'none';
       }
       if (seek) { seek.value = 0; seek.style.setProperty('--prog', '0%'); }
-      if (cur) cur.textContent = '0:00';
+      const player = document.getElementById('player_' + audioId);
+      const originalDur = player ? player.getAttribute('data-duration') : '';
+      if (cur) cur.textContent = originalDur || '0:00';
       if (currentlyPlayingChatAudioId === audioId) {
         currentlyPlayingChatAudioId = null;
       }

@@ -44,4 +44,13 @@ Setiap kali mengedit `index.html` atau file frontend lainnya:
 - [ ] Naikkan versi di `index.html` (`const version`)
 - [ ] Naikkan `CACHE_VERSION` di `sw.js` (`const CACHE_VERSION`)
 - [ ] Naikkan versi di `admin-dashboard.html` (`id="adminVersionBadge"`) jika ikut diubah
-- [ ] Pastikan nomor versi konsisten dan tertulis di pesan commit git (contoh: `fix(chat): ... (v3.6.38)`)
+- [ ] Pastikan nomor versi konsisten dan tertulis di pesan commit git (contoh: `fix(chat): ... (v3.6.40)`)
+
+---
+
+## 4. Wajib Lapor Nomor Versi di Pesan Chat ke User
+
+> [!IMPORTANT]
+> **ATURAN WAJIB LAPOR KE USER:**
+> Setiap kali ada kenaikan versi, Agent AI **WAJIB** secara eksplisit mencantumkan nomor versi baru di dalam pesan chat respons kepada user (contoh: `🚀 Versi aplikasi telah diupdate ke **v3.6.40**`). User harus selalu diberitahu versi terkini setiap ada perubahan.
+
