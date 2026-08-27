@@ -10886,7 +10886,8 @@
         const token = await getValidAuthToken();
         if (token) {
           for (const k of userKeys) {
-            if (typeof k === 'object' && k && k.raw) {
+            const rawKey = (typeof k === 'string') ? k.trim() : ((k && typeof k.raw === 'string') ? k.raw.trim() : '');
+            if (rawKey && rawKey.length > 10) {
               try {
                 await fetch(SUPABASE_URL + '/functions/v1/wa-webhook', {
                   method: 'POST',
@@ -10894,14 +10895,18 @@
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + token
                   },
-                  body: JSON.stringify({ action: 'user_add_gemini_key', key: k.raw })
+                  body: JSON.stringify({ action: 'user_add_gemini_key', key: rawKey })
                 });
-              } catch(e){}
+              } catch (e) {
+                console.error('Error saving key to db in onboarding:', e);
+              }
             }
           }
         }
       }
-      await loadUserKeys();
+      try {
+        await loadUserKeys();
+      } catch (e) {}
     }
 
     function cleanGeminiKeyList(arr) {
@@ -11083,19 +11088,29 @@
           }
         });
 
-        // 2. Insert Categories
-        const categories = onboardingCategories.map(c => ({
-          id: c.id,
-          user_id: currentUserId,
-          access_code: 'wa_' + currentUserId,
-          name: c.name,
-          type: c.type,
-          icon: c.icon,
-          color: c.color,
-          updated_at: new Date().toISOString()
-        }));
+        // 2. Prepare Unique Categories
+        const uniqueCatMap = new Map();
+        onboardingCategories.forEach(c => {
+          const type = c.type || 'expense';
+          const name = (c.name || '').trim();
+          if (!name) return;
+          const key = type + '_' + name.toLowerCase();
+          if (!uniqueCatMap.has(key)) {
+            uniqueCatMap.set(key, {
+              id: c.id || `wa_cat_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
+              user_id: currentUserId,
+              access_code: 'wa_' + currentUserId,
+              name: name,
+              type: type,
+              icon: c.icon || defaultIconForCategoryNameOnb(name),
+              color: c.color || '#0F766E',
+              updated_at: new Date().toISOString()
+            });
+          }
+        });
+        const categories = Array.from(uniqueCatMap.values());
 
-        // 3. Insert User Settings
+        // 3. Prepare User Settings
         const settings = {
           user_id: currentUserId,
           access_code: 'wa_' + currentUserId,
@@ -11105,24 +11120,27 @@
           updated_at: new Date().toISOString()
         };
 
-        // Delete pre-seeded default data to overwrite with customized wizard data
-        await supabaseClient.from('wallets').delete().eq('user_id', currentUserId);
-        await supabaseClient.from('categories').delete().eq('user_id', currentUserId);
-        await supabaseClient.from('user_settings').delete().eq('user_id', currentUserId);
+        // Try cleaning old data first (silently ignore if restricted by RLS)
+        try { await supabaseClient.from('wallets').delete().eq('user_id', currentUserId); } catch(e){}
+        try { await supabaseClient.from('categories').delete().eq('user_id', currentUserId); } catch(e){}
 
-        // Batch upload everything to Supabase
-        const { error: walletsErr } = await supabaseClient.from('wallets').insert(wallets);
-        if (walletsErr) throw walletsErr;
+        // Batch upload using upsert to avoid duplicate key violations
+        if (wallets.length > 0) {
+          const { error: walletsErr } = await supabaseClient.from('wallets').upsert(wallets, { onConflict: 'id' });
+          if (walletsErr) throw walletsErr;
+        }
 
         if (transactions.length > 0) {
-          const { error: txErr } = await supabaseClient.from('transactions').insert(transactions);
+          const { error: txErr } = await supabaseClient.from('transactions').upsert(transactions, { onConflict: 'id' });
           if (txErr) throw txErr;
         }
 
-        const { error: catErr } = await supabaseClient.from('categories').insert(categories);
-        if (catErr) throw catErr;
+        if (categories.length > 0) {
+          const { error: catErr } = await supabaseClient.from('categories').upsert(categories, { onConflict: 'id' });
+          if (catErr) throw catErr;
+        }
 
-        const { error: settingsErr } = await supabaseClient.from('user_settings').insert(settings);
+        const { error: settingsErr } = await supabaseClient.from('user_settings').upsert(settings, { onConflict: 'access_code' });
         if (settingsErr) throw settingsErr;
 
         // Save Gemini API Keys to DB if user added them
@@ -11425,7 +11443,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.27)';
+      const version = ' (v3.6.28)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
