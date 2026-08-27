@@ -5015,27 +5015,20 @@
     }
 
     /* ── Voice Note Review Bar (setelah selesai rekam, sebelum kirim) ── */
+    /* ── VN Review Bar (setelah rekam, sebelum kirim) ── */
     .chat-vn-review {
       display: none;
       align-items: center;
       gap: 8px;
-      padding: 4px 10px;
-      background: var(--surface, #ffffff);
-      border-radius: 24px;
       flex: 1;
       min-width: 0;
-      min-height: 44px;
-      border: 1px solid var(--border, rgba(0,0,0,0.08));
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
       animation: fadeIn 0.15s ease-out;
-      box-sizing: border-box;
-      overflow: hidden;
     }
     .chat-vn-review.active { display: flex; }
 
     .chat-vn-discard-btn {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       border: none;
       background: var(--expense-soft, #FBE7E5);
@@ -5049,9 +5042,25 @@
     }
     .chat-vn-discard-btn:active { transform: scale(0.92); }
 
+    /* Pill utama review: play + slider + waktu */
+    .chat-vn-review-pill {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      height: 44px;
+      padding: 0 14px 0 8px;
+      background: var(--surface, #ffffff);
+      border-radius: 22px;
+      border: 1px solid var(--border, rgba(0,0,0,0.10));
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      box-sizing: border-box;
+      overflow: hidden;
+    }
     .chat-vn-preview-play-btn {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       border: none;
       background: var(--accent, #0f766e);
@@ -5066,22 +5075,16 @@
     .chat-vn-preview-play-btn:hover { background: var(--accent-dark, #0d5f58); }
     .chat-vn-preview-play-btn:active { transform: scale(0.92); }
 
-    .chat-vn-preview-track-wrap {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      min-width: 0;
-    }
     .chat-vn-preview-seek {
-      width: 100%;
+      flex: 1;
       height: 4px;
       border-radius: 2px;
       -webkit-appearance: none;
       appearance: none;
-      background: rgba(0,0,0,0.15);
+      background: rgba(0,0,0,0.14);
       cursor: pointer;
       outline: none;
+      min-width: 0;
     }
     .chat-vn-preview-seek::-webkit-slider-thumb {
       -webkit-appearance: none;
@@ -5091,14 +5094,20 @@
       background: var(--accent, #0f766e);
       cursor: pointer;
     }
-    .chat-vn-preview-time {
-      font-size: 10.5px;
+    /* Waktu inline: "0:02 / 0:05" di kanan pill */
+    .chat-vn-preview-time-inline {
+      font-size: 11px;
       color: var(--ink-soft, #64748b);
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      flex-shrink: 0;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 2px;
       line-height: 1;
+    }
+    .chat-vn-preview-time-inline .vn-time-sep {
+      opacity: 0.45;
     }
 
     .chat-field-wrap.vn-mode { display: none !important; }
@@ -5109,7 +5118,7 @@
       align-items: center;
       gap: 10px;
       padding: 6px 4px;
-      min-width: 220px;
+      min-width: 200px;
       max-width: 280px;
       width: 100%;
     }
@@ -5131,15 +5140,16 @@
     .chat-audio-play-btn:hover { background: var(--accent-dark, #0d5f58); }
     .chat-audio-play-btn:active { transform: scale(0.92); }
 
+    /* Slider + waktu inline satu baris */
     .chat-audio-progress-wrap {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      gap: 8px;
       min-width: 0;
     }
     .chat-audio-progress {
-      width: 100%;
+      flex: 1;
       height: 4px;
       border-radius: 2px;
       -webkit-appearance: none;
@@ -5147,6 +5157,7 @@
       background: rgba(0,0,0,0.15);
       cursor: pointer;
       outline: none;
+      min-width: 0;
     }
     .chat-audio-progress::-webkit-slider-thumb {
       -webkit-appearance: none;
@@ -5156,20 +5167,24 @@
       background: var(--accent, #0f766e);
       cursor: pointer;
     }
+    /* Waktu inline: "0:02 / 0:05" di kanan slider */
     .chat-audio-duration {
       font-size: 11px;
       color: var(--ink-soft, #64748b);
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      flex-shrink: 0;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 2px;
       line-height: 1;
     }
+    .chat-audio-duration .aud-time-sep { opacity: 0.45; }
     .chat-bubble.user .chat-audio-progress {
       background: rgba(0,0,0,0.18);
     }
     .chat-bubble.user .chat-audio-duration {
-      color: rgba(15, 23, 42, 0.7);
+      color: rgba(15, 23, 42, 0.65);
     }
 
 
@@ -7934,22 +7949,25 @@
 
           <!-- Panel review (setelah rekam selesai, sebelum kirim) -->
           <div id="chatVnReview" class="chat-vn-review">
+            <!-- Tombol hapus di luar pill -->
             <button type="button" class="chat-vn-discard-btn" onclick="discardChatVoiceNote()" title="Hapus rekaman">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6l-1 14H6L5 6"></path>
                 <path d="M10 11v6M14 11v6"></path>
               </svg>
             </button>
+            <!-- Pill: play + slider + waktu inline -->
             <audio id="chatVnPreviewAudio" preload="metadata" ontimeupdate="updateVnPreviewProgress()" onended="onVnPreviewEnded()"></audio>
-            <button type="button" class="chat-vn-preview-play-btn" id="vnPreviewPlayBtn" onclick="toggleVnPreviewPlay()" title="Putar rekaman">
-              <svg class="icon-vn-play" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <svg class="icon-vn-pause" style="display:none;" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            </button>
-            <div class="chat-vn-preview-track-wrap">
+            <div class="chat-vn-review-pill">
+              <button type="button" class="chat-vn-preview-play-btn" id="vnPreviewPlayBtn" onclick="toggleVnPreviewPlay()" title="Putar rekaman">
+                <svg class="icon-vn-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <svg class="icon-vn-pause" style="display:none;" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              </button>
               <input type="range" class="chat-vn-preview-seek" id="vnPreviewSeek" min="0" max="100" value="0" oninput="seekVnPreview(this.value)">
-              <div class="chat-vn-preview-time">
+              <div class="chat-vn-preview-time-inline">
                 <span id="vnPreviewCur">0:00</span>
+                <span class="vn-time-sep">/</span>
                 <span id="vnPreviewDur">0:00</span>
               </div>
             </div>
@@ -11726,7 +11744,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.37)';
+      const version = ' (v3.6.38)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21385,6 +21403,7 @@
                   <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
                   <div class="chat-audio-duration">
                     <span id="cur_${audioId}">0:00</span>
+                    <span class="aud-time-sep">/</span>
                     <span id="dur_${audioId}">${durStr || '0:00'}</span>
                   </div>
                 </div>
@@ -21408,6 +21427,7 @@
                   <input type="range" class="chat-audio-progress" id="seek_${audioId}" min="0" max="100" value="0" oninput="seekChatAudio('${audioId}', this.value, event, ${forcedDur})" onclick="event.stopPropagation()">
                   <div class="chat-audio-duration">
                     <span id="cur_${audioId}">0:00</span>
+                    <span class="aud-time-sep">/</span>
                     <span id="dur_${audioId}">${durStr || '0:00'}</span>
                   </div>
                 </div>
