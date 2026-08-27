@@ -21,7 +21,7 @@ DROP POLICY IF EXISTS "Users can select own chat images" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own chat images" ON storage.objects;
 DROP POLICY IF EXISTS "Admin has full access to chat images" ON storage.objects;
 
--- 4. INSERT Policy: User hanya boleh upload foto ke folder wa_{auth.uid()} miliknya
+-- 3. INSERT Policy: User hanya boleh upload foto ke folder wa_{auth.uid()} miliknya
 CREATE POLICY "Users can insert own chat images"
 ON storage.objects
 FOR INSERT
@@ -34,7 +34,7 @@ WITH CHECK (
   )
 );
 
--- 5. SELECT Policy: User hanya boleh melihat/download foto dari folder wa_{auth.uid()} miliknya
+-- 4. SELECT Policy: User hanya boleh melihat/download foto dari folder wa_{auth.uid()} miliknya
 CREATE POLICY "Users can select own chat images"
 ON storage.objects
 FOR SELECT
@@ -47,7 +47,7 @@ USING (
   )
 );
 
--- 6. DELETE Policy: User boleh menghapus foto dari folder wa_{auth.uid()} miliknya
+-- 5. DELETE Policy: User boleh menghapus foto dari folder wa_{auth.uid()} miliknya
 CREATE POLICY "Users can delete own chat images"
 ON storage.objects
 FOR DELETE
@@ -60,22 +60,16 @@ USING (
   )
 );
 
--- 7. ADMIN Policy: Admin dapat mengakses seluruh foto di bucket chat-ai-images
+-- 6. ADMIN Policy: Admin dapat mengakses seluruh foto di bucket chat-ai-images
 CREATE POLICY "Admin has full access to chat images"
 ON storage.objects
 FOR ALL
 TO authenticated
 USING (
   bucket_id = 'chat-ai-images'
-  AND EXISTS (
-    SELECT 1 FROM public.users
-    WHERE id = auth.uid() AND nomor_wa = '6289626112023'
-  )
+  AND public.is_admin() = true
 )
 WITH CHECK (
   bucket_id = 'chat-ai-images'
-  AND EXISTS (
-    SELECT 1 FROM public.users
-    WHERE id = auth.uid() AND nomor_wa = '6289626112023'
-  )
+  AND public.is_admin() = true
 );
