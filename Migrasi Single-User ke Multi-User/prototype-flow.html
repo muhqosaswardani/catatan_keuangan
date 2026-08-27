@@ -760,6 +760,28 @@
   </div>
 </div>
 
+<!-- ==================== MODAL: PROMPT INSTALL APP SETELAH ONBOARDING ==================== -->
+<div class="modal-overlay" id="modalPromptInstallApp">
+  <div class="modal" style="text-align:center;padding:26px 20px 22px;">
+    <div style="width:68px;height:68px;margin:0 auto 16px;border-radius:20px;overflow:hidden;box-shadow:0 8px 24px rgba(15,118,110,0.22);border:2px solid #fff;display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 12h3v3h-3a1.5 1.5 0 0 1 0-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    </div>
+    <h3 style="font-size:18px;margin:0 0 8px;color:var(--ink);">Pasang Aplikasi di Layar Utama HP?</h3>
+    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0 0 22px;">
+      Buka catatan keuangan &amp; pantau saldo lebih cepat dalam satu tap di layar HP, tanpa perlu membuka browser setiap saat.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button type="button" class="btn btn-primary btn-block" style="height:46px;font-size:14.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;" onclick="confirmInstallFromOnboardingDemo()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Pasang Aplikasi Sekarang
+      </button>
+      <button type="button" class="btn btn-ghost btn-block" style="height:42px;font-size:13.5px;color:var(--ink-soft);border-radius:14px;" onclick="skipInstallFromOnboardingDemo()">
+        Tetap Buka di Web
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== MODAL: DETAIL API KEY & KEAMANAN ==================== -->
 <div class="modal-overlay modal-center" id="modalApiKeyDetail">
   <div class="modal">
@@ -1349,11 +1371,23 @@ function addCategoryFromManager(){
   renderCatManageList();
 }
 function finishOnboardingDemo(){
+  openModal('modalPromptInstallApp');
+}
+function confirmInstallFromOnboardingDemo(){
+  closeModal('modalPromptInstallApp');
+  toast('Memasang aplikasi ke Layar Utama... 🎉');
+  finalizeOnboardingDemo();
+}
+function skipInstallFromOnboardingDemo(){
+  closeModal('modalPromptInstallApp');
+  finalizeOnboardingDemo();
+}
+function finalizeOnboardingDemo(){
   toast('Saldo awal tersimpan. Selamat mencatat! 🎉');
   state.trialActive = true; state.unlocked = false;
   document.getElementById('trialDaysLeft').textContent = trialDurasiHari;
   setTrialChip('active');
-  setTimeout(()=>goto('screen-app-blank'), 500);
+  setTimeout(()=>goto('screen-app-blank'), 400);
 }
 
 /* ---------- Step 6: blank app + trial habis + token ---------- */
