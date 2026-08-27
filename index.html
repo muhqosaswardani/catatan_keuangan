@@ -10364,9 +10364,9 @@
             <div class="d">Makin banyak akun Google &amp; API key yang kamu tambah, <b>makin besar total limit AI kamu</b>.</div>
             <div class="aikey-own-input">
               <div id="ownKeyListSlide"></div>
-              <div style="display:flex;gap:8px;margin-top:8px;" onclick="event.stopPropagation();">
-                <input type="text" id="inpOwnKeySlide" placeholder="Tempel API key Gemini…" style="flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-family:inherit;font-size:13.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addOwnKeySlide();}">
-                <button class="btn btn-primary btn-sm" type="button" onclick="addOwnKeySlide()">+ Tambah</button>
+              <div style="display:flex;gap:8px;margin-top:8px;align-items:center;" onclick="event.stopPropagation();">
+                <input type="text" id="inpOwnKeySlide" placeholder="Tempel API key Gemini…" style="flex:1;min-width:0;height:40px;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;font-family:inherit;font-size:13.5px;box-sizing:border-box;background:var(--surface);" onkeydown="if(event.key==='Enter'){event.preventDefault();addOwnKeySlide();}">
+                <button class="btn btn-primary" type="button" style="height:40px;padding:0 14px;border-radius:12px;font-size:13px;font-weight:600;white-space:nowrap;flex-shrink:0;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;" onclick="addOwnKeySlide()">+ Tambah</button>
               </div>
               <div class="aikey-guide-link" onclick="event.stopPropagation();openApiGuide()">
                 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>
@@ -11386,7 +11386,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.25)';
+      const version = ' (v3.6.26)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
