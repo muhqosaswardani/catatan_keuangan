@@ -11458,7 +11458,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.30)';
+      const version = ' (v3.6.31)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12162,8 +12162,9 @@
       const custom = (getSettings().geminiApiKey || '').trim();
       if (custom) return custom;
       if (userKeys && userKeys.length > 0) return (typeof userKeys[0] === 'object' ? (userKeys[0].masked || userKeys[0].id) : userKeys[0]);
-      if (sharedKeys && sharedKeys.length > 0) return '__server_managed__';
-      return '';
+      // Seluruh pemanggilan AI dirutekan secara aman via Edge Function server (wa-webhook: call_gemini).
+      // Jika user tidak memasukkan key pribadi, server otomatis menggunakan shared API key bersama.
+      return '__server_managed__';
     }
     function setSettingsLocalOnly(s) { localStorage.setItem(LS_KEYS.settings, JSON.stringify(s)); }
 
