@@ -11458,7 +11458,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.35)';
+      const version = ' (v3.6.36)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12030,6 +12030,7 @@
 
         const afterHash = getContentHash();
         updateSyncStatusUI('online');
+        try { localStorage.setItem('last_sync_at', Date.now().toString()); } catch (e) {}
         if (beforeHash !== afterHash) {
           if (typeof renderBottomNav === 'function') renderBottomNav();
           if (typeof refreshAllViews === 'function') refreshAllViews();
