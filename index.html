@@ -3424,7 +3424,7 @@
       position: fixed;
       inset: 0;
       background: rgba(15, 25, 24, .5);
-      z-index: 320;
+      z-index: 10050;
       display: none;
       align-items: flex-end;
       justify-content: center;
@@ -8776,14 +8776,16 @@
     </div>
 
     <!-- ==================== MODAL: INFO AI / API KEY ==================== -->
-    <div class="modal-overlay modal-center" id="modalInfoAiKey">
+    <div class="modal-overlay" id="modalInfoAiKey">
       <div class="modal">
         <div class="modal-head">
           <h3>Soal Limit AI</h3>
           <button class="modal-close" onclick="closeModal('modalInfoAiKey')">&times;</button>
         </div>
         <div class="modal-body">
-          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;"><b style="color:var(--ink);">AI Gratis (bawaan)</b> — pakai API key Gemini milik KaslyAI, dipakai bareng-bareng semua pengguna.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-top:0;"><b style="color:var(--ink);">AI Gratis (bawaan)</b> — pakai API key Gemini milik KaslyAI, dipakai bareng-bareng semua pengguna. Karena dipakai rame-rame, kuotanya kebagi habis kalau lagi banyak yang pakai bersamaan.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;"><b style="color:var(--ink);">API Key Sendiri</b> — kamu bisa tambah API key Gemini milik akun Google kamu, boleh lebih dari satu. Tiap API key Gemini gratis dari Google punya jatah kuota masing-masing, jadi <b>makin banyak akun Google berbeda yang kamu buatkan API key-nya, makin besar total limit AI yang kamu punya</b> — dan enggak berebut sama pengguna lain.</p>
+          <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:0;">Bisa gonta-ganti pilihan ini kapan saja lewat menu Setting di dalam aplikasi.</p>
         </div>
       </div>
     </div>
@@ -10356,7 +10358,7 @@
 
           <div class="aikey-opt ${onboardingState.aiChoice==='own'?'selected':''}" data-aikey="own" onclick="selectAiOption('own')">
             <div class="aikey-opt-head">
-              <div style="display:flex;align-items:center;gap:8px;"><span class="aikey-radio"><span class="dot"></span></span><b>API Key Gemini Sendiri</b></div>
+              <div style="display:flex;align-items:center;gap:8px;"><span class="aikey-radio"><span class="dot"></span></span><b>API Key Gemini Sendiri (Rekomendasi)</b></div>
               <span class="intro-badge-own">Kuota Lega</span>
             </div>
             <div class="d">Makin banyak akun Google &amp; API key yang kamu tambah, <b>makin besar total limit AI kamu</b>.</div>
@@ -11384,7 +11386,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.24)';
+      const version = ' (v3.6.25)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
