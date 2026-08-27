@@ -251,6 +251,21 @@
   .wa-bub.receipt .thumb{width:32px;height:32px;border-radius:6px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent-dark);flex-shrink:0;}
   .wa-bub b{color:var(--accent-dark);}
 
+  /* Voice note visual player */
+  .wa-vn-player{display:flex;align-items:center;gap:8px;padding:2px 0;min-width:175px;}
+  .wa-vn-icon{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .wa-vn-bars{display:flex;align-items:center;gap:2.5px;flex:1;height:18px;}
+  .wa-vn-bars span{width:3px;background:#5B6A68;border-radius:2px;display:inline-block;animation:vnBarPulse 1.2s ease-in-out infinite alternate;}
+  .wa-vn-bars span:nth-child(1){height:6px;animation-delay:0.1s;}
+  .wa-vn-bars span:nth-child(2){height:14px;animation-delay:0.3s;}
+  .wa-vn-bars span:nth-child(3){height:10px;animation-delay:0.2s;}
+  .wa-vn-bars span:nth-child(4){height:16px;animation-delay:0.5s;}
+  .wa-vn-bars span:nth-child(5){height:8px;animation-delay:0.15s;}
+  .wa-vn-bars span:nth-child(6){height:15px;animation-delay:0.4s;}
+  .wa-vn-bars span:nth-child(7){height:11px;animation-delay:0.25s;}
+  .wa-vn-bars span:nth-child(8){height:5px;animation-delay:0.1s;}
+  @keyframes vnBarPulse{0%{transform:scaleY(0.5);opacity:0.6;}100%{transform:scaleY(1.1);opacity:1;}}
+
   .browser-mock{background:var(--surface);}
   .browser-mock-bar{background:#EDEFEE;padding:9px 12px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--line);}
   .browser-mock-bar .dot{width:8px;height:8px;border-radius:50%;background:#D7DBD9;}
@@ -461,7 +476,7 @@
       <div id="introSlides"></div>
     </div>
     <div class="screen-footer">
-      <div class="step-dots"><span></span><span></span><span></span><span></span></div>
+      <div class="step-dots"><span></span><span></span><span></span><span></span><span></span></div>
       <div style="display:flex;gap:10px;">
         <button class="btn btn-ghost" onclick="introBack()" id="introBackBtn" style="flex:0 0 auto;">Kembali</button>
         <button class="btn btn-primary btn-block" onclick="introNext()" id="introNextBtn">Lanjut</button>
@@ -815,10 +830,40 @@ let state = {
   aiChoice: 'free', apiKeyOwnInput: ''
 };
 
-/* setiap slide = fungsi yang mengembalikan HTML mockup + teks penjelasan */
+/* setiap slide = fungsi yang mengembalikan HTML mockup + teks penjelasan (5 Slide) */
 const introSlides = [
+// 1. Kirim Transaksi via WhatsApp (Teks & Rekaman Suara / Voice Note)
 () => `
-  <div class="card" style="padding:20px 18px 24px;">
+  <div class="card" style="padding:20px 18px 22px;">
+    <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">1. Catat Transaksi via Teks & Voice Note</h3>
+    <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 14px;text-align:left;">Bisa ketik pesan teks santai atau kirim rekaman suara (VN). AI otomatis paham nominal, kategori, dan dompet yang dipakai.</p>
+    <div class="intro-visual wa-mock">
+      <div class="wa-mock-head">
+        <div class="avatar">KA</div>
+        <div><div class="name">KaslyAI</div><div class="sub">Catatan Keuangan • online</div></div>
+      </div>
+      <div class="wa-mock-body">
+        <div class="wa-bub out">
+          <div class="wa-vn-player">
+            <div class="wa-vn-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" fill="currentColor"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div class="wa-vn-bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <span style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-left:4px;">0:04</span>
+          </div>
+          <div style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;font-style:italic;">"tadi beli bensin 30rb pakai e-wallet"</div>
+          <span class="tm">09:12</span>
+        </div>
+        <div class="wa-bub in">✅ Dicatat: <b>Bensin — Rp30.000</b><br><span style="font-size:11px;color:var(--ink-soft);">Kategori: Transport • Dompet: E-Wallet</span><span class="tm">09:12</span></div>
+        <div class="wa-bub out">keluar 25rb makan bakso bayar tunai<span class="tm">09:14</span></div>
+        <div class="wa-bub in">✅ Dicatat: <b>Makan Siang — Rp25.000</b><br><span style="font-size:11px;color:var(--ink-soft);">Kategori: Makanan • Dompet: Tunai</span><span class="tm">09:14</span></div>
+      </div>
+    </div>
+  </div>`,
+
+// 2. Scan Foto Struk Belanja (Multi-Kategori & Banyak Item)
+() => `
+  <div class="card" style="padding:20px 18px 22px;">
+    <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">2. Scan Foto Struk & Deteksi Banyak Item</h3>
+    <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 14px;text-align:left;">Foto struk belanjaan mini market, resto, atau invoice panjang. AI membaca semua item dan membagi per kategori secara otomatis.</p>
     <div class="intro-visual wa-mock">
       <div class="wa-mock-head">
         <div class="avatar">KA</div>
@@ -827,37 +872,49 @@ const introSlides = [
       <div class="wa-mock-body">
         <div class="wa-bub out receipt">
           <div class="thumb"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
-          <div>Foto struk Indomaret.jpg<span class="tm">09:14</span></div>
+          <div><b>Foto Struk Indomaret.jpg</b><br><span style="font-size:10px;opacity:.8;">Total 3 item belanjaan</span><span class="tm">11:20</span></div>
         </div>
-        <div class="wa-bub in">✅ Tercatat otomatis!<br><b>Belanja — Rp45.000</b><br>Kategori: Groceries • Dompet Utama<span class="tm">09:14</span></div>
+        <div class="wa-bub in">
+          ✅ Berhasil deteksi <b>3 kategori transaksi</b>:<br>
+          1. Beras & Minyak (Groceries) — <b>Rp52.000</b><br>
+          2. Sabun Mandi (Kebutuhan Rumah) — <b>Rp18.500</b><br>
+          3. Snack & Kopi (Jajan) — <b>Rp15.000</b><br>
+          <div style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);font-size:11.5px;"><b>Total Rp85.500</b> tersimpan rapi!</div>
+          <span class="tm">11:20</span>
+        </div>
       </div>
     </div>
-    <h2 style="font-size:18px;margin:0 0 8px;text-align:center;">Fitur AI Pencatat Otomatis</h2>
-    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;text-align:center;">Kirim foto struk atau ngobrol via chat — transaksi otomatis tercatat rapi. Gratis dicoba 7 hari pertama.</p>
   </div>`,
 
+// 3. Cek Saldo & Tanya Bebas Keuangan
 () => `
-  <div class="card" style="padding:20px 18px 24px;">
+  <div class="card" style="padding:20px 18px 22px;">
+    <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">3. Cek Saldo & Tanya Bebas Keuangan</h3>
+    <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 14px;text-align:left;">Tanya saldo dompet, cek sisa anggaran bulan ini, atau minta analisa pengeluaran langsung dari chat WhatsApp kapan saja.</p>
     <div class="intro-visual wa-mock">
       <div class="wa-mock-head">
         <div class="avatar">KA</div>
-        <div><div class="name">KaslyAI ✓</div><div class="sub">Nomor resmi terverifikasi</div></div>
+        <div><div class="name">KaslyAI</div><div class="sub">Catatan Keuangan • online</div></div>
       </div>
       <div class="wa-mock-body">
-        <div class="wa-bub out">keluar 20rb parkir tadi siang<span class="tm">13:02</span></div>
-        <div class="wa-bub in">✅ Dicatat: <b>Pengeluaran Rp20.000</b> — Transport<span class="tm">13:02</span></div>
-        <div class="wa-bub out">saldo dompet utama berapa?<span class="tm">13:03</span></div>
-        <div class="wa-bub in">Saldo Dompet Utama sekarang: <b>Rp1.240.000</b><span class="tm">13:03</span></div>
+        <div class="wa-bub out">saldo dompet utama berapa sekarang?<span class="tm">14:05</span></div>
+        <div class="wa-bub in">💳 Saldo <b>Dompet Utama</b> kamu saat ini: <b>Rp1.450.000</b>.<span class="tm">14:05</span></div>
+        <div class="wa-bub out">sisa budget makan bulan ini masih aman?<span class="tm">14:06</span></div>
+        <div class="wa-bub in">📊 Anggaran <b>Makanan</b> tersisa <b>Rp350.000</b> dari batas Rp1.200.000 (Terpakai 70%, aman untuk minggu ini).<span class="tm">14:06</span></div>
       </div>
     </div>
-    <h2 style="font-size:18px;margin:0 0 8px;text-align:center;">Asisten Lewat WhatsApp</h2>
-    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;text-align:center;">Setelah nomor WA kamu terverifikasi, kirim pesan ke WA resmi "KaslyAI" kapan saja — catat & tanya-tanya soal keuangan langsung dari chat.</p>
   </div>`,
 
+// 4. Fitur Dasar Gratis Selamanya (Dashboard Web)
 () => `
-  <div class="card" style="padding:20px 18px 24px;">
+  <div class="card" style="padding:20px 18px 22px;">
+    <h3 style="font-size:16px;margin:0 0 6px;text-align:left;">4. Dashboard Web Gratis Selamanya</h3>
+    <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 14px;text-align:left;">Walau masa trial AI selesai, fitur catat transaksi manual, laporan keuangan, grafik, dan anggaran tetap bisa dipakai penuh gratis selamanya.</p>
     <div class="intro-visual browser-mock">
-      <div class="browser-mock-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">catatankeuangan.app</span></div>
+      <div class="browser-mock-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">kaslyai.app/dashboard</span>
+      </div>
       <div class="browser-mock-body">
         <div class="dash-card-row">
           <div class="dash-stat income"><div class="l">Pemasukan</div><div class="v">Rp3,2jt</div></div>
@@ -867,22 +924,20 @@ const introSlides = [
           <div class="dash-bar" style="height:35%"></div><div class="dash-bar hi" style="height:70%"></div><div class="dash-bar" style="height:45%"></div><div class="dash-bar hi" style="height:85%"></div><div class="dash-bar" style="height:30%"></div><div class="dash-bar hi" style="height:60%"></div><div class="dash-bar" style="height:40%"></div>
         </div>
         <div style="margin-top:10px;">
-          <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--expense-soft);">🍔</span>Makan Siang</div><span class="amt minus">-Rp32.000</span></div>
+          <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--expense-soft);">🍔</span>Makan Siang</div><span class="amt minus">-Rp25.000</span></div>
           <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--income-soft);">💼</span>Gaji Bulanan</div><span class="amt plus">+Rp3.200.000</span></div>
-          <div class="dash-tx"><div class="cat"><span class="ic" style="background:var(--expense-soft);">⛽</span>Bensin</div><span class="amt minus">-Rp50.000</span></div>
         </div>
       </div>
     </div>
-    <h2 style="font-size:18px;margin:0 0 8px;text-align:center;">Fitur Dasar Gratis Selamanya</h2>
-    <p style="font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;text-align:center;">Walau trial AI habis, catat transaksi manual, laporan, dan anggaran tetap bisa dipakai penuh lewat web tanpa batas waktu.</p>
   </div>`,
 
+// 5. Soal AI-nya, Mau Pakai Apa? (Setup API Key)
 () => `
   <div class="card" style="padding:20px 18px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
       <div>
         <div style="font-size:30px;line-height:1;margin-bottom:6px;">🔑</div>
-        <h2 style="font-size:17px;margin:0;">Soal AI-nya, Mau Pakai Apa?</h2>
+        <h2 style="font-size:17px;margin:0;text-align:left;">Soal AI-nya, Mau Pakai Apa?</h2>
       </div>
       <button class="icon-btn" onclick="openModal('modalInfoAiKey')" aria-label="Info" style="flex-shrink:0;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
