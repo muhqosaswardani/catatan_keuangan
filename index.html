@@ -11511,6 +11511,11 @@
         // Tampilkan pop up pilihan mau pasang aplikasi di layar utama HP atau tetap di web
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         if (!isStandalone) {
+          // Tunggu native install prompt (beforeinstallprompt) siap dulu, sama seperti kondisi
+          // saat tombol di Settings dipencet (sudah pasti tersedia). Tanpa ini, popup langsung
+          // muncul di detik pertama setelah daftar—sebelum browser sempat fire beforeinstallprompt—
+          // sehingga jatuh ke mode panduan manual (hasil instalnya beda: masih ada address bar).
+          await waitForInstallPromptReady();
           openModal('modalPromptInstallApp');
         } else {
           await finishOnboardingFinalize();
@@ -11522,6 +11527,28 @@
         btn.disabled = false;
         btn.textContent = originalText;
       }
+    }
+
+    // Tunggu window.deferredInstallPrompt kesedia (event 'kaslyai:install-available' dari listener
+    // beforeinstallprompt), maksimal `timeoutMs`. Kalau browser tidak pernah fire event ini (mis. iOS,
+    // atau kriteria PWA belum lolos), tetap lanjut setelah timeout—handleInstallAppClick() akan jatuh
+    // ke fallback panduan manual seperti biasa, sama seperti kalau dipanggil dari Settings.
+    function waitForInstallPromptReady(timeoutMs = 4000) {
+      return new Promise((resolve) => {
+        if (window.deferredInstallPrompt) { resolve(); return; }
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) { resolve(); return; }
+        let done = false;
+        const onReady = () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          window.removeEventListener('kaslyai:install-available', onReady);
+          resolve();
+        };
+        const timer = setTimeout(onReady, timeoutMs);
+        window.addEventListener('kaslyai:install-available', onReady);
+      });
     }
 
     async function confirmInstallFromOnboarding() {
@@ -11799,7 +11826,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.49)';
+      const version = ' (v3.6.50)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
