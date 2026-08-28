@@ -1364,6 +1364,17 @@
       color: var(--ink-soft);
     }
 
+    .rec-status-belum-bayar {
+      color: var(--ink-soft);
+    }
+
+    .rec-meta-line {
+      font-size: 12px;
+      margin-top: 1px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
     .rec-status-nonaktif {
       color: var(--ink-soft);
       text-decoration: line-through;
@@ -11788,7 +11799,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.47)';
+      const version = ' (v3.6.48)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13503,15 +13514,21 @@
       const today = todayStr();
       if (item.nextDue < today) return 'terlambat';
       if (item.nextDue === today) return 'jatuh-tempo';
-
-      // Bedakan status 'belum-bayar' (siklus aktif berjalan) vs 'akan-datang' (siklus masa depan)
+      // Item belum jatuh tempo & belum dibayar = "Belum Bayar", apa pun jaraknya ke hari ini.
+      // "Akan Datang" TIDAK lagi jadi status permanen yang dihitung ulang tiap render (dulu bikin
+      // status nyangkut "Akan Datang" terus selama masih tersisa >1 siklus) — sekarang cuma dipakai
+      // sebagai info sekali di awal, langsung setelah item dibuat (lihat submitRecurringForm()).
+      return 'belum-bayar';
+    }
+    // Dipakai sekali saat item baru saja dibuat, buat kasih tau apakah jatuh temponya masih di siklus
+    // yang akan datang (bukan siklus berjalan saat ini). Beda dengan recurringStatus() yang jadi status
+    // permanen — ini cuma buat pesan konfirmasi satu kali di submitRecurringForm().
+    function isRecurringDueInFutureCycle(item) {
+      const today = todayStr();
       const resetDay = getRecurringResetDay();
       const currentCycleStart = recurringPeriodStart(today, resetDay);
       const nextCycleStart = advanceDueDateOneMonth(resetDay, currentCycleStart);
-      if (item.nextDue < nextCycleStart) {
-        return 'belum-bayar';
-      }
-      return 'akan-datang';
+      return item.nextDue >= nextCycleStart;
     }
     function addRecurringItem(item) {
       const list = getRecurring();
@@ -20479,8 +20496,7 @@
       if (s === 'sudah-dibayar') return { text: 'Sudah Dibayar', cls: 'akan-datang' };
       if (s === 'terlambat') return { text: 'Terlambat', cls: 'terlambat' };
       if (s === 'jatuh-tempo') return { text: 'Jatuh Tempo Hari Ini', cls: 'jatuh-tempo' };
-      if (s === 'belum-bayar') return { text: 'Belum Bayar', cls: 'belum-bayar' };
-      return { text: 'Akan Datang', cls: 'akan-datang' };
+      return { text: 'Belum Bayar', cls: 'belum-bayar' };
     }
 
     // Badge/indikator kecil di Beranda: muncul kalau ada item aktif yang jatuh tempo hari ini/terlambat & belum dikonfirmasi
@@ -20620,7 +20636,8 @@
       <div class="tx-icon ${item.type}">${cat ? iconSvgMarkup(cat.icon, 20) : ''}</div>
       <div class="tx-body">
         <div class="tx-cat">${escAttr(item.name)}</div>
-        <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} · tgl ${item.dayOfMonth} tiap bulan · <span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
+        <div class="tx-meta">${wallet ? escAttr(wallet.name) : '-'} · tgl ${item.dayOfMonth} tiap bulan</div>
+        <div class="rec-meta-line"><span class="rec-status rec-status-${st.cls}">${st.text}</span></div>
       </div>
       <div class="tx-amt ${item.type}">${formatRupiah(item.amount)}</div>
       ${progressHtml}
@@ -20842,8 +20859,11 @@
         updateRecurringItem(id, payload);
         showToast('Tagihan diperbarui');
       } else {
-        addRecurringItem(payload);
-        showToast('Tagihan ditambahkan');
+        const newItem = addRecurringItem(payload);
+        // Info "Akan Datang" cuma muncul SEKALI di sini (toast konfirmasi), bukan sebagai status permanen.
+        showToast(isRecurringDueInFutureCycle(newItem)
+          ? `Tagihan ditambahkan · Akan Datang (jatuh tempo ${newItem.nextDue})`
+          : 'Tagihan ditambahkan');
       }
       closeModal('modalRecurringForm');
       renderRecurringManageList();
