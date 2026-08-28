@@ -11788,7 +11788,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.45)';
+      const version = ' (v3.6.46)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21295,6 +21295,7 @@
       }
       localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
       saveChatStateToNavConfig();
+      setTimeout(() => { if (typeof healPendingBase64ChatMedia === 'function') healPendingBase64ChatMedia(); }, 1500);
 
       if (chatHistory.length === 0) {
         // Add default welcome message from Bot
@@ -21345,6 +21346,87 @@
       cfg.chatSession = chatSession;
       cfg.chatUpdatedAt = Date.now();
       setNavConfigLocalOnly(cfg);
+    }
+
+    // Upload ke Supabase Storage dengan retry, supaya kegagalan jaringan sesaat
+    // tidak langsung membuat foto/audio nyangkut permanen sebagai base64 di database.
+    async function uploadChatMediaWithRetry(storagePath, blobOrFile, contentType, maxRetries) {
+      maxRetries = typeof maxRetries === 'number' ? maxRetries : 2;
+      if (typeof supabaseClient === 'undefined' || !supabaseClient || !supabaseClient.storage) {
+        return { ok: false, reason: 'no-client' };
+      }
+      let lastErr = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const { error: upErr } = await supabaseClient.storage
+            .from('chat-ai-images')
+            .upload(storagePath, blobOrFile, { contentType, upsert: true });
+          if (!upErr) return { ok: true, path: storagePath };
+          lastErr = upErr;
+        } catch (ex) {
+          lastErr = ex;
+        }
+        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+      }
+      console.warn('[chat media] Upload gagal setelah retry:', lastErr);
+      return { ok: false, reason: 'upload-failed', error: lastErr };
+    }
+
+    function chatMediaExtFromMime(mimeType) {
+      mimeType = (mimeType || '').toLowerCase();
+      if (mimeType.includes('png')) return 'png';
+      if (mimeType.includes('webp')) return 'webp';
+      if (mimeType.includes('mp4')) return 'mp4';
+      if (mimeType.includes('ogg')) return 'ogg';
+      if (mimeType.includes('wav')) return 'wav';
+      return mimeType.includes('audio') ? 'webm' : 'jpg';
+    }
+
+    // Self-heal: cari pesan chat yang field image/audio-nya masih base64 mentah
+    // (nyangkut karena upload sempat gagal), coba upload ulang ke Storage sekarang.
+    let chatMediaHealInProgress = false;
+    async function healPendingBase64ChatMedia() {
+      if (chatMediaHealInProgress) return;
+      if (!navigator.onLine || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+      if (!Array.isArray(chatHistory) || chatHistory.length === 0) return;
+      const targets = chatHistory.filter(m => m && m.sender === 'user' &&
+        ((m.image && m.image.startsWith('data:')) || (m.audio && m.audio.startsWith('data:'))));
+      if (targets.length === 0) return;
+      chatMediaHealInProgress = true;
+      console.log('[chat media] Mencoba pulihkan', targets.length, 'media yang masih base64...');
+      try {
+        for (const msg of targets) {
+          const userFolder = `wa_${currentUserId}`;
+          for (const field of ['image', 'audio']) {
+            const val = msg[field];
+            if (!val || !val.startsWith('data:')) continue;
+            const m = val.match(/^data:([^;]+);base64,(.*)$/);
+            if (!m) continue;
+            const mimeType = m[1];
+            const base64Data = m[2];
+            const ext = chatMediaExtFromMime(mimeType);
+            const storagePath = `${userFolder}/${msg.id}.${ext}`;
+            try {
+              const byteChars = atob(base64Data);
+              const byteNumbers = new Array(byteChars.length);
+              for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+              const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
+              const res = await uploadChatMediaWithRetry(storagePath, blob, mimeType, 2);
+              if (res.ok) {
+                msg[field] = storagePath;
+                console.log('[chat media] Berhasil pulihkan', field, msg.id);
+              }
+            } catch (ex) {
+              console.warn('[chat media] Gagal pulihkan', field, msg.id, ex);
+            }
+          }
+        }
+        localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
+        saveChatStateToNavConfig();
+        if (typeof scheduleSync === 'function') scheduleSync(1000);
+      } finally {
+        chatMediaHealInProgress = false;
+      }
     }
 
     function getChatDateHeaderStr(timestamp) {
@@ -22524,24 +22606,12 @@
             reader.readAsDataURL(currentVnBlob);
             audioDataForServer = await b64Promise;
 
-            // Upload directly to Supabase Storage bucket 'chat-ai-images'
-            try {
-              if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.storage) {
-                const { error: upErr } = await supabaseClient.storage
-                  .from('chat-ai-images')
-                  .upload(storagePath, currentVnBlob, { contentType: audioMimeType, upsert: true });
-
-                if (!upErr) {
-                  audioPathForDisplay = storagePath;
-                } else {
-                  console.warn('[chat vn] Upload storage failed, fallback base64:', upErr);
-                  audioPathForDisplay = `data:${audioMimeType};base64,${audioDataForServer}`;
-                }
-              } else {
-                audioPathForDisplay = `data:${audioMimeType};base64,${audioDataForServer}`;
-              }
-            } catch (upEx) {
-              console.warn('[chat vn] Storage upload exception, fallback base64:', upEx);
+            // Upload ke Supabase Storage (dengan retry) bucket 'chat-ai-images'
+            const vnUpRes = await uploadChatMediaWithRetry(storagePath, currentVnBlob, audioMimeType, 2);
+            if (vnUpRes.ok) {
+              audioPathForDisplay = storagePath;
+            } else {
+              console.warn('[chat vn] Upload storage gagal setelah retry, fallback base64 sementara:', vnUpRes.reason);
               audioPathForDisplay = `data:${audioMimeType};base64,${audioDataForServer}`;
             }
           } catch (vnErr) {
@@ -22565,23 +22635,11 @@
             const userFolder = `wa_${currentUserId}`;
             const storagePath = `${userFolder}/${msgId}.${ext}`;
 
-            try {
-              if (typeof supabaseClient !== 'undefined' && supabaseClient && supabaseClient.storage) {
-                const { error: upErr } = await supabaseClient.storage
-                  .from('chat-ai-images')
-                  .upload(storagePath, file, { contentType: imageMimeType, upsert: true });
-
-                if (!upErr) {
-                  imagePathForDisplay = storagePath;
-                } else {
-                  console.warn('[chat] Upload storage failed, fallback base64:', upErr);
-                  imagePathForDisplay = `data:${imageMimeType};base64,${imageDataForServer}`;
-                }
-              } else {
-                imagePathForDisplay = `data:${imageMimeType};base64,${imageDataForServer}`;
-              }
-            } catch (upEx) {
-              console.warn('[chat] Storage upload exception, fallback base64:', upEx);
+            const imgUpRes = await uploadChatMediaWithRetry(storagePath, file, imageMimeType, 2);
+            if (imgUpRes.ok) {
+              imagePathForDisplay = storagePath;
+            } else {
+              console.warn('[chat] Upload storage gagal setelah retry, fallback base64 sementara:', imgUpRes.reason);
               imagePathForDisplay = `data:${imageMimeType};base64,${imageDataForServer}`;
             }
           } catch (e) {
@@ -25360,6 +25418,7 @@ PERTANYAAN_USER:
         scheduleSync();
         // Auto-flush antrian pesan Chat yang pending saat koneksi pulih
         setTimeout(() => { if (typeof flushPendingChatMessages === 'function') flushPendingChatMessages(); }, 1000);
+        setTimeout(() => { if (typeof healPendingBase64ChatMedia === 'function') healPendingBase64ChatMedia(); }, 1500);
       });
       window.addEventListener('offline', () => updateSyncStatusUI('offline'));
       window.addEventListener('focus', () => {
