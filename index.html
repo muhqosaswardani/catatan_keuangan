@@ -11799,7 +11799,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.48)';
+      const version = ' (v3.6.49)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13454,8 +13454,22 @@
         if (m === 0) y++;
       }
 
-      const d = Math.min(dayOfMonth, daysInMonth(y, m));
-      return y + '-' + pad(m + 1) + '-' + pad(d);
+      let d = Math.min(dayOfMonth, daysInMonth(y, m));
+      let candidate = y + '-' + pad(m + 1) + '-' + pad(d);
+
+      // Kalau occurrence hasil hitungan di atas ternyata sudah lewat dari hari ini (baseDateStr),
+      // berarti tanggal itu udah kelewat SEBELUM tagihan ini sempat dibuat — majukan satu bulan lagi
+      // supaya tagihan yang baru dibuat gak langsung dicap "Terlambat" di percobaan pertama.
+      // Contoh: hari ini tgl 10, dayOfMonth diisi 8 → jangan pakai tgl 8 bulan ini (sudah lewat 2 hari),
+      // pakai tgl 8 bulan depan.
+      if (candidate < baseDateStr) {
+        m = m === 11 ? 0 : m + 1;
+        if (m === 0) y++;
+        d = Math.min(dayOfMonth, daysInMonth(y, m));
+        candidate = y + '-' + pad(m + 1) + '-' + pad(d);
+      }
+
+      return candidate;
     }
     // Majukan tanggal jatuh tempo satu bulan dari currentDueStr (dipakai setelah item dikonfirmasi lunas).
     function advanceDueDateOneMonth(dayOfMonth, currentDueStr) {
