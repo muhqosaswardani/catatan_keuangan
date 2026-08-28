@@ -11788,7 +11788,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.46)';
+      const version = ' (v3.6.47)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21406,6 +21406,9 @@
             const base64Data = m[2];
             const ext = chatMediaExtFromMime(mimeType);
             const storagePath = `${userFolder}/${msg.id}.${ext}`;
+            // Kalau kontennya sebenarnya audio tapi kesasar di field "image" (bug lama),
+            // taruh path-nya di field "audio" yang benar, bukan "image".
+            const targetField = mimeType.includes('audio') ? 'audio' : field;
             try {
               const byteChars = atob(base64Data);
               const byteNumbers = new Array(byteChars.length);
@@ -21413,8 +21416,9 @@
               const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
               const res = await uploadChatMediaWithRetry(storagePath, blob, mimeType, 2);
               if (res.ok) {
-                msg[field] = storagePath;
-                console.log('[chat media] Berhasil pulihkan', field, msg.id);
+                if (targetField !== field) msg[field] = null;
+                msg[targetField] = storagePath;
+                console.log('[chat media] Berhasil pulihkan', field, '->', targetField, msg.id);
               }
             } catch (ex) {
               console.warn('[chat media] Gagal pulihkan', field, msg.id, ex);
@@ -21423,7 +21427,10 @@
         }
         localStorage.setItem('fk_chat_history', JSON.stringify(chatHistory));
         saveChatStateToNavConfig();
-        if (typeof scheduleSync === 'function') scheduleSync(1000);
+        // Pastikan hasil pemulihan ini benar-benar terkirim ke server — jangan sampai
+        // ditahan oleh optimasi "skip upsert kalau data dianggap identik".
+        try { localStorage.removeItem('last_pushed_user_settings_hash'); } catch (e) {}
+        if (typeof scheduleSync === 'function') scheduleSync(500);
       } finally {
         chatMediaHealInProgress = false;
       }
