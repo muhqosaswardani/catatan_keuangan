@@ -11826,7 +11826,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.51)';
+      const version = ' (v3.6.52)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -23229,19 +23229,23 @@ Teks user: "${text}"
       const todayStrVal = todayStr();
       const recurringItems = getRecurring();
 
-      const resetDay = 25;
+      const resetDay = getRecurringResetDay();
       const dueItems = recurringItems
+        .filter(item => item.active !== false)
         .map(item => {
           const { status, nextDue } = getLocalRecurringStatus(item, todayStrVal, resetDay);
           return { item, status, nextDue };
         })
-        .filter(x => x.status === "terlambat" || x.status === "jatuh-tempo")
+        // "belum-bayar" ikut disertakan: tagihan yang masih aktif & belum dibayar di siklus berjalan
+        // (walau belum jatuh tempo/telat) tetap harus kedeteksi kalau user bilang "gaji masuk", "bayar
+        // motor", dll di chat -- bukan cuma yang sudah jatuh-tempo/terlambat.
+        .filter(x => x.status === "terlambat" || x.status === "jatuh-tempo" || x.status === "belum-bayar")
         .map(x => ({
           id: x.item.id,
           name: x.item.name,
           amount: Number(x.item.amount) || 0,
-          category_id: x.item.category_id,
-          wallet_id: x.item.wallet_id,
+          category_id: x.item.categoryId,
+          wallet_id: x.item.walletId,
           type: x.item.type,
           next_due_date: x.nextDue
         }));
@@ -23322,19 +23326,24 @@ Keluarkan JSON dengan schema:
       }
     }
 
+    // PENTING: `item` di sini berasal dari getRecurring() (bentuk lokal/camelCase: lastConfirmedDate,
+    // dayOfMonth) -- BUKAN row mentah dari Supabase (last_confirmed_date, day_of_month). Sebelumnya
+    // fungsi ini baca nama field gaya database, jadi dua-duanya SELALU undefined -> status tagihan di
+    // fitur chat selalu salah kehitung (misal "belum-bayar" terus walau sudah lewat jatuh tempo), yang
+    // bikin fitur deteksi "gaji masuk"/"bayar motor" dkk di chat tidak pernah jalan sama sekali.
     function getLocalRecurringStatus(item, todayStr, resetDay) {
       const currentPeriodStart = localRecurringPeriodStart(todayStr, resetDay);
-      const lastPaidPeriod = item.last_confirmed_date
-        ? localRecurringPeriodStart(item.last_confirmed_date, resetDay)
+      const lastPaidPeriod = item.lastConfirmedDate
+        ? localRecurringPeriodStart(item.lastConfirmedDate, resetDay)
         : null;
 
       const isPaidThisPeriod = lastPaidPeriod === currentPeriodStart;
-      const currentDue = localComputeInitialDueDate(item.day_of_month, todayStr, resetDay);
+      const currentDue = localComputeInitialDueDate(item.dayOfMonth, todayStr, resetDay);
 
       if (isPaidThisPeriod) {
         return {
           status: "sudah-dibayar",
-          nextDue: localAdvanceDueDateOneMonth(item.day_of_month, currentDue),
+          nextDue: localAdvanceDueDateOneMonth(item.dayOfMonth, currentDue),
         };
       }
 
@@ -23387,44 +23396,42 @@ Keluarkan JSON dengan schema:
       return `${ny}-${String(nm + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
 
+    // Pakai addTransaction()/setRecurring() -- fungsi standar yang dipakai di semua alur lain -- supaya
+    // bentuk datanya konsisten. SEBELUMNYA transaksi di sini dibikin manual dengan nama field gaya
+    // database (wallet_id/category_id) padahal seluruh app (recalculateWalletBalances, tampilan Riwayat
+    // Transaksi, dll) baca walletId/categoryId -- akibatnya transaksi "berhasil" via chat TIDAK PERNAH
+    // mengubah saldo dompet & tampil sebagai "Dompet Terhapus". Begitu juga recItem.last_confirmed_date
+    // seharusnya recItem.lastConfirmedDate (camelCase), kalau tidak, status tagihan tidak ikut ke-update.
     async function executeChatChecklistPayment(target) {
       const wallets = getWallets();
       const walletId = target.wallet_id || wallets.find(w => w.isPrimary)?.id || wallets[0]?.id;
       const categoryId = target.category_id || matchCategoryByName("Tagihan", "expense");
+      const cat = categoryId ? categoryById(categoryId) : null;
 
-      const txs = getTransactions();
-      const txId = 'tx_' + uid();
-      const newTx = {
-        id: txId,
-        access_code: getAccessCode(),
-        wallet_id: walletId,
-        category_id: categoryId,
-        category: "Tagihan",
+      const newTx = addTransaction({
+        walletId: walletId,
+        categoryId: categoryId,
+        category: cat ? cat.name : "Tagihan",
         type: target.type || "expense",
         amount: target.amount,
         date: todayStr(),
         note: target.name,
-        source: "whatsapp",
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      txs.push(newTx);
-      setTransactionsLocalOnly(txs);
+        toWalletId: null
+      });
 
       const recurring = getRecurring();
       const recItem = recurring.find(r => r.id === target.id);
       if (recItem) {
-        recItem.last_confirmed_date = todayStr();
-        recItem.updatedAt = Date.now();
-        setRecurringLocalOnly(recurring);
+        recItem.lastConfirmedDate = todayStr();
+        recItem.history = recItem.history || [];
+        recItem.history.push({ date: todayStr(), amount: target.amount, txId: newTx.id });
+        setRecurring(recurring);
       }
 
-      recalculateWalletBalances();
       refreshAllViews();
-      scheduleSync();
 
       const wName = wallets.find(w => w.id === walletId)?.name || 'Dompet';
-      appendChatBubble('bot', `Berhasil membayar tagihan *"${target.name}"* sebesar *${formatRupiah(target.amount)}* menggunakan *${wName}*!`, Date.now(), null, txId);
+      appendChatBubble('bot', `Berhasil membayar tagihan *"${target.name}"* sebesar *${formatRupiah(target.amount)}* menggunakan *${wName}*!`, Date.now(), null, newTx.id);
     }
 
     async function handleChatTransferIntent(intentTransfer) {
@@ -24940,7 +24947,7 @@ Keluarkan JSON dengan schema:
       const recurringItems = getRecurring();
       const allTransactions = getTransactions();
 
-      const resetDay = 25;
+      const resetDay = getRecurringResetDay();
 
       let targetTransactions = allTransactions;
       if (filterByMonth && monthStr) {
@@ -25055,13 +25062,13 @@ Keluarkan JSON dengan schema:
 
       const checklistList = recurringItems.map(item => {
         const { status, nextDue } = getLocalRecurringStatus(item, todayStrVal, resetDay);
-        const linkedWallet = wallets.find(w => w.id === item.wallet_id);
+        const linkedWallet = wallets.find(w => w.id === item.walletId);
         return {
           item_name: item.name,
           type: item.type,
           amount: Number(item.amount) || 0,
           wallet_name: linkedWallet ? linkedWallet.name : "-",
-          day_of_month: item.day_of_month,
+          day_of_month: item.dayOfMonth,
           active: item.active !== false,
           status: status,
           next_due_date: nextDue
