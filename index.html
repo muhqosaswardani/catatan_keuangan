@@ -11826,7 +11826,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.50)';
+      const version = ' (v3.6.51)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13426,7 +13426,11 @@
       wallets.forEach(w => { sums[w.id] = 0; });
 
       transactions.forEach(t => {
-        if (t.pending) return;
+        // Selalu cek dari tanggal (isFutureDate), JANGAN pakai flag t.pending -- flag itu cuma field lokal
+        // yg TIDAK ikut ke-sync ke Supabase (skema tabel transactions tidak punya kolom ini), jadi tiap kali
+        // data ke-refresh dari server (remote menang di mergeEntities) flag-nya hilang & transaksi masa depan
+        // ikut kehitung ke saldo. Turunan dari tanggal selalu benar, apa pun kondisi sync-nya.
+        if (isFutureDate(t.date)) return;
         const amt = Number(t.amount) || 0;
         if (t.type === 'expense') {
           if (sums[t.walletId] !== undefined) sums[t.walletId] -= amt;
@@ -13506,29 +13510,11 @@
       const d = Math.min(dayOfMonth, daysInMonth(ny, nm));
       return ny + '-' + pad(nm + 1) + '-' + pad(d);
     }
-    // Satu kali perbaikan data lama yang terlanjur salah hitung tanggal jatuh tempo (nextDue) akibat tidak sinkron dengan siklus reset.
-    function adjustLegacyRecurringItems() {
-      let list = getRecurring();
-      let changed = false;
-      const today = todayStr();
-      const resetDay = getRecurringResetDay();
-      const currentStart = recurringPeriodStart(today, resetDay);
-
-      list.forEach(item => {
-        if (item.active) {
-          if (item.lastPaidPeriod !== currentStart) {
-            const currentDue = computeInitialDueDate(item.dayOfMonth, today);
-            if (currentDue < item.nextDue) {
-              item.nextDue = currentDue;
-              changed = true;
-            }
-          }
-        }
-      });
-      if (changed) {
-        setRecurringLocalOnly(list);
-      }
-    }
+    // Dulu fungsi ini "memperbaiki" item.nextDue yang tersimpan (field lokal, tidak ke-sync ke Supabase).
+    // Sekarang jatuh tempo (recurringNextDue()) & status (recurringStatus()) SELALU diturunkan langsung dari
+    // item.lastConfirmedDate (field yang ke-sync) setiap kali dibutuhkan, jadi tidak ada lagi data tersimpan
+    // yang perlu "diperbaiki" di sini. Fungsi ini dibiarkan ada (no-op) supaya pemanggilnya tidak perlu diubah.
+    function adjustLegacyRecurringItems() {}
     // Tanggal siklus reset tagihan berulang (default tgl 25 tiap bulan, bisa diatur di Checklist > "Atur Reset").
     function getRecurringResetDay() {
       const d = Number(getSettings().recurringResetDay);
@@ -13545,16 +13531,30 @@
       return py + '-' + pad(pm + 1) + '-' + pad(clampDay(py, pm));
     }
     // Sudah dibayar di siklus/periode berjalan (berdasarkan tanggal reset), terlepas dari tanggal jatuh tempo item itu sendiri.
+    // PENTING: pakai item.lastConfirmedDate (ini yang beneran ke-sync ke Supabase, kolom last_confirmed_date),
+    // BUKAN item.lastPaidPeriod (field lokal lama yg TIDAK pernah ikut ke-sync -> makanya status "Sudah Bayar/Terima"
+    // bisa balik lagi jadi "Belum Bayar" sendiri tiap kali data ke-refresh dari server / ganti device).
     function recurringPaidThisPeriod(item) {
-      if (!item.lastPaidPeriod) return false;
-      return item.lastPaidPeriod === recurringPeriodStart(todayStr(), getRecurringResetDay());
+      if (!item.lastConfirmedDate) return false;
+      return recurringPeriodStart(item.lastConfirmedDate, getRecurringResetDay()) === recurringPeriodStart(todayStr(), getRecurringResetDay());
+    }
+    // Jatuh tempo berikutnya SELALU diturunkan (dihitung ulang) dari lastConfirmedDate + dayOfMonth, bukan
+    // disimpan sebagai field terpisah (item.nextDue) -- field tersimpan itu juga tidak ikut ke-sync, jadi
+    // kalau dipakai sebagai sumber kebenaran akan ikut ke-reset/tidak akurat setelah refresh.
+    function recurringNextDue(item) {
+      const currentDue = computeInitialDueDate(item.dayOfMonth, todayStr());
+      if (recurringPaidThisPeriod(item)) {
+        return advanceDueDateOneMonth(item.dayOfMonth, currentDue);
+      }
+      return currentDue;
     }
     function recurringStatus(item) {
       if (!item.active) return 'nonaktif';
       if (recurringPaidThisPeriod(item)) return 'sudah-dibayar';
       const today = todayStr();
-      if (item.nextDue < today) return 'terlambat';
-      if (item.nextDue === today) return 'jatuh-tempo';
+      const nextDue = recurringNextDue(item);
+      if (nextDue < today) return 'terlambat';
+      if (nextDue === today) return 'jatuh-tempo';
       // Item belum jatuh tempo & belum dibayar = "Belum Bayar", apa pun jaraknya ke hari ini.
       // "Akan Datang" TIDAK lagi jadi status permanen yang dihitung ulang tiap render (dulu bikin
       // status nyangkut "Akan Datang" terus selama masih tersisa >1 siklus) — sekarang cuma dipakai
@@ -13569,7 +13569,7 @@
       const resetDay = getRecurringResetDay();
       const currentCycleStart = recurringPeriodStart(today, resetDay);
       const nextCycleStart = advanceDueDateOneMonth(resetDay, currentCycleStart);
-      return item.nextDue >= nextCycleStart;
+      return recurringNextDue(item) >= nextCycleStart;
     }
     function addRecurringItem(item) {
       const list = getRecurring();
@@ -13687,8 +13687,11 @@
       });
       item.history = item.history || [];
       item.history.push({ date: payload.date, amount: payload.amount, txId: tx.id });
-      item.lastPaidPeriod = recurringPeriodStart(payload.date, getRecurringResetDay());
-      item.nextDue = advanceDueDateOneMonth(item.dayOfMonth, item.nextDue);
+      // lastConfirmedDate = field yang beneran ke-sync ke Supabase (kolom last_confirmed_date), jadi status
+      // "Sudah Bayar/Terima" ini tetap nyangkut walau abis refresh atau buka dari device lain. Selama transaksi
+      // hasil konfirmasi ini (tx di atas) tidak dihapus, mengedit transaksi itu (misal ganti tanggal) TIDAK
+      // menyentuh field ini sama sekali -- status tagihan tidak akan ke-reset.
+      item.lastConfirmedDate = payload.date;
       if (item.kind === 'installment') {
         item.paidOccurrences = (item.paidOccurrences || 0) + 1;
         checkInstallmentAutoComplete(item);
@@ -15629,7 +15632,7 @@
         sign = ''; amtClass = 'transfer'; const tw = walletById(t.toWalletId); metaExtra = (w ? w.name : 'Dompet Terhapus') + ' → ' + (tw ? tw.name : 'Dompet Terhapus');
       }
       const note = t.note ? ' · ' + t.note : '';
-      const pendingBadge = t.pending ? ' <span class="tx-pending-badge">Terjadwal</span>' : '';
+      const pendingBadge = isFutureDate(t.date) ? ' <span class="tx-pending-badge">Terjadwal</span>' : '';
       return `<div class="tx-item" onclick="openTransactionModal('${t.id}')">
     ${iconHtml}
     <div class="tx-body">
@@ -16592,10 +16595,10 @@
           let terlambat = [], jatuhTempo = [], sudahBayar = [], belumBayar = [];
           activeRecurring.forEach(r => {
             const s = recurringStatus(r);
-            if (s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
+            if (s === 'terlambat') terlambat.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (recurringNextDue(r) || '?') + ')');
             else if (s === 'jatuh-tempo') jatuhTempo.push(r.name + ' (' + formatRupiah(r.amount) + ')');
             else if (s === 'sudah-dibayar') sudahBayar.push(r.name + ' (' + formatRupiah(r.amount) + ')');
-            else if (s === 'belum-bayar') belumBayar.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (r.nextDue || '?') + ')');
+            else if (s === 'belum-bayar') belumBayar.push(r.name + ' (' + formatRupiah(r.amount) + ', jatuh tempo ' + (recurringNextDue(r) || '?') + ')');
           });
           if (terlambat.length) lines.push('[TERLAMBAT] (BELUM dibayar di siklus ini, sudah lewat jatuh tempo): ' + terlambat.join(', '));
           if (jatuhTempo.length) lines.push('[JATUH TEMPO HARI INI]: ' + jatuhTempo.join(', '));
@@ -16897,7 +16900,7 @@
             else if (s === 'jatuh-tempo') statusLabel = '[JATUH TEMPO]';
             else if (s === 'belum-bayar') statusLabel = '[BELUM BAYAR] (dalam periode berjalan)';
             else if (s === 'sudah-dibayar') statusLabel = '[SUDAH BAYAR] (aman/selesai)';
-            lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + r.nextDue + ')');
+            lines.push('- ' + r.name + ': ' + formatRupiah(r.amount) + ' | ' + statusLabel + ' | jatuh tempo tgl ' + r.dayOfMonth + ' tiap bulan (next due: ' + recurringNextDue(r) + ')');
           });
         }
       }
@@ -20649,7 +20652,8 @@
         if (la !== lb) return la ? 1 : -1;
         const ra = rank[recurringStatus(a)], rb = rank[recurringStatus(b)];
         if (ra !== rb) return ra - rb;
-        return a.nextDue < b.nextDue ? -1 : (a.nextDue > b.nextDue ? 1 : 0);
+        const ad = recurringNextDue(a), bd = recurringNextDue(b);
+        return ad < bd ? -1 : (ad > bd ? 1 : 0);
       });
       wrap.innerHTML = list.map(item => {
         const lunas = isLunas(item);
@@ -20903,7 +20907,7 @@
         const newItem = addRecurringItem(payload);
         // Info "Akan Datang" cuma muncul SEKALI di sini (toast konfirmasi), bukan sebagai status permanen.
         showToast(isRecurringDueInFutureCycle(newItem)
-          ? `Tagihan ditambahkan · Akan Datang (jatuh tempo ${newItem.nextDue})`
+          ? `Tagihan ditambahkan · Akan Datang (jatuh tempo ${recurringNextDue(newItem)})`
           : 'Tagihan ditambahkan');
       }
       closeModal('modalRecurringForm');
