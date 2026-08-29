@@ -269,11 +269,17 @@ export async function handleV2ChecklistIntent(
   const recurringItems = await v2GetRecurringItems(db, userId);
 
   const dueItems = recurringItems
+    .filter((item: any) => item.active !== false)
     .map(item => {
       const { status, nextDue } = getRecurringStatus(item, todayStr, 25);
       return { item, status, nextDue };
     })
-    .filter(x => x.status === "terlambat" || x.status === "jatuh-tempo")
+    // "belum-bayar" ikut disertakan: tagihan aktif yang belum dibayar di siklus berjalan (walau belum
+    // jatuh tempo/telat) tetap harus kedeteksi kalau user bilang "gaji masuk", "bayar motor", dll di WA --
+    // sebelumnya cuma tagihan yang sudah "terlambat"/"jatuh-tempo" yang kedeteksi, jadi kalau tagihan
+    // (mis. gajian tgl 1 bulan depan) belum jatuh tempo hari ini, chat selalu jatuh ke alur transaksi
+    // biasa & nanya nominal, padahal seharusnya langsung match ke tagihan itu.
+    .filter(x => x.status === "terlambat" || x.status === "jatuh-tempo" || x.status === "belum-bayar")
     .map(x => ({
       id: x.item.id,
       name: x.item.name,
