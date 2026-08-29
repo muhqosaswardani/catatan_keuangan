@@ -47,6 +47,7 @@ export const EDIT_SCHEMA = {
     category: { type: "STRING" },
     note: { type: "STRING" },
     wallet: { type: "STRING" },
+    type: { type: "STRING", enum: ["income", "expense"] }, // ubah jenis transaksi (pemasukan/pengeluaran)
     reason: { type: "STRING" }, // alasan kalau "unclear"
   },
   required: ["action"],
@@ -83,6 +84,7 @@ export interface EditInstruction {
   category?: string;
   note?: string;
   wallet?: string;
+  type?: "income" | "expense";
   reason?: string;
 }
 // ============================================================
@@ -198,6 +200,7 @@ export function buildTransactionPrompt(
     '   - "potong rambut abis 25rb" → expense, note "Potong rambut", amount 25000, category "Jasa"/"Perawatan" atau "Lainnya".\n' +
     '   - "tambal ban bocor 10rb" → expense, note "Tambal ban", amount 10000.\n' +
     '   - "token listrik 50rb" → expense, note "Token listrik", amount 50000, category "Tagihan"/"Rumah Tangga" atau "Lainnya".\n' +
+    '   - "netflix 100rb", "spotify 50rb", "bayar wifi 300rb", "paket data 25rb" → SELALU expense (ini biaya langganan/tagihan rutin, BUKAN pemasukan meskipun ditulis singkat tanpa kata "bayar"/"beli"), note sesuai nama layanan (mis. "Netflix"), category "Hiburan"/"Langganan"/"Tagihan" yang paling cocok atau "Lainnya". JANGAN PERNAH menandai transaksi jenis langganan/tagihan seperti ini sebagai "income" — kalau ragu antara income/expense untuk kalimat pendek semacam ini, defaultkan ke expense.\n' +
     '   - "kopi" (cuma satu kata, tanpa kata kerja, tanpa nominal sama sekali) → expense, note "Kopi", amount 0, category "Jajan"/"Makan" atau "Lainnya" — TETAP dibuatkan objeknya, JANGAN dianggap terlalu singkat untuk diproses.\n' +
     '   - "dapat THR 500rb dari kantor" → income, note "THR dari kantor", amount 500000, category "Gaji"/"Pemasukan Lain" atau "Lainnya".\n' +
     '   - "wifi 2,5" → expense, note "Bayar wifi", amount 2500 (rumus koma-desimal-ribu berlaku KONSISTEN di semua konteks, termasuk tagihan besar seperti wifi — JANGAN ditafsir jadi 2500000 hanya karena "kelihatannya" wifi biasanya mahal; ikuti angka literalnya apa adanya).\n' +
@@ -427,12 +430,16 @@ export async function parseEditInstruction(
     `${JSON.stringify(currentTransaction, null, 2)}\n\n` +
     (typeof userReply === "string" ? `Teks balasan user: "${userReply}"\n\n` : `User mengirim rekaman suara (audio) berisi instruksi balasan.\n\n`) +
     `Tentukan apa instruksi user:\n` +
-    `- "edit": update satu atau beberapa field (amount, category, note, wallet)\n` +
+    `- "edit": update satu atau beberapa field (amount, category, note, wallet, type)\n` +
     `- "delete": hapus transaksi ini\n` +
     `- "unclear": instruksi tidak jelas, minta klarifikasi\n\n` +
     `Kategori expense yang tersedia: [${expenseCats.join(", ")}]\n` +
     `Kategori income yang tersedia: [${incomeCats.join(", ")}]\n\n` +
     `Dompet yang tersedia: [${walletNames.join(", ")}]\n\n` +
+    `Field "type" (opsional, isi "income" atau "expense"): isi field ini HANYA kalau salah satu dari dua kondisi ini terpenuhi:\n` +
+    `  (a) User secara eksplisit minta ubah jenis transaksi, misal balasan "pengeluaran"/"expense"/"ini keluar" (→ "expense"), atau "pemasukan"/"income"/"ini masuk" (→ "income").\n` +
+    `  (b) User menyebut nama kategori baru (field "category") yang HANYA ada di salah satu daftar kategori di atas (expense ATAU income, bukan dua-duanya) dan itu BEDA dari tipe transaksi saat ini ("${currentTransaction.type}") — dalam kasus ini WAJIB isi juga "type" sesuai tipe daftar kategori tempat nama itu ditemukan, supaya kategori & tipe konsisten. Contoh: transaksi saat ini "type": "income", user balas "hiburan", dan "Hiburan" cuma ada di daftar kategori expense → keluarkan {"action":"edit","category":"Hiburan","type":"expense"}.\n` +
+    `Kalau user cuma balas satu kata nama kategori tanpa menyebut ubah jenis transaksi, dan nama itu ADA di kedua daftar (expense & income), JANGAN ubah "type" (kosongkan), pakai tipe yang sudah ada.\n\n` +
     `Keluarkan JSON sesuai schema. Untuk "edit", isi hanya field yang berubah (kosongkan field yang tidak disebutkan user).` +
     ` Untuk "unclear", isi "reason" dengan penjelasan singkat apa yang perlu diklarifikasi.`;
 

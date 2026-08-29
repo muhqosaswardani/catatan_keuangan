@@ -180,11 +180,16 @@ function matchCategoryId(
   name: string | undefined,
   type: "expense" | "income",
   cats: CategoryRow[],
+  strict = false,
 ): string {
   const typeCats = cats.filter((c) => c.type === type);
   let cat = name
     ? typeCats.find((c) => c.name.toLowerCase() === (name ?? "").toLowerCase())
     : null;
+  // strict: dipakai saat kita masih mau tau apakah ada match PERSIS by name di tipe
+  // ini sebelum memutuskan fallback (mis. saat resolve edit instruction, supaya kita
+  // bisa coba tipe satunya dulu kalau nama kategori tidak ketemu di tipe saat ini).
+  if (strict) return cat?.id ?? "";
   if (!cat) cat = typeCats.find((c) => c.name.toLowerCase() === "lainnya");
   if (!cat) cat = typeCats[0];
   return cat?.id ?? "";
@@ -1585,13 +1590,46 @@ export async function handleReplyToTransaction(
     updates.amount = instruction.amount;
   }
 
+  // Tentukan tipe transaksi final: pakai instruction.type kalau user eksplisit
+  // minta ubah jenis (mis. balas "pengeluaran"), kalau tidak pakai tipe transaksi saat ini.
+  let finalType = (instruction.type as "expense" | "income" | undefined) ??
+    (txData.type as "expense" | "income");
+
   if (instruction.category) {
-    const type = txData.type as "expense" | "income";
-    const catId = matchCategoryId(instruction.category, type, cats);
-    const catName =
-      cats.find((c) => c.id === catId)?.name ?? instruction.category;
+    // Coba cocokkan nama kategori PERSIS di tipe final dulu (strict: tanpa fallback ke "Lainnya").
+    let catId = matchCategoryId(instruction.category, finalType, cats, true);
+
+    // Kalau tidak ketemu DAN user tidak eksplisit minta ubah tipe, coba cari nama itu
+    // di tipe sebaliknya — kalau ketemu, berarti kategori itu memang cuma ada di tipe
+    // lain, jadi tipe transaksi ikut disesuaikan otomatis (fix bug "kategori ganti hiburan"
+    // pada transaksi income yang harusnya expense, silent-fallback ke "Lainnya").
+    if (!catId && instruction.type == null) {
+      const otherType = finalType === "expense" ? "income" : "expense";
+      const otherCatId = matchCategoryId(instruction.category, otherType, cats, true);
+      if (otherCatId) {
+        catId = otherCatId;
+        finalType = otherType;
+      }
+    }
+
+    // Masih belum ketemu di kedua tipe -> fallback normal (Lainnya / kategori pertama di finalType).
+    if (!catId) catId = matchCategoryId(instruction.category, finalType, cats);
+
+    const catName = cats.find((c) => c.id === catId)?.name ?? instruction.category;
     updates.category_id = catId;
     updates.category = catName;
+  } else if (instruction.type && instruction.type !== txData.type) {
+    // User eksplisit minta ubah tipe TANPA sebut kategori baru -> kategori lama
+    // (yang berasal dari tipe sebelumnya) kemungkinan besar tidak valid untuk tipe
+    // baru, jadi cari kategori dengan nama sama di tipe baru; kalau tidak ada, pakai "Lainnya".
+    const catId = matchCategoryId(txData.category as string, finalType, cats);
+    const catName = cats.find((c) => c.id === catId)?.name ?? txData.category;
+    updates.category_id = catId;
+    updates.category = catName;
+  }
+
+  if (finalType !== txData.type) {
+    updates.type = finalType;
   }
 
   if (instruction.note) {
