@@ -5251,6 +5251,7 @@
       inset: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       background: var(--bg);
       z-index: 10000;
       display: none;
@@ -10105,6 +10106,50 @@
       if (activeScreen) activeScreen.classList.add('active');
     }
 
+    // ===== Fit halaman intro/onboarding ke tinggi layar yang benar-benar
+    // kelihatan (biar tombol di bawah tidak perlu di-scroll dulu untuk ditekan)
+    // Hanya berlaku kalau dibuka lewat browser (tab biasa). Kalau aplikasi
+    // sudah terpasang di layar utama (mode standalone/PWA), tampilan dibiarkan
+    // normal/full seperti biasa.
+    let onboardingFitRAF = null;
+    function fitOnboardingScreen() {
+      if (onboardingFitRAF) cancelAnimationFrame(onboardingFitRAF);
+      onboardingFitRAF = requestAnimationFrame(() => {
+        const container = document.getElementById('auth-onboarding');
+        if (!container || !container.classList.contains('open')) return;
+        const activeScreen = container.querySelector('.screen.active');
+        if (!activeScreen) return;
+
+        // Reset dulu supaya pengukuran tinggi asli (belum diperkecil) akurat
+        activeScreen.style.transform = '';
+        activeScreen.style.width = '';
+
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        if (isStandalone) return;
+
+        const availableHeight = container.clientHeight;
+        const naturalHeight = activeScreen.scrollHeight;
+        if (availableHeight > 0 && naturalHeight > availableHeight) {
+          const ratio = Math.max(0.72, availableHeight / naturalHeight);
+          activeScreen.style.transformOrigin = 'top center';
+          activeScreen.style.transform = 'scale(' + ratio + ')';
+          activeScreen.style.width = (100 / ratio) + '%';
+        }
+      });
+    }
+
+    // Jalankan ulang otomatis tiap kali isi layar intro/onboarding berubah
+    // (ganti layar, tambah/hapus dompet & kategori, dsb) atau ukuran layar berubah,
+    // tanpa harus memanggilnya manual di setiap fungsi terkait.
+    (function initOnboardingFitWatcher() {
+      const container = document.getElementById('auth-onboarding');
+      if (!container) return;
+      const observer = new MutationObserver(fitOnboardingScreen);
+      observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+      window.addEventListener('resize', fitOnboardingScreen);
+      window.addEventListener('orientationchange', fitOnboardingScreen);
+    })();
+
     function toggleAgree() {
       const isChecked = document.getElementById('chkAgree').checked;
       document.getElementById('btnLanjutDaftar').disabled = !isChecked;
@@ -11832,7 +11877,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.54)';
+      const version = ' (v3.6.55)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
