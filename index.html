@@ -6525,6 +6525,12 @@
       color: var(--ink-soft);
       border: 1px solid var(--line);
     }
+    /* Sementara disembunyikan dulu sampai ada screenshot asli — tinggal hapus
+       aturan ini kalau nanti mau ditampilkan lagi. Teks langkah-langkahnya
+       tetap tampil normal. */
+    #screen-api-guide .photo-slot {
+      display: none;
+    }
 
     /* Animasi Percakapan Chat WhatsApp */
     .intro-visual {
@@ -11877,7 +11883,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.55)';
+      const version = ' (v3.6.56)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
