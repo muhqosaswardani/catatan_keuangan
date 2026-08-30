@@ -6794,11 +6794,16 @@
       
       <!-- 1) HALAMAN PROMOSI -->
       <div class="screen active" id="screen-promo">
-        <div class="brand-row">
-          <div class="brand-mark" style="overflow:hidden;border-radius:16px;">
-            <img src="icons/icon-192.png" alt="KaslyAI" style="width:100%;height:100%;object-fit:cover;display:block;">
+        <div class="brand-row" style="justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:11px;">
+            <div class="brand-mark" style="overflow:hidden;border-radius:16px;">
+              <img src="icons/icon-192.png" alt="KaslyAI" style="width:100%;height:100%;object-fit:cover;display:block;">
+            </div>
+            <div class="brand-title">Kasly<span class="brand-ai">AI</span></div>
           </div>
-          <div class="brand-title">Kasly<span class="brand-ai">AI</span></div>
+          <button type="button" class="icon-btn" id="promoInstallAppBtn" onclick="handleInstallAppClick()" title="Instal Aplikasi ke Layar Utama" aria-label="Instal Aplikasi ke Layar Utama">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
         </div>
         <div class="promo-hero">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.85;margin-bottom:6px;">Catatan Keuangan</div>
@@ -11826,7 +11831,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.52)';
+      const version = ' (v3.6.53)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -25419,10 +25424,10 @@ PERTANYAAN_USER:
               return;
             }
           } else {
-            // Belum pernah login sama sekali
+            // Belum pernah login sama sekali -> tampilkan halaman intro/promosi dulu, bukan langsung layar Masuk
             const authOb = document.getElementById('auth-onboarding');
             if (authOb) authOb.classList.add('open');
-            gotoScreen('screen-masuk');
+            gotoScreen('screen-promo');
             return;
           }
         } catch (e) {
@@ -25437,7 +25442,7 @@ PERTANYAAN_USER:
           } else {
             const authOb = document.getElementById('auth-onboarding');
             if (authOb) authOb.classList.add('open');
-            gotoScreen('screen-masuk');
+            gotoScreen(cachedUserId ? 'screen-masuk' : 'screen-promo');
             return;
           }
         }
@@ -25799,25 +25804,32 @@ PERTANYAAN_USER:
     }
 
     function updateInstallStatusUI() {
-      const badge = document.getElementById('settInstallAppBadge');
-      if (!badge) return;
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      if (isStandalone) {
-        badge.textContent = 'Terpasang';
-        badge.style.fontSize = '12px';
-        badge.style.fontWeight = '600';
-        badge.style.color = 'var(--accent, #10b981)';
-      } else if (window.deferredInstallPrompt) {
-        badge.textContent = 'Tersedia';
-        badge.style.fontSize = '12px';
-        badge.style.fontWeight = '600';
-        badge.style.color = 'var(--accent, #10b981)';
-      } else {
-        badge.innerHTML = '›';
-        badge.style.fontSize = '';
-        badge.style.fontWeight = '';
-        badge.style.color = '';
+
+      const badge = document.getElementById('settInstallAppBadge');
+      if (badge) {
+        if (isStandalone) {
+          badge.textContent = 'Terpasang';
+          badge.style.fontSize = '12px';
+          badge.style.fontWeight = '600';
+          badge.style.color = 'var(--accent, #10b981)';
+        } else if (window.deferredInstallPrompt) {
+          badge.textContent = 'Tersedia';
+          badge.style.fontSize = '12px';
+          badge.style.fontWeight = '600';
+          badge.style.color = 'var(--accent, #10b981)';
+        } else {
+          badge.innerHTML = '›';
+          badge.style.fontSize = '';
+          badge.style.fontWeight = '';
+          badge.style.color = '';
+        }
       }
+
+      // Tombol instal di pojok kanan atas halaman intro/promosi: sembunyikan
+      // kalau aplikasi sudah terpasang di layar utama, karena tidak relevan lagi.
+      const promoBtn = document.getElementById('promoInstallAppBtn');
+      if (promoBtn) promoBtn.style.display = isStandalone ? 'none' : 'flex';
     }
 
     function openChatShortcutModal() {
