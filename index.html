@@ -7620,6 +7620,13 @@
               </div>
             </div>
           </button>
+          <!-- DASHBOARD ADMIN: hanya tampil untuk akun admin (dicek di renderAkunCard) -->
+          <button type="button" class="settings-row-card" id="settAdminDashboardRow" style="display:none;" onclick="openAdminDashboard()">
+            <div class="sr-row">
+              <span class="sr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+              <span class="sr-title">Dashboard Admin <span class="sr-arrow">›</span></span>
+            </div>
+          </button>
           <!-- DATA: buka modal pilihan Export / Import -->
           <button type="button" class="settings-row-card" onclick="openModal('modalData')">
             <div class="sr-row">
@@ -11903,7 +11910,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.57)';
+      const version = ' (v3.6.58)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19526,6 +19533,17 @@
       const waEl = document.getElementById('settAkunWa');
       if (namaEl) namaEl.textContent = p.nama ? p.nama : 'Nama belum diisi';
       if (waEl) waEl.textContent = p.nomor_wa ? ('+' + p.nomor_wa) : '';
+
+      // Tombol Dashboard Admin cuma tampil buat akun admin
+      const adminRowEl = document.getElementById('settAdminDashboardRow');
+      if (adminRowEl) {
+        const isAdminAccount = normalizeWaNumber(p.nomor_wa) === '6289626112023';
+        adminRowEl.style.display = isAdminAccount ? '' : 'none';
+      }
+    }
+
+    function openAdminDashboard() {
+      window.open('https://muhqosaswardani.github.io/catatan_keuangan/admin-dashboard.html', '_blank', 'noopener');
     }
 
     function openGantiPasswordModal() {
