@@ -11514,11 +11514,30 @@
         const categories = Array.from(uniqueCatMap.values());
 
         // 3. Prepare User Settings
+        // Fix: dompet baru sudah dapat transaksi seed "Saldo Awal" sebesar balance-nya (lihat atas),
+        // jadi initialBalances tiap dompet HARUS di-set 0 secara eksplisit di sini. Kalau dibiarkan {}
+        // (kosong), recalculateWalletBalances() akan menebak nilainya sendiri dari selisih
+        // wallet.balance vs transaksi yang sudah ke-load saat itu -- dan kalau fungsi ini kebetulan
+        // jalan sebelum transaksi seed sempat ke-load, hasil tebakannya salah lalu ke-cache permanen,
+        // sehingga saldo awal 5jt bisa kehitung dobel jadi 10jt begitu transaksi seed akhirnya masuk.
+        // Juga set heroWallets & core eksplisit supaya kartu "Total Saldo" di Beranda langsung
+        // menunjuk ke dompet yang baru dibuat (bukan fallback id lama 'wallet_utama' yang bikin
+        // Total Saldo tampil Rp 0 walau dompetnya sendiri sudah keisi).
+        const initialBalancesMap = {};
+        wallets.forEach(w => { initialBalancesMap[w.id] = 0; });
+        const primaryWalletForNav = wallets.find(w => w.is_primary) || wallets[0];
+        const navConfigForNewUser = {
+          initialBalances: initialBalancesMap,
+          core: DEFAULT_NAV_CORE.slice(),
+          coreUpdatedAt: Date.now(),
+          heroWallets: primaryWalletForNav ? [primaryWalletForNav.id] : [],
+          heroWalletsUpdatedAt: Date.now()
+        };
         const settings = {
           user_id: currentUserId,
           access_code: 'wa_' + currentUserId,
           deleted_ids: [],
-          nav_config: { initialBalances: {} },
+          nav_config: navConfigForNewUser,
           onboarded: true,
           updated_at: new Date().toISOString()
         };
@@ -11558,6 +11577,7 @@
         setTransactionsLocalOnly(transactions);
         setCategoriesLocalOnly(categories);
         setDeletedIds([]);
+        setNavConfigLocalOnly(navConfigForNewUser);
 
         // Update local settings & hide overlay
         localStorage.setItem('catatan_keuangan_access_code', 'wa_' + currentUserId);
@@ -11883,7 +11903,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.56)';
+      const version = ' (v3.6.57)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
