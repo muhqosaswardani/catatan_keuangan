@@ -873,62 +873,114 @@
       margin: 8px 2px 0;
     }
 
-    .lap-wallet-dropdown {
+    .lap-filter-dropdown {
       position: relative;
       flex-shrink: 0;
     }
 
-    .lap-wallet-btn {
+    .lap-filter-btn {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       background: var(--surface-2);
       border: none;
       border-radius: 100px;
-      padding: 8px 10px 8px 13px;
-      font-size: 12.5px;
+      padding: 8px 12px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--ink);
       cursor: pointer;
       font-family: inherit;
       white-space: nowrap;
-      max-width: 140px;
-      transition: background .15s ease;
+      transition: background .15s ease, transform .12s ease;
     }
 
-    .lap-wallet-btn span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .lap-filter-btn:active {
+      transform: scale(.97);
     }
 
-    .lap-wallet-btn svg {
-      transition: transform .15s ease;
+    .lap-filter-btn svg {
       flex-shrink: 0;
     }
 
-    .lap-wallet-dropdown.open .lap-wallet-btn svg {
+    .lap-filter-btn .lap-chevron-icon {
+      transition: transform .15s ease;
+      margin-left: 2px;
+    }
+
+    .lap-filter-dropdown.open .lap-chevron-icon {
       transform: rotate(180deg);
     }
 
-    .lap-wallet-menu {
+    .lap-filter-menu {
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
       background: var(--surface);
       border-radius: var(--radius-m);
       box-shadow: var(--shadow);
-      padding: 6px;
-      min-width: 165px;
-      max-width: 260px;
-      max-height: 280px;
-      overflow-y: auto;
+      padding: 12px;
+      min-width: 220px;
+      max-width: 280px;
       display: none;
-      z-index: 30;
+      z-index: 35;
     }
 
-    .lap-wallet-dropdown.open .lap-wallet-menu {
+    .lap-filter-dropdown.open .lap-filter-menu {
       display: block;
+    }
+
+    .lap-filter-section-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      letter-spacing: .06em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .lap-filter-period-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .lap-period-pill-btn {
+      padding: 7px 8px;
+      border-radius: 8px;
+      border: none;
+      background: var(--surface-2);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: center;
+      transition: background .12s ease, color .12s ease;
+    }
+
+    .lap-period-pill-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .lap-period-pill-btn:not(.active):hover,
+    .lap-period-pill-btn:not(.active):active {
+      background: var(--border, rgba(0,0,0,0.06));
+    }
+
+    .lap-filter-divider {
+      height: 1px;
+      background: var(--border, rgba(0,0,0,0.07));
+      margin: 12px 0;
+    }
+
+    .lap-filter-wallet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: 180px;
+      overflow-y: auto;
     }
 
     .lap-wallet-menu-item {
@@ -937,7 +989,7 @@
       gap: 9px;
       width: 100%;
       box-sizing: border-box;
-      padding: 8px 10px;
+      padding: 7px 8px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
@@ -968,76 +1020,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    .lap-period-dropdown {
-      position: relative;
-      flex-shrink: 0;
-    }
-
-    .lap-period-btn {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      background: var(--surface-2);
-      border: none;
-      border-radius: 100px;
-      padding: 8px 10px 8px 13px;
-      font-size: 12.5px;
-      font-weight: 700;
-      color: var(--ink);
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .lap-period-btn svg {
-      transition: transform .15s ease;
-      flex-shrink: 0;
-    }
-
-    .lap-period-dropdown.open .lap-period-btn svg {
-      transform: rotate(180deg);
-    }
-
-    .lap-period-menu {
-      position: absolute;
-      top: calc(100% + 6px);
-      right: 0;
-      background: var(--surface);
-      border-radius: var(--radius-m);
-      box-shadow: var(--shadow);
-      padding: 6px;
-      min-width: 128px;
-      display: none;
-      z-index: 30;
-    }
-
-    .lap-period-dropdown.open .lap-period-menu {
-      display: block;
-    }
-
-    .lap-period-menu-item {
-      display: block;
-      width: 100%;
-      text-align: left;
-      background: transparent;
-      border: none;
-      padding: 9px 11px;
-      border-radius: 9px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--ink);
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .lap-period-menu-item.active {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .lap-period-menu-item:not(.active):active {
-      background: var(--surface-2);
     }
 
     .stat {
@@ -7826,34 +7808,33 @@
                 <path d="M20.5 20.5l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               </svg>
             </button>
-            <div class="lap-wallet-dropdown" id="lapWalletDropdown">
-              <button type="button" class="lap-wallet-btn" id="lapWalletBtn" onclick="toggleLaporanWalletDropdown(event)"
-                aria-label="Filter dompet">
-                <span id="lapWalletBtnLabel">Semua Dompet</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <div class="lap-filter-dropdown" id="lapFilterDropdown">
+              <button type="button" class="lap-filter-btn" id="lapFilterBtn" onclick="toggleLaporanFilterDropdown(event)"
+                aria-label="Filter laporan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span id="lapFilterBtnLabel">Filter</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" class="lap-chevron-icon">
                   <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
                 </svg>
               </button>
-              <div class="lap-wallet-menu" id="lapWalletMenu" onclick="event.stopPropagation()"></div>
-            </div>
-            <div class="lap-period-dropdown" id="lapPeriodDropdown">
-              <button type="button" class="lap-period-btn" onclick="toggleLaporanPeriodDropdown(event)">
-                <span id="lapPeriodBtnLabel">Bulanan</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </button>
-              <div class="lap-period-menu" id="lapPeriodMenu">
-                <button type="button" class="lap-period-menu-item" id="lapPeriodItemDay"
-                  onclick="setLaporanPeriodMode('day')">Harian</button>
-                <button type="button" class="lap-period-menu-item" id="lapPeriodItemWeek"
-                  onclick="setLaporanPeriodMode('week')">Mingguan</button>
-                <button type="button" class="lap-period-menu-item active" id="lapPeriodItemMonth"
-                  onclick="setLaporanPeriodMode('month')">Bulanan</button>
-                <button type="button" class="lap-period-menu-item" id="lapPeriodItemYear"
-                  onclick="setLaporanPeriodMode('year')">Tahunan</button>
+              <div class="lap-filter-menu" id="lapFilterMenu" onclick="event.stopPropagation()">
+                <div class="lap-filter-section-title">WAKTU</div>
+                <div class="lap-filter-period-grid">
+                  <button type="button" class="lap-period-pill-btn" id="lapPeriodItemDay"
+                    onclick="setLaporanPeriodMode('day')">Harian</button>
+                  <button type="button" class="lap-period-pill-btn" id="lapPeriodItemWeek"
+                    onclick="setLaporanPeriodMode('week')">Mingguan</button>
+                  <button type="button" class="lap-period-pill-btn active" id="lapPeriodItemMonth"
+                    onclick="setLaporanPeriodMode('month')">Bulanan</button>
+                  <button type="button" class="lap-period-pill-btn" id="lapPeriodItemYear"
+                    onclick="setLaporanPeriodMode('year')">Tahunan</button>
+                </div>
+                <div class="lap-filter-divider"></div>
+                <div class="lap-filter-section-title">DOMPET</div>
+                <div class="lap-filter-wallet-list" id="lapFilterWalletList"></div>
               </div>
             </div>
           </div>
@@ -12018,7 +11999,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.59)';
+      const version = ' (v3.6.60)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15019,12 +15000,11 @@
       return laporanWalletIds;
     }
 
-    function toggleLaporanWalletDropdown(e) {
+    function toggleLaporanFilterDropdown(e) {
       if (e) e.stopPropagation();
-      const dd = document.getElementById('lapWalletDropdown');
+      const dd = document.getElementById('lapFilterDropdown');
       if (!dd) return;
       const willOpen = !dd.classList.contains('open');
-      closeLaporanPeriodDropdown();
       if (willOpen) {
         updateLaporanWalletUI();
         dd.classList.add('open');
@@ -15033,28 +15013,17 @@
       }
     }
 
-    function closeLaporanWalletDropdown() {
-      const dd = document.getElementById('lapWalletDropdown');
+    function closeLaporanFilterDropdown() {
+      const dd = document.getElementById('lapFilterDropdown');
       if (dd) dd.classList.remove('open');
     }
 
     function updateLaporanWalletUI() {
       const allWallets = getWallets();
       const selected = getLaporanWallets();
-      const labelEl = document.getElementById('lapWalletBtnLabel');
-      if (labelEl) {
-        if (selected.length >= allWallets.length) {
-          labelEl.textContent = 'Semua Dompet';
-        } else if (selected.length === 1) {
-          const w = allWallets.find(x => x.id === selected[0]);
-          labelEl.textContent = w ? w.name : '1 Dompet';
-        } else {
-          labelEl.textContent = `${selected.length} Dompet`;
-        }
-      }
-      const menuEl = document.getElementById('lapWalletMenu');
-      if (menuEl) {
-        menuEl.innerHTML = allWallets.map(w => {
+      const listEl = document.getElementById('lapFilterWalletList');
+      if (listEl) {
+        listEl.innerHTML = allWallets.map(w => {
           const isChecked = selected.includes(w.id);
           return `
             <label class="lap-wallet-menu-item">
@@ -15064,6 +15033,15 @@
           `;
         }).join('');
       }
+      const mode = laporanPeriodMode || 'month';
+      const elDay = document.getElementById('lapPeriodItemDay');
+      const elWeek = document.getElementById('lapPeriodItemWeek');
+      const elMonth = document.getElementById('lapPeriodItemMonth');
+      const elYear = document.getElementById('lapPeriodItemYear');
+      if (elDay) elDay.classList.toggle('active', mode === 'day');
+      if (elWeek) elWeek.classList.toggle('active', mode === 'week');
+      if (elMonth) elMonth.classList.toggle('active', mode === 'month');
+      if (elYear) elYear.classList.toggle('active', mode === 'year');
     }
 
     function toggleLaporanWallet(walletId, isChecked) {
@@ -15092,19 +15070,9 @@
       switchTab('laporan');
     }
 
-    function toggleLaporanPeriodDropdown(e) {
-      if (e) e.stopPropagation();
-      closeLaporanWalletDropdown();
-      document.getElementById('lapPeriodDropdown').classList.toggle('open');
-    }
-    function closeLaporanPeriodDropdown() {
-      document.getElementById('lapPeriodDropdown').classList.remove('open');
-    }
     document.addEventListener('click', function (e) {
-      const dd = document.getElementById('lapPeriodDropdown');
+      const dd = document.getElementById('lapFilterDropdown');
       if (dd && dd.classList.contains('open') && !dd.contains(e.target)) dd.classList.remove('open');
-      const wdd = document.getElementById('lapWalletDropdown');
-      if (wdd && wdd.classList.contains('open') && !wdd.contains(e.target)) wdd.classList.remove('open');
       const txdd = document.getElementById('txPeriodDropdown');
       if (txdd && txdd.classList.contains('open') && !txdd.contains(e.target)) txdd.classList.remove('open');
     });
@@ -15118,14 +15086,17 @@
     }
 
     function setLaporanPeriodMode(mode) {
-      if (laporanPeriodMode === mode) { closeLaporanPeriodDropdown(); return; }
+      if (laporanPeriodMode === mode) return;
       laporanPeriodMode = mode;
-      document.getElementById('lapPeriodItemDay').classList.toggle('active', mode === 'day');
-      document.getElementById('lapPeriodItemWeek').classList.toggle('active', mode === 'week');
-      document.getElementById('lapPeriodItemMonth').classList.toggle('active', mode === 'month');
-      document.getElementById('lapPeriodItemYear').classList.toggle('active', mode === 'year');
+      const elDay = document.getElementById('lapPeriodItemDay');
+      const elWeek = document.getElementById('lapPeriodItemWeek');
+      const elMonth = document.getElementById('lapPeriodItemMonth');
+      const elYear = document.getElementById('lapPeriodItemYear');
+      if (elDay) elDay.classList.toggle('active', mode === 'day');
+      if (elWeek) elWeek.classList.toggle('active', mode === 'week');
+      if (elMonth) elMonth.classList.toggle('active', mode === 'month');
+      if (elYear) elYear.classList.toggle('active', mode === 'year');
       const labels = { day: 'Harian', week: 'Mingguan', month: 'Bulanan', year: 'Tahunan' };
-      document.getElementById('lapPeriodBtnLabel').textContent = labels[mode];
       document.getElementById('laporanTitle').textContent = 'Laporan ' + labels[mode];
       const saldoNoun = { day: 'Hari', week: 'Minggu', month: 'Bulan', year: 'Tahun' }[mode];
       document.getElementById('lapSaldoAwalLabel').textContent = 'Saldo Awal ' + saldoNoun;
@@ -15142,7 +15113,6 @@
       if (mode === 'year' && !laporanYear) {
         laporanYear = String(new Date().getFullYear());
       }
-      closeLaporanPeriodDropdown();
       renderLaporan();
     }
 
