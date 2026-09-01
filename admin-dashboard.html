@@ -1586,6 +1586,90 @@
       }
     }
 
+
+    let promoPricing = {
+      original_price: 149000,
+      promo_price: 99000,
+      discount_label: 'Hemat 34%'
+    };
+
+    function updatePromoPricePreview() {
+      const orig = parseInt(document.getElementById('inpPromoOriginalPrice')?.value) || 0;
+      const promo = parseInt(document.getElementById('inpPromoDiscountPrice')?.value) || 0;
+      const customLabel = document.getElementById('inpPromoDiscountLabel')?.value?.trim() || '';
+
+      const formatRp = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
+
+      const wasEl = document.getElementById('prevPromoWas');
+      const badgeEl = document.getElementById('prevPromoBadge');
+      const mainEl = document.getElementById('prevPromoMain');
+
+      if (wasEl) wasEl.textContent = formatRp(orig || 149000);
+      if (mainEl) mainEl.innerHTML = formatRp(promo || 99000) + ' <span style="font-size:13px;font-weight:500;color:var(--ink-soft);">/lifetime</span>';
+      
+      if (badgeEl) {
+        if (customLabel) {
+          badgeEl.textContent = customLabel;
+          badgeEl.style.display = '';
+        } else if (orig && promo && orig > promo) {
+          const pct = Math.round(((orig - promo) / orig) * 100);
+          badgeEl.textContent = `Hemat ${pct}%`;
+          badgeEl.style.display = '';
+        } else {
+          badgeEl.style.display = 'none';
+        }
+      }
+    }
+
+    function renderPromoPricingInputs() {
+      const inpOrig = document.getElementById('inpPromoOriginalPrice');
+      const inpPromo = document.getElementById('inpPromoDiscountPrice');
+      const inpLabel = document.getElementById('inpPromoDiscountLabel');
+
+      if (inpOrig && document.activeElement !== inpOrig) inpOrig.value = promoPricing.original_price != null ? promoPricing.original_price : 149000;
+      if (inpPromo && document.activeElement !== inpPromo) inpPromo.value = promoPricing.promo_price != null ? promoPricing.promo_price : 99000;
+      if (inpLabel && document.activeElement !== inpLabel) inpLabel.value = promoPricing.discount_label || '';
+
+      updatePromoPricePreview();
+    }
+
+    async function savePromoPricing() {
+      const origVal = parseInt(document.getElementById('inpPromoOriginalPrice')?.value) || 149000;
+      const promoVal = parseInt(document.getElementById('inpPromoDiscountPrice')?.value) || 99000;
+      const labelVal = document.getElementById('inpPromoDiscountLabel')?.value?.trim() || '';
+
+      promoPricing = {
+        original_price: origVal,
+        promo_price: promoVal,
+        discount_label: labelVal
+      };
+
+      try {
+        if (!db) {
+          toast('Supabase client belum siap.');
+          return;
+        }
+
+        const { error } = await db.from('global_settings').upsert({
+          key: 'promo_pricing',
+          value: JSON.stringify(promoPricing),
+          updated_at: new Date().toISOString()
+        });
+
+        if (error) {
+          console.error('Error saving promo pricing:', error);
+          toast('Gagal menyimpan harga: ' + error.message);
+          return;
+        }
+
+        toast('Harga promo berhasil disimpan & aktif di promo.html!');
+        await loadData();
+      } catch (err) {
+        console.error('Save promo pricing exception:', err);
+        toast('Gagal menyimpan harga promo.');
+      }
+    }
+
     async function saveTrialDurasi() {
       const val = parseInt(document.getElementById('inpTrialDurasi').value) || 7;
       try {

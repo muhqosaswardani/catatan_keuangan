@@ -992,8 +992,8 @@
       <div class="price-card">
         <span class="badge-top">Coba Gratis 7 Hari Dulu, Baru Putuskan</span>
         <div><span class="badge-lifetime">Sekali Bayar, Selamanya</span></div>
-        <div class="price-was-row"><span class="price-was">Rp 149.000</span><span class="price-discount">Hemat 34%</span></div>
-        <div class="price-num">Rp 99.000<span> /lifetime</span></div>
+        <div class="price-was-row"><span class="price-was" id="promoPriceWas">Rp 149.000</span><span class="price-discount" id="promoPriceDiscount">Hemat 34%</span></div>
+        <div class="price-num"><span id="promoPriceNum">Rp 99.000</span><span> /lifetime</span></div>
         <p class="price-sub">Akses penuh selamanya — bukan langganan bulanan</p>
         <ul class="price-list">
           <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M20 6L9 17l-5-5"/></svg>Fitur AI Web tanpa batas — dashboard, insight, grafik lengkap</li>
@@ -1113,6 +1113,58 @@
       }
     });
   });
+</script>
+
+
+<script>
+  // Load dynamic pricing from Supabase
+  (async function loadDynamicPricing() {
+    try {
+      const SUPABASE_URL = 'https://qdoduglbejcazjufvfkf.supabase.co';
+      const SUPABASE_KEY = 'sb_publishable_QKdAJuIR4ue_tU4yQPvCmQ_3O1_0IGy';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/global_settings?key=eq.promo_pricing&select=*`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY
+        }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.length) return;
+      
+      const rawVal = data[0].value;
+      const cfg = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
+      if (!cfg) return;
+
+      const formatRp = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
+
+      if (cfg.original_price != null) {
+        const wasEl = document.getElementById('promoPriceWas');
+        if (wasEl) wasEl.textContent = formatRp(cfg.original_price);
+      }
+
+      if (cfg.promo_price != null) {
+        const numEl = document.getElementById('promoPriceNum');
+        if (numEl) numEl.textContent = formatRp(cfg.promo_price);
+      }
+
+      const discEl = document.getElementById('promoPriceDiscount');
+      if (discEl) {
+        if (cfg.discount_label) {
+          discEl.textContent = cfg.discount_label;
+          discEl.style.display = '';
+        } else if (cfg.original_price && cfg.promo_price && cfg.original_price > cfg.promo_price) {
+          const pct = Math.round(((cfg.original_price - cfg.promo_price) / cfg.original_price) * 100);
+          discEl.textContent = `Hemat ${pct}%`;
+          discEl.style.display = '';
+        } else {
+          discEl.style.display = 'none';
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal memuat harga promo dinamis:', err);
+    }
+  })();
 </script>
 
 </body>
