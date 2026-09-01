@@ -798,6 +798,29 @@
         </div>
         <button class="btn btn-secondary btn-block btn-sm" onclick="saveTrialDurasi()">Simpan Durasi Trial</button>
       </div>
+
+      <div class="card">
+        <div class="section-title">Harga Promo</div>
+        <div class="field" style="margin-bottom:8px;">
+          <label>Harga Asli (coret)</label>
+          <input type="number" id="inpPromoOriginalPrice" value="149000" min="0" oninput="updatePromoPricePreview()">
+        </div>
+        <div class="field" style="margin-bottom:8px;">
+          <label>Harga Diskon</label>
+          <input type="number" id="inpPromoDiscountPrice" value="99000" min="0" oninput="updatePromoPricePreview()">
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Label Badge (kosongkan = hitung otomatis)</label>
+          <input type="text" id="inpPromoDiscountLabel" placeholder="contoh: Hemat 34%" oninput="updatePromoPricePreview()">
+        </div>
+        <div style="background:var(--surface-2,#f5f7f6);border-radius:12px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:var(--ink-soft);text-decoration:line-through;" id="prevPromoWas">Rp 149.000</span>
+          <span style="background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;" id="prevPromoBadge">Hemat 34%</span>
+          <span style="font-size:20px;font-weight:700;color:var(--ink);" id="prevPromoMain">Rp 99.000 <span style="font-size:13px;font-weight:500;color:var(--ink-soft);">/lifetime</span></span>
+        </div>
+        <button class="btn btn-primary btn-block btn-sm" onclick="savePromoPricing()">Simpan Harga Promo</button>
+      </div>
+
       <div class="card">
         <div class="section-title">API Key Gemini Bersama</div>
         <div id="sharedKeyList"></div>
@@ -1277,6 +1300,16 @@
 
       document.getElementById('trialDurasiLabel').textContent = trialDurasiHari;
       document.getElementById('inpTrialDurasi').value = trialDurasiHari;
+
+      // Parse promo_pricing dari global_settings
+      try {
+        const promoRow = (globalData || []).find(r => r.key === 'promo_pricing');
+        if (promoRow) {
+          const cfg = typeof promoRow.value === 'string' ? JSON.parse(promoRow.value) : promoRow.value;
+          if (cfg) promoPricing = cfg;
+        }
+      } catch(e) {}
+      renderPromoPricingInputs();
 
       renderStats();
       renderUsers(searchFilterText);
