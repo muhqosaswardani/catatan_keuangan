@@ -201,7 +201,7 @@ export async function v2GetRecurringItems(
   userId: string,
 ) {
   const deletedSet = await v2GetDeletedIds(db, userId);
-  const { data } = await db.from("recurring_items").select("id, name, type, amount, wallet_id, category_id, day_of_month, active, last_confirmed_date").eq("user_id", userId);
+  const { data } = await db.from("recurring_items").select("*").eq("user_id", userId);
   const rows = data ?? [];
   return rows.filter(r => !deletedSet.has(String(r.id)));
 }

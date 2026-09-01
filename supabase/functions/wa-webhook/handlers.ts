@@ -21,7 +21,7 @@ import {
   transcribeAudioToText,
 } from "./gemini.ts";
 import { sendWhatsAppMessage, sendPushNotification, sendUserResponse, downloadWhatsAppMedia, safeBytesToBase64, chatContext } from "./whatsapp.ts";
-import { processV2Query } from "./v2_query.ts";
+import { processV2Query, getRecurringStatus } from "./v2_query.ts";
 
 // Regex sama persis dengan yang dipakai untuk pesan teks di v2_router.ts —
 // dipusatkan di sini supaya alur audio (voice note) & teks konsisten.
@@ -738,63 +738,134 @@ async function processParsedItems(
     const isNoteGeneric = !row.note || genericNotes.includes(row.note.toLowerCase().trim());
 
     if (row.amount === 0) {
-      let histAmt = null;
-      if (!isNoteGeneric) {
-        histAmt = await findHistoryAmount(
-          db,
-          apiKeys,
-          row.note,
-          row.category_id,
-          row.type,
-          userId,
-        );
+      // 1. Cek apakah ada checklist / tagihan aktif (pemasukan atau pengeluaran) yang belum dikonfirmasi di siklus berjalan
+      let matchedRecurring: any = null;
+      try {
+        const { data: recItems } = await db
+          .from("recurring_items")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("active", true);
+
+        if (recItems && recItems.length > 0) {
+          const dueRecs = recItems.filter(r => {
+            const { status } = getRecurringStatus(r, today, 25);
+            return status === "terlambat" || status === "jatuh-tempo" || status === "belum-bayar";
+          });
+
+          // Cocokkan berdasarkan tipe dan nama/kategori
+          matchedRecurring = dueRecs.find(r => {
+            if (r.type !== row.type) return false;
+            if (r.category_id && row.category_id && r.category_id === row.category_id) return true;
+            const rName = (r.name || "").toLowerCase();
+            const rowNote = (row.note || "").toLowerCase();
+            const rowCat = (row.category || "").toLowerCase();
+            if (rowNote && (rowNote.includes(rName) || rName.includes(rowNote))) return true;
+            if (rowCat && (rowCat.includes(rName) || rName.includes(rowCat))) return true;
+            return false;
+          });
+        }
+      } catch (e) {
+        console.error("Gagal cek recurring_items saat amount 0:", e);
       }
 
-      if (histAmt && histAmt > 0) {
-        row.amount = histAmt;
-      } else {
-        if (!waAutoReply && !isWebChat) {
-          const draftRow = { ...row, is_draft: true };
-          const { savedTx } = await saveTx(db, draftRow as unknown as TransactionRow, wallets, userId);
-          await sendPushNotification(
-            SUPABASE_URL,
-            SUPABASE_SERVICE_ROLE_KEY,
+      if (matchedRecurring) {
+        let recAmount = Number(matchedRecurring.amount) || 0;
+        if (recAmount <= 0) {
+          recAmount = (await findHistoryAmount(
+            db,
+            apiKeys,
+            matchedRecurring.name,
+            matchedRecurring.category_id,
+            matchedRecurring.type,
             userId,
-            "Transaksi butuh dilengkapi",
-            `${row.type === "income" ? "Pemasukan" : "Pengeluaran"} - ${row.note || row.category} (${row.category})\nNominal tidak diketahui\nKetuk untuk melengkapi (batal otomatis dalam 5 menit).`,
-            { action: "lengkapi", transaction_id: savedTx.id }
+          )) || 0;
+        }
+
+        if (recAmount > 0) {
+          row.amount = recAmount;
+          row.note = matchedRecurring.name;
+          row.category_id = matchedRecurring.category_id || row.category_id;
+          if (matchedRecurring.wallet_id) row.wallet_id = matchedRecurring.wallet_id;
+
+          const updateRecPayload: Record<string, any> = {
+            last_confirmed_date: today,
+            updated_at: new Date().toISOString()
+          };
+          if (matchedRecurring.kind === "installment") {
+            const newPaid = (Number(matchedRecurring.paid_occurrences) || 0) + 1;
+            updateRecPayload.paid_occurrences = newPaid;
+            if (matchedRecurring.repeat_mode === "count" && matchedRecurring.total_occurrences && newPaid >= matchedRecurring.total_occurrences) {
+              updateRecPayload.completed_at = new Date().toISOString();
+              updateRecPayload.active = false;
+            } else if (matchedRecurring.repeat_mode === "until_date" && matchedRecurring.end_date && today >= matchedRecurring.end_date) {
+              updateRecPayload.completed_at = new Date().toISOString();
+              updateRecPayload.active = false;
+            }
+          }
+          await db.from("recurring_items").update(updateRecPayload).eq("id", matchedRecurring.id);
+        }
+      }
+
+      if (row.amount === 0) {
+        let histAmt = null;
+        if (!isNoteGeneric) {
+          histAmt = await findHistoryAmount(
+            db,
+            apiKeys,
+            row.note,
+            row.category_id,
+            row.type,
+            userId,
           );
+        }
+
+        if (histAmt && histAmt > 0) {
+          row.amount = histAmt;
+        } else {
+          if (!waAutoReply && !isWebChat) {
+            const draftRow = { ...row, is_draft: true };
+            const { savedTx } = await saveTx(db, draftRow as unknown as TransactionRow, wallets, userId);
+            await sendPushNotification(
+              SUPABASE_URL,
+              SUPABASE_SERVICE_ROLE_KEY,
+              userId,
+              "Transaksi butuh dilengkapi",
+              `${row.type === "income" ? "Pemasukan" : "Pengeluaran"} - ${row.note || row.category} (${row.category})\nNominal tidak diketahui\nKetuk untuk melengkapi (batal otomatis dalam 5 menit).`,
+              { action: "lengkapi", transaction_id: savedTx.id }
+            );
+            continue;
+          }
+
+          const pendingId = `pend_${uid()}`;
+          await db.from("wa_pending_transactions").insert({
+            id: pendingId,
+            user_id: userId,
+            access_code: "wa_" + userId,
+            wa_chat_id: waChatId,
+            pending_data: JSON.stringify(row),
+          });
+          const questionText = await generateClarificationQuestion(apiKeys, {
+            type: "amount",
+            note: isNoteGeneric ? undefined : row.note,
+          });
+
+          const questionMsg = await sendWhatsAppMessage(
+            PHONE_NUMBER_ID,
+            WA_ACCESS_TOKEN,
+            waChatId,
+            questionText,
+            incomingMsgId,
+          );
+
+          if (questionMsg) {
+            await db
+              .from("wa_pending_transactions")
+              .update({ wa_question_message_id: questionMsg })
+              .eq("id", pendingId);
+          }
           continue;
         }
-
-        const pendingId = `pend_${uid()}`;
-        await db.from("wa_pending_transactions").insert({
-          id: pendingId,
-          user_id: userId,
-          access_code: "wa_" + userId,
-          wa_chat_id: waChatId,
-          pending_data: JSON.stringify(row),
-        });
-        const questionText = await generateClarificationQuestion(apiKeys, {
-          type: "amount",
-          note: isNoteGeneric ? undefined : row.note,
-        });
-
-        const questionMsg = await sendWhatsAppMessage(
-          PHONE_NUMBER_ID,
-          WA_ACCESS_TOKEN,
-          waChatId,
-          questionText,
-          incomingMsgId,
-        );
-
-        if (questionMsg) {
-          await db
-            .from("wa_pending_transactions")
-            .update({ wa_question_message_id: questionMsg })
-            .eq("id", pendingId);
-        }
-        continue;
       }
     }
 
@@ -856,6 +927,48 @@ async function processParsedItems(
       wallets,
       userId,
     );
+
+    // Sync status checklist / recurring items jika cocok dengan transaksi ini
+    try {
+      const { data: recItems } = await db
+        .from("recurring_items")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("active", true);
+
+      if (recItems && recItems.length > 0) {
+        const matched = recItems.find(r => {
+          if (r.type !== row.type) return false;
+          if (r.last_confirmed_date === today) return false;
+          if (r.category_id && row.category_id && r.category_id === row.category_id) return true;
+          const rName = (r.name || "").toLowerCase();
+          const rowNote = (row.note || "").toLowerCase();
+          if (rowNote && (rowNote.includes(rName) || rName.includes(rowNote))) return true;
+          return false;
+        });
+
+        if (matched) {
+          const updateRecPayload: Record<string, any> = {
+            last_confirmed_date: today,
+            updated_at: new Date().toISOString()
+          };
+          if (matched.kind === "installment") {
+            const newPaid = (Number(matched.paid_occurrences) || 0) + 1;
+            updateRecPayload.paid_occurrences = newPaid;
+            if (matched.repeat_mode === "count" && matched.total_occurrences && newPaid >= matched.total_occurrences) {
+              updateRecPayload.completed_at = new Date().toISOString();
+              updateRecPayload.active = false;
+            } else if (matched.repeat_mode === "until_date" && matched.end_date && today >= matched.end_date) {
+              updateRecPayload.completed_at = new Date().toISOString();
+              updateRecPayload.active = false;
+            }
+          }
+          await db.from("recurring_items").update(updateRecPayload).eq("id", matched.id);
+        }
+      }
+    } catch (e) {
+      console.error("Gagal sync recurring item pasca-saveTx:", e);
+    }
 
     // Kirim konfirmasi bubble
     const updatedWallets = wallets.map((w) =>

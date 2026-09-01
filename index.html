@@ -873,6 +873,103 @@
       margin: 8px 2px 0;
     }
 
+    .lap-wallet-dropdown {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .lap-wallet-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface-2);
+      border: none;
+      border-radius: 100px;
+      padding: 8px 10px 8px 13px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      max-width: 140px;
+      transition: background .15s ease;
+    }
+
+    .lap-wallet-btn span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .lap-wallet-btn svg {
+      transition: transform .15s ease;
+      flex-shrink: 0;
+    }
+
+    .lap-wallet-dropdown.open .lap-wallet-btn svg {
+      transform: rotate(180deg);
+    }
+
+    .lap-wallet-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: var(--surface);
+      border-radius: var(--radius-m);
+      box-shadow: var(--shadow);
+      padding: 6px;
+      min-width: 165px;
+      max-width: 260px;
+      max-height: 280px;
+      overflow-y: auto;
+      display: none;
+      z-index: 30;
+    }
+
+    .lap-wallet-dropdown.open .lap-wallet-menu {
+      display: block;
+    }
+
+    .lap-wallet-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+      user-select: none;
+      transition: background .12s ease;
+    }
+
+    .lap-wallet-menu-item:hover,
+    .lap-wallet-menu-item:active {
+      background: var(--surface-2);
+    }
+
+    .lap-wallet-menu-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+      margin: 0;
+    }
+
+    .lap-wallet-menu-item span {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .lap-period-dropdown {
       position: relative;
       flex-shrink: 0;
@@ -7729,6 +7826,17 @@
                 <path d="M20.5 20.5l-3.6-3.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               </svg>
             </button>
+            <div class="lap-wallet-dropdown" id="lapWalletDropdown">
+              <button type="button" class="lap-wallet-btn" id="lapWalletBtn" onclick="toggleLaporanWalletDropdown(event)"
+                aria-label="Filter dompet">
+                <span id="lapWalletBtnLabel">Semua Dompet</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div class="lap-wallet-menu" id="lapWalletMenu" onclick="event.stopPropagation()"></div>
+            </div>
             <div class="lap-period-dropdown" id="lapPeriodDropdown">
               <button type="button" class="lap-period-btn" onclick="toggleLaporanPeriodDropdown(event)">
                 <span id="lapPeriodBtnLabel">Bulanan</span>
@@ -11910,7 +12018,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.58)';
+      const version = ' (v3.6.59)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14876,7 +14984,12 @@
       syncTxPeriodUI('month');
       filterMonthValue = monthOverride || getPeriodRanges(homePeriod).start.slice(0, 7);
       filterCategoryValue = catName;
-      filterWalletValue = 'all';
+      const selectedWalletIds = getLaporanWallets();
+      if (selectedWalletIds.length === 1) {
+        filterWalletValue = selectedWalletIds[0];
+      } else {
+        filterWalletValue = 'all';
+      }
       switchTab('transaksi', { push: true });
     }
 
@@ -14888,6 +15001,90 @@
     let laporanWeekStart = null; // 'YYYY-MM-DD' (Senin)
     let laporanDay = null; // 'YYYY-MM-DD'
     let laporanYear = null; // 'YYYY'
+    let laporanWalletIds = null;
+
+    function getLaporanWallets() {
+      const allWallets = getWallets();
+      const allIds = allWallets.map(w => w.id);
+      if (!laporanWalletIds || !Array.isArray(laporanWalletIds) || laporanWalletIds.length === 0) {
+        laporanWalletIds = [...allIds];
+        return laporanWalletIds;
+      }
+      const valid = laporanWalletIds.filter(id => allIds.includes(id));
+      if (valid.length === 0) {
+        laporanWalletIds = [...allIds];
+        return laporanWalletIds;
+      }
+      laporanWalletIds = valid;
+      return laporanWalletIds;
+    }
+
+    function toggleLaporanWalletDropdown(e) {
+      if (e) e.stopPropagation();
+      const dd = document.getElementById('lapWalletDropdown');
+      if (!dd) return;
+      const willOpen = !dd.classList.contains('open');
+      closeLaporanPeriodDropdown();
+      if (willOpen) {
+        updateLaporanWalletUI();
+        dd.classList.add('open');
+      } else {
+        dd.classList.remove('open');
+      }
+    }
+
+    function closeLaporanWalletDropdown() {
+      const dd = document.getElementById('lapWalletDropdown');
+      if (dd) dd.classList.remove('open');
+    }
+
+    function updateLaporanWalletUI() {
+      const allWallets = getWallets();
+      const selected = getLaporanWallets();
+      const labelEl = document.getElementById('lapWalletBtnLabel');
+      if (labelEl) {
+        if (selected.length >= allWallets.length) {
+          labelEl.textContent = 'Semua Dompet';
+        } else if (selected.length === 1) {
+          const w = allWallets.find(x => x.id === selected[0]);
+          labelEl.textContent = w ? w.name : '1 Dompet';
+        } else {
+          labelEl.textContent = `${selected.length} Dompet`;
+        }
+      }
+      const menuEl = document.getElementById('lapWalletMenu');
+      if (menuEl) {
+        menuEl.innerHTML = allWallets.map(w => {
+          const isChecked = selected.includes(w.id);
+          return `
+            <label class="lap-wallet-menu-item">
+              <input type="checkbox" value="${escAttr(w.id)}" ${isChecked ? 'checked' : ''} onchange="toggleLaporanWallet('${escAttr(w.id)}', this.checked)">
+              <span>${escAttr(w.name)}</span>
+            </label>
+          `;
+        }).join('');
+      }
+    }
+
+    function toggleLaporanWallet(walletId, isChecked) {
+      const allWallets = getWallets();
+      let current = [...getLaporanWallets()];
+      if (isChecked) {
+        if (!current.includes(walletId)) {
+          current.push(walletId);
+        }
+      } else {
+        if (current.length <= 1 && current.includes(walletId)) {
+          showToast('Minimal 1 dompet harus dipilih');
+          updateLaporanWalletUI();
+          return;
+        }
+        current = current.filter(id => id !== walletId);
+      }
+      laporanWalletIds = current;
+      updateLaporanWalletUI();
+      renderLaporan();
+    }
 
     function goToLaporan(month) {
       laporanPeriodMode = 'month';
@@ -14897,6 +15094,7 @@
 
     function toggleLaporanPeriodDropdown(e) {
       if (e) e.stopPropagation();
+      closeLaporanWalletDropdown();
       document.getElementById('lapPeriodDropdown').classList.toggle('open');
     }
     function closeLaporanPeriodDropdown() {
@@ -14905,6 +15103,8 @@
     document.addEventListener('click', function (e) {
       const dd = document.getElementById('lapPeriodDropdown');
       if (dd && dd.classList.contains('open') && !dd.contains(e.target)) dd.classList.remove('open');
+      const wdd = document.getElementById('lapWalletDropdown');
+      if (wdd && wdd.classList.contains('open') && !wdd.contains(e.target)) wdd.classList.remove('open');
       const txdd = document.getElementById('txPeriodDropdown');
       if (txdd && txdd.classList.contains('open') && !txdd.contains(e.target)) txdd.classList.remove('open');
     });
@@ -15010,19 +15210,36 @@
       return d.getFullYear() + '-' + pad(d.getMonth() + 1);
     }
 
-    function computeRangeBalances(endDateStr) {
+    function computeRangeBalances(endDateStr, selectedWalletIds) {
       const wallets = getWallets();
-      const totalNow = wallets.reduce((s, w) => s + w.balance, 0);
+      const targetWallets = (selectedWalletIds && selectedWalletIds.length > 0)
+        ? wallets.filter(w => selectedWalletIds.includes(w.id))
+        : wallets;
+      const targetIds = targetWallets.map(w => w.id);
+      const totalNow = targetWallets.reduce((s, w) => s + w.balance, 0);
       const allTx = getTransactions();
-      const netAfter = allTx.filter(t => (t.type === 'income' || t.type === 'expense') && t.date > endDateStr)
-        .reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+      const netAfter = allTx.filter(t => t.date > endDateStr)
+        .reduce((s, t) => {
+          if (t.type === 'income' && targetIds.includes(t.walletId)) {
+            return s + t.amount;
+          } else if (t.type === 'expense' && targetIds.includes(t.walletId)) {
+            return s - t.amount;
+          } else if (t.type === 'transfer') {
+            const fromIn = targetIds.includes(t.walletId);
+            const toIn = targetIds.includes(t.toWalletId);
+            if (fromIn && !toIn) return s - t.amount;
+            if (!fromIn && toIn) return s + t.amount;
+            return s;
+          }
+          return s;
+        }, 0);
       return { saldoAkhir: totalNow - netAfter };
     }
-    function computeMonthBalances(monthStr) {
+    function computeMonthBalances(monthStr, selectedWalletIds) {
       const [y, m] = monthStr.split('-').map(Number);
       const monthEnd = new Date(y, m, 0);
       const monthEndStr = monthEnd.getFullYear() + '-' + pad(monthEnd.getMonth() + 1) + '-' + pad(monthEnd.getDate());
-      return computeRangeBalances(monthEndStr);
+      return computeRangeBalances(monthEndStr, selectedWalletIds);
     }
 
     let renderLapRafId = null;
@@ -15030,6 +15247,7 @@
       if (renderLapRafId) cancelAnimationFrame(renderLapRafId);
       renderLapRafId = requestAnimationFrame(() => {
         renderLapRafId = null;
+        updateLaporanWalletUI();
         if (laporanPeriodMode === 'day') renderLaporanDay();
         else if (laporanPeriodMode === 'week') renderLaporanWeek();
         else if (laporanPeriodMode === 'year') renderLaporanYear();
@@ -15038,16 +15256,17 @@
         const lapHint = document.getElementById('lapSearchHint');
         if (lapHint) {
           if (lapSearchOpen && lapSearchQuery.trim()) {
+            const selectedWalletIds = getLaporanWallets();
             const q = lapSearchQuery.trim();
             const words = normalizeSearchText(q).split(/\s+/).filter(Boolean);
             let periodTx;
-            if (laporanPeriodMode === 'day') periodTx = getTransactions().filter(t => t.date === laporanDay);
+            if (laporanPeriodMode === 'day') periodTx = getTransactions().filter(t => t.date === laporanDay && selectedWalletIds.includes(t.walletId));
             else if (laporanPeriodMode === 'week') {
               const weekEndDate = new Date(laporanWeekStart + 'T00:00:00'); weekEndDate.setDate(weekEndDate.getDate() + 6);
               const weekEnd = toDateStr(weekEndDate);
-              periodTx = getTransactions().filter(t => t.date >= laporanWeekStart && t.date <= weekEnd);
-            } else if (laporanPeriodMode === 'year') periodTx = getTransactions().filter(t => t.date.slice(0, 4) === laporanYear);
-            else periodTx = getTransactions().filter(t => t.date.slice(0, 7) === laporanMonth);
+              periodTx = getTransactions().filter(t => t.date >= laporanWeekStart && t.date <= weekEnd && selectedWalletIds.includes(t.walletId));
+            } else if (laporanPeriodMode === 'year') periodTx = getTransactions().filter(t => t.date.slice(0, 4) === laporanYear && selectedWalletIds.includes(t.walletId));
+            else periodTx = getTransactions().filter(t => t.date.slice(0, 7) === laporanMonth && selectedWalletIds.includes(t.walletId));
             const matchCount = words.length ? periodTx.filter(t => txMatchesSearchQuery(t, q)).length : periodTx.length;
             lapHint.textContent = `${matchCount} transaksi cocok dengan "${q}"`;
           } else {
@@ -15072,8 +15291,9 @@
       document.getElementById('laporanMonthLabel').textContent = monthLabel(laporanMonth);
       document.getElementById('laporanNextBtn').disabled = (laporanMonth >= currentMonthStr());
 
+      const selectedWalletIds = getLaporanWallets();
       const allTx = getTransactions();
-      let monthTx = allTx.filter(t => t.date.slice(0, 7) === laporanMonth);
+      let monthTx = allTx.filter(t => t.date.slice(0, 7) === laporanMonth && selectedWalletIds.includes(t.walletId));
       if (lapSearchOpen && lapSearchQuery.trim()) monthTx = applySearchFilter(monthTx, lapSearchQuery);
       const income = monthTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const expense = monthTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
@@ -15082,7 +15302,7 @@
       document.getElementById('lapNet').textContent = formatRupiah(income - expense);
 
       const prevMonth = prevMonthStr(laporanMonth);
-      const prevMonthTx = allTx.filter(t => t.date.slice(0, 7) === prevMonth);
+      const prevMonthTx = allTx.filter(t => t.date.slice(0, 7) === prevMonth && selectedWalletIds.includes(t.walletId));
       const prevIncome = prevMonthTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const prevExpense = prevMonthTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs bulan lalu</span>';
@@ -15093,7 +15313,7 @@
       document.getElementById('lapCmpBarExpense').style.width = expPct + '%';
       document.getElementById('lapCmpBarIncome').style.width = (100 - expPct) + '%';
 
-      const { saldoAkhir } = computeMonthBalances(laporanMonth);
+      const { saldoAkhir } = computeMonthBalances(laporanMonth, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
       document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
@@ -15116,8 +15336,9 @@
       document.getElementById('laporanMonthLabel').textContent = weekRangeLabel(weekStart);
       document.getElementById('laporanNextBtn').disabled = (weekStart >= currentWeekStart);
 
+      const selectedWalletIds = getLaporanWallets();
       const allTx = getTransactions();
-      let weekTx = allTx.filter(t => t.date >= weekStart && t.date <= weekEnd);
+      let weekTx = allTx.filter(t => t.date >= weekStart && t.date <= weekEnd && selectedWalletIds.includes(t.walletId));
       if (lapSearchOpen && lapSearchQuery.trim()) weekTx = applySearchFilter(weekTx, lapSearchQuery);
       const income = weekTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const expense = weekTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
@@ -15129,7 +15350,7 @@
       const prevWeekStart = toDateStr(prevWeekStartDate);
       const prevWeekEndDate = new Date(prevWeekStartDate); prevWeekEndDate.setDate(prevWeekEndDate.getDate() + 6);
       const prevWeekEnd = toDateStr(prevWeekEndDate);
-      const prevWeekTx = allTx.filter(t => t.date >= prevWeekStart && t.date <= prevWeekEnd);
+      const prevWeekTx = allTx.filter(t => t.date >= prevWeekStart && t.date <= prevWeekEnd && selectedWalletIds.includes(t.walletId));
       const prevIncome = prevWeekTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const prevExpense = prevWeekTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs minggu lalu</span>';
@@ -15140,7 +15361,7 @@
       document.getElementById('lapCmpBarExpense').style.width = expPct + '%';
       document.getElementById('lapCmpBarIncome').style.width = (100 - expPct) + '%';
 
-      const { saldoAkhir } = computeRangeBalances(weekEnd);
+      const { saldoAkhir } = computeRangeBalances(weekEnd, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
       document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
@@ -15160,8 +15381,9 @@
       document.getElementById('laporanMonthLabel').textContent = dateOnlyLabel(day);
       document.getElementById('laporanNextBtn').disabled = (day >= todayStr());
 
+      const selectedWalletIds = getLaporanWallets();
       const allTx = getTransactions();
-      let dayTx = allTx.filter(t => t.date === day);
+      let dayTx = allTx.filter(t => t.date === day && selectedWalletIds.includes(t.walletId));
       if (lapSearchOpen && lapSearchQuery.trim()) dayTx = applySearchFilter(dayTx, lapSearchQuery);
       const income = dayTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const expense = dayTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
@@ -15171,7 +15393,7 @@
 
       const prevDayDate = new Date(day + 'T00:00:00'); prevDayDate.setDate(prevDayDate.getDate() - 1);
       const prevDay = toDateStr(prevDayDate);
-      const prevDayTx = allTx.filter(t => t.date === prevDay);
+      const prevDayTx = allTx.filter(t => t.date === prevDay && selectedWalletIds.includes(t.walletId));
       const prevIncome = prevDayTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const prevExpense = prevDayTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs kemarin</span>';
@@ -15182,7 +15404,7 @@
       document.getElementById('lapCmpBarExpense').style.width = expPct + '%';
       document.getElementById('lapCmpBarIncome').style.width = (100 - expPct) + '%';
 
-      const { saldoAkhir } = computeRangeBalances(day);
+      const { saldoAkhir } = computeRangeBalances(day, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
       document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 
@@ -15202,8 +15424,9 @@
       document.getElementById('laporanMonthLabel').textContent = year;
       document.getElementById('laporanNextBtn').disabled = (Number(year) >= new Date().getFullYear());
 
+      const selectedWalletIds = getLaporanWallets();
       const allTx = getTransactions();
-      let yearTx = allTx.filter(t => t.date.slice(0, 4) === year);
+      let yearTx = allTx.filter(t => t.date.slice(0, 4) === year && selectedWalletIds.includes(t.walletId));
       if (lapSearchOpen && lapSearchQuery.trim()) yearTx = applySearchFilter(yearTx, lapSearchQuery);
       const income = yearTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const expense = yearTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
@@ -15212,7 +15435,7 @@
       document.getElementById('lapNet').textContent = formatRupiah(income - expense);
 
       const prevYear = String(Number(year) - 1);
-      const prevYearTx = allTx.filter(t => t.date.slice(0, 4) === prevYear);
+      const prevYearTx = allTx.filter(t => t.date.slice(0, 4) === prevYear && selectedWalletIds.includes(t.walletId));
       const prevIncome = prevYearTx.filter(t => t.type === 'income' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       const prevExpense = prevYearTx.filter(t => t.type === 'expense' && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0);
       document.getElementById('lapCmpIncome').innerHTML = compareBadgeHtml(income, prevIncome) + ' <span style="font-size:10.5px;color:var(--ink-soft);">vs tahun lalu</span>';
@@ -15224,7 +15447,7 @@
       document.getElementById('lapCmpBarIncome').style.width = (100 - expPct) + '%';
 
       const yearEndStr = year + '-12-31';
-      const { saldoAkhir } = computeRangeBalances(yearEndStr);
+      const { saldoAkhir } = computeRangeBalances(yearEndStr, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
       document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
 

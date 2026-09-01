@@ -26,20 +26,24 @@ export async function parseV2Intent(
   text: string
 ): Promise<any> {
   const prompt = `
-Analisis teks pesan masuk dari user WhatsApp berikut dan tentukan intent/maksud aksinya.
+Analisis teks pesan masuk dari user WhatsApp / Web Chat berikut dan tentukan intent/maksud aksinya.
 Aksi teks bebas yang didukung:
-1. "checklist" - Menandai tagihan berulang bulanan sebagai lunas/dibayar (misal: "bayar kuliah", "lunasin cicilan motor").
+1. "checklist" - Menandai item tagihan berulang atau pemasukan rutin bulanan sebagai lunas/dibayar/diterima.
+   Mencakup:
+   - PEMASUKAN RUTIN / GAJI (misal: "gaji masuk", "gajji masuk", "terima gaji", "gajian cair", "gajian udah masuk", "gaji bulan ini cair", "bonus masuk", "dividen masuk", "honor masuk").
+   - PENGELUARAN / TAGIHAN / CICILAN (misal: "bayar kuliah", "lunasin cicilan motor", "bayar mor", "tagihan listrik", "bayar wifi", "cicilan motor udah dibayar", "bayar kosan").
+   User bisa menyebutkan nominal ataupun TANPA nominal. Bisa mengandung typo atau singkatan bahasa sehari-hari ("gajji", "mor", "byr", "pln", "ccln").
 2. "transfer" - Transfer uang antar dompet/rekening (misal: "transfer dari utama ke tabungan 500rb", "pindahin 100k ke gopay").
 3. "debt" - Catat utang baru, piutang baru, cicilan, atau pelunasan utang/piutang ke seseorang (misal: "pinjam ke Budi 100rb", "bayar utang Budi 50rb", "Sari utang ke aku 30k").
 4. "query" - Pertanyaan/permintaan informasi mengenai laporan keuangan, detail transaksi, budget, saldo, tagihan, dll (misal: "cek saldo", "berapa pengeluaran makan bulan ini", "apakah ada tagihan jatuh tempo?", "daftar pengeluaran gojek", "selisih bulan lalu").
-5. "transaction" - Pencatatan pemasukan, pengeluaran atau transfer biasa dengan menyebutkan nominal secara eksplisit (misal: "makan bakso 15.000", "pemasukan gajian 5.000.000", "bensin 20rb").
+5. "transaction" - Pencatatan transaksi belanja, makan, jajan, transportasi, atau pemasukan non-rutin biasa di luar tagihan/checklist (misal: "makan bakso 15.000", "bensin 20rb", "jual barang bekas 50rb").
 6. "general_chat" - Obrolan umum, sapaan, ucapan terima kasih, atau hal di luar keuangan (misal: "halo", "terima kasih ya", "siapa pembuatmu?").
 
 Keluarkan JSON dengan schema berikut:
 {
   "intent": "checklist" | "transfer" | "debt" | "query" | "transaction" | "general_chat",
   "checklist": {
-    "item_name": "string (nama tagihan/item checklist yang dicari, misal 'kuliah' atau 'cicilan motor')",
+    "item_name": "string (nama tagihan atau pemasukan rutin yang dicari, misal 'gaji', 'cicilan motor', 'kuliah', 'listrik')",
     "amount": number | null
   },
   "transfer": {
@@ -116,19 +120,27 @@ Teks user: "${text}"
 async function matchChecklistSemanticWithAi(
   apiKeys: string[],
   userText: string,
-  items: Array<{ id: string; name: string; amount: number; next_due_date: string }>
+  items: Array<{ id: string; name: string; category_name: string; type: string; amount: number; next_due_date: string }>
 ): Promise<string[]> {
   const prompt = `
-Cocokkan kalimat user berikut terhadap daftar item tagihan/checklist jatuh tempo yang tersedia.
-User ingin membayar/menyelesaikan salah satu tagihan. Pilihlah item tagihan yang secara semantik/makna cocok dengan kalimat user (abaikan kata kerja seperti "bayar", "lunas", "beres").
+Cocokkan kalimat user berikut terhadap daftar item tagihan / checklist berulang yang tersedia (bisa berupa pengeluaran rutin atau pemasukan rutin seperti gaji).
+User ingin menandai salah satu tagihan/checklist sebagai sudah dibayar / lunas, atau menandai pemasukan rutin (seperti gaji, honor, dividen) sebagai sudah diterima / masuk.
 
-Daftar tagihan jatuh tempo:
-${items.map((it, idx) => `${idx + 1}. ID: "${it.id}", Nama: "${it.name}", Nominal: ${it.amount}`).join("\n")}
+Daftar item checklist / tagihan:
+${items.map((it, idx) => `${idx + 1}. ID: "${it.id}", Nama: "${it.name}", Kategori: "${it.category_name}", Jenis: "${it.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}", Nominal: ${it.amount}`).join("\n")}
 
 Kalimat user: "${userText}"
 
-Aturan:
-- Kembalikan array berisi ID tagihan yang cocok.
+Aturan Pencocokan:
+- Cocokkan makna kalimat user dengan Nama item atau Kategori item.
+- PENTING: Toleran terhadap typo, singkatan, dan variasi bahasa sehari-hari:
+  * "gajji", "gajian", "gajiku", "gaji masuk", "terima gaji", "dapat gaji" -> sangat cocok dengan item/kategori Gaji (pemasukan).
+  * "mor", "mottor", "mtr" -> sangat cocok dengan Motor / Cicilan Motor.
+  * "byr", "lunas", "byar", "byrin" -> bayar.
+  * "pln", "listrik" -> Tagihan Listrik / PLN.
+  * "wifi", "indihome", "biznet" -> Tagihan Internet / WiFi.
+- Abaikan kata kerja dan status seperti "bayar", "lunas", "beres", "masuk", "cair", "terima", "dapat", "sudah", "udah".
+- Kembalikan array berisi ID item yang cocok.
 - Jika ada kecocokan yang ambigu (misal user sebut "cicilan" dan ada "Cicilan Mobil" serta "Cicilan Motor"), kembalikan semua ID yang berpotensi cocok.
 - Jika tidak ada yang cocok sama sekali, kembalikan array kosong [].
 
@@ -254,7 +266,7 @@ async function recalculateBalances(db: SupabaseClient, userId: string) {
 }
 
 /**
- * 1. Menangani Checklist Lunas
+ * 1. Menangani Checklist Lunas / Pemasukan Diterima
  */
 export async function handleV2ChecklistIntent(
   db: SupabaseClient,
@@ -266,7 +278,13 @@ export async function handleV2ChecklistIntent(
   userId: string,
 ): Promise<boolean> {
   const todayStr = getTodayStr();
-  const recurringItems = await v2GetRecurringItems(db, userId);
+  const [recurringItems, categories] = await Promise.all([
+    v2GetRecurringItems(db, userId),
+    v2GetCategories(db, userId),
+  ]);
+
+  const catMap = new Map<string, string>();
+  categories.forEach((c: any) => catMap.set(c.id, c.name));
 
   const dueItems = recurringItems
     .filter((item: any) => item.active !== false)
@@ -274,19 +292,21 @@ export async function handleV2ChecklistIntent(
       const { status, nextDue } = getRecurringStatus(item, todayStr, 25);
       return { item, status, nextDue };
     })
-    // "belum-bayar" ikut disertakan: tagihan aktif yang belum dibayar di siklus berjalan (walau belum
-    // jatuh tempo/telat) tetap harus kedeteksi kalau user bilang "gaji masuk", "bayar motor", dll di WA --
-    // sebelumnya cuma tagihan yang sudah "terlambat"/"jatuh-tempo" yang kedeteksi, jadi kalau tagihan
-    // (mis. gajian tgl 1 bulan depan) belum jatuh tempo hari ini, chat selalu jatuh ke alur transaksi
-    // biasa & nanya nominal, padahal seharusnya langsung match ke tagihan itu.
+    // "belum-bayar" ikut disertakan: tagihan/pemasukan rutin aktif yang belum dikonfirmasi di siklus berjalan
     .filter(x => x.status === "terlambat" || x.status === "jatuh-tempo" || x.status === "belum-bayar")
     .map(x => ({
       id: x.item.id,
       name: x.item.name,
+      category_name: catMap.get(x.item.category_id) || "Lainnya",
       amount: Number(x.item.amount) || 0,
       category_id: x.item.category_id,
       wallet_id: x.item.wallet_id,
       type: x.item.type,
+      kind: x.item.kind,
+      repeat_mode: x.item.repeat_mode,
+      total_occurrences: x.item.total_occurrences,
+      paid_occurrences: x.item.paid_occurrences,
+      end_date: x.item.end_date,
       next_due_date: x.nextDue
     }));
 
@@ -300,11 +320,14 @@ export async function handleV2ChecklistIntent(
     return false;
   }
 
+  const customAmount = typeof checklistData?.amount === "number" && checklistData.amount > 0 ? checklistData.amount : undefined;
+
   if (matches.length > 1) {
     const candidates = dueItems.filter(d => matches.includes(d.id));
-    let optionsText = `Ada lebih dari satu tagihan jatuh tempo yang cocok. Balas pesan ini dengan mengetik nomor pilihan:\n\n`;
+    let optionsText = `Ada lebih dari satu item tagihan/pemasukan rutin yang cocok. Balas pesan ini dengan mengetik nomor pilihan:\n\n`;
     candidates.forEach((c, idx) => {
-      optionsText += `${idx + 1}. ${c.name} (${formatRupiah(c.amount)})\n`;
+      const typeBadge = c.type === "income" ? "[Pemasukan]" : "[Tagihan]";
+      optionsText += `${idx + 1}. ${typeBadge} ${c.name} (${formatRupiah(c.amount)})\n`;
     });
 
     const questionMsgId = await sendWhatsAppMessage(
@@ -324,7 +347,8 @@ export async function handleV2ChecklistIntent(
         wa_question_message_id: questionMsgId,
         pending_data: {
           type: "clarify_checklist",
-          candidates: candidates
+          candidates: candidates,
+          custom_amount: customAmount
         }
       });
     }
@@ -332,7 +356,7 @@ export async function handleV2ChecklistIntent(
   }
 
   const selected = dueItems.find(d => d.id === matches[0])!;
-  return await executeChecklistPayment(db, apiKeys, waChatId, messageId, selected, userId);
+  return await executeChecklistPayment(db, apiKeys, waChatId, messageId, selected, userId, customAmount);
 }
 
 export async function executeChecklistPayment(
@@ -342,6 +366,7 @@ export async function executeChecklistPayment(
   replyToMsgId: string,
   checklistDetails: any,
   userId: string,
+  customAmount?: number,
 ): Promise<boolean> {
   const todayStr = getTodayStr();
 
@@ -350,23 +375,25 @@ export async function executeChecklistPayment(
     .select("name")
     .eq("id", checklistDetails.category_id)
     .maybeSingle();
-  const categoryName = catData?.name ?? "Lainnya";
+  const categoryName = catData?.name ?? checklistDetails.category_name ?? "Lainnya";
 
-  let amount = checklistDetails.amount;
+  let amount = typeof customAmount === "number" && customAmount > 0 ? customAmount : checklistDetails.amount;
   
-  const { data: txs } = await db
-    .from("transactions")
-    .select("amount")
-    .eq("user_id", userId)
-    .eq("type", checklistDetails.type)
-    .eq("category_id", checklistDetails.category_id)
-    .eq("note", checklistDetails.name)
-    .gt("amount", 0)
-    .order("date", { ascending: false })
-    .limit(1);
+  if (!(amount > 0)) {
+    const { data: txs } = await db
+      .from("transactions")
+      .select("amount")
+      .eq("user_id", userId)
+      .eq("type", checklistDetails.type)
+      .eq("category_id", checklistDetails.category_id)
+      .eq("note", checklistDetails.name)
+      .gt("amount", 0)
+      .order("date", { ascending: false })
+      .limit(1);
 
-  if (txs && txs.length > 0) {
-    amount = Number(txs[0].amount) || amount;
+    if (txs && txs.length > 0) {
+      amount = Number(txs[0].amount) || 0;
+    }
   }
 
   if (!(amount > 0)) {
@@ -386,20 +413,36 @@ export async function executeChecklistPayment(
     note: checklistDetails.name
   }, userId);
 
+  const updatePayload: Record<string, any> = {
+    last_confirmed_date: todayStr,
+    updated_at: new Date().toISOString()
+  };
+
+  if (checklistDetails.kind === "installment") {
+    const newPaid = (Number(checklistDetails.paid_occurrences) || 0) + 1;
+    updatePayload.paid_occurrences = newPaid;
+    if (checklistDetails.repeat_mode === "count" && checklistDetails.total_occurrences && newPaid >= checklistDetails.total_occurrences) {
+      updatePayload.completed_at = new Date().toISOString();
+      updatePayload.active = false;
+    } else if (checklistDetails.repeat_mode === "until_date" && checklistDetails.end_date && todayStr >= checklistDetails.end_date) {
+      updatePayload.completed_at = new Date().toISOString();
+      updatePayload.active = false;
+    }
+  }
+
   await db
     .from("recurring_items")
-    .update({
-      last_confirmed_date: todayStr,
-      updated_at: new Date().toISOString()
-    })
+    .update(updatePayload)
     .eq("id", checklistDetails.id);
 
   const { data: walletData } = await db.from("wallets").select("name, balance").eq("id", walletId).single();
   const walletName = walletData?.name ?? "Dompet";
   const walletBalance = Number(walletData?.balance) || 0;
 
-  const typeLabel = checklistDetails.type === "income" ? "Pemasukan" : "Pengeluaran";
-  const bubble = `Tagihan dibayar
+  const isIncome = checklistDetails.type === "income";
+  const header = isIncome ? "Pemasukan Rutin Diterima" : "Tagihan Dibayar";
+  const typeLabel = isIncome ? "Pemasukan" : "Pengeluaran";
+  const bubble = `${header}
 Tanggal: ${formatTanggalID(todayStr)}
 
 ${typeLabel}: ${formatRupiah(amount)}
@@ -935,7 +978,7 @@ export async function handleV2ClarificationReply(
   const selected = pendingData.candidates[choiceIdx];
 
   if (pendingData.type === "clarify_checklist") {
-    await executeChecklistPayment(db, apiKeys, waChatId, msg.messageId, selected, userId);
+    await executeChecklistPayment(db, apiKeys, waChatId, msg.messageId, selected, userId, pendingData.custom_amount);
   } else if (pendingData.type === "clarify_debt_payment") {
     await executeDebtPayment(db, waChatId, msg.messageId, selected, pendingData.amount, pendingData.user_text, userId);
   }
