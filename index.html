@@ -12081,7 +12081,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.63)';
+      const version = ' (v3.6.64)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -21073,13 +21073,114 @@
       renderRecurringHistory();
     }
 
+    function getRecurringHistoryEntries() {
+      const recurringList = getRecurring();
+      const txs = getTransactions();
+      const entries = [];
+      const seenTxIds = new Set();
+      const seenKeys = new Set();
+
+      const cleanStr = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      recurringList.forEach(item => {
+        const itemClean = cleanStr(item.name);
+        const itemCat = categoryById(item.categoryId);
+        const itemWallet = walletById(item.walletId);
+        const iconName = itemCat ? itemCat.icon : (item.type === 'income' ? 'briefcase' : 'receipt');
+
+        // 1. Cocokkan dari riwayat transaksi nyata di menu transaksi (baik dari tombol Bayar, Chat AI, atau WA bot)
+        txs.forEach(t => {
+          if (seenTxIds.has(t.id)) return;
+          if (t.type !== item.type) return;
+
+          const noteClean = cleanStr(t.note);
+          const catClean = cleanStr(t.category);
+
+          let isMatch = false;
+
+          // Cocok nama tagihan di note transaksi
+          if (itemClean && noteClean) {
+            if (noteClean === itemClean || noteClean.includes(itemClean) || (itemClean.includes(noteClean) && noteClean.length >= 4)) {
+              isMatch = true;
+            }
+          }
+
+          // Cocok kategori tagihan + note atau nominal persis
+          if (!isMatch && item.categoryId && t.categoryId === item.categoryId) {
+            if (noteClean.includes(itemClean) || itemClean.includes(noteClean) || Math.abs(t.amount - item.amount) === 0) {
+              isMatch = true;
+            }
+          }
+
+          // Cocok dari ID transaksi di item.history
+          if (!isMatch && item.history && item.history.some(h => h.txId === t.id)) {
+            isMatch = true;
+          }
+
+          if (isMatch) {
+            seenTxIds.add(t.id);
+            const w = walletById(t.walletId);
+            const c = categoryById(t.categoryId);
+            const entry = {
+              id: t.id,
+              name: item.name,
+              note: t.note || item.name,
+              type: t.type,
+              amount: t.amount,
+              date: t.date,
+              walletName: w ? w.name : (itemWallet ? itemWallet.name : ''),
+              icon: c ? c.icon : iconName
+            };
+            const uKey = `${item.id}_${t.date}_${t.amount}`;
+            seenKeys.add(uKey);
+            entries.push(entry);
+          }
+        });
+
+        // 2. Entri dari item.history lokal yang belum tercakup di atas
+        (item.history || []).forEach(h => {
+          const uKey = `${item.id}_${h.date}_${h.amount}`;
+          if (!seenKeys.has(uKey)) {
+            seenKeys.add(uKey);
+            entries.push({
+              id: h.txId || uid(),
+              name: item.name,
+              note: item.name,
+              type: item.type,
+              amount: h.amount,
+              date: h.date,
+              walletName: itemWallet ? itemWallet.name : '',
+              icon: iconName
+            });
+          }
+        });
+
+        // 3. Status konfirmasi terakhir yang tersinkron di Supabase (lastConfirmedDate)
+        if (item.lastConfirmedDate) {
+          const uKey = `${item.id}_${item.lastConfirmedDate}_${item.amount}`;
+          if (!seenKeys.has(uKey)) {
+            seenKeys.add(uKey);
+            entries.push({
+              id: 'confirmed_' + item.id + '_' + item.lastConfirmedDate,
+              name: item.name,
+              note: item.name,
+              type: item.type,
+              amount: item.amount,
+              date: item.lastConfirmedDate,
+              walletName: itemWallet ? itemWallet.name : '',
+              icon: iconName
+            });
+          }
+        }
+      });
+
+      return entries;
+    }
+
     function renderRecurringHistory() {
       const wrap = document.getElementById('recHistoryListWrap');
       if (!wrap) return;
-      let entries = [];
-      getRecurring().forEach(item => {
-        (item.history || []).forEach(h => entries.push({ name: item.name, type: item.type, amount: h.amount, date: h.date }));
-      });
+      let entries = getRecurringHistoryEntries();
 
       if (recHistoryFilterMode === 'month') {
         entries = entries.filter(e => (e.date || '').slice(0, 7) === recHistoryMonth);
@@ -21087,17 +21188,22 @@
         entries = entries.filter(e => (e.date || '').slice(0, 4) === recHistoryYear);
       }
 
-      entries.sort((a, b) => a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+      entries.sort((a, b) => (a.date < b.date ? 1 : (a.date > b.date ? -1 : 0)));
 
       if (entries.length === 0) {
         wrap.innerHTML = '<div class="empty-note" style="padding:20px 0;text-align:center;">Belum ada riwayat pembayaran di periode ini.</div>';
         return;
       }
-      wrap.innerHTML = entries.map(e => `<div class="tx-item" style="cursor:default;">
-      <div class="tx-icon ${e.type}">${iconSvgMarkup(e.type === 'income' ? 'briefcase' : 'receipt', 20)}</div>
-      <div class="tx-body"><div class="tx-cat">${escAttr(e.name)}</div><div class="tx-meta">${e.date}</div></div>
-      <div class="tx-amt ${e.type}">${formatRupiah(e.amount)}</div>
-    </div>`).join('');
+      wrap.innerHTML = entries.map(e => `
+        <div class="tx-item" style="cursor:default;">
+          <div class="tx-icon ${e.type}">${iconSvgMarkup(e.icon || (e.type === 'income' ? 'briefcase' : 'receipt'), 20)}</div>
+          <div class="tx-body">
+            <div class="tx-cat">${escAttr(e.name)}</div>
+            <div class="tx-meta">${e.date}${e.walletName ? ' · ' + escAttr(e.walletName) : ''}</div>
+          </div>
+          <div class="tx-amt ${e.type}">${formatRupiah(e.amount)}</div>
+        </div>
+      `).join('');
     }
     function renderRecurringManageList() {
       const wrap = document.getElementById('recurringManageList');
