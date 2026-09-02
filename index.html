@@ -1191,35 +1191,47 @@
 
     .ai-text-wrap {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .ai-text-wrap textarea {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
     }
 
     .ai-mic-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
+      width: 54px;
+      min-height: 100%;
+      border-radius: 12px;
+      border: 1.5px solid var(--line);
       background: var(--surface);
       color: var(--ink-soft);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, .15);
       cursor: pointer;
-      transition: background .15s, color .15s;
+      transition: background .15s, color .15s, border-color .15s, transform .15s;
       padding: 0;
       flex-shrink: 0;
+      box-shadow: none;
+    }
+
+    .ai-mic-btn:hover {
+      background: var(--surface-2);
+      color: var(--ink);
     }
 
     .ai-mic-btn:active {
-      transform: scale(.94);
+      transform: scale(.95);
     }
 
     .ai-mic-btn.recording {
       background: #e11d48;
       color: #fff;
+      border-color: #e11d48;
       animation: aiMicPulse 1.2s ease-in-out infinite;
     }
 
@@ -9763,7 +9775,7 @@
                 autocorrect="off" spellcheck="false" oninput="onCcTextInput(this)" onkeydown="onCcTextKeydown(event)"></textarea>
               <button type="button" class="ai-mic-btn" id="ccAiMicBtn" onclick="toggleCcAiVoiceRecording()"
                 aria-label="Rekam suara">
-                <svg id="ccAiMicIcon" width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <svg id="ccAiMicIcon" width="22" height="22" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor"
                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                   <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.8"
@@ -12081,7 +12093,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.64)';
+      const version = ' (v3.6.65)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -25703,10 +25715,11 @@ Keluarkan JSON dengan schema:
           total_utang_saya: formatRupiah(totalUtang),
           total_piutang_saya: formatRupiah(totalPiutang)
         },
-        checklist_tagihan_berulang: checklistList.map(c => ({
-          nama_tagihan: c.item_name,
+        daftar_transaksi_rutin_berulang: checklistList.map(c => ({
+          nama_item: c.item_name,
+          jenis_transaksi: c.type === "income" ? "Pemasukan Rutin (Uang Masuk / Gaji / Terima)" : "Pengeluaran Rutin / Tagihan (Uang Keluar / Bayar)",
           nominal: formatRupiah(c.amount),
-          status_pembayaran: c.status === "sudah-dibayar" ? "Sudah Dibayar" : (c.status === "terlambat" ? "TERLAMBAT" : (c.status === "jatuh-tempo" ? "Jatuh Tempo Hari Ini" : "Belum Dibayar")),
+          status_pembayaran: c.status === "sudah-dibayar" ? "Sudah Selesai (Dibayar/Diterima)" : (c.status === "terlambat" ? "TERLAMBAT" : (c.status === "jatuh-tempo" ? "Jatuh Tempo Hari Ini" : "Belum Selesai (Belum Bayar/Terima)")),
           tanggal_jatuh_tempo_berikutnya: c.next_due_date
         })),
         pengeluaran_terbesar: largestTransactions.map((t, idx) => ({

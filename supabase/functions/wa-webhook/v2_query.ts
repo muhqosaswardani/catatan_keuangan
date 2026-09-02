@@ -386,10 +386,11 @@ export async function processV2Query(
       total_utang_saya: formatRupiah(totalUtang),
       total_piutang_saya: formatRupiah(totalPiutang)
     },
-    checklist_tagihan_berulang: checklistList.map(c => ({
-      nama_tagihan: c.item_name,
+    daftar_transaksi_rutin_berulang: checklistList.map(c => ({
+      nama_item: c.item_name,
+      jenis_transaksi: c.type === "income" ? "Pemasukan Rutin (Uang Masuk / Gaji / Terima)" : "Pengeluaran Rutin / Tagihan (Uang Keluar / Bayar)",
       nominal: formatRupiah(c.amount),
-      status_pembayaran: c.status === "sudah-dibayar" ? "Sudah Dibayar" : (c.status === "terlambat" ? "TERLAMBAT" : (c.status === "jatuh-tempo" ? "Jatuh Tempo Hari Ini" : "Belum Dibayar")),
+      status_pembayaran: c.status === "sudah-dibayar" ? "Sudah Selesai (Dibayar/Diterima)" : (c.status === "terlambat" ? "TERLAMBAT" : (c.status === "jatuh-tempo" ? "Jatuh Tempo Hari Ini" : "Belum Selesai (Belum Bayar/Terima)")),
       tanggal_jatuh_tempo_berikutnya: c.next_due_date
     })),
     pengeluaran_terbesar: largestTransactions.map((t, idx) => ({
