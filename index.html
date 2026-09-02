@@ -12093,7 +12093,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.65)';
+      const version = ' (v3.6.66)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14581,8 +14581,11 @@
         list.innerHTML = '<div class="empty-note">Tidak ada pilihan.</div>';
       } else {
         list.innerHTML = options.map((o, i) => `
-      <div class="picker-row" data-idx="${i}">
-        <span>${o.label}</span>
+      <div class="picker-row" data-idx="${i}" style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px;">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
+          ${o.iconHtml ? o.iconHtml : ''}
+          <span style="font-weight:600;color:var(--ink);font-size:14.5px;">${o.label}</span>
+        </div>
         <span class="radio ${o.value === currentVal ? 'checked' : ''}"></span>
       </div>`).join('');
         list.querySelectorAll('.picker-row').forEach(row => {
@@ -15796,11 +15799,39 @@
     }
 
     function openFilterWalletPicker() {
-      const options = [{ value: 'all', label: 'Semua Dompet' }, ...getWallets().map(w => ({ value: w.id, label: w.name }))];
+      const options = [
+        {
+          value: 'all',
+          label: 'Semua Dompet',
+          iconHtml: `<div class="cat-icon-box" style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconSvgMarkup('grid', 18)}</div>`
+        },
+        ...getWallets().map(w => ({
+          value: w.id,
+          label: w.name,
+          iconHtml: `<div class="cat-icon-box" style="width:36px;height:36px;border-radius:10px;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconSvgMarkup('wallet', 18)}</div>`
+        }))
+      ];
       openPicker('Pilih Dompet', options, filterWalletValue, v => { filterWalletValue = v; renderTransactions(); });
     }
     function openFilterCategoryPicker() {
-      const options = [{ value: 'all', label: 'Semua Kategori' }, ...getCategories().map(c => ({ value: c.name, label: c.name })), { value: 'Transfer', label: 'Transfer' }];
+      const allCategories = getCategories();
+      const options = [
+        {
+          value: 'all',
+          label: 'Semua Kategori',
+          iconHtml: `<div class="cat-icon-box" style="width:36px;height:36px;border-radius:10px;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconSvgMarkup('grid', 18)}</div>`
+        },
+        ...allCategories.map(c => ({
+          value: c.name,
+          label: c.name,
+          iconHtml: categoryIconBoxHtml(c, { size: 36, iconSize: 18, radius: 10 })
+        })),
+        {
+          value: 'Transfer',
+          label: 'Transfer',
+          iconHtml: `<div class="cat-icon-box" style="width:36px;height:36px;border-radius:10px;background:#3b82f622;color:#3b82f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconSvgMarkup('arrows-left-right', 18)}</div>`
+        }
+      ];
       openPicker('Pilih Kategori', options, filterCategoryValue, v => { filterCategoryValue = v; renderTransactions(); });
     }
 
@@ -21386,11 +21417,19 @@
       el.classList.toggle('ph', !c);
     }
     function openRecWalletPicker() {
-      const options = getWallets().map(w => ({ value: w.id, label: w.name }));
+      const options = getWallets().map(w => ({
+        value: w.id,
+        label: w.name,
+        iconHtml: `<div class="cat-icon-box" style="width:36px;height:36px;border-radius:10px;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${iconSvgMarkup('wallet', 18)}</div>`
+      }));
       openPicker('Pilih Dompet', options, recWalletValue, v => { recWalletValue = v; updateRecWalletLabel(); });
     }
     function openRecCategoryPicker() {
-      const options = getCategories().filter(c => c.type === currentRecFormType).map(c => ({ value: c.id, label: c.name }));
+      const options = getCategories().filter(c => c.type === currentRecFormType).map(c => ({
+        value: c.id,
+        label: c.name,
+        iconHtml: categoryIconBoxHtml(c, { size: 36, iconSize: 18, radius: 10 })
+      }));
       openPicker('Pilih Kategori', options, recCategoryValue, v => { recCategoryValue = v; updateRecCategoryLabel(); });
     }
 
