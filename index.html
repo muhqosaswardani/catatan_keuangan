@@ -11676,6 +11676,7 @@
               type: 'income',
               date: todayStr(),
               note: 'Saldo Awal',
+              exclude_from_report: true,
               updated_at: new Date().toISOString()
             });
           }
@@ -11704,20 +11705,10 @@
         const categories = Array.from(uniqueCatMap.values());
 
         // 3. Prepare User Settings
-        // Fix: dompet baru sudah dapat transaksi seed "Saldo Awal" sebesar balance-nya (lihat atas),
-        // jadi initialBalances tiap dompet HARUS di-set 0 secara eksplisit di sini. Kalau dibiarkan {}
-        // (kosong), recalculateWalletBalances() akan menebak nilainya sendiri dari selisih
-        // wallet.balance vs transaksi yang sudah ke-load saat itu -- dan kalau fungsi ini kebetulan
-        // jalan sebelum transaksi seed sempat ke-load, hasil tebakannya salah lalu ke-cache permanen,
-        // sehingga saldo awal 5jt bisa kehitung dobel jadi 10jt begitu transaksi seed akhirnya masuk.
-        // Juga set heroWallets & core eksplisit supaya kartu "Total Saldo" di Beranda langsung
-        // menunjuk ke dompet yang baru dibuat (bukan fallback id lama 'wallet_utama' yang bikin
-        // Total Saldo tampil Rp 0 walau dompetnya sendiri sudah keisi).
-        const initialBalancesMap = {};
-        wallets.forEach(w => { initialBalancesMap[w.id] = 0; });
+        // Set heroWallets & core eksplisit supaya kartu "Total Saldo" di Beranda langsung
+        // menunjuk ke dompet yang baru dibuat.
         const primaryWalletForNav = wallets.find(w => w.is_primary) || wallets[0];
         const navConfigForNewUser = {
-          initialBalances: initialBalancesMap,
           core: DEFAULT_NAV_CORE.slice(),
           coreUpdatedAt: Date.now(),
           heroWallets: primaryWalletForNav ? [primaryWalletForNav.id] : [],
@@ -12093,7 +12084,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.69)';
+      const version = ' (v3.6.70)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -12575,26 +12566,6 @@
               merged.chatSession = (localChatTs >= remoteChatTs) ? localCfg.chatSession : remoteCfg.chatSession;
               merged.chatUpdatedAt = Math.max(localChatTs, remoteChatTs);
 
-
-
-              const mergedInitialBalances = {};
-              const localIB = localCfg.initialBalances || {};
-              const remoteIB = remoteCfg.initialBalances || {};
-              const allIBKeys = new Set([...Object.keys(localIB), ...Object.keys(remoteIB)]);
-              const remoteNavTs = Number(remoteCfg.navConfigUpdatedAt || (remChkSettings.updated_at ? parseSafeDate(remChkSettings.updated_at) : 0)) || 0;
-              const localNavTs = Number(localCfg.navConfigUpdatedAt) || 0;
-
-              for (const key of allIBKeys) {
-                const localVal = localIB[key];
-                const remoteVal = remoteIB[key];
-                if (remoteVal !== undefined && (remoteNavTs >= localNavTs || localVal === undefined || localVal === -1580233)) {
-                  mergedInitialBalances[key] = remoteVal;
-                } else {
-                  mergedInitialBalances[key] = localVal !== undefined ? localVal : remoteVal;
-                }
-              }
-              merged.initialBalances = mergedInitialBalances;
-
               setNavConfigLocalOnly(merged);
               recalculateWalletBalances();
             }
@@ -12975,7 +12946,6 @@
 
       const coreUpdatedAt = (raw && Number(raw.coreUpdatedAt)) || 0;
       const heroWalletsUpdatedAt = (raw && Number(raw.heroWalletsUpdatedAt)) || 0;
-      const initialBalances = (raw && raw.initialBalances) ? raw.initialBalances : {};
 
       const chatHistory = (raw && Array.isArray(raw.chatHistory)) ? raw.chatHistory : [];
       const chatSession = (raw && raw.chatSession) ? raw.chatSession : null;
@@ -12993,7 +12963,6 @@
         dashboardAvgExcludeCatIdsUpdatedAt,
         coreUpdatedAt,
         heroWalletsUpdatedAt,
-        initialBalances,
         chatHistory,
         chatSession,
         chatUpdatedAt,
@@ -13758,16 +13727,9 @@
         }
       });
 
-      const cfg = getNavConfig();
-      if (!cfg.initialBalances) cfg.initialBalances = {};
       let changed = false;
-
       const updatedWallets = wallets.map(w => {
-        if (cfg.initialBalances[w.id] === undefined) {
-          cfg.initialBalances[w.id] = (Number(w.balance) || 0) - (sums[w.id] || 0);
-          changed = true;
-        }
-        const newBalance = (Number(cfg.initialBalances[w.id]) || 0) + (sums[w.id] || 0);
+        const newBalance = sums[w.id] || 0;
         if (w.balance !== newBalance) {
           w.balance = newBalance;
           w.updatedAt = Date.now();
@@ -13778,7 +13740,6 @@
 
       if (changed) {
         setWalletsLocalOnly(updatedWallets);
-        setNavConfigLocalOnly(cfg);
       }
     }
 
@@ -25965,32 +25926,6 @@ PERTANYAAN_USER:
     }
 
     async function init() {
-      // Hotfix: Correct corrupted initial balance for Dompet Utama
-      try {
-        const rawNav = localStorage.getItem('fk_navconfig') || 'null';
-        if (rawNav !== 'null') {
-          const cfg = JSON.parse(rawNav);
-          if (cfg && cfg.initialBalances) {
-            let fixed = false;
-            if (cfg.initialBalances['w_mssuo8zcgq0xlu'] === 4850000) {
-              cfg.initialBalances['w_mssuo8zcgq0xlu'] = -10000;
-              fixed = true;
-            }
-            Object.keys(cfg.initialBalances).forEach(wId => {
-              if (cfg.initialBalances[wId] === -1580233) {
-                cfg.initialBalances[wId] = -1690600;
-                fixed = true;
-              }
-            });
-            if (fixed) {
-              localStorage.setItem('fk_navconfig', JSON.stringify(cfg));
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Hotfix initialBalances error:', e);
-      }
-
       // Render data lokal tersimpan secara instan SEBELUM cek auth/network,
       // biar pas reload (native pull-to-refresh) layar langsung keisi data
       // lama dulu (bukan "—" kosong) sambil auth check & sync jalan di
