@@ -1022,6 +1022,84 @@
       white-space: nowrap;
     }
 
+    .lap-period-dropdown {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .lap-period-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface-2);
+      border: none;
+      border-radius: 100px;
+      padding: 8px 10px 8px 13px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background .15s ease, transform .12s ease;
+    }
+
+    .lap-period-btn:active {
+      transform: scale(.97);
+    }
+
+    .lap-period-btn svg {
+      transition: transform .15s ease;
+      flex-shrink: 0;
+    }
+
+    .lap-period-dropdown.open .lap-period-btn svg {
+      transform: rotate(180deg);
+    }
+
+    .lap-period-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: var(--surface);
+      border-radius: var(--radius-m);
+      box-shadow: var(--shadow);
+      padding: 6px;
+      min-width: 128px;
+      display: none;
+      z-index: 30;
+    }
+
+    .lap-period-dropdown.open .lap-period-menu {
+      display: block;
+    }
+
+    .lap-period-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      padding: 9px 11px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .12s ease;
+    }
+
+    .lap-period-menu-item.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .lap-period-menu-item:not(.active):hover,
+    .lap-period-menu-item:not(.active):active {
+      background: var(--surface-2);
+    }
+
     .stat {
       background: var(--surface);
       border-radius: var(--radius-m);
@@ -11999,7 +12077,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.60)';
+      const version = ' (v3.6.61)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
