@@ -12093,7 +12093,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.66)';
+      const version = ' (v3.6.67)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -18987,7 +18987,10 @@
           }
           return `<div class="budget-item" onclick="openBudgetLimitModal('${c.id}','${c.name}')">
       <div class="row1">
-        <div class="cat-name">${c.name}</div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
+          ${categoryIconBoxHtml(c, { size: 34, iconSize: 18, radius: 9 })}
+          <div class="cat-name">${c.name}</div>
+        </div>
         <div class="amt-col">
           <div class="amt-limit">${formatRupiah(status.limit)}</div>
           ${spentHtml}
@@ -19012,7 +19015,10 @@
         const status = calculateBudgetStatus(c.id, month);
         const limitLabel = status.limit !== null ? formatRupiah(status.limit) : 'Belum diset';
         return `<div class="budget-manage-row" onclick="openBudgetLimitModal('${c.id}','${c.name}')">
-      <div class="cat-name">${c.name}</div>
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
+        ${categoryIconBoxHtml(c, { size: 36, iconSize: 18, radius: 10 })}
+        <div class="cat-name">${c.name}</div>
+      </div>
       <div class="right"><span class="${status.limit !== null ? '' : 'unset'}">${limitLabel}</span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
