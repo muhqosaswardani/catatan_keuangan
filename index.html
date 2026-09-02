@@ -9756,7 +9756,7 @@
             <label>Teks Bebas (opsional)</label>
             <div class="ai-text-wrap">
               <textarea id="ccAiTextInput" rows="3" placeholder="Tulis catatan di sini" autocomplete="off"
-                autocorrect="off" spellcheck="false"></textarea>
+                autocorrect="off" spellcheck="false" oninput="onCcTextInput(this)" onkeydown="onCcTextKeydown(event)"></textarea>
               <button type="button" class="ai-mic-btn" id="ccAiMicBtn" onclick="toggleCcAiVoiceRecording()"
                 aria-label="Rekam suara">
                 <svg id="ccAiMicIcon" width="17" height="17" viewBox="0 0 24 24" fill="none">
@@ -9805,8 +9805,8 @@
           <input type="file" id="ccDocInput" accept="application/pdf,image/*" multiple style="display:none"
             onchange="onCcFilesSelected(event)">
           <div class="file-thumb-row" id="ccFileList"></div>
-          <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 2px 0;">Minimal 1 foto diperlukan supaya AI bisa
-            membaca saldo.</p>
+          <div id="ccAudioPreviewWrap" style="display:none;margin-top:8px;"></div>
+          <p id="ccAiInputHint" style="font-size:11.5px;color:var(--ink-soft);margin:8px 2px 0;">Tulis catatan, rekam suara, atau lampirkan foto/PDF saldo.</p>
           <button class="btn btn-primary btn-block" style="margin-top:10px;" id="ccAnalyzeNowBtn" disabled
             onclick="confirmCcAnalyzeNow()">Analisa Sekarang</button>
         </div>
@@ -12077,7 +12077,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.61)';
+      const version = ' (v3.6.62)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16281,7 +16281,7 @@
       if (btn) btn.classList.toggle('recording', isRecording);
       if (hint) {
         hint.style.display = isRecording ? 'block' : 'none';
-        hint.textContent = isRecording ? 'Merekam… ketuk mic lagi untuk berhenti & analisis otomatis' : '';
+        hint.textContent = isRecording ? 'Merekam suara… ketuk mic lagi jika sudah selesai' : '';
       }
     }
 
@@ -16301,8 +16301,13 @@
       reader.onload = () => {
         const base64 = String(reader.result).split(',')[1] || '';
         ccAiVoiceAudioPart = { inlineData: { data: base64, mimeType: mimeType.split(';')[0] } };
-        if (hint) { hint.style.display = 'none'; }
-        confirmCcAnalyzeNow(); // auto-analisis begitu rekaman selesai
+        if (hint) {
+          hint.style.display = 'block';
+          hint.textContent = '✓ Rekaman suara tersimpan';
+          setTimeout(() => { if (hint && !ccAiMicRecording) hint.style.display = 'none'; }, 3000);
+        }
+        renderCcAudioPreview();
+        updateCcAnalyzeNowBtnState();
       };
       reader.onerror = () => {
         showToast('Gagal memproses rekaman suara');
@@ -19073,16 +19078,83 @@
       ccFiles = ccFiles.concat(files);
       e.target.value = '';
       renderCcFileList();
+      updateCcAnalyzeNowBtnState();
     }
 
     function renderCcFileList() {
       document.getElementById('ccFileList').innerHTML = ccFiles.map((f, i) => fileThumbHtml(f, i, 'removeCcFile')).join('');
-      document.getElementById('ccAnalyzeNowBtn').disabled = ccFiles.length === 0;
+      updateCcAnalyzeNowBtnState();
     }
 
     function removeCcFile(i) {
       ccFiles.splice(i, 1);
       renderCcFileList();
+      updateCcAnalyzeNowBtnState();
+    }
+
+    function onCcTextInput(el) {
+      updateCcAnalyzeNowBtnState();
+    }
+
+    function onCcTextKeydown(e) {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      if (window.innerWidth < 900) return;
+      const btn = document.getElementById('ccAnalyzeNowBtn');
+      if (!btn || btn.disabled) return;
+      e.preventDefault();
+      btn.click();
+    }
+
+    function renderCcAudioPreview() {
+      const wrap = document.getElementById('ccAudioPreviewWrap');
+      if (!wrap) return;
+      if (!ccAiVoiceAudioPart) {
+        wrap.style.display = 'none';
+        wrap.innerHTML = '';
+        return;
+      }
+      wrap.style.display = 'block';
+      wrap.innerHTML = `
+        <div style="display:inline-flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border, rgba(0,0,0,0.06));border-radius:100px;padding:6px 12px;font-size:12.5px;font-weight:600;color:var(--ink);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent);flex-shrink:0;">
+            <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>1 Rekaman Suara</span>
+          <button type="button" onclick="removeCcAudio()" style="background:none;border:none;color:var(--ink-soft);font-size:17px;cursor:pointer;padding:0 0 0 4px;line-height:1;display:flex;align-items:center;" aria-label="Hapus rekaman suara">&times;</button>
+        </div>
+      `;
+    }
+
+    function removeCcAudio() {
+      ccAiVoiceAudioPart = null;
+      renderCcAudioPreview();
+      updateCcAnalyzeNowBtnState();
+      showToast('Rekaman suara dihapus');
+    }
+
+    function updateCcAnalyzeNowBtnState() {
+      const textVal = document.getElementById('ccAiTextInput') ? document.getElementById('ccAiTextInput').value.trim() : '';
+      const hasText = textVal.length > 0;
+      const hasFiles = ccFiles && ccFiles.length > 0;
+      const hasAudio = !!ccAiVoiceAudioPart;
+
+      const canAnalyze = hasText || hasFiles || hasAudio;
+      const btn = document.getElementById('ccAnalyzeNowBtn');
+      if (btn) btn.disabled = !canAnalyze;
+
+      const hintEl = document.getElementById('ccAiInputHint');
+      if (hintEl) {
+        if (canAnalyze) {
+          const partsInfo = [];
+          if (hasText) partsInfo.push('teks catatan');
+          if (hasAudio) partsInfo.push('rekaman suara');
+          if (hasFiles) partsInfo.push(`${ccFiles.length} file/foto`);
+          hintEl.textContent = `Siap dianalisa (${partsInfo.join(' + ')}). Klik "Analisa Sekarang" untuk memproses.`;
+        } else {
+          hintEl.textContent = 'Tulis catatan, rekam suara, atau lampirkan foto/PDF saldo.';
+        }
+      }
     }
 
     /* =========================================================
@@ -19094,11 +19166,27 @@
       const scope = getCcWalletsScope();
       if (scope.length === 0) { showToast('Pilih minimal 1 dompet cakupan terlebih dahulu'); return; }
       if (!getGeminiApiKey()) { showToast('Gemini API Key tidak ditemukan'); return; }
+      ccFiles = [];
+      ccAiVoiceAudioPart = null;
+      stopCcAiVoiceRecording();
+      setCcAiMicUiRecording(false);
+      const txtArea = document.getElementById('ccAiTextInput');
+      if (txtArea) txtArea.value = '';
       renderCcFileList();
+      renderCcAudioPreview();
+      updateCcAnalyzeNowBtnState();
       openModal('modalCcPhotoChoice');
     }
 
     function confirmCcAnalyzeNow() {
+      const textVal = document.getElementById('ccAiTextInput') ? document.getElementById('ccAiTextInput').value.trim() : '';
+      const hasText = textVal.length > 0;
+      const hasFiles = ccFiles && ccFiles.length > 0;
+      const hasAudio = !!ccAiVoiceAudioPart;
+      if (!hasText && !hasFiles && !hasAudio) {
+        showToast('Tulis catatan, rekam suara, atau lampirkan foto saldo terlebih dahulu');
+        return;
+      }
       document.getElementById('ccaLoadingView').style.display = 'block';
       document.getElementById('ccaErrorView').style.display = 'none';
       document.getElementById('ccaResultView').style.display = 'none';
@@ -19141,7 +19229,7 @@
               amount: 0,
               targetWalletId: w.id,
               needsReview: false,
-              matchReason: 'Diisi manual (tidak ada bukti foto)'
+              matchReason: 'Diisi manual (tidak ada bukti foto/catatan)'
             });
           }
         });
@@ -19164,8 +19252,10 @@
         computeAiDupFlags();
         renderCcaItems();
         ccAiVoiceAudioPart = null;
+        renderCcAudioPreview();
         const txtArea = document.getElementById('ccAiTextInput');
         if (txtArea) txtArea.value = '';
+        updateCcAnalyzeNowBtnState();
         document.getElementById('ccaLoadingView').style.display = 'none';
         document.getElementById('ccaResultView').style.display = 'block';
       };
@@ -19202,17 +19292,19 @@
 
       const promptText =
         'Kamu asisten keuangan pribadi yang ahli dalam melakukan rekonsiliasi saldo.\n' +
-        'Tugasmu adalah melihat setiap lampiran screenshot saldo aplikasi/m-banking, foto uang tunai, atau e-statement yang diberikan ' +
-        'dan mengekstrak SETIAP nama akun/sumber saldo (misal: "DANA", "OVO", "GoPay", "ShopeePay", "Livin\' by Mandiri", "BCA", "Tabungan NOW IDR", "Uang Cash") beserta nominal saldonya dari seluruh gambar.\n\n' +
-        'Pastikan tidak ada akun/sumber saldo yang terlewat. Jika ada beberapa e-wallet dalam satu screenshot (seperti DANA, ShopeePay, OVO, GoPay), ekstrak semuanya secara terpisah.\n\n' +
-        'Cocokkan setiap saldo yang terbaca ke daftar dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar):\n' +
+        'Tugasmu adalah mengekstrak SETIAP nama akun/sumber saldo (misal: "DANA", "OVO", "GoPay", "ShopeePay", "Livin\' by Mandiri", "BCA", "Tabungan NOW IDR", "Uang Cash", "Tunai", "Cash", dsb.) beserta nominal saldonya dari:\n' +
+        '1. Lampiran screenshot saldo aplikasi/m-banking, foto uang tunai fisik, atau file dokumen e-statement PDF (jika ada).\n' +
+        '2. Rekaman suara/audio voice note user (jika ada).\n' +
+        '3. Catatan teks bebas dari user (jika ada).\n\n' +
+        'Pastikan tidak ada akun/sumber saldo yang terlewat. Gabungkan seluruh informasi yang tersedia dari gambar/file, rekaman suara, dan catatan teks. Jika ada beberapa saldo yang disebutkan atau terbaca (seperti "cash 35000", "gopay 50rb", "bca 2jt"), ekstrak semuanya secara terpisah.\n\n' +
+        'Cocokkan setiap saldo yang terbaca/tercatat ke daftar dompet user berikut (HANYA dari daftar bernomor ini, jangan pernah pilih di luar daftar):\n' +
         walletsText + '\n\n' +
         'Aturan Pencocokan Dompet (Reconciliation Scope):\n' +
-        '1. Lakukan pencocokan berdasarkan konteks/nama institusi. Misal: jika terbaca saldo "GoPay", "Dana", "OVO" sedangkan nama dompet user "E-Wallet", cocokkan ke dompet bernama "E-Wallet". Jika terbaca "BCA Mobile" sedangkan nama dompet user "BCA Utama", cocokkan ke situ.\n' +
-        '2. Uang Tunai/Cash: jika terdeteksi foto uang fisik atau tertulis saldo "Tunai/Cash", cocokkan ke dompet primary (nomor 1 atau dompet utama).\n' +
+        '1. Lakukan pencocokan berdasarkan konteks/nama institusi. Misal: jika terbaca/disebutkan saldo "GoPay", "Dana", "OVO" sedangkan nama dompet user "E-Wallet", cocokkan ke dompet bernama "E-Wallet". Jika terbaca/disebutkan "BCA" sedangkan nama dompet user "BCA Utama", cocokkan ke situ.\n' +
+        '2. Uang Tunai/Cash: jika terdeteksi foto uang fisik atau tertulis/terdengar saldo "Tunai/Cash/Uang Fisik", cocokkan ke dompet primary (nomor 1 atau dompet utama/cash).\n' +
         '3. Jika ada item yang terbaca tapi TIDAK cocok dengan dompet manapun di daftar, set wallet_number ke null.\n' +
         '4. Ambiguitas Dompet Mirip: jika ada 2 atau lebih dompet user yang sama-sama masuk akal (misal terbaca "GoPay" sedangkan user punya "GoPay Utama" dan "GoPay Bisnis"), set wallet_number ke null.\n\n' +
-        'PENTING: Jangan gunakan nama dompet tujuan user (dari daftar di atas) sebagai nilai "name". Kolom "name" harus diisi dengan nama akun/sumber asli yang terbaca di screenshot/struk (misal: "Tabungan NOW IDR", "DANA", "GoPay", "OVO", dll.).';
+        'PENTING: Jangan gunakan nama dompet tujuan user (dari daftar di atas) sebagai nilai "name". Kolom "name" harus diisi dengan nama akun/sumber asli yang terbaca di screenshot/struk/audio/teks (misal: "Cash", "Tabungan NOW IDR", "DANA", "GoPay", "OVO", dll.).';
 
       const ccaSchema = {
         type: 'OBJECT',
@@ -19222,7 +19314,7 @@
             items: {
               type: 'OBJECT',
               properties: {
-                name: { type: 'STRING', description: 'Nama akun/sumber asli yang terbaca di screenshot/struk, misal: DANA, GoPay, Livin\' by Mandiri, BCA, Tabungan NOW IDR, dll.' },
+                name: { type: 'STRING', description: 'Nama akun/sumber asli yang terbaca di screenshot/struk/audio/teks, misal: DANA, GoPay, Livin\' by Mandiri, BCA, Tabungan NOW IDR, Cash, dll.' },
                 amount: { type: 'INTEGER', description: 'Nilai nominal saldo berupa angka bulat.' },
                 wallet_number: { type: 'INTEGER', description: 'Nomor indeks dompet terpilih dari daftar yang cocok, atau null jika tidak cocok.' },
                 match_reason: { type: 'STRING', description: 'Alasan singkat pencocokan.' }
@@ -19237,7 +19329,7 @@
       const parts = [{ text: promptText }];
       const userText = document.getElementById('ccAiTextInput') ? document.getElementById('ccAiTextInput').value.trim() : '';
       if (userText) {
-        parts.push({ text: `Kalimat tambahan/catatan user: "${userText}"` });
+        parts.push({ text: `Catatan teks dari user: "${annotateSlangNominalForAi(userText)}"` });
       }
       if (ccAiVoiceAudioPart) {
         parts.push(ccAiVoiceAudioPart);
