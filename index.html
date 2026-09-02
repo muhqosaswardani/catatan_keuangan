@@ -12093,7 +12093,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.68)';
+      const version = ' (v3.6.69)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -17364,7 +17364,7 @@
       // --- Utang Piutang ---
       const activeDebts = getDebts().filter(d => d.status !== 'lunas');
       if (activeDebts.length > 0) {
-        lines.push('\\n=== UTANG PIUTANG AKTIF ===');
+        lines.push('\n=== UTANG PIUTANG AKTIF ===');
         activeDebts.forEach(d => {
           const label = (d.type === 'utang' || d.type === 'i_owe') ? 'Saya berhutang' : 'Orang berhutang ke saya';
           lines.push('- ' + d.personName + ': ' + formatRupiah(d.amount) + ' (' + label + ')' + (d.dueDate ? ' jatuh tempo ' + d.dueDate : ''));
@@ -17374,7 +17374,7 @@
       // --- Tujuan Tabungan ---
       const goals = getGoals();
       if (goals.length > 0) {
-        lines.push('\\n=== TUJUAN TABUNGAN ===');
+        lines.push('\n=== TUJUAN TABUNGAN ===');
         goals.forEach(g => {
           const w = walletById(g.walletId);
           const progress = w ? w.balance : 0;
@@ -17383,7 +17383,7 @@
         });
       }
 
-      return lines.join('\\n');
+      return lines.join('\n');
     }
 
     async function generateAnalysisWithGemini(key) {
@@ -17395,13 +17395,15 @@
         'TREN PENGELUARAN\n' +
         '(Bandingkan pola pengeluaran 3 bulan terakhir, sebutkan tren naik/turun/stabil, dan kategori mana yang berubah signifikan)\n\n' +
         'POIN-POIN PENTING\n' +
-        '(Daftar 3-5 poin temuan penting, masing-masing 1 kalimat, gunakan format "- " di awal tiap poin. Contoh: kategori terbesar, budget yang hampir habis, tagihan yang harus segera dibayar, dsb)\n\n' +
+        '(Daftar 3-5 poin temuan penting, masing-masing 1 kalimat, gunakan format "- " di awal tiap poin. Contoh: kategori terbesar, budget yang hampir habis, tagihan pengeluaran yang harus segera dibayar, estimasi pemasukan rutin yang akan masuk, dsb)\n\n' +
         'SARAN AKSI\n' +
         '(2-3 saran konkret dan actionable berdasarkan data, gunakan format "- " di awal tiap saran, termasuk rekomendasi pengeluaran harian ideal berdasarkan saldo cash yang tersedia dibagi sisa hari bulan ini. Dompet Tabungan sebaiknya jangan dihitung sebagai uang harian)\n\n' +
         'ATURAN UTAMA:\n' +
         '- JANGAN gunakan emoji sama sekali.\n' +
-        '- Status tagihan berulang "Akan datang" dan "Sudah bayar" artinya tagihan tsb SUDAH SELESAI/AMAN untuk periode berjalan ini. JANGAN memperingatkan tagihan berstatus tersebut.\n' +
-        '- Hanya tagihan dengan status "TERLAMBAT", "JATUH TEMPO", atau "Belum bayar (dalam periode berjalan)" saja yang perlu diperingatkan.\n' +
+        '- PENTING TENTANG TRANSAKSI RUTIN / BERULANG:\n' +
+        '  * Item berlabel [PEMASUKAN RUTIN (Uang Masuk ke Dompet)] (seperti Uang Kost masuk, Gaji, Bonus, dll.) adalah UANG MASUK, BUKAN tagihan atau kewajiban bayar. JANGAN PERNAH menjumlahkan pemasukan rutin ke dalam total tagihan / kewajiban bayar!\n' +
+        '  * Hanya item berlabel [PENGELUARAN / TAGIHAN RUTIN (Uang Keluar)] berstatus TERLAMBAT BAYAR, JATUH TEMPO, atau BELUM DIBAYAR yang merupakan tagihan/kewajiban yang harus dibayar.\n' +
+        '  * Status "Sudah Selesai / Sudah Diterima / Sudah Dibayar" artinya transaksi tsb SUDAH SELESAI/AMAN untuk periode berjalan ini. JANGAN memperingatkan item berstatus tersebut.\n' +
         '- Gunakan angka spesifik dari data, jangan mengada-ada.\n' +
         '- Jangan terlalu panjang, setiap bagian cukup padat.\n' +
         '- Bahasa santai tapi informatif.\n' +
@@ -21096,11 +21098,12 @@
     function recStatusLabel(item) {
       if (item.kind === 'installment' && item.completedAt) return { text: 'Lunas', cls: 'lunas' };
       const s = recurringStatus(item);
+      const isIncome = item.type === 'income';
       if (s === 'nonaktif') return { text: 'Nonaktif', cls: 'nonaktif' };
-      if (s === 'sudah-dibayar') return { text: 'Sudah Dibayar', cls: 'akan-datang' };
-      if (s === 'terlambat') return { text: 'Terlambat', cls: 'terlambat' };
-      if (s === 'jatuh-tempo') return { text: 'Jatuh Tempo Hari Ini', cls: 'jatuh-tempo' };
-      return { text: 'Belum Bayar', cls: 'belum-bayar' };
+      if (s === 'sudah-dibayar') return { text: isIncome ? 'Sudah Diterima' : 'Sudah Dibayar', cls: 'akan-datang' };
+      if (s === 'terlambat') return { text: isIncome ? 'Terlambat Masuk' : 'Terlambat', cls: 'terlambat' };
+      if (s === 'jatuh-tempo') return { text: isIncome ? 'Jatuh Tempo Hari Ini (Masuk)' : 'Jatuh Tempo Hari Ini', cls: 'jatuh-tempo' };
+      return { text: isIncome ? 'Belum Diterima' : 'Belum Bayar', cls: 'belum-bayar' };
     }
 
     // Badge/indikator kecil di Beranda: muncul kalau ada item aktif yang jatuh tempo hari ini/terlambat & belum dikonfirmasi
