@@ -12129,7 +12129,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.73)';
+      const version = ' (v3.6.74)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15481,7 +15481,11 @@
 
       const { saldoAkhir } = computeMonthBalances(laporanMonth, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
-      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
+
+      const [lapMY, lapMM] = laporanMonth.split('-').map(Number);
+      const dayBeforeMonthStr = toDateStr(new Date(lapMY, lapMM - 1, 0)); // hari terakhir bulan sebelumnya
+      const { saldoAkhir: saldoAwalReal } = computeRangeBalances(dayBeforeMonthStr, selectedWalletIds);
+      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAwalReal);
 
       const byCatExp = {};
       monthTx.filter(t => t.type === 'expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category] || 0) + t.amount; });
@@ -15529,7 +15533,10 @@
 
       const { saldoAkhir } = computeRangeBalances(weekEnd, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
-      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
+
+      const dayBeforeWeekDate = new Date(weekStart + 'T00:00:00'); dayBeforeWeekDate.setDate(dayBeforeWeekDate.getDate() - 1);
+      const { saldoAkhir: saldoAwalReal } = computeRangeBalances(toDateStr(dayBeforeWeekDate), selectedWalletIds);
+      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAwalReal);
 
       const byCatExp = {};
       weekTx.filter(t => t.type === 'expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category] || 0) + t.amount; });
@@ -15572,7 +15579,9 @@
 
       const { saldoAkhir } = computeRangeBalances(day, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
-      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
+
+      const { saldoAkhir: saldoAwalReal } = computeRangeBalances(prevDay, selectedWalletIds);
+      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAwalReal);
 
       const byCatExp = {};
       dayTx.filter(t => t.type === 'expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category] || 0) + t.amount; });
@@ -15615,7 +15624,9 @@
       const yearEndStr = year + '-12-31';
       const { saldoAkhir } = computeRangeBalances(yearEndStr, selectedWalletIds);
       document.getElementById('lapSaldoAkhir').textContent = formatRupiah(saldoAkhir);
-      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAkhir - (income - expense));
+
+      const { saldoAkhir: saldoAwalReal } = computeRangeBalances(prevYear + '-12-31', selectedWalletIds);
+      document.getElementById('lapSaldoAwal').textContent = formatRupiah(saldoAwalReal);
 
       const byCatExp = {};
       yearTx.filter(t => t.type === 'expense' && !t.excludeFromReport).forEach(t => { byCatExp[t.category] = (byCatExp[t.category] || 0) + t.amount; });
