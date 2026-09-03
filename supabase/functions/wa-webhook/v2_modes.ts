@@ -404,7 +404,7 @@ export async function handleModeKoreksiMessage(
       });
     }
 
-    // Recalculate balances
+    // Recalculate balances (pure SUM, tanpa baseline)
     const { data: rawWallets } = await db.from("wallets").select("*").eq("user_id", userId);
     const { data: transactions } = await db.from("transactions").select("*").eq("user_id", userId);
     if (rawWallets && transactions) {
@@ -423,15 +423,8 @@ export async function handleModeKoreksiMessage(
         }
       }
 
-      const { data: settings } = await db.from("user_settings").select("nav_config").eq("user_id", userId).maybeSingle();
-      const navConfig = settings?.nav_config || {};
-      const initialBalances = navConfig.initialBalances || {};
-
       for (const w of rawWallets) {
-        if (initialBalances[w.id] === undefined) {
-          initialBalances[w.id] = (Number(w.balance) || 0) - (sums[w.id] || 0);
-        }
-        const newBalance = (Number(initialBalances[w.id]) || 0) + (sums[w.id] || 0);
+        const newBalance = sums[w.id] || 0;
         if (w.balance !== newBalance) {
           await db.from("wallets").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("id", w.id);
         }

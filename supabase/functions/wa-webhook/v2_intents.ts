@@ -222,7 +222,7 @@ async function recalculateBalances(db: SupabaseClient, userId: string) {
 
   const { data: settings } = await db
     .from("user_settings")
-    .select("nav_config, deleted_ids")
+    .select("deleted_ids")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -248,14 +248,8 @@ async function recalculateBalances(db: SupabaseClient, userId: string) {
     }
   }
 
-  const navConfig = settings?.nav_config || {};
-  const initialBalances = navConfig.initialBalances || {};
-
   for (const w of wallets) {
-    if (initialBalances[w.id] === undefined) {
-      initialBalances[w.id] = (Number(w.balance) || 0) - (sums[w.id] || 0);
-    }
-    const newBalance = (Number(initialBalances[w.id]) || 0) + (sums[w.id] || 0);
+    const newBalance = sums[w.id] || 0;
     if (w.balance !== newBalance) {
       await db
         .from("wallets")

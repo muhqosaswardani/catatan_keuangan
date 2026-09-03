@@ -591,7 +591,7 @@ async function initializeUserData(db: any, userId: string) {
     user_id: userId,
     access_code: accessCode,
     deleted_ids: [],
-    nav_config: { initialBalances: {} }
+    nav_config: {}
   });
 }
 
