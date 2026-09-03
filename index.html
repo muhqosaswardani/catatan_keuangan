@@ -9905,6 +9905,19 @@
             onclick="closeModal('modalAdjustmentHistory')">&times;</button>
         </div>
         <div class="modal-body">
+          <div class="month-nav" style="margin-bottom:12px;">
+            <button type="button" class="month-nav-arrow" onclick="adjHistoryShiftMonth(-1)" aria-label="Bulan sebelumnya">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+            </button>
+            <div class="month-nav-label" id="adjHistMonthLabel">—</div>
+            <button type="button" class="month-nav-arrow" id="adjHistNextMonthBtn" onclick="adjHistoryShiftMonth(1)" aria-label="Bulan berikutnya">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
           <div id="adjHistoryWrap"></div>
         </div>
       </div>
@@ -12092,7 +12105,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.71)';
+      const version = ' (v3.6.72)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19963,27 +19976,56 @@
 
     /* =========================================================
        RIWAYAT PENYESUAIAN SALDO — filter transaksi kategori "Penyesuaian Saldo"
-       yang sudah ada (dari fitur AI maupun manual), tidak ada penyimpanan baru.
+       yang sudah ada (dari fitur AI maupun manual), ditampilkan per bulan.
        ========================================================= */
+    let adjHistoryMonthValue = null;
+
     function openAdjustmentHistory() {
+      if (!adjHistoryMonthValue) {
+        adjHistoryMonthValue = currentMonthStr();
+      }
       renderAdjustmentHistory();
       openModal('modalAdjustmentHistory');
     }
+
+    function adjHistoryShiftMonth(delta) {
+      if (!adjHistoryMonthValue) adjHistoryMonthValue = currentMonthStr();
+      const [y, m] = adjHistoryMonthValue.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      adjHistoryMonthValue = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+      renderAdjustmentHistory();
+    }
+
     function renderAdjustmentHistory() {
-      const wrap = document.getElementById('adjHistoryWrap');
-      const txs = getTransactions()
-        .filter(t => t.category === 'Penyesuaian Saldo')
-        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-      if (txs.length === 0) {
-        wrap.innerHTML = '<div class="empty-note">Belum ada riwayat penyesuaian saldo.</div>';
-        return;
+      if (!adjHistoryMonthValue) adjHistoryMonthValue = currentMonthStr();
+
+      const labelEl = document.getElementById('adjHistMonthLabel');
+      if (labelEl) labelEl.textContent = monthLabel(adjHistoryMonthValue);
+
+      const nextBtn = document.getElementById('adjHistNextMonthBtn');
+      if (nextBtn) {
+        nextBtn.disabled = adjHistoryMonthValue >= currentMonthStr();
       }
+
+      const wrap = document.getElementById('adjHistoryWrap');
+      if (!wrap) return;
+
+      const txs = getTransactions()
+        .filter(t => t.category === 'Penyesuaian Saldo' && t.date && t.date.startsWith(adjHistoryMonthValue))
+        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
       const totalIncome = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const totalExpense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       const summary = `<div class="cca-compare" style="margin-bottom:12px;">
     <div class="cca-compare-row"><span>Total penambahan</span><b class="pos">+${formatRupiah(totalIncome)}</b></div>
     <div class="cca-compare-row"><span>Total pengurangan</span><b class="neg">-${formatRupiah(totalExpense)}</b></div>
   </div>`;
+
+      if (txs.length === 0) {
+        wrap.innerHTML = summary + '<div class="empty-note">Tidak ada riwayat penyesuaian saldo di bulan ini.</div>';
+        return;
+      }
+
       const groups = {};
       txs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
       const dates = Object.keys(groups).sort().reverse();
