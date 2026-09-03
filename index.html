@@ -3633,6 +3633,18 @@
       display: flex;
     }
 
+    .modal-overlay.modal-center {
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+    }
+
+    .modal-overlay.modal-center .modal {
+      border-radius: 22px;
+      max-height: 85vh;
+      animation: modalpop .2s ease;
+    }
+
     .modal {
       background: var(--surface);
       width: 100%;
@@ -3663,6 +3675,18 @@
 
       to {
         transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes modalpop {
+      from {
+        transform: translateY(8px) scale(.98);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0) scale(1);
         opacity: 1;
       }
     }
@@ -9769,7 +9793,7 @@
     </div>
 
     <!-- ============ MODAL: PILIH FOTO UNTUK ANALISA SALDO AI (Cross-check) ============ -->
-    <div class="modal-overlay" id="modalCcPhotoChoice">
+    <div class="modal-overlay modal-center" id="modalCcPhotoChoice">
       <div class="modal">
         <div class="modal-head">
           <h3>Analisa dengan AI</h3><button class="modal-close"
@@ -9838,7 +9862,7 @@
     </div>
 
     <!-- ============ MODAL: HASIL ANALISIS SALDO AI — fitur 5 ============ -->
-    <div class="modal-overlay" id="modalCcAnalysis">
+    <div class="modal-overlay modal-center" id="modalCcAnalysis">
       <div class="modal">
         <div class="modal-head">
           <h3>Hasil Analisis AI</h3><button class="modal-close" onclick="closeModal('modalCcAnalysis')">&times;</button>
@@ -9873,7 +9897,7 @@
     </div>
 
     <!-- ============ MODAL: PENYESUAIAN SALDO MANUAL ============ -->
-    <div class="modal-overlay" id="modalManualAdjust">
+    <div class="modal-overlay modal-center" id="modalManualAdjust">
       <div class="modal">
         <div class="modal-head">
           <h3>Penyesuaian Saldo Manual</h3><button class="modal-close"
@@ -9898,7 +9922,7 @@
     </div>
 
     <!-- ============ MODAL: RIWAYAT PENYESUAIAN SALDO ============ -->
-    <div class="modal-overlay" id="modalAdjustmentHistory">
+    <div class="modal-overlay modal-center" id="modalAdjustmentHistory">
       <div class="modal">
         <div class="modal-head">
           <h3>Riwayat Penyesuaian Saldo</h3><button class="modal-close"
@@ -12105,7 +12129,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.72)';
+      const version = ' (v3.6.73)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
