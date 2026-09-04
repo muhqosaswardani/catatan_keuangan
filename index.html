@@ -9889,6 +9889,24 @@
               <div class="cca-compare-row"><span>Saldo Tercatat di App</span><b id="ccaRecorded">Rp 0</b></div>
               <div class="cca-compare-row diff"><span>Selisih (perlu penyesuaian)</span><b id="ccaDiff">Rp 0</b></div>
             </div>
+            <div class="field" style="margin-top:12px;">
+              <label>Kategori Transaksi Penyesuaian</label>
+              <button type="button" class="picker-btn" id="ccaAdjCategoryBtn" onclick="openCcaAdjCategoryPicker()">
+                <span id="ccaAdjCategoryLabel">Penyesuaian Saldo</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="field"
+              style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="ccaAdjExcludeFromReport"
+                style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+              <label for="ccaAdjExcludeFromReport"
+                style="margin-bottom:0;cursor:pointer;font-weight:500;font-size:13px;color:var(--ink);">Kecualikan
+                dari laporan</label>
+            </div>
             <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="applyPenyesuaian()">Lakukan
               Penyesuaian</button>
           </div>
@@ -9914,6 +9932,24 @@
             <div class="cca-compare-row"><span>Saldo Tercatat di App</span><b id="manualAdjRecorded">Rp 0</b></div>
             <div class="cca-compare-row diff"><span>Selisih (perlu penyesuaian)</span><b id="manualAdjDiff">Rp 0</b>
             </div>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Kategori Transaksi Penyesuaian</label>
+            <button type="button" class="picker-btn" id="manualAdjCategoryBtn" onclick="openManualAdjCategoryPicker()">
+              <span id="manualAdjCategoryLabel">Penyesuaian Saldo</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="field"
+            style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;user-select:none;">
+            <input type="checkbox" id="manualAdjExcludeFromReport"
+              style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+            <label for="manualAdjExcludeFromReport"
+              style="margin-bottom:0;cursor:pointer;font-weight:500;font-size:13px;color:var(--ink);">Kecualikan
+              dari laporan</label>
           </div>
           <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="applyManualAdjustment()">Terapkan
             Penyesuaian</button>
@@ -12129,7 +12165,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.74)';
+      const version = ' (v3.6.75)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -19355,6 +19391,7 @@
       document.getElementById('ccaLoadingView').style.display = 'block';
       document.getElementById('ccaErrorView').style.display = 'none';
       document.getElementById('ccaResultView').style.display = 'none';
+      resetCcaAdjControls();
       swapModal('modalCcPhotoChoice', 'modalCcAnalysis');
       runCcAnalysis();
     }
@@ -19789,6 +19826,34 @@
       return total;
     }
 
+    // Kategori & opsi "kecualikan dari laporan" untuk transaksi hasil Cross-check Saldo AI.
+    // null = pakai default otomatis (kategori "Penyesuaian Saldo" sesuai arah selisih).
+    let ccaAdjCategoryId = null;
+
+    function openCcaAdjCategoryPicker() {
+      const cats = getCategories().filter(c => c.name !== 'Penyesuaian Saldo');
+      const options = [
+        { value: '', label: 'Penyesuaian Saldo (Default)', iconHtml: categoryIconBoxHtml({ icon: 'wallet', color: '#6b7280' }, { size: 28, radius: 8, iconSize: 16 }) },
+        ...cats.map(c => ({ value: c.id, label: escAttr(c.name), iconHtml: categoryIconBoxHtml(c, { size: 28, radius: 8, iconSize: 16 }) }))
+      ];
+      openPicker('Pilih Kategori', options, ccaAdjCategoryId || '', v => {
+        ccaAdjCategoryId = v || null;
+        updateCcaAdjCategoryLabel();
+      });
+    }
+    function updateCcaAdjCategoryLabel() {
+      const el = document.getElementById('ccaAdjCategoryLabel');
+      if (!el) return;
+      const cat = ccaAdjCategoryId ? categoryById(ccaAdjCategoryId) : null;
+      el.textContent = cat ? cat.name : 'Penyesuaian Saldo';
+    }
+    function resetCcaAdjControls() {
+      ccaAdjCategoryId = null;
+      updateCcaAdjCategoryLabel();
+      const chk = document.getElementById('ccaAdjExcludeFromReport');
+      if (chk) chk.checked = false;
+    }
+
     function applyPenyesuaian() {
       const wallets = getWallets();
       const activeItems = ccaItems.items.filter(it => !it.isDuplicate && !it.isOverride);
@@ -19804,6 +19869,8 @@
       const cats = getCategories();
       let savedCount = 0;
 
+      const excludeFromReport = document.getElementById('ccaAdjExcludeFromReport') ? document.getElementById('ccaAdjExcludeFromReport').checked : false;
+
       Object.keys(walletAmounts).forEach(walletId => {
         const targetBalance = walletAmounts[walletId];
         const wallet = wallets.find(w => w.id === walletId);
@@ -19813,7 +19880,9 @@
         if (diff === 0) return;
 
         const type = diff > 0 ? 'income' : 'expense';
-        let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
+        // Kategori pilihan user (kalau tipenya cocok dgn arah selisih) — fallback ke "Penyesuaian Saldo" default.
+        let cat = ccaAdjCategoryId ? cats.find(c => c.id === ccaAdjCategoryId && c.type === type) : null;
+        if (!cat) cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
         if (!cat) {
           cat = { id: 'cat_penyesuaian_saldo_' + type, name: 'Penyesuaian Saldo', type, icon: 'more', color: '#6b7280', _seeded: true };
           cats.push(cat);
@@ -19831,7 +19900,7 @@
           amount: Math.abs(diff),
           date: todayStr(),
           note: `Penyesuaian dari Cek Saldo AI (${wallet.name})`,
-          excludeFromReport: true,
+          excludeFromReport,
           updatedAt: Date.now()
         });
 
@@ -19877,8 +19946,36 @@
         }))
       };
 
+      resetManualAdjControls();
       renderManualAdjItems();
       openModal('modalManualAdjust');
+    }
+
+    // Kategori & opsi "kecualikan dari laporan" untuk transaksi hasil Penyesuaian Saldo Manual.
+    let manualAdjCategoryId = null;
+
+    function openManualAdjCategoryPicker() {
+      const cats = getCategories().filter(c => c.name !== 'Penyesuaian Saldo');
+      const options = [
+        { value: '', label: 'Penyesuaian Saldo (Default)', iconHtml: categoryIconBoxHtml({ icon: 'wallet', color: '#6b7280' }, { size: 28, radius: 8, iconSize: 16 }) },
+        ...cats.map(c => ({ value: c.id, label: escAttr(c.name), iconHtml: categoryIconBoxHtml(c, { size: 28, radius: 8, iconSize: 16 }) }))
+      ];
+      openPicker('Pilih Kategori', options, manualAdjCategoryId || '', v => {
+        manualAdjCategoryId = v || null;
+        updateManualAdjCategoryLabel();
+      });
+    }
+    function updateManualAdjCategoryLabel() {
+      const el = document.getElementById('manualAdjCategoryLabel');
+      if (!el) return;
+      const cat = manualAdjCategoryId ? categoryById(manualAdjCategoryId) : null;
+      el.textContent = cat ? cat.name : 'Penyesuaian Saldo';
+    }
+    function resetManualAdjControls() {
+      manualAdjCategoryId = null;
+      updateManualAdjCategoryLabel();
+      const chk = document.getElementById('manualAdjExcludeFromReport');
+      if (chk) chk.checked = false;
     }
 
     function renderManualAdjItems() {
@@ -19954,6 +20051,8 @@
       const cats = getCategories();
       let savedCount = 0;
 
+      const excludeFromReport = document.getElementById('manualAdjExcludeFromReport') ? document.getElementById('manualAdjExcludeFromReport').checked : false;
+
       manualAdjItems.items.forEach(it => {
         const wallet = wallets.find(w => w.id === it.id);
         if (!wallet) return;
@@ -19969,7 +20068,9 @@
         if (diff === 0) return;
 
         const type = diff > 0 ? 'income' : 'expense';
-        let cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
+        // Kategori pilihan user (kalau tipenya cocok dgn arah selisih) — fallback ke "Penyesuaian Saldo" default.
+        let cat = manualAdjCategoryId ? cats.find(c => c.id === manualAdjCategoryId && c.type === type) : null;
+        if (!cat) cat = cats.find(c => c.name === 'Penyesuaian Saldo' && c.type === type);
         if (!cat) {
           cat = { id: 'cat_penyesuaian_saldo_' + type, name: 'Penyesuaian Saldo', type, icon: 'more', color: '#6b7280', _seeded: true };
           cats.push(cat);
@@ -19987,7 +20088,7 @@
           amount: Math.abs(diff),
           date: todayStr(),
           note: `Penyesuaian Saldo Manual (${wallet.name})`,
-          excludeFromReport: true,
+          excludeFromReport,
           updatedAt: Date.now()
         });
 
