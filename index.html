@@ -12165,7 +12165,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.75)';
+      const version = ' (v3.6.76)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -27345,7 +27345,17 @@ PERTANYAAN_USER:
             openModal('modalTrialHabis');
           } else {
             closeModalUI('modalTrialHabis');
-            openTxaiQuickScreen(true);
+            // Bug fix: dulu pakai forceReset=true di sini. Modal sudah dibuka lebih dulu
+            // (kosong/fresh) oleh checkEarlyAppShortcut() sesaat setelah app dibuka lewat
+            // shortcut, SEBELUM auth+sync selesai. handleAppShortcutParam() baru jalan
+            // BELAKANGAN setelah await syncAllWithSupabase(true) & migrasi selesai (bisa
+            // makan beberapa detik) -- kalau forceReset=true, openTxaiQuickScreen() akan
+            // selalu memanggil resetTxaiQuickScreen() walau modal sudah open, sehingga
+            // teks yang sempat diketik user selagi nunggu sync selesai ikut terhapus.
+            // Modal yang dibuka checkEarlyAppShortcut() sudah dalam state kosong/fresh,
+            // jadi di sini cukup forceReset=false: reset hanya terjadi kalau modal belum
+            // kebuka sama sekali (fallback aman).
+            openTxaiQuickScreen(false);
           }
         } else if (shortcut === 'edit-tx') {
           if (id) {
