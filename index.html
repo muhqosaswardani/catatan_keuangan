@@ -12165,7 +12165,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.77)';
+      const version = ' (v3.6.81)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -27622,6 +27622,250 @@ PERTANYAAN_USER:
       window.deferredInstallPrompt = null;
       if (typeof updateInstallStatusUI === 'function') updateInstallStatusUI();
     });
+
+    // =========================================================================
+    // JEMBATAN NATIVE KASLYAI (App Widget & Headless Automation)
+    // =========================================================================
+    window.KaslyNative = {
+      autoLogin: async function(wa, password) {
+        try {
+          if (typeof currentUserId === 'string' && currentUserId) {
+            const ob = document.getElementById('auth-onboarding');
+            if (ob) ob.classList.remove('open');
+            if (window.KaslyBridge && typeof window.KaslyBridge.onSessionState === 'function') {
+              const hasKey = !!(typeof getGeminiApiKey === 'function' && getGeminiApiKey());
+              window.KaslyBridge.onSessionState(true, currentUserId, hasKey);
+            }
+            return { success: true, userId: currentUserId };
+          }
+          if (!window.supabaseClient) {
+            return { success: false, message: 'supabaseClient belum siap' };
+          }
+          const email = `${normalizeWaNumber(wa)}@kaslyai.local`;
+          const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) {
+            console.error('KaslyNative autoLogin error:', error);
+            if (window.KaslyBridge && typeof window.KaslyBridge.onSessionState === 'function') {
+              window.KaslyBridge.onSessionState(false, null, false);
+            }
+            return { success: false, message: error.message };
+          }
+          currentUserId = data.user.id;
+          ensureLocalScopeForUser(currentUserId);
+          const ob = document.getElementById('auth-onboarding');
+          if (ob) ob.classList.remove('open');
+          await init();
+          if (window.KaslyBridge && typeof window.KaslyBridge.onSessionState === 'function') {
+            const hasKey = !!(typeof getGeminiApiKey === 'function' && getGeminiApiKey());
+            window.KaslyBridge.onSessionState(true, currentUserId, hasKey);
+          }
+          return { success: true, userId: currentUserId };
+        } catch (e) {
+          console.error('KaslyNative autoLogin error:', e);
+          return { success: false, message: (e && e.message) || String(e) };
+        }
+      },
+
+      runScan: async function(type, base64Data, mimeType, phone, pass) {
+        if (window._isKaslyScanRunning) {
+          console.warn('KaslyNative.runScan: Scan already in progress! Skipping duplicate.');
+          return;
+        }
+        window._isKaslyScanRunning = true;
+        try {
+          // Pastikan login jika belum
+          if (!currentUserId && phone && pass) {
+            await window.KaslyNative.autoLogin(phone, pass);
+          }
+          const key = (typeof getGeminiApiKey === 'function') ? getGeminiApiKey() : null;
+          if (!key) {
+            if (window.KaslyBridge && typeof window.KaslyBridge.onAiResult === 'function') {
+              window.KaslyBridge.onAiResult(false, null, 'Gemini API Key belum diisi di Settings');
+            }
+            return;
+          }
+
+          // Siapkan state scan secara headless tanpa mengganggu flow manual user
+          aiCaptureFiles = [];
+          aiScanTextValue = '';
+          aiVoiceAudioPart = null;
+
+          if (type === 'voice') {
+            const audioMime = (mimeType || 'audio/mp4').split(';')[0];
+            aiVoiceAudioPart = { inlineData: { data: base64Data, mimeType: audioMime } };
+          } else if (type === 'photo') {
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const photoMime = (mimeType || 'image/jpeg').split(';')[0];
+            const blob = new Blob([byteArray], { type: photoMime });
+            blob.name = 'kasly_scan_' + Date.now() + '.jpg';
+            aiCaptureFiles = [blob];
+          } else if (type === 'text') {
+            try {
+              aiScanTextValue = decodeURIComponent(escape(atob(base64Data)));
+            } catch (e) {
+              try {
+                aiScanTextValue = atob(base64Data);
+              } catch (e2) {
+                aiScanTextValue = base64Data;
+              }
+            }
+          }
+
+          const rows = await aiScanWithGemini(key);
+          if (!rows || rows.length === 0) {
+            if (window.KaslyBridge && typeof window.KaslyBridge.onAiResult === 'function') {
+              window.KaslyBridge.onAiResult(false, null, 'AI tidak menemukan transaksi');
+            }
+            return;
+          }
+
+          const wallets = (typeof getWallets === 'function') ? getWallets() : [];
+          const primaryWallet = wallets.find(w => w.isPrimary) || wallets[0];
+          const defaultWalletId = primaryWallet ? primaryWallet.id : (wallets[0] ? wallets[0].id : null);
+
+          let savedCount = 0;
+          const savedRows = [];
+
+          window._recentAiTxSignatures = window._recentAiTxSignatures || [];
+          const now = Date.now();
+          window._recentAiTxSignatures = window._recentAiTxSignatures.filter(s => now - s.time < 20000);
+
+          for (const row of rows) {
+            if (row.amount > 0 && row.categoryId) {
+              const sig = row.note + '_' + row.amount + '_' + row.type + '_' + row.categoryId;
+              if (window._recentAiTxSignatures.some(s => s.sig === sig)) {
+                console.warn('Duplicate transaction prevented:', sig);
+                continue;
+              }
+              window._recentAiTxSignatures.push({ sig: sig, time: now });
+              const cat = (typeof categoryById === 'function') ? categoryById(row.categoryId) : null;
+              let wId = defaultWalletId;
+              if (row.wallet) {
+                const matched = wallets.find(w => w.name && w.name.toLowerCase() === String(row.wallet).toLowerCase());
+                if (matched) wId = matched.id;
+              }
+              if (typeof addTransaction === 'function') {
+                addTransaction({
+                  walletId: wId,
+                  categoryId: row.categoryId,
+                  category: cat ? cat.name : (row.category || ''),
+                  type: row.type || 'expense',
+                  amount: row.amount,
+                  date: row.date || todayStr(),
+                  note: row.note || 'Transaksi AI',
+                  toWalletId: null
+                });
+                savedCount++;
+                savedRows.push({
+                  id: row.id,
+                  amount: row.amount,
+                  note: row.note,
+                  category: cat ? cat.name : (row.category || ''),
+                  type: row.type
+                });
+              }
+            }
+          }
+
+          if (savedCount > 0) {
+            if (typeof refreshAllViews === 'function') refreshAllViews();
+            if (window.KaslyBridge && typeof window.KaslyBridge.onAiResult === 'function') {
+              window.KaslyBridge.onAiResult(true, JSON.stringify({ saved: savedCount, rows: savedRows }), null);
+            }
+            if (typeof window.KaslyNative.getDailyTransactions === 'function') {
+              window.KaslyNative.getDailyTransactions();
+            }
+            if (typeof window.KaslyNative.getWalletsData === 'function') {
+              window.KaslyNative.getWalletsData();
+            }
+          } else {
+            if (window.KaslyBridge && typeof window.KaslyBridge.onAiResult === 'function') {
+              window.KaslyBridge.onAiResult(false, null, 'Nominal transaksi belum lengkap / 0');
+            }
+          }
+        } catch (err) {
+          console.error('KaslyNative.runScan error:', err);
+          if (window.KaslyBridge && typeof window.KaslyBridge.onAiResult === 'function') {
+            window.KaslyBridge.onAiResult(false, null, (err && err.message) || 'Gagal memproses transaksi AI');
+          }
+        } finally {
+          window._isKaslyScanRunning = false;
+        }
+      },
+
+      getDailyTransactions: function() {
+        try {
+          const today = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0, 10);
+          const txs = (typeof getTransactions === 'function') ? getTransactions() : [];
+          const todayTxs = txs.filter(t => t && t.date === today);
+
+          let totalExpense = 0;
+          let totalIncome = 0;
+          const items = [];
+
+          todayTxs.forEach(t => {
+            const amt = Number(t.amount) || 0;
+            if (t.type === 'income') {
+              totalIncome += amt;
+            } else {
+              totalExpense += amt;
+            }
+            items.push({
+              id: t.id,
+              note: t.note || t.category || 'Transaksi',
+              category: t.category || '',
+              amount: amt,
+              type: t.type || 'expense',
+              date: t.date
+            });
+          });
+
+          items.sort((a, b) => (b.id > a.id ? 1 : -1));
+
+          const res = {
+            date: today,
+            totalExpense: totalExpense,
+            totalIncome: totalIncome,
+            count: items.length,
+            transactions: items
+          };
+
+          if (window.KaslyBridge && typeof window.KaslyBridge.onDailyData === 'function') {
+            window.KaslyBridge.onDailyData(JSON.stringify(res));
+          }
+          return res;
+        } catch (e) {
+          console.error('getDailyTransactions error:', e);
+          return null;
+        }
+      },
+
+      getWalletsData: function() {
+        try {
+          if (typeof recalculateWalletBalances === 'function') {
+            recalculateWalletBalances();
+          }
+          const wallets = (typeof getWallets === 'function') ? getWallets() : [];
+          const res = wallets.map(w => ({
+            id: String(w.id || ''),
+            name: String(w.name || 'Dompet'),
+            balance: Number(w.balance) || 0
+          }));
+          if (window.KaslyBridge && typeof window.KaslyBridge.onWalletsData === 'function') {
+            window.KaslyBridge.onWalletsData(JSON.stringify(res));
+          }
+          return res;
+        } catch (e) {
+          console.error('KaslyNative getWalletsData error:', e);
+          return [];
+        }
+      }
+    };
   </script>
 
 
