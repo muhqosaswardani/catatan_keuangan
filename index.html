@@ -6,6 +6,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>KaslyAI</title>
 
+  <script>
+    (function() {
+      try {
+        var sp = new URLSearchParams(window.location.search);
+        var sc = sp.get('shortcut');
+        if (sc === 'chat') {
+          document.documentElement.classList.add('shortcut-mode-chat');
+        } else if (sc === 'transaksi-ai') {
+          document.documentElement.classList.add('shortcut-mode-txai');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    /* Direct Instant Shortcut Rendering - No Dashboard Flash */
+    html.shortcut-mode-chat #tab-beranda,
+    html.shortcut-mode-chat #page-beranda,
+    html.shortcut-mode-chat #mainHeader,
+    html.shortcut-mode-chat .bottom-nav,
+    html.shortcut-mode-chat .header-wrapper,
+    html.shortcut-mode-chat .dashboard-header {
+      display: none !important;
+    }
+    html.shortcut-mode-chat #tab-chat {
+      display: flex !important;
+    }
+    html.shortcut-mode-txai #tab-beranda,
+    html.shortcut-mode-txai #page-beranda,
+    html.shortcut-mode-txai #mainHeader,
+    html.shortcut-mode-txai .bottom-nav {
+      display: none !important;
+    }
+    html.shortcut-mode-txai #modalTxaiQuick {
+      display: flex !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 99999 !important;
+    }
+  </style>
+
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0F766E">
@@ -14350,6 +14390,9 @@
        ke Beranda. Pindah tab biasa lewat bottom nav TETAP pakai perilaku lama (replace,
        tidak menumpuk) supaya Back dari situ tidak nyangkut banyak layer. */
     function switchTab(tab, opts) {
+      if (tab !== 'chat') {
+        document.documentElement.classList.remove('shortcut-mode-chat');
+      }
       if (typeof isChatQuickMode !== 'undefined' && isChatQuickMode && tab !== 'chat') {
         isChatQuickMode = false;
         document.body.classList.remove('chat-quick-mode');
@@ -26974,6 +27017,7 @@ PERTANYAAN_USER:
         return;
       }
       if (txaiQuickMicRecording) stopTxaiQuickVoiceRecording();
+      document.documentElement.classList.remove('shortcut-mode-txai');
       closeModal('modalTxaiQuick');
     }
     function resetTxaiQuickScreen() {
@@ -27483,6 +27527,7 @@ PERTANYAAN_USER:
     }
 
     function closeChatQuickMode() {
+      document.documentElement.classList.remove('shortcut-mode-chat');
       isChatQuickMode = false;
       document.body.classList.remove('chat-quick-mode');
       const btn = document.getElementById('chatBackBtn');
