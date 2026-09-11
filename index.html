@@ -6,8 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>KaslyAI</title>
 
-
-
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0F766E">
@@ -12220,7 +12218,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.83)';
+      const version = ' (v3.6.84)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -14352,9 +14350,6 @@
        ke Beranda. Pindah tab biasa lewat bottom nav TETAP pakai perilaku lama (replace,
        tidak menumpuk) supaya Back dari situ tidak nyangkut banyak layer. */
     function switchTab(tab, opts) {
-      if (tab !== 'chat') {
-        document.documentElement.classList.remove('shortcut-mode-chat');
-      }
       if (typeof isChatQuickMode !== 'undefined' && isChatQuickMode && tab !== 'chat') {
         isChatQuickMode = false;
         document.body.classList.remove('chat-quick-mode');
@@ -26979,7 +26974,6 @@ PERTANYAAN_USER:
         return;
       }
       if (txaiQuickMicRecording) stopTxaiQuickVoiceRecording();
-      document.documentElement.classList.remove('shortcut-mode-txai');
       closeModal('modalTxaiQuick');
     }
     function resetTxaiQuickScreen() {
@@ -27489,7 +27483,6 @@ PERTANYAAN_USER:
     }
 
     function closeChatQuickMode() {
-      document.documentElement.classList.remove('shortcut-mode-chat');
       isChatQuickMode = false;
       document.body.classList.remove('chat-quick-mode');
       const btn = document.getElementById('chatBackBtn');
@@ -27518,10 +27511,20 @@ PERTANYAAN_USER:
               modalHabis.style.zIndex = '600';
               document.body.classList.add('modal-lock');
             }
+          } else {
+            if (shortcut === 'chat') {
+              isChatQuickMode = true;
+              document.body.classList.add('chat-quick-mode');
+              currentTab = 'chat';
+            } else if (shortcut === 'transaksi-ai') {
+              const modal = document.getElementById('modalTxaiQuick');
+              if (modal) {
+                modal.classList.add('open');
+                modal.style.zIndex = '500';
+                document.body.classList.add('modal-lock');
+              }
+            }
           }
-          // NOTE: chat-quick-mode class dan modalTxaiQuick TIDAK dipasang di sini —
-          // ini terlalu dini (sebelum page-chat di-render) dan menyebabkan blank putih.
-          // handleAppShortcutParam() akan menanganinya setelah init() selesai.
         }
         if (shortcut) {
           try {
