@@ -11918,7 +11918,60 @@
     let userTrialStatus = localStorage.getItem('kaslyai_user_trial_status') || 'active'; // 'active', 'habis', 'paid'
     let trialDaysLeft = parseInt(localStorage.getItem('kaslyai_trial_days_left') || '7', 10);
 
-    async function checkTrialStatus() {
+    let activeRealtimeChannel = null;
+    function initSupabaseRealtimeSync() {
+      if (!supabaseClient || !currentUserId || typeof supabaseClient.channel !== 'function') return;
+      if (activeRealtimeChannel) {
+        try { supabaseClient.removeChannel(activeRealtimeChannel); } catch (e) {}
+        activeRealtimeChannel = null;
+      }
+      try {
+        console.log('[Realtime] Subscribing to Postgres changes for user:', currentUserId);
+        activeRealtimeChannel = supabaseClient
+          .channel('kasly-realtime-' + currentUserId)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'transactions'
+            },
+            async (payload) => {
+              console.log('[Realtime] Transaction change detected:', payload);
+              try {
+                await syncAllWithSupabase(true);
+                notifyNativeWidgets();
+              } catch (e) {
+                console.error('[Realtime] sync error on tx change:', e);
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'wallets'
+            },
+            async (payload) => {
+              console.log('[Realtime] Wallet change detected:', payload);
+              try {
+                await syncAllWithSupabase(true);
+                notifyNativeWidgets();
+              } catch (e) {
+                console.error('[Realtime] sync error on wallet change:', e);
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('[Realtime] Subscription status:', status);
+          });
+      } catch (err) {
+        console.warn('[Realtime] Failed to initialize Realtime sync:', err);
+      }
+    }
+
+    function checkTrialStatus() {
       if (!currentUserId || !supabaseClient) return;
 
       try {
@@ -12758,6 +12811,7 @@
           scheduleSync(3000);
         }
         if (typeof resolveSyncInFlight === 'function') resolveSyncInFlight();
+        notifyNativeWidgets();
         syncInFlightPromise = null;
       }
     }
@@ -12860,19 +12914,43 @@
     function getWallets() {
       return JSON.parse(localStorage.getItem(LS_KEYS.wallets) || '[]');
     }
-    function setWalletsLocalOnly(w) { localStorage.setItem(LS_KEYS.wallets, JSON.stringify(w)); }
+    function setWalletsLocalOnly(w) {
+      localStorage.setItem(LS_KEYS.wallets, JSON.stringify(w));
+      notifyNativeWidgets();
+    }
     function setWallets(w) {
       w = (w || []).map(item => ({ updatedAt: Date.now(), ...item }));
       setWalletsLocalOnly(w);
       scheduleSync();
+      notifyNativeWidgets();
     }
 
     function getTransactions() { return JSON.parse(localStorage.getItem(LS_KEYS.transactions) || '[]'); }
-    function setTransactionsLocalOnly(t) { localStorage.setItem(LS_KEYS.transactions, JSON.stringify(t)); }
+    
+    function notifyNativeWidgets() {
+      try {
+        if (window.KaslyBridge && window.KaslyNative) {
+          if (typeof window.KaslyNative.getDailyTransactions === 'function') {
+            window.KaslyNative.getDailyTransactions();
+          }
+          if (typeof window.KaslyNative.getWalletsData === 'function') {
+            window.KaslyNative.getWalletsData();
+          }
+        }
+      } catch (e) {
+        console.warn('notifyNativeWidgets error:', e);
+      }
+    }
+
+    function setTransactionsLocalOnly(t) {
+      localStorage.setItem(LS_KEYS.transactions, JSON.stringify(t));
+      notifyNativeWidgets();
+    }
     function setTransactions(t) {
       t = (t || []).map(item => ({ updatedAt: Date.now(), ...item }));
       setTransactionsLocalOnly(t);
       scheduleSync();
+      notifyNativeWidgets();
     }
 
     function getCategories() {
@@ -26402,6 +26480,7 @@ PERTANYAAN_USER:
               checkTrialStatus();
               autoSyncPushSubscription();
               loadAllGeminiKeys();
+              initSupabaseRealtimeSync();
             } else {
               const authOb = document.getElementById('auth-onboarding');
               if (authOb) authOb.classList.add('open');
@@ -27803,7 +27882,8 @@ PERTANYAAN_USER:
           const today = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0, 10);
           const allTxs = (typeof getTransactions === 'function') ? getTransactions() : [];
 
-          // Urutkan transaksi PERSIS seperti di tab Transaksi aplikasi (terbaru di atas):
+          // Urutkan transaksi PERSIS seperti di tab Transaksi aplikasi (renderTransactions):
+          // (b.date || '').localeCompare(a.date || '') || (b.updatedAt || 0) - (a.updatedAt || 0) || b.id.localeCompare(a.id)
           const sortedTxs = allTxs.slice().sort((a, b) => {
             const dateComp = (b.date || '').localeCompare(a.date || '');
             if (dateComp !== 0) return dateComp;
@@ -27812,7 +27892,7 @@ PERTANYAAN_USER:
             const timeB = b.updatedAt || b.createdAt || 0;
             if (timeB !== timeA) return timeB - timeA;
 
-            return allTxs.indexOf(b) - allTxs.indexOf(a);
+            return (b.id || '').localeCompare(a.id || '');
           });
 
           const todayTxs = sortedTxs.filter(t => t && t.date === today);
@@ -27828,10 +27908,18 @@ PERTANYAAN_USER:
             } else {
               totalExpense += amt;
             }
+
+            const w = (typeof walletById === 'function') ? walletById(t.walletId) : null;
+            const cat = (t.categoryId && typeof categoryById === 'function') ? categoryById(t.categoryId) : 
+                        ((typeof categoryByNameAndType === 'function') ? categoryByNameAndType(t.category, t.type) : null);
+
             items.push({
               id: t.id,
-              note: t.note || t.category || 'Transaksi',
-              category: t.category || '',
+              category: (cat && cat.name) || t.category || (t.type === 'income' ? 'Pemasukan' : 'Pengeluaran'),
+              walletName: w ? w.name : (t.walletName || 'Cash'),
+              note: t.note || '',
+              categoryColor: (cat && cat.color) || (t.type === 'income' ? '#16A34A' : '#EA580C'),
+              categoryIcon: (cat && cat.icon) || (typeof defaultIconForCategoryName === 'function' ? defaultIconForCategoryName(t.category) : 'more'),
               amount: amt,
               type: t.type || 'expense',
               date: t.date
