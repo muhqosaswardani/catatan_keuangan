@@ -310,7 +310,7 @@ export async function handleV2Message(
           const incomeCats = cats.filter((c) => c.type === "income").map((c) => c.name);
           const annotatedText = annotateSlangNominalForAi(text);
           const parts: GeminiPart[] = [{ text: `TEKS_BEBAS_DARI_USER: ${annotatedText}` }];
-          const items = await parseTransactions(apiKeys, parts, expenseCats, incomeCats, getTodayStr());
+          const items = await parseTransactions(apiKeys, parts, expenseCats, incomeCats, getTodayStr(), wallets.map((w: any) => w.name));
           return { cats, wallets, items };
         } catch (e) {
           return { error: e as Error };

@@ -212,20 +212,101 @@ function getDefaultWalletId(wallets: WalletRow[]): string {
   return "wallet_utama";
 }
 
+const BANK_EWALLET_KEYWORDS_REGEX =
+  /\b(bank|bca|mandiri|bri|bni|bsi|jago|seabank|cimb|danamon|permata|spay|shopeepay|shopee\s*pay|gopay|go\s*pay|ovo|dana|linkaja|qris|transfer|tf|bi-?fast|m-?banking|mbanking|e-?wallet|ewallet|debit|non-?cod|kartu\s*kredit|kartu\s*debit)\b/i;
+
+const CASH_KEYWORDS_REGEX =
+  /\b(cash|tunai|kontan|kas|cod|bayar\s*di\s*tempat)\b/i;
+
+function getBankOrEwallet(wallets: WalletRow[]): WalletRow | undefined {
+  return wallets.find((w) => {
+    const n = w.name.toLowerCase();
+    return (
+      n.includes("bank") ||
+      n.includes("walet") ||
+      n.includes("wallet") ||
+      n.includes("rekening") ||
+      BANK_EWALLET_KEYWORDS_REGEX.test(n)
+    );
+  });
+}
+
+function getCashWallet(wallets: WalletRow[]): WalletRow | undefined {
+  return wallets.find((w) => {
+    const n = w.name.toLowerCase();
+    return (
+      n.includes("cash") ||
+      n.includes("tunai") ||
+      n.includes("kas") ||
+      CASH_KEYWORDS_REGEX.test(n)
+    );
+  });
+}
+
 function matchWalletId(
   mentionedName: string | undefined,
   wallets: WalletRow[],
+  isFromMedia?: boolean,
+  txContext?: { note?: string; category?: string },
 ): string {
   const defId = getDefaultWalletId(wallets);
-  if (!mentionedName) return defId;
-  // Cek apakah ada dompet yang namanya mengandung kata dari mention
-  const lower = mentionedName.toLowerCase();
-  const found = wallets.find(
-    (w) =>
-      w.name.toLowerCase().includes(lower) ||
-      lower.includes(w.name.toLowerCase()),
-  );
-  return found?.id ?? defId;
+
+  // 1. Cek dari nama dompet yang disebutkan secara eksplisit
+  if (mentionedName) {
+    const lower = mentionedName.toLowerCase();
+    const exact = wallets.find(
+      (w) =>
+        w.name.toLowerCase() === lower ||
+        w.name.toLowerCase().includes(lower) ||
+        lower.includes(w.name.toLowerCase()),
+    );
+    if (exact) return exact.id;
+
+    // Cek sub-token (misal "Bank/E-walet" dipecah jadi "bank", "e-walet")
+    for (const w of wallets) {
+      const subTokens = w.name
+        .toLowerCase()
+        .split(/[\s\/\-_.,]+/)
+        .filter((t) => t.length >= 3 && t !== "dompet" && t !== "rekening");
+      for (const token of subTokens) {
+        if (new RegExp(`\\b${token}\\b`, "i").test(lower)) {
+          return w.id;
+        }
+      }
+    }
+
+    if (BANK_EWALLET_KEYWORDS_REGEX.test(lower)) {
+      const bw = getBankOrEwallet(wallets);
+      if (bw) return bw.id;
+    }
+    if (CASH_KEYWORDS_REGEX.test(lower)) {
+      const noteOrMentionHasCash =
+        CASH_KEYWORDS_REGEX.test(txContext?.note || "") ||
+        /(\bcod\b|\btunai\b|\bbayar\s*di\s*tempat\b)/i.test(lower);
+      if (!isFromMedia || noteOrMentionHasCash) {
+        const cw = getCashWallet(wallets);
+        if (cw) return cw.id;
+      }
+    }
+  }
+
+  // 2. Cek konteks transaksi (note atau kategori mengandung petunjuk transfer/bank/spay)
+  if (txContext?.note && BANK_EWALLET_KEYWORDS_REGEX.test(txContext.note)) {
+    const bw = getBankOrEwallet(wallets);
+    if (bw) return bw.id;
+  }
+  if (txContext?.note && CASH_KEYWORDS_REGEX.test(txContext.note)) {
+    const cw = getCashWallet(wallets);
+    if (cw) return cw.id;
+  }
+
+  // 3. Jika berasal dari media (bukti transfer / foto struk non-COD / e-wallet)
+  if (isFromMedia) {
+    const bw = getBankOrEwallet(wallets);
+    if (bw) return bw.id;
+  }
+
+  return defId;
 }
 
 function findWalletId(
@@ -234,11 +315,33 @@ function findWalletId(
 ): string | undefined {
   if (!mentionedName) return undefined;
   const lower = mentionedName.toLowerCase();
-  return wallets.find(
+  const direct = wallets.find(
     (w) =>
+      w.name.toLowerCase() === lower ||
       w.name.toLowerCase().includes(lower) ||
       lower.includes(w.name.toLowerCase()),
-  )?.id;
+  );
+  if (direct) return direct.id;
+
+  for (const w of wallets) {
+    const subTokens = w.name
+      .toLowerCase()
+      .split(/[\s\/\-_.,]+/)
+      .filter((t) => t.length >= 3 && t !== "dompet" && t !== "rekening");
+    for (const token of subTokens) {
+      if (new RegExp(`\\b${token}\\b`, "i").test(lower)) {
+        return w.id;
+      }
+    }
+  }
+
+  if (BANK_EWALLET_KEYWORDS_REGEX.test(lower)) {
+    return getBankOrEwallet(wallets)?.id;
+  }
+  if (CASH_KEYWORDS_REGEX.test(lower)) {
+    return getCashWallet(wallets)?.id;
+  }
+  return undefined;
 }
 
 // ============================================================
@@ -430,19 +533,44 @@ async function recalculateDbWalletBalances(
 }
 
 function findMentionedWallet(text: string, wallets: WalletRow[]): string | undefined {
+  if (!text) return undefined;
   const lowerText = text.toLowerCase();
+
   for (const w of wallets) {
     const lowerName = w.name.toLowerCase();
     if (lowerText.includes(lowerName)) {
       return w.name;
     }
-    const words = lowerName.split(/\s+/).filter(word => word.length > 2 && word !== "dompet" && word !== "rekening");
-    for (const word of words) {
-      if (lowerText.includes(word)) {
+    // Pisahkan nama dompet berdasarkan spasi, garis miring, strip, underscore, titik, koma
+    // Contoh: "Bank/E-walet" -> ["bank", "e-walet", "walet"]
+    const subTokens = lowerName
+      .split(/[\s\/\-_.,]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && t !== "dompet" && t !== "rekening");
+
+    for (const token of subTokens) {
+      const regex = new RegExp(`\\b${token}\\b`, "i");
+      if (regex.test(lowerText)) {
         return w.name;
+      }
+      if (token === "ewalet" || token === "ewallet" || token === "e-walet" || token === "e-wallet") {
+        if (/\b(e-?wal[l]?et)\b/i.test(lowerText)) {
+          return w.name;
+        }
       }
     }
   }
+
+  // Cek sinonim kata kunci bank/e-wallet dan cash
+  if (BANK_EWALLET_KEYWORDS_REGEX.test(lowerText)) {
+    const bw = getBankOrEwallet(wallets);
+    if (bw) return bw.name;
+  }
+  if (CASH_KEYWORDS_REGEX.test(lowerText)) {
+    const cw = getCashWallet(wallets);
+    if (cw) return cw.name;
+  }
+
   return undefined;
 }
 
@@ -593,8 +721,47 @@ async function processParsedItems(
 ): Promise<void> {
   const today = getTodayStr();
 
+  // SAFEGUARD MEDIA / BUKTI TRANSFER:
+  // Jika dalam batch media terdapat item nominal 0 (deskripsi dari caption user misal "ganti oli mesin")
+  // dan item ber-nominal > 0 (hasil pembacaan bukti transfer misal 118.500 "Transfer Ke Maya"),
+  // WAJIB DIGABUNG menjadi 1 transaksi: ambil deskripsi & kategori belanja dari user,
+  // ambil nominal dari bukti transfer, dan arahkan dompet ke Bank/E-walet!
+  let effectiveItems = items;
+  if (isFromMedia && items.length > 1) {
+    const genericNames = ["pengeluaran", "pemasukan", "transaksi", "lainnya", ""];
+    const zeroIdx = items.findIndex(
+      (it) =>
+        (Number(it.amount) || 0) === 0 &&
+        it.note &&
+        !genericNames.includes(it.note.toLowerCase().trim()),
+    );
+    const nonZeroIdx = items.findIndex((it) => (Number(it.amount) || 0) > 0);
+
+    if (zeroIdx !== -1 && nonZeroIdx !== -1 && zeroIdx !== nonZeroIdx) {
+      const zeroItem = items[zeroIdx];
+      const nonZeroItem = items[nonZeroIdx];
+
+      const mergedNote = zeroItem.note;
+      const mergedCat =
+        zeroItem.category && zeroItem.category.toLowerCase() !== "transfer"
+          ? zeroItem.category
+          : nonZeroItem.category;
+      const mergedWallet = zeroItem.wallet || nonZeroItem.wallet || "Bank/E-walet";
+
+      const mergedItem: ParsedTransaction = {
+        ...nonZeroItem,
+        note: mergedNote,
+        category: mergedCat,
+        wallet: mergedWallet,
+      };
+
+      effectiveItems = items.filter((_, idx) => idx !== zeroIdx && idx !== nonZeroIdx);
+      effectiveItems.push(mergedItem);
+    }
+  }
+
   // 1. Match categories and type for all items first so we can group/merge them properly
-  const matchedItems = items.map(it => {
+  const matchedItems = effectiveItems.map(it => {
     const type: "expense" | "income" = it.type === "income" ? "income" : "expense";
     const catId = matchCategoryId(it.category, type, cats);
     const catName = cats.find((c) => c.id === catId)?.name ?? it.category ?? "Lainnya";
@@ -679,7 +846,12 @@ async function processParsedItems(
 
   // Scaling proporsional untuk groupId
   const rawRows = finalMergedItems.map((it, idx) => {
-    const walletId = matchWalletId(it.wallet || mentionedWalletName, wallets);
+    const walletId = matchWalletId(
+      it.wallet || mentionedWalletName,
+      wallets,
+      isFromMedia,
+      { note: it.note, category: it.catName },
+    );
     return {
       _idx: idx,
       _groupId: it.groupId ?? null,
@@ -1041,6 +1213,7 @@ export async function handleTextMessage(
         expenseCats,
         incomeCats,
         today,
+        wallets.map((w) => w.name),
       );
     } catch (e) {
       await sendWhatsAppMessage(
@@ -1208,6 +1381,7 @@ export async function handleMediaBatch(
       expenseCats,
       incomeCats,
       today,
+      wallets.map((w) => w.name),
     );
   } catch (e) {
     await sendWhatsAppMessage(
@@ -1376,6 +1550,7 @@ export async function handleAudioMessage(
       expenseCats,
       incomeCats,
       today,
+      wallets.map((w) => w.name),
     );
   } catch (e) {
     // Jika format OGG ditolak (HTTP 400), coba skip — tidak ada library konversi di edge function
@@ -2268,6 +2443,7 @@ export async function handleWebChatImage(
       expenseCats,
       incomeCats,
       today,
+      wallets.map((w) => w.name),
     );
   } catch (e) {
     await sendWhatsAppMessage(

@@ -581,19 +581,48 @@ Ke dompet: ${destWallet.name} (Sisa: ${formatRupiah(updatedDest?.balance ?? 0)})
  * 3. Menangani Utang Piutang
  */
 function findMentionedWallet(text: string, wallets: any[]): string | undefined {
+  if (!text) return undefined;
   const lowerText = text.toLowerCase();
   for (const w of wallets) {
     const lowerName = w.name.toLowerCase();
     if (lowerText.includes(lowerName)) {
       return w.name;
     }
-    const words = lowerName.split(/\s+/).filter((word: string) => word.length > 2 && word !== "dompet" && word !== "rekening");
-    for (const word of words) {
-      if (lowerText.includes(word)) {
+    const subTokens = lowerName
+      .split(/[\s\/\-_.,]+/)
+      .map((t: string) => t.trim())
+      .filter((t: string) => t.length >= 3 && t !== "dompet" && t !== "rekening");
+
+    for (const token of subTokens) {
+      const regex = new RegExp(`\\b${token}\\b`, "i");
+      if (regex.test(lowerText)) {
         return w.name;
+      }
+      if (token === "ewalet" || token === "ewallet" || token === "e-walet" || token === "e-wallet") {
+        if (/\b(e-?wal[l]?et)\b/i.test(lowerText)) {
+          return w.name;
+        }
       }
     }
   }
+
+  const bankRegex = /\b(bank|bca|mandiri|bri|bni|bsi|jago|seabank|spay|shopeepay|gopay|ovo|dana|qris|transfer|tf)\b/i;
+  const cashRegex = /\b(cash|tunai|kontan|kas|cod)\b/i;
+  if (bankRegex.test(lowerText)) {
+    const bw = wallets.find((w: any) => {
+      const n = (w.name || "").toLowerCase();
+      return n.includes("bank") || n.includes("walet") || n.includes("wallet") || n.includes("rekening") || bankRegex.test(n);
+    });
+    if (bw) return bw.name;
+  }
+  if (cashRegex.test(lowerText)) {
+    const cw = wallets.find((w: any) => {
+      const n = (w.name || "").toLowerCase();
+      return n.includes("cash") || n.includes("tunai") || n.includes("kas") || cashRegex.test(n);
+    });
+    if (cw) return cw.name;
+  }
+
   return undefined;
 }
 

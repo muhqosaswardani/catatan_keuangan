@@ -2382,6 +2382,32 @@ function cleanupRecentWebChat() {
           } catch {}
         }
       } else {
+        // Cek apakah ada media yang baru saja dikirim tanpa caption dalam 15 detik terakhir
+        if (msg.type === "text" && msg.text) {
+          try {
+            const fifteenSecAgo = new Date(Date.now() - 15000).toISOString();
+            const { data: pendingMedia } = await db
+              .from("wa_media_queue")
+              .select("wa_message_id, caption")
+              .eq("wa_chat_id", msg.from)
+              .is("caption", null)
+              .gte("created_at", fifteenSecAgo)
+              .order("created_at", { ascending: false })
+              .limit(1);
+
+            if (pendingMedia && pendingMedia.length > 0) {
+              await db
+                .from("wa_media_queue")
+                .update({ caption: msg.text })
+                .eq("wa_message_id", pendingMedia[0].wa_message_id);
+              // Teks berhasil digabungkan sebagai caption media antrean!
+              continue;
+            }
+          } catch (e) {
+            console.warn("Gagal mengaitkan teks ke media antrean:", e);
+          }
+        }
+
         const waAutoReply = await isWaAutoReplyEnabled(db, userId);
         await withTypingIndicator(PHONE_NUMBER_ID, WA_ACCESS_TOKEN, msg.messageId, async () => {
           try {

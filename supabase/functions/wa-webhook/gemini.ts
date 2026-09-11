@@ -87,7 +87,8 @@ export interface EditInstruction {
   type?: "income" | "expense";
   reason?: string;
 }
-// ============================================================
+
+// ============================================================
 // HELPER: Slang nominal Indonesia annotator
 // ============================================================
 
@@ -116,17 +117,24 @@ export function buildTransactionPrompt(
   expenseCats: string[],
   incomeCats: string[],
   todayStr: string,
+  walletNames?: string[],
 ): string {
+  const walletListStr =
+    walletNames && walletNames.length > 0
+      ? walletNames.join(', ')
+      : 'Cash, Bank/E-walet';
+
   return (
     'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini:\n' +
     '(a) Foto/gambar struk belanja kasir/supermarket/toko (seperti Alfamart, Indomaret, dsb.) yang berisi daftar barang belanjaan (items) beserta diskon, PPN/pajak, dan grand total.\n' +
     '(b) Screenshot riwayat/mutasi m-banking atau e-wallet (list transaksi bertumpuk ke bawah).\n' +
     '(c) File dokumen PDF e-statement/rekening koran/riwayat mutasi.\n' +
     '(d) Foto BEBAS yang BUKAN struk/dokumen finansial — mis. foto barang/makanan yang baru dibeli, foto tempat/warung/toko/restoran, foto gerobak/kios/lapak pedagang, foto plang nama toko/banner/spanduk usaha, foto papan menu, foto antrian, atau foto lain yang relevan sebagai bukti/konteks transaksi meskipun tidak menampilkan nominal sama sekali.\n\n' +
+    'Daftar dompet pengguna yang tersedia: [' + walletListStr + '].\n\n' +
     'Selain lampiran foto/dokumen di atas, kadang ada juga bagian terpisah bertanda awalan "TEKS_BEBAS_DARI_USER:" — itu adalah catatan transaksi yang diketik user sendiri dengan bahasa sehari-hari.\n' +
-    '   - PENTING: Jika ada lampiran FOTO/DOKUMEN dan SEKALIGUS ada "TEKS_BEBAS_DARI_USER" (caption/keterangan dari user, misal: "buat nabila", "keperluan kantor", "traktir teman", "titipan budi", "pake gopay buat rina"), kamu WAJIB MEMBACA DAN MENGGABUNGKAN pesan teks tersebut ke dalam transaksi:\n' +
-    '     * Field "note": Gabungkan nama barang/menu dari foto dengan maksud/caption teks user secara rapi dan bermakna. Contoh: Foto menu "Paket Donatsu Susu Tabur Isi 10" + caption "buat nabila" → note: "Paket Donatsu Susu Tabur Isi 10 (Buat Nabila)". Foto belanja Alfamart + caption "keperluan kantor" → note: "Alfamart - Belanja (Keperluan Kantor)".\n' +
-    '     * Field "wallet": Jika caption teks user menyebutkan sumber dompet (misal: "pake gopay", "dari tabungan"), isi field "wallet" dengan nama dompet tersebut.\n' +
+    '   - PENTING: Jika ada lampiran FOTO/DOKUMEN dan SEKALIGUS ada "TEKS_BEBAS_DARI_USER" (caption/keterangan dari user, misal: "buat nabila", "keperluan kantor", "traktir teman", "titipan budi", "pake gopay buat rina", "ganti oli mesin dan gardan motor", "potong rambut"), kamu WAJIB MEMBACA DAN MENGGABUNGKAN pesan teks tersebut ke dalam transaksi:\n' +
+    '     * Field "note": Gabungkan nama barang/menu dari foto dengan maksud/caption teks user secara rapi dan bermakna. Jika foto adalah bukti transfer atau bukti pembayaran, PRIORITASKAN deskripsi/tujuan belanja dari teks user sebagai note utama (misal: caption "ganti oli mesin dan gardan motor" + foto bukti transfer ke Maya -> note: "Ganti Oli Mesin Dan Gardan Motor"). Contoh lain: Foto menu "Paket Donatsu Susu Tabur Isi 10" + caption "buat nabila" → note: "Paket Donatsu Susu Tabur Isi 10 (Buat Nabila)". Foto belanja Alfamart + caption "keperluan kantor" → note: "Alfamart - Belanja (Keperluan Kantor)".\n' +
+    '     * Field "wallet": Jika caption teks user menyebutkan sumber dompet (misal: "pake gopay", "dari tabungan", "bank"), isi field "wallet" dengan nama dompet tersebut. Jika lampiran berupa bukti transfer / pembayaran digital / pesanan online non-COD, isi field "wallet" dengan dompet bank/e-wallet (misal: "Bank/E-walet").\n' +
     '     * Field "date": Jika caption teks user menyebutkan keterangan waktu (misal: "kemarin", "tadi siang"), sesuaikan tanggal transaksi.\n' +
     '   - CATATAN: di bagian teks ini, beberapa kata slang nominal (seceng/goceng/ceban/noceng/goban/gocap) mungkin sudah diberi angka literal dalam kurung tepat setelahnya oleh sistem (mis. "parkir seceng(1000)") — itu HANYA petunjuk nilai nominal buat kamu, JANGAN disalin apa adanya (termasuk tanda kurungnya) ke field "note", tulis "note" secara natural seperti biasa (mis. "Parkir").\n\n' +
     '0. VALIDASI WAJIB SEBELUM MEMBUAT TRANSAKSI APAPUN (baca pelan-pelan, ini aturan PALING PENTING):\n' +
@@ -158,11 +166,20 @@ export function buildTransactionPrompt(
     '   - Tetapkan tanggal "date" (YYYY-MM-DD) sesuai tanggal transaksi di struk belanja.\n\n' +
     '1.5. JIKA DOKUMEN ADALAH SCREENSHOT PESANAN E-COMMERCE ATAU FOOD/DELIVERY APP (ATURAN PRIORITAS — CEK INI SEBELUM KASUS 1):\n' +
     '   - Kenali platform dari tampilan UI, logo, atau elemen khas: Shopee, Tokopedia, Lazada, Bukalapak, Blibli, TikTok Shop, Shopee Food, GoFood, GrabFood, MaxFood, Traveloka Eats, dsb.\n' +
+    '   - METODE PEMBAYARAN & DOMPET: Pesanan online/food delivery/e-commerce (Shopee, GoFood, GrabFood, Tokopedia, dsb.) secara default selalu dibayar non-tunai (ShopeePay, GoPay, OVO, DANA, transfer bank, saldo, debit, QRIS). WAJIB isi field "wallet" dengan dompet bank/e-wallet (misal: "Bank/E-walet" atau bank/ewallet yang cocok dari daftar dompet), TERMASUK jika rincian metode pembayaran terpotong atau tidak terlihat di gambar. HANYA jika di gambar EKSPLISIT tertulis "COD" atau "Tunai / Bayar di Tempat", barulah isi field "wallet" dengan "Cash".\n' +
     '   - ATURAN MUTLAK: Untuk semua jenis screenshot dari platform e-commerce/food delivery di atas, WAJIB buat HANYA SATU (1) objek transaksi saja, dengan "amount" = Grand Total / Total Bayar yang tertera (biasanya di bagian paling bawah, sering disebut "Total Pembayaran", "Total Bayar", "Grand Total", atau yang sudah termasuk pajak). JANGAN pecah menjadi beberapa transaksi.\n' +
     '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Admin, Ongkos Kirim, Ongkir, Biaya Platform, PPN, Pajak, Biaya Asuransi, Biaya Proteksi Keamanan, atau biaya tambahan lainnya yang merupakan bagian dari satu pesanan. Semua biaya ini sudah TERMASUK dalam satu Grand Total.\n' +
     '   - "note" diisi dengan nama barang/menu utama yang dipesan (bukan nama platform-nya). Contoh: "Paket Donatsu Donat Susu" (bukan "Shopee Food"). Jika ada banyak item, sebutkan yang paling dominan atau ringkas jadi "[item utama] dan lainnya".\n' +
     '   - "category" dipilih sesuai jenis barang/menu yang dipesan: makanan/minuman → kategori "Makan"/"Jajan" yang sesuai; barang fisik → kategori barang tsb ("Belanja", "Elektronik", dll); jika tidak jelas → "Lainnya".\n' +
-    '   - Contoh: screenshot Shopee Food subtotal Rp50.000 + ongkir Rp1.500 + biaya layanan Rp1.500 = total Rp53.000 → SATU transaksi: amount=53000, note="Paket Donatsu Donat Susu", category="Jajan". BUKAN 3 transaksi terpisah.\n\n' +
+    '   - Contoh: screenshot Shopee Food subtotal Rp50.000 + ongkir Rp1.500 + biaya layanan Rp1.500 = total Rp53.000 → SATU transaksi: amount=53000, note="Paket Donatsu Donat Susu", category="Jajan", wallet="Bank/E-walet". BUKAN 3 transaksi terpisah.\n\n' +
+    '1.6. JIKA DOKUMEN ADALAH BUKTI TRANSFER BANK / E-WALLET / QRIS / SLIP PEMBAYARAN DIGITAL (Transfer Receipt / Payment Proof):\n' +
+    '   - Kenali dari tampilan screenshot: bukti transfer sukses, QRIS / QR Bayar (misal Livin Mandiri, BCA, dsb.), BI-Fast, transfer sesama/antar bank, pembayaran digital, top-up, atau mutasi e-wallet (BCA, Mandiri, BRI, BNI, BSI, Jago, Seabank, GoPay, OVO, DANA, ShopeePay, dsb).\n' +
+    '   - ATURAN MUTLAK GABUNGAN BUKTI TRANSFER + CAPTION/TEKS USER (SATU BATCH TRANSAKSI TUNGGAL):\n' +
+    '     * Jika user mengirim bukti transfer BESERTA teks/caption (misal caption: "ganti oli mesin dan gardan motor", "beli sepatu", "bayar listrik", "potong rambut"), itu BUKAN dua transaksi terpisah! Itu adalah SATU TRANSAKSI PEMBAYARAN YANG SAMA.\n' +
+    '     * JANGAN PERNAH membuat satu transaksi bernilai 0 untuk teksnya dan satu transaksi transfer untuk fotonya! JANGAN PERNAH memecah jadi 2 transaksi!\n' +
+    '     * PRIORITAS: Ambil NOMINAL ("amount") DARI FOTO BUKTI TRANSFER (misal: Rp 118.500), tapi ambil KETERANGAN ("note") dan KATEGORI ("category") DARI TEKS/CAPTION USER (misal: note "Ganti Oli Mesin Dan Gardan Motor", category "Kendaraan"/"Servis" atau yang paling cocok dari daftar kategori expense).\n' +
+    '     * JANGAN beri note generik seperti "Transfer", "Transfer Ke Maya", atau sejenisnya jika ada deskripsi barang/jasa dari user! Gunakan deskripsi user sebagai note utama (boleh ditambahkan nama penerima jika relevan, misal "Ganti Oli Mesin Dan Gardan Motor (Transfer Maya)").\n' +
+    '     * Field "wallet" untuk bukti transfer/pembayaran digital WAJIB diisi dengan nama dompet bank/e-wallet pengguna (misal: "Bank/E-walet" atau bank/ewallet yang cocok dari daftar dompet).\n\n' +
     '2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n' +
     '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
     '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
@@ -174,6 +191,7 @@ export function buildTransactionPrompt(
     '   - "amount": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set "amount" ke 0 — JANGAN MENEBAK nominal untuk jenis foto ini.\n' +
     '   - "date": default hari ini (' + todayStr + ') kalau tidak ada info tanggal di foto/caption.\n\n' +
     '4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER (dan bukan sekadar caption untuk kasus 3 di atas, atau memang berdiri sendiri tanpa foto):\n' +
+    '   - PENTING KHUSUS BUKTI TRANSFER/PEMBAYARAN: Jika ada lampiran bukti transfer/pembayaran disertai teks user, ikuti aturan 1.6 di atas — WAJIB DIGABUNG menjadi SATU transaksi (nominal dari bukti transfer, note & category dari teks user). JANGAN memecah menjadi transaksi teks bernilai 0 dan transaksi transfer terpisah!\n' +
     '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda. Pemisah BISA berupa koma, kata "dan", atau baris baru — TAPI JUGA bisa TANPA pemisah eksplisit sama sekali (mis. transkrip suara/VN yang ngalir panjang tanpa koma/titik yang jelas). Untuk kasus tanpa pemisah eksplisit ini, kenali batas antar transaksi dari PERGANTIAN KONTEKS: setiap kali muncul nama barang/jasa/aktivitas BARU yang beda dari sebelumnya, atau muncul angka nominal baru yang jelas menempel ke aktivitas tertentu, itu pertanda transaksi baru dimulai — meskipun tidak ada tanda baca pemisah sama sekali. Baca seluruh teks dulu secara utuh sebelum memutuskan pembagiannya, jangan asal potong per kalimat pendek.\n' +
     '   - Jika user menyebutkan nama dompet secara eksplisit di pesan (mis. \'dari dompet tabungan\', \'rekening kas\', \'pake tabungan\'), isi field "wallet" dengan nama dompet yang disebut tersebut. Jika tidak disebutkan, kosongkan (isi "" atau null).\n' +
     '   - JANGAN PERNAH mengisi field "note" dengan kata generik seperti "Pengeluaran", "Pemasukan", "Transaksi", or "Lainnya". Jika dari input (teks/foto/VN) kamu tidak tahu nama barang/jasa yang konkret dengan yakin, isi field "note" dengan string kosong "" agar sistem bisa bertanya langsung ke user.\n' +
@@ -347,8 +365,9 @@ export async function parseTransactions(
   expenseCats: string[],
   incomeCats: string[],
   todayStr: string,
+  walletNames?: string[],
 ): Promise<ParsedTransaction[]> {
-  const promptText = buildTransactionPrompt(expenseCats, incomeCats, todayStr);
+  const promptText = buildTransactionPrompt(expenseCats, incomeCats, todayStr, walletNames);
   const allParts: GeminiPart[] = [{ text: promptText }, ...parts];
 
   const MAX_ATTEMPTS = 3;
