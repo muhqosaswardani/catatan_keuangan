@@ -27518,20 +27518,10 @@ PERTANYAAN_USER:
               modalHabis.style.zIndex = '600';
               document.body.classList.add('modal-lock');
             }
-          } else {
-            if (shortcut === 'chat') {
-              isChatQuickMode = true;
-              document.body.classList.add('chat-quick-mode');
-              currentTab = 'chat';
-            } else if (shortcut === 'transaksi-ai') {
-              const modal = document.getElementById('modalTxaiQuick');
-              if (modal) {
-                modal.classList.add('open');
-                modal.style.zIndex = '500';
-                document.body.classList.add('modal-lock');
-              }
-            }
           }
+          // NOTE: chat-quick-mode class dan modalTxaiQuick TIDAK dipasang di sini —
+          // ini terlalu dini (sebelum page-chat di-render) dan menyebabkan blank putih.
+          // handleAppShortcutParam() akan menanganinya setelah init() selesai.
         }
         if (shortcut) {
           try {
