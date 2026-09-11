@@ -12165,7 +12165,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.81)';
+      const version = ' (v3.6.82)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -27801,8 +27801,21 @@ PERTANYAAN_USER:
       getDailyTransactions: function() {
         try {
           const today = (typeof todayStr === 'function') ? todayStr() : new Date().toISOString().slice(0, 10);
-          const txs = (typeof getTransactions === 'function') ? getTransactions() : [];
-          const todayTxs = txs.filter(t => t && t.date === today);
+          const allTxs = (typeof getTransactions === 'function') ? getTransactions() : [];
+
+          // Urutkan transaksi PERSIS seperti di tab Transaksi aplikasi (terbaru di atas):
+          const sortedTxs = allTxs.slice().sort((a, b) => {
+            const dateComp = (b.date || '').localeCompare(a.date || '');
+            if (dateComp !== 0) return dateComp;
+
+            const timeA = a.updatedAt || a.createdAt || 0;
+            const timeB = b.updatedAt || b.createdAt || 0;
+            if (timeB !== timeA) return timeB - timeA;
+
+            return allTxs.indexOf(b) - allTxs.indexOf(a);
+          });
+
+          const todayTxs = sortedTxs.filter(t => t && t.date === today);
 
           let totalExpense = 0;
           let totalIncome = 0;
@@ -27824,8 +27837,6 @@ PERTANYAAN_USER:
               date: t.date
             });
           });
-
-          items.sort((a, b) => (b.id > a.id ? 1 : -1));
 
           const res = {
             date: today,
