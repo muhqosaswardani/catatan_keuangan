@@ -27542,7 +27542,7 @@ PERTANYAAN_USER:
       });
       if (savedTxs.length > 1) {
         html += '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:14px;padding:12px 14px;margin-bottom:4px;font-size:13px;font-weight:700;color:var(--ink-soft);">' +
-          '<span>Total ' + savedTxs.length + ' Transaksi</span><span style="color:var(--expense,#C4453B);">' + formatRupiah(Math.abs(total)) + '</span></div>';
+          '<span>Total ' + savedTxs.length + ' Transaksi</span><span style="color:var(' + (total >= 0 ? '--income,#1E8F5A' : '--expense,#C4453B') + ');">' + (total >= 0 ? '+ ' : '- ') + formatRupiah(Math.abs(total)) + '</span></div>';
       }
       document.getElementById('txaiQuickResultBody').innerHTML = html;
     }
