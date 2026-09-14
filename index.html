@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.91)';
+      const version = ' (v3.6.92)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -20125,15 +20125,14 @@
       const gaugeStatusClass = (totalLimit > 0 && totalSpent >= totalLimit) ? 'over' : 'ok';
       const gaugePct = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
       const gaugeWrap = document.getElementById('budgetGaugeWrap');
-      const lockedBtn = `<button type="button" class="btn btn-secondary btn-block" style="margin-top:14px;opacity:0.75;cursor:default;" disabled>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Bulan Terkunci
-      </button>`;
-      const editBtn = `<button type="button" class="btn btn-primary btn-block" style="margin-top:14px;" onclick="openBudgetManage()">Edit Anggaran</button>`;
+      const editBtn = info.isPast
+        ? ''
+        : `<button type="button" class="btn btn-primary btn-block" style="margin-top:14px;" onclick="openBudgetManage()">Edit Anggaran</button>`;
 
       if (totalLimit === 0) {
         gaugeWrap.innerHTML = `<div class="budget-gauge-card">
       <div style="text-align:center;font-size:13px;color:var(--ink-soft);padding:20px 8px 8px;">Belum ada anggaran diset bulan ini.</div>
-      ${info.isPast ? `<button type="button" class="btn btn-secondary btn-block" style="margin-top:6px;opacity:0.75;cursor:default;" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Bulan Terkunci</button>` : `<button type="button" class="btn btn-primary btn-block" style="margin-top:6px;" onclick="openBudgetManage()">Edit Anggaran</button>`}
+      ${info.isPast ? '' : `<button type="button" class="btn btn-primary btn-block" style="margin-top:6px;" onclick="openBudgetManage()">Edit Anggaran</button>`}
     </div>`;
       } else {
         const sisaPositif = Math.max(0, sisa);
@@ -20156,7 +20155,7 @@
         <div class="st"><div class="n">${formatRupiah(totalLimit)}</div><div class="l">Total anggaran</div></div>
         <div class="st"><div class="n">${formatRupiah(totalSpent)}</div><div class="l">Total pengeluaran</div></div>
       </div>
-      ${info.isPast ? lockedBtn : editBtn}
+      ${editBtn}
     </div>`;
       }
 
@@ -20327,7 +20326,7 @@
       }
       const confirmed = await showConfirmModal({
         title: 'Hapus Limit Anggaran',
-        text: `Hapus limit anggaran untuk kategori "${catName}"? Limit akan dihapus mulai bulan ini dan berlaku ke bulan-bulan berikutnya. Bulan lampau tetap dikunci.`,
+        text: `Hapus limit anggaran untuk kategori "${catName}"?`,
         actionText: 'Ya, Hapus',
         isDanger: true
       });
