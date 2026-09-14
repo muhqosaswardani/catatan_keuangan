@@ -2472,28 +2472,6 @@
       font-weight: 700;
     }
 
-    .budget-row-del-btn {
-      background: var(--surface-2);
-      border: 1px solid transparent;
-      border-radius: 7px;
-      width: 28px;
-      height: 28px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: var(--expense);
-      padding: 0;
-      transition: background 0.15s, transform 0.1s, border-color 0.15s;
-    }
-    .budget-row-del-btn:hover {
-      background: rgba(239, 68, 68, 0.12);
-      border-color: rgba(239, 68, 68, 0.25);
-      transform: scale(1.05);
-    }
-    .budget-row-del-btn:active {
-      transform: scale(0.95);
-    }
 
     .progress-track-wrap {
       position: relative;
@@ -13153,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.90)';
+      const version = ' (v3.6.91)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -20247,33 +20225,16 @@
         const hasLimit = status.limit !== null && status.limit > 0;
         const limitLabel = hasLimit ? formatRupiah(status.limit) : 'Belum diset';
 
-        let actionHtml = '';
-        if (isPast) {
-          actionHtml = `<span class="${hasLimit ? '' : 'unset'}">${limitLabel}</span>`;
-        } else if (hasLimit) {
-          actionHtml = `
-            <span style="font-weight:700;color:var(--ink);">${limitLabel}</span>
-            <button type="button" class="budget-row-del-btn" onclick="event.stopPropagation();confirmDeleteBudgetLimit('${c.id}','${escAttr(c.name)}')" title="Hapus Limit">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
-            </button>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--ink-soft);"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          `;
-        } else {
-          actionHtml = `
-            <span class="unset">${limitLabel}</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--ink-soft);"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          `;
-        }
-
         const clickAttr = isPast ? '' : `onclick="openBudgetLimitModal('${c.id}','${escAttr(c.name)}')"` ;
         return `<div class="budget-manage-row" ${clickAttr} style="${isPast ? 'cursor:default;' : ''}">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
         ${categoryIconBoxHtml(c, { size: 36, iconSize: 18, radius: 10 })}
         <div class="cat-name">${escAttr(c.name)}</div>
       </div>
-      <div class="right" style="display:flex;align-items:center;gap:8px;">${actionHtml}</div>
+      <div class="right">
+        <span class="${hasLimit ? '' : 'unset'}">${limitLabel}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--ink-soft);"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
     </div>`;
       }).join('');
     }
@@ -20353,22 +20314,6 @@
       renderBudget();
       renderHome();
       if (document.getElementById('modalBudgetManage').classList.contains('open')) renderBudgetManageList();
-    }
-
-    async function confirmDeleteBudgetLimit(catId, catName) {
-      const month = budgetMonth || currentMonthStr();
-      if (month < currentMonthStr()) {
-        showToast('Anggaran bulan lampau telah terkunci');
-        return;
-      }
-      const confirmed = await showConfirmModal({
-        title: 'Hapus Limit Anggaran',
-        text: `Hapus limit anggaran untuk kategori "${catName}"? Limit akan dihapus mulai bulan ini dan berlaku ke bulan-bulan berikutnya. Bulan lampau tetap dikunci.`,
-        actionText: 'Ya, Hapus',
-        isDanger: true
-      });
-      if (!confirmed) return;
-      await executeDeleteBudgetLimit(catId);
     }
 
     async function deleteBudgetLimit() {
