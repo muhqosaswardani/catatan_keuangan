@@ -12218,7 +12218,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.85)';
+      const version = ' (v3.6.86)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16647,17 +16647,18 @@
             showAiScanError('AI tidak menemukan transaksi apa pun dari teks/foto ini. Coba tulis ulang teksnya, atau foto yang lebih jelas/terang.');
             return;
           }
-          // Otomatis pilih dompet Bank/E-walet jika AI mendeteksi pembayaran non-COD / bukti transfer / e-wallet
+          // Otomatis pilih dompet: gunakan resolveWalletId dengan konteks media, baris transaksi, dan teks input
           const wallets = getWallets();
-          const hasBankPayment = rows.some(r => r.wallet && BANK_EWALLET_KEYWORDS_REGEX.test(r.wallet)) ||
-            (aiCaptureFiles && aiCaptureFiles.length > 0 && rows.some(r => BANK_EWALLET_KEYWORDS_REGEX.test(r.note || '') || BANK_EWALLET_KEYWORDS_REGEX.test(r.category || '')));
-          if (hasBankPayment) {
-            const bw = getBankOrEwallet(wallets);
-            if (bw) {
-              aiWalletValue = bw.id;
-              const lbl = document.getElementById('aiScanWalletLabel');
-              if (lbl) lbl.textContent = bw.name;
-            }
+          const isFromMedia = aiCaptureFiles && aiCaptureFiles.length > 0;
+          const combinedNote = rows.map(r => r.note || '').join(' ') + ' ' + (aiScanTextValue || '');
+          const combinedCat = rows.map(r => r.category || '').join(' ');
+          const firstRowWallet = (rows.find(r => r.wallet) || {}).wallet || null;
+          const targetWalletId = resolveWalletId(firstRowWallet, wallets, isFromMedia, { note: combinedNote, category: combinedCat });
+          if (targetWalletId) {
+            aiWalletValue = targetWalletId;
+            const wObj = walletById(targetWalletId);
+            const lbl = document.getElementById('aiScanWalletLabel');
+            if (lbl && wObj) lbl.textContent = wObj.name;
           }
           finish(rows);
         })
@@ -16723,7 +16724,16 @@
         '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Tambahan Resto, Biaya Resto, Biaya Admin, Ongkos Kirim, Ongkir, Biaya Platform, Biaya Kemasan/Bungkus/Plastik, Biaya Penanganan, Biaya Aplikasi, Biaya Asuransi, Biaya Proteksi Keamanan, PPN, Pajak, Driver Tip, atau biaya-biaya tambahan lainnya yang merupakan bagian dari satu pesanan e-commerce/food delivery. Semua biaya ini sudah TERMASUK dalam satu Grand Total.\n' +
         '   - "note" diisi dengan nama barang/menu utama yang dipesan (bukan nama platform-nya, dan bukan nama biayanya). Contoh: "Triple Cheese Flatzz" (bukan "Shopee Food"). Jika ada banyak item, sebutkan yang paling dominan atau ringkas jadi "[item utama] dan lainnya".\n' +
         '   - "category" dipilih sesuai jenis barang/menu yang dipesan: makanan/minuman → kategori "Makan"/"Jajan" yang sesuai; barang fisik → kategori barang tsb ("Belanja", "Elektronik", dll); jika tidak jelas → "Lainnya".\n' +
+        '   - Field "wallet" untuk pesanan online e-commerce / food delivery WAJIB diisi dengan nama dompet bank/e-wallet pengguna (misal: "Bank/E-walet"). HANYA jika tertulis eksplisit "COD" / "Tunai" barulah diisi "Cash".\n' +
         '   - Contoh: screenshot Shopee Food dengan menu "Triple Cheese Flatzz" subtotal Rp27.000 + ongkir Rp1.000 + biaya layanan Rp4.500 + biaya tambahan resto Rp3.000 = total Rp35.500 → WAJIB SATU transaksi: amount=35500, note="Triple Cheese Flatzz", category="Makan", wallet="Bank/E-walet". JANGAN PERNAH dipecah menjadi 4 transaksi terpisah!\n\n' +
+        '1.6. JIKA DOKUMEN ADALAH BUKTI TRANSFER BANK / E-WALLET / QRIS / SLIP PEMBAYARAN DIGITAL (Transfer Receipt / Payment Proof):\n' +
+        '   - Kenali dari tampilan screenshot: bukti transfer sukses, QRIS / QR Bayar (misal Livin Mandiri, BCA, dsb.), BI-Fast, transfer sesama/antar bank, pembayaran digital, top-up, atau mutasi e-wallet (BCA, Mandiri, BRI, BNI, BSI, Jago, Seabank, GoPay, OVO, DANA, ShopeePay, dsb).\n' +
+        '   - ATURAN MUTLAK GABUNGAN BUKTI TRANSFER + CAPTION/TEKS USER (SATU BATCH TRANSAKSI TUNGGAL):\n' +
+        '     * Jika user mengirim bukti transfer BESERTA teks/caption (misal caption: "ganti oli mesin dan gardan motor", "beli sepatu", "bayar listrik"), itu BUKAN dua transaksi terpisah! Itu adalah SATU TRANSAKSI PEMBAYARAN YANG SAMA.\n' +
+        '     * JANGAN PERNAH membuat satu transaksi bernilai 0 untuk teksnya dan satu transaksi transfer untuk fotonya! JANGAN PERNAH memecah jadi 2 transaksi!\n' +
+        '     * PRIORITAS: Ambil NOMINAL ("amount") DARI FOTO BUKTI TRANSFER (misal: Rp 118.500), tapi ambil KETERANGAN ("note") dan KATEGORI ("category") DARI TEKS/CAPTION USER (misal: note "Ganti Oli Mesin Dan Gardan Motor", category "Kendaraan"/"Servis" atau yang paling cocok dari daftar kategori expense).\n' +
+        '     * JANGAN beri note generik seperti "Transfer", "Transfer Ke Maya", atau sejenisnya jika ada deskripsi barang/jasa dari user! Gunakan deskripsi user sebagai note utama (boleh ditambahkan nama penerima jika relevan, misal "Ganti Oli Mesin Dan Gardan Motor (Transfer Maya)").\n' +
+        '     * Field "wallet" untuk bukti transfer/pembayaran digital WAJIB diisi dengan nama dompet bank/e-wallet pengguna (misal: "Bank/E-walet" atau bank/ewallet yang cocok dari daftar dompet).\n\n' +
         '2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n' +
         '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
         '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
@@ -16735,6 +16745,7 @@
         '   - "amount": HANYA isi kalau ada angka rupiah yang benar-benar tertulis JELAS terlihat di foto itu sendiri (mis. label harga di papan menu) ATAU disebutkan di TEKS_BEBAS_DARI_USER yang menyertai foto ini (diperlakukan sebagai caption). Kalau tidak ada satu pun sumber nominal yang jelas, set "amount" ke 0 — JANGAN MENEBAK nominal untuk jenis foto ini.\n' +
         '   - "date": default hari ini (' + todayStr() + ') kalau tidak ada info tanggal di foto/caption.\n\n' +
         '4. JIKA ADA BAGIAN TEKS_BEBAS_DARI_USER (dan bukan sekadar caption untuk kasus 3 di atas, atau memang berdiri sendiri tanpa foto):\n' +
+        '   - PENTING KHUSUS BUKTI TRANSFER/PEMBAYARAN: Jika ada lampiran bukti transfer/pembayaran disertai teks user, ikuti aturan 1.6 di atas — WAJIB DIGABUNG menjadi SATU transaksi (nominal dari bukti transfer, note & category dari teks user). JANGAN memecah menjadi transaksi teks bernilai 0 dan transaksi transfer terpisah!\n' +
         '   - Pecah jadi beberapa objek transaksi TERPISAH kalau isinya berisi lebih dari satu transaksi berbeda. Pemisah BISA berupa koma, kata "dan", atau baris baru — TAPI JUGA bisa TANPA pemisah eksplisit sama sekali (mis. transkrip suara/VN yang ngalir panjang tanpa koma/titik yang jelas). Untuk kasus tanpa pemisah eksplisit ini, kenali batas antar transaksi dari PERGANTIAN KONTEKS: setiap kali muncul nama barang/jasa/aktivitas BARU yang beda dari sebelumnya, atau muncul angka nominal baru yang jelas menempel ke aktivitas tertentu, itu pertanda transaksi baru dimulai — meskipun tidak ada tanda baca pemisah sama sekali. Baca seluruh teks dulu secara utuh sebelum memutuskan pembagiannya, jangan asal potong per kalimat pendek.\n' +
         '   - Kenali nama barang/jasa/aktivitas APAPUN meski ditulis singkatan/istilah gaul/bahasa sehari-hari Indonesia (formal maupun informal, termasuk variasi daerah & gaul kekinian — bukan cuma daftar tertutup, pakai pengetahuan umummu di SEMUA kategori kehidupan sehari-hari, bukan cuma makanan). Contoh lintas kategori: makanan/minuman ("naskun"→Nasi kuning, "nasgor"→Nasi goreng, "baso"→Bakso, "indomie"→Mie instan, "esteh"→Es teh, "kopsus"→Kopi susu, "gepuk/geprek"→Ayam geprek); transportasi/bensin ("bensin"/"bensol"→BBM, "ojol"→ojek online, "parkir"); pulsa/langganan ("token"→token listrik, "paketan"/"kuota"→paket data, "streaming"→Netflix/Spotify dsb); jasa/servis ("benerin/betulin/service"); tagihan ("PDAM"→air, "bpjs", "cicilan"/"kredit"); sosial-keagamaan ("kondangan", "amplopan", "infaq/zakat", "arisan"); kesehatan ("obat", "vitamin", "dokter"); lalu tulis "note" dalam bentuk jelas dibaca (boleh diperjelas dari singkatannya). Kalau benar-benar ambigu TAPI tetap ada indikasi itu adalah barang/jasa/aktivitas finansial (termasuk kalau cuma satu kata benda tanpa kata kerja/konteks tambahan, mis. hanya "token listrik" atau "kopi"), tulis apa adanya sesuai input user, tapi tetap tentukan "category" paling masuk akal dari konteks — JANGAN dibuang hanya karena singkat/minim konteks. Ini TIDAK berlaku untuk teks yang sama sekali bukan transaksi (lihat aturan 0) — untuk kasus itu jangan buat objek sama sekali, bukan "tulis apa adanya".\n' +
         '   - Pahami berbagai format penulisan nominal informal ala Indonesia: "25rb"/"25 ribu"=25000; "4.3jt"/"4,3 juta"=4300000; ANGKA POLOS BERKOMA TANPA SATUAN JT/RB DI BELAKANGNYA (mis. "2,5", "32,75", "1,5") — koma di sini SELALU dibaca sebagai desimal dari satuan RIBU, TIDAK PEDULI konteks/jenis barangnya apa (walau kelihatannya "kemahalan"/"kemurahan" untuk barang itu, mis. wifi/kontrakan/cicilan sekalipun) — RUMUS TETAP: "2,5"=2500, "1,5"=1500, "32,75"=32750, JANGAN PERNAH ditafsirkan sebagai juta (mis. "2,5"≠2500000) kecuali user eksplisit menulis satuan "jt"/"juta" setelahnya (mis. "2,5jt"/"2,5 juta"=2500000 — beda kasus, ada satuannya). Konsisten pakai rumus ini di SEMUA konteks kalimat, jangan menebak-nebak beda tiap kali dipanggil. Contoh: "wifi 2,5" → amount 2500 (BUKAN 2500000, BUKAN 250, BUKAN 25000 — persis 2500 sesuai rumus koma-desimal-ribu). "32,75"=32750; "1k"/"2k"/"5k"=1000/2000/5000; angka dieja ("seribu"=1000, "dua ribu"=2000, "sepuluh ribu"=10000, "seratus ribu"=100000); SLANG NOMINAL KHAS INDONESIA (WAJIB dikenali): "seceng"=1000, "goceng"=5000, "ceban"=10000, "noceng"=9000, "cepek"=100 (tapi kalau konteksnya jelas transaksi harian yang wajar, "cepek" sering juga berarti 100.000 — pilih yang paling masuk akal dari konteks), "goban"/"gocap"=50000, "toserba"/"nogo"=9000; angka polos tanpa satuan yang relatif kecil (kira-kira di bawah 1000, mis. "25","10","100") dalam konteks kalimat nominal transaksi harian = DIKALIKAN 1000 (mis. "25"→25000), KECUALI angka itu sudah ditulis lengkap berdigit banyak (mis. "25000","150000") maka dipakai apa adanya TANPA dikalikan lagi. Kalau ragu-ragu soal nominal spesifik, tetap keluarkan hasil terbaik pakai estimasi/tebakan wajar — JANGAN sampai gara-gara nominal ambigu, seluruh transaksinya malah tidak dikeluarkan sama sekali (transaksi TETAP harus dibuat, kalau benar-benar tidak bisa ditebak baru amount diisi 0).\n' +
@@ -16822,6 +16833,8 @@
         }
       }
       if (!items) throw lastParseErr || new Error('Format respons AI tidak valid');
+      // Terapkan safeguard penggabungan: bukti transfer + caption, e-commerce fee line items, dan per-kategori
+      items = sanitizeAndMergeTxaiItems(items, (aiCaptureFiles && aiCaptureFiles.length > 0));
       const rows = items.map((it, idx) => {
         const type = it && it.type === 'income' ? 'income' : 'expense';
         const groupId = (it && it.groupId) ? String(it.groupId) : null;
@@ -16883,7 +16896,20 @@
     // badge visual pembeda dari nominal hasil bacaan langsung.
     function applyAiHistoryAmountFallback(rows) {
       rows.forEach(row => {
-        if (row.amount > 0) return; // sudah ada sumber eksplisit (struk/mutasi/teks/caption/alokasi), tidak perlu histori
+        // POIN 4: Cek kecocokan dengan tagihan / recurring checklist aktif
+        const matchedRec = findMatchingRecurringItem(row.note, row.type);
+        if (matchedRec) {
+          row._matchedRecurringId = matchedRec.id;
+          if (row.amount === 0 && matchedRec.amount > 0) {
+            row.amount = Math.round(Number(matchedRec.amount) || 0);
+            row.amountSource = 'estimate';
+          }
+          if ((!row.categoryId || row.categoryId === matchCategoryByName('Lainnya', row.type)) && matchedRec.categoryId) {
+            row.categoryId = matchedRec.categoryId;
+          }
+        }
+
+        if (row.amount > 0) return; // sudah ada sumber eksplisit (struk/mutasi/teks/caption/alokasi/checklist), tidak perlu histori
         const found = findHistoryAmount(row.note, row.categoryId, row.type);
         if (found != null && found > 0) {
           row.amount = found;
@@ -17893,8 +17919,13 @@
         const categoryId = catEl.value;
         if (amount > 0 && categoryId) {
           const cat = categoryById(categoryId);
-          addTransaction({ walletId: aiWalletValue, categoryId, category: cat ? cat.name : '', type: row.type, amount, date, note, toWalletId: null });
+          const savedTx = addTransaction({ walletId: aiWalletValue, categoryId, category: cat ? cat.name : '', type: row.type, amount, date, note, toWalletId: null });
           saved++;
+          // POIN 4: Tandai checklist tagihan lunas jika cocok
+          const recIdToMark = row._matchedRecurringId || (findMatchingRecurringItem(note, row.type)?.id);
+          if (recIdToMark && savedTx) {
+            markRecurringItemPaid(recIdToMark, savedTx.id, amount, date);
+          }
         } else {
           // Perluasan (bagian 5.6 PRD): baris yang belum lengkap (nominal masih 0) TIDAK menghalangi
           // baris lain yang sudah valid untuk tersimpan — baris ini disimpan state editnya (tanggal/
@@ -24865,6 +24896,132 @@ Keluarkan JSON dengan schema:
       return items;
     }
 
+    function findMatchingRecurringItem(textOrNote, type) {
+      if (!textOrNote) return null;
+      const recurringList = typeof getRecurring === 'function' ? getRecurring() : [];
+      if (!Array.isArray(recurringList) || recurringList.length === 0) return null;
+
+      const activeList = recurringList.filter(item => item && item.active !== false);
+      if (activeList.length === 0) return null;
+
+      const cleanStr = s => (s || '').toString().toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const rawText = cleanStr(textOrNote);
+      if (!rawText) return null;
+
+      const stopWords = ['bayar', 'membayar', 'pembayaran', 'byr', 'lunas', 'lunasin', 'tagihan', 'cicilan', 'angsuran', 'iuran', 'biaya', 'masuk', 'terima', 'dapat', 'gajian', 'uang', 'transaksi', 'pengeluaran', 'pemasukan', 'bulan', 'ini', 'ke', 'buat', 'untuk', 'dan'];
+      const stripStopWords = str => str.split(/\s+/).filter(w => w.length > 1 && !stopWords.includes(w)).join(' ');
+
+      const strippedUserText = stripStopWords(rawText);
+      const userTokens = rawText.split(/\s+/).filter(w => w.length >= 2);
+      const strippedUserTokens = strippedUserText.split(/\s+/).filter(w => w.length >= 2);
+
+      let bestMatch = null;
+      let highestScore = 0;
+
+      for (const item of activeList) {
+        if (!item || !item.name) continue;
+        const itemName = cleanStr(item.name);
+        const strippedItemName = stripStopWords(itemName);
+        const itemTokens = itemName.split(/\s+/).filter(w => w.length >= 2);
+        const strippedItemTokens = strippedItemName.split(/\s+/).filter(w => w.length >= 2);
+
+        let score = 0;
+
+        // 1. Exact match nama
+        if (rawText === itemName) {
+          score += 120;
+        } else if (strippedUserText && strippedItemName && strippedUserText === strippedItemName) {
+          score += 110;
+        } else if (rawText.includes(itemName) && itemName.length >= 3) {
+          score += 90 + Math.min(20, itemName.length);
+        } else if (strippedUserText && strippedItemName && (rawText.includes(strippedItemName) || strippedUserText.includes(strippedItemName))) {
+          score += 80 + Math.min(20, strippedItemName.length);
+        } else if (itemName.includes(rawText) && rawText.length >= 4) {
+          score += 70;
+        } else if (strippedUserText && strippedItemName && itemName.includes(strippedUserText) && strippedUserText.length >= 3) {
+          score += 75;
+        }
+
+        // 2. Token overlap
+        const targetTokens = strippedUserTokens.length > 0 ? strippedUserTokens : userTokens;
+        const refTokens = strippedItemTokens.length > 0 ? strippedItemTokens : itemTokens;
+        if (targetTokens.length > 0 && refTokens.length > 0) {
+          let matchedTokensCount = 0;
+          for (const t of targetTokens) {
+            if (refTokens.includes(t)) {
+              matchedTokensCount++;
+            }
+          }
+          if (matchedTokensCount > 0) {
+            score += (matchedTokensCount / refTokens.length) * 50;
+          }
+        }
+
+        // 3. Khusus kata kunci umum tagihan tertentu
+        if (/\b(wifi|indihome|biznet|firstmedia|myrepublic|iconnet)\b/.test(rawText) &&
+            /\b(wifi|indihome|biznet|firstmedia|myrepublic|iconnet|internet)\b/.test(itemName)) {
+          score += 60;
+        }
+        if (/\b(gaji|salary|upah)\b/.test(rawText) && /\b(gaji|salary|upah)\b/.test(itemName)) {
+          score += 60;
+        }
+        if (/\b(listrik|pln|token)\b/.test(rawText) && /\b(listrik|pln|token)\b/.test(itemName)) {
+          score += 60;
+        }
+        if (/\b(air|pdam)\b/.test(rawText) && /\b(air|pdam)\b/.test(itemName)) {
+          score += 60;
+        }
+        if (/\b(bpjs|asuransi)\b/.test(rawText) && /\b(bpjs|asuransi)\b/.test(itemName)) {
+          score += 60;
+        }
+        if (/\b(motor|mobil|leasing|fif|adira|oto)\b/.test(rawText) &&
+            /\b(motor|mobil|leasing|fif|adira|oto|cicilan|angsuran)\b/.test(itemName)) {
+          score += 50;
+        }
+
+        // 4. Kesesuaian tipe (expense vs income)
+        if (type && item.type === type) {
+          score += 25;
+        } else if (type && item.type !== type) {
+          score -= 40;
+        }
+
+        // 5. Prioritaskan yang belum dibayar di periode berjalan
+        const isPaid = typeof recurringPaidThisPeriod === 'function' ? recurringPaidThisPeriod(item) : false;
+        if (!isPaid) {
+          score += 20;
+        } else {
+          score -= 10;
+        }
+
+        if (score > highestScore && score >= 55) {
+          highestScore = score;
+          bestMatch = item;
+        }
+      }
+
+      return bestMatch;
+    }
+
+    function markRecurringItemPaid(recId, txId, amount, txDate) {
+      if (!recId) return;
+      const recurring = typeof getRecurring === 'function' ? getRecurring() : [];
+      const recItem = (recurring || []).find(r => r.id === recId);
+      if (!recItem) return;
+      const payDate = (txDate && /^\d{4}-\d{2}-\d{2}$/.test(txDate)) ? txDate : todayStr();
+      recItem.lastConfirmedDate = payDate;
+      recItem.history = recItem.history || [];
+      if (!recItem.history.some(h => h.txId && h.txId === txId)) {
+        recItem.history.push({
+          date: payDate,
+          amount: Math.round(Number(amount) || recItem.amount || 0),
+          txId: txId || ('tx_' + uid())
+        });
+      }
+      if (typeof setRecurring === 'function') setRecurring(recurring);
+      if (typeof refreshAllViews === 'function') refreshAllViews();
+    }
+
     function buildTransactionPromptText(expenseCats, incomeCats, todayStrVal, walletNames) {
       const walletListStr = walletNames && walletNames.length > 0 ? walletNames.join(', ') : 'Cash, Bank/E-walet';
       return 'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini:\n' +
@@ -24978,9 +25135,21 @@ Keluarkan JSON dengan schema:
 
       const txs = getTransactions();
 
-      for (const it of items) {
+      const effectiveItems = sanitizeAndMergeTxaiItems(items, false);
+
+      for (const it of effectiveItems) {
         const type = it.type === 'income' ? 'income' : 'expense';
-        const amount = Number(it.amount) || 0;
+        let amount = Number(it.amount) || 0;
+        let note = formatCleanTxNote(it.note);
+
+        const matchedRec = findMatchingRecurringItem(note, type);
+        let matchedRecId = null;
+        if (matchedRec) {
+          matchedRecId = matchedRec.id;
+          if (amount === 0 && matchedRec.amount > 0) {
+            amount = Math.round(Number(matchedRec.amount) || 0);
+          }
+        }
 
         if (amount === 0) {
           const pendingData = {
@@ -24991,14 +25160,14 @@ Keluarkan JSON dengan schema:
               category: it.category,
               type: type,
               date: todayStrVal,
-              note: it.note,
+              note: note,
               source: "whatsapp",
               createdAt: Date.now(),
               updatedAt: Date.now()
             }
           };
           localStorage.setItem('fk_chat_pending_clarify', JSON.stringify(pendingData));
-          appendChatBubble('bot', `${it.note} ini harganya berapa?`, Date.now());
+          appendChatBubble('bot', `${note} ini harganya berapa?`, Date.now());
           return;
         }
 
@@ -25012,7 +25181,7 @@ Keluarkan JSON dengan schema:
           type: type,
           amount: amount,
           date: todayStrVal,
-          note: it.note,
+          note: note,
           source: "whatsapp",
           createdAt: Date.now(),
           updatedAt: Date.now()
@@ -25023,8 +25192,12 @@ Keluarkan JSON dengan schema:
         refreshAllViews();
         scheduleSync();
 
+        if (matchedRecId) {
+          markRecurringItemPaid(matchedRecId, txId, amount, todayStrVal);
+        }
+
         const wName = wallets.find(w => w.id === targetWalletId)?.name || 'Dompet';
-        appendChatBubble('bot', `Catat: *"${it.note}"* sebesar *${formatRupiah(amount)}* (${wName})`, Date.now(), null, txId);
+        appendChatBubble('bot', `Catat: *"${note}"* sebesar *${formatRupiah(amount)}* (${wName})`, Date.now(), null, txId);
       }
     }
 
@@ -25143,6 +25316,13 @@ Keluarkan JSON dengan schema:
         recalculateWalletBalances();
         refreshAllViews();
         scheduleSync();
+
+        if (txId) {
+          const matchedRec = findMatchingRecurringItem(it.note, type);
+          if (matchedRec) {
+            markRecurringItemPaid(matchedRec.id, txId, amount, todayStrVal);
+          }
+        }
 
         appendChatBubble('bot', `Berhasil memproses foto belanja:\nCatat *"${it.note}"* sebesar *${formatRupiah(amount)}* (${wName})`, Date.now(), null, txId);
       }
@@ -27190,7 +27370,11 @@ PERTANYAAN_USER:
       const parts = [{ text: promptText }];
       if (freeText) parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + annotateSlangNominalForAi(freeText) });
       for (const f of txaiQuickFiles) { parts.push(await fileToGenerativePart(f)); }
-      if (txaiQuickAudioPart) { parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara user tentang transaksi. Dengarkan & transkripsikan.' }); parts.push(txaiQuickAudioPart); }
+      if (txaiQuickAudioPart) {
+        parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara (voice note) dari user berisi ucapan tentang transaksi. Dengarkan & transkripsikan isinya, lalu perlakukan hasilnya PERSIS seperti TEKS_BEBAS_DARI_USER sesuai semua aturan di atas.' });
+        parts.push(txaiQuickAudioPart);
+        txaiQuickAudioPart = null;
+      }
 
       const schema = {
         type: 'ARRAY',
@@ -27260,13 +27444,35 @@ PERTANYAAN_USER:
 
         for (const it of items) {
           const type = it && it.type === 'income' ? 'income' : 'expense';
-          const amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
-          const note = formatCleanTxNote(it && it.note);
-          const categoryId = matchCategoryByName(it && it.category, type);
-          const categoryObj = categoryId ? categoryById(categoryId) : null;
+          let amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
+          let note = formatCleanTxNote(it && it.note);
+          let categoryId = matchCategoryByName(it && it.category, type);
+          let categoryObj = categoryId ? categoryById(categoryId) : null;
+
+          // POIN 4: Deteksi Tagihan / Checklist
+          const freeTextVal = (document.getElementById('txaiQuickText')?.value || '').trim();
+          const matchedRec = findMatchingRecurringItem(it.note || freeTextVal, type);
+          let matchedRecId = null;
+          if (matchedRec) {
+            matchedRecId = matchedRec.id;
+            if (amount <= 0 && matchedRec.amount > 0) {
+              amount = Math.round(Number(matchedRec.amount) || 0);
+            }
+            if ((!categoryId || (categoryObj && categoryObj.name.toLowerCase() === 'lainnya')) && matchedRec.categoryId) {
+              categoryId = matchedRec.categoryId;
+              categoryObj = categoryById(categoryId);
+            }
+            if (!note || note.toLowerCase() === 'transaksi' || note.toLowerCase() === 'pengeluaran' || note.toLowerCase() === 'pemasukan') {
+              note = formatCleanTxNote(matchedRec.name);
+            }
+          }
+
           const isDraft = amount <= 0;
           const isFromMedia = txaiQuickFiles.length > 0;
-          const targetWalletId = resolveWalletId(it && it.wallet, wallets, isFromMedia, { note, category: categoryObj ? categoryObj.name : (it && it.category) });
+          let targetWalletId = (matchedRec && matchedRec.walletId) ? matchedRec.walletId : null;
+          if (!targetWalletId) {
+            targetWalletId = resolveWalletId(it && it.wallet, wallets, isFromMedia, { note, category: categoryObj ? categoryObj.name : (it && it.category) });
+          }
           const chosenWallet = wallets.find(w => w.id === targetWalletId) || (wallets.find(w => w.isPrimary) || wallets[0]);
           const txDate = (it && it.date && /^\d{4}-\d{2}-\d{2}$/.test(it.date)) ? it.date : todayStr();
           const tx = {
@@ -27282,7 +27488,14 @@ PERTANYAAN_USER:
           };
           const saved = addTransaction(tx);
           lastProcessedTxaiQuickTxs.push(saved.id);
-          if (isDraft) draftTxs.push(saved); else savedTxs.push(saved);
+          if (isDraft) {
+            draftTxs.push(saved);
+          } else {
+            savedTxs.push(saved);
+            if (matchedRecId) {
+              markRecurringItemPaid(matchedRecId, saved.id, saved.amount, txDate);
+            }
+          }
           // Kirim notifikasi PWA per transaksi (bukan digabung), sesuai PRD.
           sendTxaiQuickNotification(saved, isDraft ? 'tx_incomplete' : 'tx_saved', chosenWallet);
         }
