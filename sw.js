@@ -4,7 +4,7 @@
 // Data transaksi sendiri sudah ditangani offline-first lewat localStorage di dalam index.html —
 // service worker ini hanya menjaga APLIKASINYA (bukan datanya) tetap bisa dibuka tanpa internet.
 
-const CACHE_VERSION = 'kaslyai-v3.6.87';
+const CACHE_VERSION = 'kaslyai-v3.6.89';
 const SCOPE_URL = new URL('./', self.location.href).href;
 const APP_SHELL = [
   SCOPE_URL,
@@ -126,6 +126,7 @@ self.addEventListener('push', (event) => {
     vibrate: payload.data?.vibrate || [200, 100, 200],
     requireInteraction: !!payload.data?.requireInteraction,
     silent: false,
+    sound: new URL('audio_preview/opsi_5_kasly_joy.wav', SCOPE_URL).href,
   };
 
   event.waitUntil(self.registration.showNotification(payload.title, options));
