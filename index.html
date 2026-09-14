@@ -2472,21 +2472,27 @@
       font-weight: 700;
     }
 
-    .budget-item-edit-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 2px 4px;
-      color: var(--ink-soft);
-      font-size: 16px;
-      line-height: 1;
-      border-radius: 6px;
-      flex-shrink: 0;
-      transition: background 0.15s, color 0.15s;
-    }
-    .budget-item-edit-btn:hover {
+    .budget-row-del-btn {
       background: var(--surface-2);
-      color: var(--accent);
+      border: 1px solid transparent;
+      border-radius: 7px;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--expense);
+      padding: 0;
+      transition: background 0.15s, transform 0.1s, border-color 0.15s;
+    }
+    .budget-row-del-btn:hover {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.25);
+      transform: scale(1.05);
+    }
+    .budget-row-del-btn:active {
+      transform: scale(0.95);
     }
 
     .progress-track-wrap {
@@ -13147,7 +13153,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.89)';
+      const version = ' (v3.6.90)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15115,7 +15121,10 @@
       const budgets = getBudgets().filter(b => b.categoryId === categoryId && b.month <= monthStr);
       if (budgets.length === 0) return null;
       budgets.sort((a, b) => a.month < b.month ? 1 : -1);
-      return budgets[0]; // yang paling dekat dengan/di bulan ini
+      const latest = budgets[0];
+      // Jika limit <= 0 (tombstone / batas anggaran dihapus mulai bulan tersebut), berarti tidak ada limit
+      if (!latest || !(Number(latest.limit) > 0)) return null;
+      return latest;
     }
 
     function calculateBudgetStatus(categoryId, monthStr) {
@@ -20138,10 +20147,15 @@
       const gaugeStatusClass = (totalLimit > 0 && totalSpent >= totalLimit) ? 'over' : 'ok';
       const gaugePct = totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
       const gaugeWrap = document.getElementById('budgetGaugeWrap');
+      const lockedBtn = `<button type="button" class="btn btn-secondary btn-block" style="margin-top:14px;opacity:0.75;cursor:default;" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Bulan Terkunci
+      </button>`;
+      const editBtn = `<button type="button" class="btn btn-primary btn-block" style="margin-top:14px;" onclick="openBudgetManage()">Edit Anggaran</button>`;
+
       if (totalLimit === 0) {
         gaugeWrap.innerHTML = `<div class="budget-gauge-card">
       <div style="text-align:center;font-size:13px;color:var(--ink-soft);padding:20px 8px 8px;">Belum ada anggaran diset bulan ini.</div>
-      <button type="button" class="btn btn-primary btn-block" style="margin-top:6px;" onclick="openBudgetManage()">Edit Anggaran</button>
+      ${info.isPast ? `<button type="button" class="btn btn-secondary btn-block" style="margin-top:6px;opacity:0.75;cursor:default;" disabled><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Bulan Terkunci</button>` : `<button type="button" class="btn btn-primary btn-block" style="margin-top:6px;" onclick="openBudgetManage()">Edit Anggaran</button>`}
     </div>`;
       } else {
         const sisaPositif = Math.max(0, sisa);
@@ -20164,13 +20178,13 @@
         <div class="st"><div class="n">${formatRupiah(totalLimit)}</div><div class="l">Total anggaran</div></div>
         <div class="st"><div class="n">${formatRupiah(totalSpent)}</div><div class="l">Total pengeluaran</div></div>
       </div>
-      <button type="button" class="btn btn-primary btn-block" style="margin-top:14px;" onclick="openBudgetManage()">Edit Anggaran</button>
+      ${info.isPast ? lockedBtn : editBtn}
     </div>`;
       }
 
       // ---- Per-category cards (hanya kategori yang punya limit bulan ini) ----
       const wrap = document.getElementById('budgetListWrap');
-      const budgeted = perCatStatus.filter(({ status }) => status.limit !== null);
+      const budgeted = perCatStatus.filter(({ status }) => status.limit !== null && status.limit > 0);
       if (budgeted.length === 0) {
         wrap.innerHTML = '';
       } else {
@@ -20199,18 +20213,17 @@
               allowanceHtml = `<div class="daily-allowance ${status.remaining < 0 ? 'over' : ''}"><span class="da-remaining">Tersisa ${formatRupiah(Math.max(0, status.remaining))}</span></div>`;
             }
           }
-          return `<div class="budget-item" onclick="viewBudgetCategory('${c.name}','${month}')" style="position:relative;">
+          return `<div class="budget-item" onclick="viewBudgetCategory('${c.name}','${month}')" style="position:relative;cursor:pointer;">
       <div class="row1">
         <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
           ${categoryIconBoxHtml(c, { size: 34, iconSize: 18, radius: 9 })}
-          <div class="cat-name">${c.name}</div>
+          <div class="cat-name">${escAttr(c.name)}</div>
         </div>
         <div class="amt-col" style="display:flex;align-items:center;gap:6px;">
           <div style="text-align:right;">
             <div class="amt-limit">${formatRupiah(status.limit)}</div>
             ${spentHtml}
           </div>
-          <button class="budget-item-edit-btn" onclick="event.stopPropagation();openBudgetLimitModal('${c.id}','${c.name}')" title="Set Limit">✏️</button>
         </div>
       </div>
       <div class="progress-track-wrap">
@@ -20225,50 +20238,116 @@
 
     function renderBudgetManageList() {
       const month = budgetMonth || currentMonthStr();
+      const isPast = month < currentMonthStr();
       document.getElementById('budgetManageMonthLabel').textContent = monthLabel(month);
       const expCats = getCategories().filter(c => c.type === 'expense');
       const wrap = document.getElementById('budgetManageListWrap');
       wrap.innerHTML = expCats.map(c => {
         const status = calculateBudgetStatus(c.id, month);
-        const limitLabel = status.limit !== null ? formatRupiah(status.limit) : 'Belum diset';
-        return `<div class="budget-manage-row" onclick="openBudgetLimitModal('${c.id}','${c.name}')">
+        const hasLimit = status.limit !== null && status.limit > 0;
+        const limitLabel = hasLimit ? formatRupiah(status.limit) : 'Belum diset';
+
+        let actionHtml = '';
+        if (isPast) {
+          actionHtml = `<span class="${hasLimit ? '' : 'unset'}">${limitLabel}</span>`;
+        } else if (hasLimit) {
+          actionHtml = `
+            <span style="font-weight:700;color:var(--ink);">${limitLabel}</span>
+            <button type="button" class="budget-row-del-btn" onclick="event.stopPropagation();confirmDeleteBudgetLimit('${c.id}','${escAttr(c.name)}')" title="Hapus Limit">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--ink-soft);"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          `;
+        } else {
+          actionHtml = `
+            <span class="unset">${limitLabel}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:var(--ink-soft);"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          `;
+        }
+
+        const clickAttr = isPast ? '' : `onclick="openBudgetLimitModal('${c.id}','${escAttr(c.name)}')"` ;
+        return `<div class="budget-manage-row" ${clickAttr} style="${isPast ? 'cursor:default;' : ''}">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
         ${categoryIconBoxHtml(c, { size: 36, iconSize: 18, radius: 10 })}
-        <div class="cat-name">${c.name}</div>
+        <div class="cat-name">${escAttr(c.name)}</div>
       </div>
-      <div class="right"><span class="${status.limit !== null ? '' : 'unset'}">${limitLabel}</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
+      <div class="right" style="display:flex;align-items:center;gap:8px;">${actionHtml}</div>
     </div>`;
       }).join('');
     }
+
     function openBudgetManage() {
+      const month = budgetMonth || currentMonthStr();
+      if (month < currentMonthStr()) {
+        showToast('Anggaran bulan lampau telah terkunci');
+        return;
+      }
       renderBudgetManageList();
       openModal('modalBudgetManage');
     }
 
     function openBudgetLimitModal(catId, catName) {
+      const month = budgetMonth || currentMonthStr();
+      if (month < currentMonthStr()) {
+        showToast('Anggaran bulan lampau telah terkunci');
+        return;
+      }
       document.getElementById('budgetLimitCatId').value = catId;
       document.getElementById('budgetLimitTitle').textContent = 'Set Limit — ' + catName;
-      const month = budgetMonth || currentMonthStr();
       const b = getEffectiveBudget(catId, month);
-      document.getElementById('budgetLimitAmount').value = b ? b.limit.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
-      // Tampilkan tombol hapus hanya jika limit sudah ada
+      document.getElementById('budgetLimitAmount').value = (b && b.limit > 0) ? b.limit.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+      // Tampilkan tombol hapus hanya jika limit sudah ada dan bukan bulan lampau
       const deleteBtn = document.getElementById('budgetLimitDeleteBtn');
-      if (deleteBtn) deleteBtn.style.display = b ? 'block' : 'none';
+      if (deleteBtn) deleteBtn.style.display = (b && b.limit > 0) ? 'block' : 'none';
       openModal('modalBudgetLimit');
     }
 
-    function saveBudgetLimit() {
+    async function saveBudgetLimit() {
+      const month = budgetMonth || currentMonthStr();
+      if (month < currentMonthStr()) {
+        showToast('Anggaran bulan lampau telah terkunci');
+        return;
+      }
       const catId = document.getElementById('budgetLimitCatId').value;
       const amount = parseRupiahInput(document.getElementById('budgetLimitAmount').value);
-      const month = budgetMonth || currentMonthStr();
       if (!(amount > 0)) { showToast('Masukkan nominal limit yang valid'); return; }
+
+      const budgetId = catId + '_' + month;
+      const code = getAccessCode();
+
+      // Bersihkan dari deletedIds jika pernah dicatat
+      const delIds = getDeletedIds().filter(x => x !== budgetId);
+      setDeletedIds(delIds);
+
       const budgets = getBudgets();
       const idx = budgets.findIndex(b => b.categoryId === catId && b.month === month);
-      if (idx >= 0) budgets[idx].limit = amount;
-      else budgets.push({ categoryId: catId, month, limit: amount });
+      if (idx >= 0) {
+        budgets[idx].limit = amount;
+        budgets[idx].id = budgets[idx].id || budgetId;
+        budgets[idx].updatedAt = Date.now();
+      } else {
+        budgets.push({ id: budgetId, categoryId: catId, month, limit: amount, updatedAt: Date.now() });
+      }
       setBudgets(budgets);
+
+      if (supabaseClient && navigator.onLine) {
+        try {
+          await supabaseClient.from('budgets').upsert([{
+            id: budgetId,
+            access_code: code,
+            user_id: currentUserId,
+            category_id: catId,
+            month: month,
+            limit_amount: amount,
+            updated_at: new Date().toISOString()
+          }]);
+        } catch (e) {
+          console.warn('Supabase budget save err:', e);
+        }
+      }
+
       closeModal('modalBudgetLimit');
       showToast('Limit budget disimpan — berlaku mulai bulan ini');
       renderBudget();
@@ -20276,16 +20355,118 @@
       if (document.getElementById('modalBudgetManage').classList.contains('open')) renderBudgetManageList();
     }
 
-    function deleteBudgetLimit() {
-      const catId = document.getElementById('budgetLimitCatId').value;
+    async function confirmDeleteBudgetLimit(catId, catName) {
       const month = budgetMonth || currentMonthStr();
-      const budgets = getBudgets().filter(b => !(b.categoryId === catId && b.month === month));
-      setBudgets(budgets);
+      if (month < currentMonthStr()) {
+        showToast('Anggaran bulan lampau telah terkunci');
+        return;
+      }
+      const confirmed = await showConfirmModal({
+        title: 'Hapus Limit Anggaran',
+        text: `Hapus limit anggaran untuk kategori "${catName}"? Limit akan dihapus mulai bulan ini dan berlaku ke bulan-bulan berikutnya. Bulan lampau tetap dikunci.`,
+        actionText: 'Ya, Hapus',
+        isDanger: true
+      });
+      if (!confirmed) return;
+      await executeDeleteBudgetLimit(catId);
+    }
+
+    async function deleteBudgetLimit() {
+      const catId = document.getElementById('budgetLimitCatId').value;
+      const cat = categoryById(catId);
+      const catName = cat ? cat.name : 'kategori ini';
+      const month = budgetMonth || currentMonthStr();
+      if (month < currentMonthStr()) {
+        showToast('Anggaran bulan lampau telah terkunci');
+        return;
+      }
+      const confirmed = await showConfirmModal({
+        title: 'Hapus Limit Anggaran',
+        text: `Hapus limit anggaran untuk kategori "${catName}"? Limit akan dihapus mulai bulan ini dan berlaku ke bulan-bulan berikutnya. Bulan lampau tetap dikunci.`,
+        actionText: 'Ya, Hapus',
+        isDanger: true
+      });
+      if (!confirmed) return;
+      await executeDeleteBudgetLimit(catId);
       closeModal('modalBudgetLimit');
-      showToast('Limit anggaran dihapus');
+    }
+
+    async function executeDeleteBudgetLimit(catId) {
+      const curMonth = currentMonthStr();
+      const month = budgetMonth || curMonth;
+      if (month < curMonth) {
+        showToast('Anggaran bulan lampau telah terkunci');
+        return;
+      }
+
+      let budgets = getBudgets();
+      const code = getAccessCode();
+      const budgetId = catId + '_' + month;
+
+      // Cek apakah ada riwayat budget bulan lampau (< curMonth) dengan limit > 0
+      const hasPastBudget = budgets.some(b => b.categoryId === catId && b.month < curMonth && Number(b.limit) > 0);
+
+      // Kumpulkan ID record yang ada di bulan-bulan setelahnya (> month) untuk dihapus permanen
+      const futureRecords = budgets.filter(b => b.categoryId === catId && b.month > month);
+      const futureIds = futureRecords.map(b => b.id || (b.categoryId + '_' + b.month));
+
+      if (hasPastBudget) {
+        // Ada riwayat bulan lalu yang harus tetap dikunci: buat/update tombstone limit: 0 di bulan ini (curMonth)
+        // agar carry-forward terputus mulai bulan ini ke depan tanpa merusak riwayat bulan lampau.
+        const curIdx = budgets.findIndex(b => b.categoryId === catId && b.month === month);
+        if (curIdx >= 0) {
+          budgets[curIdx].limit = 0;
+          budgets[curIdx].id = budgets[curIdx].id || budgetId;
+          budgets[curIdx].updatedAt = Date.now();
+        } else {
+          budgets.push({ id: budgetId, categoryId: catId, month: month, limit: 0, updatedAt: Date.now() });
+        }
+        budgets = budgets.filter(b => !(b.categoryId === catId && b.month > month));
+        setBudgetsLocalOnly(budgets);
+
+        if (supabaseClient && navigator.onLine) {
+          try {
+            await supabaseClient.from('budgets').upsert([{
+              id: budgetId,
+              access_code: code,
+              user_id: currentUserId,
+              category_id: catId,
+              month: month,
+              limit_amount: 0,
+              updated_at: new Date().toISOString()
+            }]);
+            if (futureIds.length > 0) {
+              await scopeToOwner(supabaseClient.from('budgets').delete(), code).in('id', futureIds);
+            }
+          } catch (err) {
+            console.warn('Supabase budget tombstone err:', err);
+          }
+        }
+        futureIds.forEach(id => recordDeletion(id));
+      } else {
+        // Tidak ada riwayat bulan lampau: hapus bersih semua record untuk kategori ini
+        const allCatRecords = budgets.filter(b => b.categoryId === catId);
+        const allCatIds = allCatRecords.map(b => b.id || (b.categoryId + '_' + b.month));
+        budgets = budgets.filter(b => b.categoryId !== catId);
+        setBudgetsLocalOnly(budgets);
+
+        if (supabaseClient && navigator.onLine) {
+          try {
+            await scopeToOwner(supabaseClient.from('budgets').delete(), code).eq('category_id', catId);
+          } catch (err) {
+            console.warn('Supabase budget delete err:', err);
+          }
+        }
+        allCatIds.forEach(id => recordDeletion(id));
+      }
+
+      scheduleSync();
+      showToast('Limit anggaran berhasil dihapus');
       renderBudget();
       renderHome();
-      if (document.getElementById('modalBudgetManage').classList.contains('open')) renderBudgetManageList();
+      if (document.getElementById('modalBudgetManage').classList.contains('open')) {
+        renderBudgetManageList();
+      }
     }
 
     /* =========================================================

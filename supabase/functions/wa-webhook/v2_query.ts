@@ -233,7 +233,7 @@ export async function processV2Query(
     .filter(c => c.type === "expense")
     .map(c => {
       const budgetLimit = budgets.find(b => b.category_id === c.id);
-      const limitAmt = budgetLimit ? Number(budgetLimit.limit_amount) : null;
+      const limitAmt = (budgetLimit && Number(budgetLimit.limit_amount) > 0) ? Number(budgetLimit.limit_amount) : null;
       const spentAmt = categorySpentMap[c.name] || 0;
       const remainingAmt = limitAmt !== null ? limitAmt - spentAmt : null;
       return {

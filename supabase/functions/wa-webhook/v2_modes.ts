@@ -43,8 +43,8 @@ function findGoalByName(name: string, goals: any[]): any[] {
 // Helper sorting kategori & goal
 function sortExpenseCategories(expenseCats: any[], budgets: any[]): any[] {
   return [...expenseCats].sort((catA, catB) => {
-    const bA = budgets.find(b => b.category_id === catA.id);
-    const bB = budgets.find(b => b.category_id === catB.id);
+    const bA = budgets.find(b => b.category_id === catA.id && Number(b.limit_amount) > 0);
+    const bB = budgets.find(b => b.category_id === catB.id && Number(b.limit_amount) > 0);
     const hasLimitA = bA ? 1 : 0;
     const hasLimitB = bB ? 1 : 0;
     if (hasLimitA !== hasLimitB) {
@@ -759,7 +759,7 @@ async function renderLimitList(db: SupabaseClient, categories: any[], userId: st
 
   sortedCats.forEach((c, idx) => {
     const b = budgets.find(b => b.category_id === c.id);
-    const limit = b ? Number(b.limit_amount) : null;
+    const limit = (b && Number(b.limit_amount) > 0) ? Number(b.limit_amount) : null;
     const spent = spentMap[c.name] || 0;
     const remaining = limit !== null ? limit - spent : null;
 
@@ -822,11 +822,12 @@ export async function handleModeLimitMessage(
 
   const budgetList = sortedCats.map(c => {
     const b = budgets.find(b => b.category_id === c.id);
+    const hasLimit = b && Number(b.limit_amount) > 0;
     return {
       category_id: c.id,
       category_name: c.name,
-      limit: b ? Number(b.limit_amount) : null,
-      budget_id: b ? b.id : null
+      limit: hasLimit ? Number(b.limit_amount) : null,
+      budget_id: hasLimit ? b.id : null
     };
   });
 
