@@ -12218,7 +12218,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.84)';
+      const version = ' (v3.6.85)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16720,10 +16720,10 @@
         '1.5. JIKA DOKUMEN ADALAH SCREENSHOT PESANAN E-COMMERCE ATAU FOOD/DELIVERY APP (ATURAN PALING PENTING — WAJIB DIBACA SEBELUM KASUS 1):\n' +
         '   - Kenali platform e-commerce dan food/delivery app dari tampilan UI, logo, atau elemen khas: Shopee, Tokopedia, Lazada, Bukalapak, Blibli, TikTok Shop, Shopee Food, GoFood, GrabFood, MaxFood, Traveloka Eats, dsb.\n' +
         '   - ATURAN MUTLAK: Untuk semua jenis screenshot dari platform e-commerce/food delivery di atas, WAJIB buat HANYA SATU (1) objek transaksi saja, dengan "amount" = Grand Total / Total Bayar yang tertera (biasanya di bagian paling bawah ringkasan pembayaran, sering disebut "Total Pembayaran", "Total Bayar", "Grand Total", atau yang sudah termasuk pajak). JANGAN pecah menjadi beberapa transaksi.\n' +
-        '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Admin, Ongkos Kirim, Ongkir, Biaya Platform, PPN, Pajak, Biaya Asuransi, Biaya Proteksi Keamanan, atau biaya-biaya tambahan lainnya yang merupakan bagian dari satu pesanan e-commerce. Semua biaya ini sudah TERMASUK dalam satu Grand Total.\n' +
-        '   - "note" diisi dengan nama barang/menu utama yang dipesan (bukan nama platform-nya). Contoh: "Paket Donatsu Donat Susu" (bukan "Shopee Food"). Jika ada banyak item, sebutkan yang paling dominan atau ringkas jadi "[item utama] dan lainnya".\n' +
+        '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Tambahan Resto, Biaya Resto, Biaya Admin, Ongkos Kirim, Ongkir, Biaya Platform, Biaya Kemasan/Bungkus/Plastik, Biaya Penanganan, Biaya Aplikasi, Biaya Asuransi, Biaya Proteksi Keamanan, PPN, Pajak, Driver Tip, atau biaya-biaya tambahan lainnya yang merupakan bagian dari satu pesanan e-commerce/food delivery. Semua biaya ini sudah TERMASUK dalam satu Grand Total.\n' +
+        '   - "note" diisi dengan nama barang/menu utama yang dipesan (bukan nama platform-nya, dan bukan nama biayanya). Contoh: "Triple Cheese Flatzz" (bukan "Shopee Food"). Jika ada banyak item, sebutkan yang paling dominan atau ringkas jadi "[item utama] dan lainnya".\n' +
         '   - "category" dipilih sesuai jenis barang/menu yang dipesan: makanan/minuman → kategori "Makan"/"Jajan" yang sesuai; barang fisik → kategori barang tsb ("Belanja", "Elektronik", dll); jika tidak jelas → "Lainnya".\n' +
-        '   - Contoh: screenshot Shopee Food dengan subtotal Rp50.000 + ongkir Rp1.500 + biaya layanan Rp1.500 = total Rp53.000 → SATU transaksi: amount=53000, note="Paket Donatsu Donat Susu", category="Jajan". BUKAN 3 transaksi terpisah.\n\n' +
+        '   - Contoh: screenshot Shopee Food dengan menu "Triple Cheese Flatzz" subtotal Rp27.000 + ongkir Rp1.000 + biaya layanan Rp4.500 + biaya tambahan resto Rp3.000 = total Rp35.500 → WAJIB SATU transaksi: amount=35500, note="Triple Cheese Flatzz", category="Makan", wallet="Bank/E-walet". JANGAN PERNAH dipecah menjadi 4 transaksi terpisah!\n\n' +
         '2. JIKA DOKUMEN ADALAH MUTASI REKENING/M-BANKING/E-WALLET/PDF STATEMENT:\n' +
         '   - Baca dokumen baris per baris dari atas ke bawah.\n' +
         '   - Setiap baris transaksi terpisah (punya keterangan/waktu sendiri) dicatat sebagai transaksi TERSENDIRI, walaupun nominal/tanggalnya sama persis.\n' +
@@ -24760,6 +24760,111 @@ Keluarkan JSON dengan schema:
       return defId;
     }
 
+    const FEE_ITEM_REGEX = /^(biaya\s*(pengiriman|layanan|tambahan\s*resto|tambahan|resto|admin|platform|penanganan|aplikasi|asuransi|proteksi|kemasan|bungkus|kantong|antar|pemesanan|pesanan)|ongkir|ongkos\s*(kirim|antar)|ppn|pajak|tax|service\s*charge|delivery\s*fee|service\s*fee|platform\s*fee|resto\s*fee|restaurant\s*fee|handling\s*fee|driver\s*tip|tip\s*driver)\b/i;
+
+    function isFeeItemNote(note) {
+      if (!note) return false;
+      const n = String(note).trim().toLowerCase();
+      if (FEE_ITEM_REGEX.test(n)) return true;
+      if (/biaya\s*(pengiriman|layanan|tambahan\s*resto|resto|admin|platform|penanganan|aplikasi|kemasan)/i.test(n)) return true;
+      if (/(ongkos\s*kirim|ongkir|delivery\s*fee|service\s*fee)/i.test(n)) return true;
+      return false;
+    }
+
+    function sanitizeAndMergeTxaiItems(items, hasMedia) {
+      if (!Array.isArray(items) || items.length === 0) return items;
+
+      // 1. Safeguard Media / Bukti Transfer: 0-amount description + non-zero amount transfer
+      if (items.length > 1 && hasMedia) {
+        const genericNotes = ['pengeluaran', 'pemasukan', 'transaksi', 'lainnya', ''];
+        const zeroIdx = items.findIndex(it => (Number(it && it.amount) || 0) === 0 && it && it.note && !genericNotes.includes(it.note.toLowerCase().trim()));
+        const nonZeroIdx = items.findIndex(it => (Number(it && it.amount) || 0) > 0);
+        if (zeroIdx !== -1 && nonZeroIdx !== -1 && zeroIdx !== nonZeroIdx) {
+          const zeroItem = items[zeroIdx];
+          const nonZeroItem = items[nonZeroIdx];
+          const mergedItem = {
+            ...nonZeroItem,
+            note: zeroItem.note,
+            category: (zeroItem.category && zeroItem.category.toLowerCase() !== 'transfer') ? zeroItem.category : nonZeroItem.category,
+            wallet: zeroItem.wallet || nonZeroItem.wallet || 'Bank/E-walet'
+          };
+          items = items.filter((_, idx) => idx !== zeroIdx && idx !== nonZeroIdx);
+          items.push(mergedItem);
+        }
+      }
+
+      // 2. Safeguard E-commerce / Food Delivery line-item fees:
+      // If there are main non-fee item(s) AND fee item(s) (Biaya Pengiriman, Layanan, Resto, Ongkir, etc.)
+      const feeItems = [];
+      const nonFeeItems = [];
+
+      for (const it of items) {
+        if (it && isFeeItemNote(it.note)) {
+          feeItems.push(it);
+        } else if (it) {
+          nonFeeItems.push(it);
+        }
+      }
+
+      if (feeItems.length > 0 && nonFeeItems.length > 0) {
+        const totalFee = feeItems.reduce((s, f) => s + Math.max(0, Math.round(Number(f && f.amount) || 0)), 0);
+        let targetItem = nonFeeItems[0];
+        for (let i = 1; i < nonFeeItems.length; i++) {
+          if ((Number(nonFeeItems[i].amount) || 0) > (Number(targetItem.amount) || 0)) {
+            targetItem = nonFeeItems[i];
+          }
+        }
+        targetItem.amount = (Number(targetItem.amount) || 0) + totalFee;
+        items = nonFeeItems;
+      }
+
+      // 3. Category Grouping Safeguard (sama seperti handlers.ts pada webhook WhatsApp):
+      // Jika dokumen adalah media/struk belanja/pesanan dan beberapa item memiliki kategori yang sama,
+      // gabungkan nominalnya ke satu transaksi per kategori (kecuali kategori 'Lainnya').
+      if (hasMedia && items.length > 1) {
+        const cats = getCategories();
+        const matched = items.map(it => {
+          const type = (it && it.type === 'income') ? 'income' : 'expense';
+          const catId = matchCategoryByName(it && it.category, type);
+          const catObj = catId ? categoryById(catId) : null;
+          const catName = catObj ? catObj.name : (it && it.category) || 'Lainnya';
+          return { ...it, type, catId, catName };
+        });
+
+        const grouped = {};
+        const finalItems = [];
+        for (const it of matched) {
+          if (it.catName.toLowerCase() === 'lainnya') {
+            finalItems.push(it);
+            continue;
+          }
+          const key = `${it.type}_${it.catId || it.catName}`;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        }
+
+        for (const key in grouped) {
+          const g = grouped[key];
+          if (g.length === 1) {
+            finalItems.push(g[0]);
+          } else {
+            const first = g[0];
+            const mergedAmount = g.reduce((sum, item) => sum + Math.max(0, Math.round(Number(item.amount) || 0)), 0);
+            const validNotes = g.map(x => (x.note || '').trim()).filter(n => n && !isFeeItemNote(n));
+            const mergedNote = validNotes.length > 0 ? validNotes.join(', ') : g.map(x => (x.note || '').trim()).filter(Boolean).join(', ');
+            finalItems.push({
+              ...first,
+              amount: mergedAmount,
+              note: mergedNote || first.note
+            });
+          }
+        }
+        items = finalItems;
+      }
+
+      return items;
+    }
+
     function buildTransactionPromptText(expenseCats, incomeCats, todayStrVal, walletNames) {
       const walletListStr = walletNames && walletNames.length > 0 ? walletNames.join(', ') : 'Cash, Bank/E-walet';
       return 'Kamu asisten pencatatan keuangan pribadi yang ahli membaca berbagai sumber dokumen transaksi. Setiap lampiran bisa berupa salah satu dari ini:\n' +
@@ -24789,9 +24894,9 @@ Keluarkan JSON dengan schema:
         '   - Kenali platform dari tampilan UI, logo, atau elemen khas: Shopee, Tokopedia, Lazada, Bukalapak, Blibli, TikTok Shop, Shopee Food, GoFood, GrabFood, MaxFood, Traveloka Eats, dsb.\n' +
         '   - METODE PEMBAYARAN & DOMPET: Pesanan online/food delivery/e-commerce (Shopee, GoFood, GrabFood, Tokopedia, dsb.) secara default selalu dibayar non-tunai (ShopeePay, GoPay, OVO, DANA, transfer bank, saldo, debit, QRIS). WAJIB isi field "wallet" dengan dompet bank/e-wallet (misal: "Bank/E-walet" atau bank/ewallet yang cocok dari daftar dompet), TERMASUK jika rincian metode pembayaran terpotong atau tidak terlihat di gambar. HANYA jika di gambar EKSPLISIT tertulis "COD" atau "Tunai / Bayar di Tempat", barulah isi field "wallet" dengan "Cash".\n' +
         '   - ATURAN MUTLAK: Buat HANYA SATU (1) objek transaksi saja, dengan "amount" = Grand Total / Total Bayar yang tertera (sudah termasuk semua biaya). JANGAN pecah menjadi beberapa transaksi.\n' +
-        '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Admin, Ongkir, PPN, Pajak, atau biaya tambahan lainnya. Semua sudah TERMASUK dalam satu Grand Total.\n' +
-        '   - "note" diisi nama barang/menu utama (bukan nama platform). Contoh: "Paket Donatsu Donat Susu" bukan "Shopee Food".\n' +
-        '   - Contoh: screenshot Shopee Food subtotal Rp50.000 + ongkir Rp1.500 + biaya layanan Rp1.500 = total Rp53.000 dengan ShopeePay → SATU transaksi: amount=53000, note="Paket Donatsu Donat Susu", category="Jajan", wallet="Bank/E-walet".\n\n' +
+        '   - JANGAN PERNAH membuat transaksi terpisah untuk: Biaya Layanan, Biaya Pengiriman, Biaya Tambahan Resto, Biaya Resto, Biaya Admin, Ongkos Kirim, Ongkir, Biaya Platform, Biaya Kemasan/Bungkus/Plastik, Biaya Penanganan, Biaya Aplikasi, Biaya Asuransi, Biaya Proteksi Keamanan, PPN, Pajak, Driver Tip, atau biaya-biaya tambahan lainnya yang merupakan bagian dari satu pesanan e-commerce/food delivery. Semua biaya ini sudah TERMASUK dalam satu Grand Total.\n' +
+        '   - "note" diisi nama barang/menu utama (bukan nama platform, dan BUKAN nama biayanya). Contoh: "Triple Cheese Flatzz" bukan "Shopee Food". Jika ada beberapa menu, sebutkan menu utama atau ringkas jadi "[menu utama] dan lainnya".\n' +
+        '   - Contoh: screenshot Shopee Food dengan menu "Triple Cheese Flatzz" subtotal Rp27.000 + biaya pengiriman Rp1.000 + biaya layanan Rp4.500 + biaya tambahan resto Rp3.000 = total Rp35.500 dengan ShopeePay → WAJIB SATU TRANSAKSI TUNGGAL: amount=35500, note="Triple Cheese Flatzz", category="Makan", wallet="Bank/E-walet". JANGAN PERNAH dipecah menjadi 4 transaksi terpisah!\n\n' +
         '1.6. JIKA DOKUMEN ADALAH BUKTI TRANSFER BANK / E-WALLET / QRIS / SLIP PEMBAYARAN DIGITAL (Transfer Receipt / Payment Proof):\n' +
         '   - Kenali dari tampilan screenshot: bukti transfer sukses, QRIS / QR Bayar (misal Livin Mandiri, BCA, dsb.), BI-Fast, transfer sesama/antar bank, pembayaran digital, top-up, atau mutasi e-wallet (BCA, Mandiri, BRI, BNI, BSI, Jago, Seabank, GoPay, OVO, DANA, ShopeePay, dsb).\n' +
         '   - ATURAN MUTLAK GABUNGAN BUKTI TRANSFER + CAPTION/TEKS USER (SATU BATCH TRANSAKSI TUNGGAL):\n' +
@@ -25005,34 +25110,8 @@ Keluarkan JSON dengan schema:
         return;
       }
 
-      // SAFEGUARD MEDIA / BUKTI TRANSFER:
-      // Jika AI memecah menjadi item 0 (deskripsi dari teks user) dan item > 0 (nominal bukti transfer),
-      // GABUNG menjadi 1 transaksi tunggal!
-      let effectiveItems = items;
-      if (items.length > 1) {
-        const genericNotes = ['pengeluaran', 'pemasukan', 'transaksi', 'lainnya', ''];
-        const zeroIdx = items.findIndex(it => (Number(it.amount) || 0) === 0 && it.note && !genericNotes.includes(it.note.toLowerCase().trim()));
-        const nonZeroIdx = items.findIndex(it => (Number(it.amount) || 0) > 0);
-
-        if (zeroIdx !== -1 && nonZeroIdx !== -1 && zeroIdx !== nonZeroIdx) {
-          const zeroItem = items[zeroIdx];
-          const nonZeroItem = items[nonZeroIdx];
-
-          const mergedNote = zeroItem.note;
-          const mergedCat = (zeroItem.category && zeroItem.category.toLowerCase() !== 'transfer') ? zeroItem.category : nonZeroItem.category;
-          const mergedWallet = zeroItem.wallet || nonZeroItem.wallet || 'Bank/E-walet';
-
-          const mergedItem = {
-            ...nonZeroItem,
-            note: mergedNote,
-            category: mergedCat,
-            wallet: mergedWallet,
-          };
-
-          effectiveItems = items.filter((_, idx) => idx !== zeroIdx && idx !== nonZeroIdx);
-          effectiveItems.push(mergedItem);
-        }
-      }
+      // SAFEGUARD MEDIA / BUKTI TRANSFER & E-COMMERCE / FOOD DELIVERY LINE-ITEM FEES:
+      const effectiveItems = sanitizeAndMergeTxaiItems(items, true);
 
       const txs = getTransactions();
       const mentionedWalletId = findMentionedWalletId(inputText, wallets);
@@ -27100,27 +27179,16 @@ PERTANYAAN_USER:
       const freeText = (ta && ta.value || '').trim();
       const expenseCats = getCategories().filter(c => c.type === 'expense').map(c => c.name);
       const incomeCats = getCategories().filter(c => c.type === 'income').map(c => c.name);
+      const wallets = getWallets();
+      const todayStrVal = todayStr();
 
-      const promptText =
-        'Kamu asisten pencatatan keuangan pribadi. Tugasmu membaca input user (teks bebas, foto struk, atau rekaman suara) ' +
-        'dan mengeluarkan JSON array transaksi.\n\n' +
-        'Daftar Kategori Pengeluaran (expense) yang TERSEDIA: [' + expenseCats.join(', ') + '].\n' +
-        'Daftar Kategori Pemasukan (income) yang TERSEDIA: [' + incomeCats.join(', ') + '].\n\n' +
-        'Panduan Klasifikasi Kategori & Nominal:\n' +
-        '1. Cocokkan kategori transaksi dengan nama dari daftar di atas yang PALING SPESIFIK. Misalnya: kata "makan", "makanan", "nasi", "lauk", "bakso", "mie", "soto", "warung", "resto" WAJIB masuk ke kategori "' + (expenseCats.find(c => c.toLowerCase().includes('makan')) || 'Makan') + '". JANGAN PERNAH masukkan makanan ke kategori "Lainnya" jika kategori makanan tersedia!\n' +
-        '2. Jika di dalam input TIDAK ADA nominal (mis. cuma "makan" atau "bensin"), set "amount" ke 0 — JANGAN MENEBAK ATAU MENGARANG NOMINAL (seperti 100000 atau 10000)!\n' +
-        '3. Kenali format nominal Indonesia: "25rb"=25000, "2,5"=2500, "seceng"=1000, "goceng"=5000, "ceban"=10000, "gocap"=50000, "5k"=5000.\n' +
-        '4. Jika dari satu input ada BEBERAPA transaksi terpisah, PECAH menjadi beberapa objek transaksi terpisah dalam array JSON.\n' +
-        '5. JIKA REKAMAN SUARA/TEKS KOSONG ATAU SAMA SEKALI TIDAK BERISI INFORMASI TRANSAKSI (misalnya hening/diam tanpa ucapan, atau kata sapaan polos "halo"), keluarkan ARRAY KOSONG [].\n' +
-        '6. ATURAN PENULISAN KETERANGAN (NOTE): Wajib tulis keterangan ("note") secara rapi, ringkas, bersih, dan menggunakan huruf kapital di awal setiap kata (Title Case / Capital Case). WAJIB perbaiki kesalahan ketik (typo), singkatan informal/slang, dan kata berulang (Contoh: "paket internet pket malem" menjadi "Paket Internet Malam", "mkn ns pdg" menjadi "Makan Nasi Padang", "isi bnsin mtor" menjadi "Isi Bensin Motor", "byr wifi" menjadi "Bayar Wifi", "blanja di indomaret" menjadi "Belanja Indomaret"). Jangan salin mentah-mentah typo atau kata berulang dari teks user!\n\n' +
-        'Field per transaksi:\n' +
-        '- "type": "income" atau "expense"\n' +
-        '- "amount": integer angka (0 jika nominal tidak disebutkan)\n' +
-        '- "note": string keterangan rapi baku & berhuruf kapital di awal kata\n' +
-        '- "category": string nama kategori (harus persis sesuai daftar di atas)';
+      let promptText = buildTransactionPromptText(expenseCats, incomeCats, todayStrVal, wallets.map(w => w.name));
+      promptText += '\n\nATURAN PENULISAN KETERANGAN (NOTE):\n' +
+        'Wajib tulis keterangan ("note") secara rapi, ringkas, bersih, dan menggunakan huruf kapital di awal setiap kata (Title Case / Capital Case). WAJIB perbaiki kesalahan ketik (typo), singkatan informal/slang, dan kata berulang (Contoh: "paket internet pket malem" menjadi "Paket Internet Malam", "mkn ns pdg" menjadi "Makan Nasi Padang", "isi bnsin mtor" menjadi "Isi Bensin Motor", "byr wifi" menjadi "Bayar Wifi", "blanja di indomaret" menjadi "Belanja Indomaret"). Jangan salin mentah-mentah typo atau kata berulang dari teks user!\n' +
+        'Jika rekaman suara/teks kosong atau sama sekali tidak berisi informasi transaksi (misalnya hening/diam tanpa ucapan, atau kata sapaan polos "halo"), keluarkan ARRAY KOSONG [].';
 
       const parts = [{ text: promptText }];
-      if (freeText) parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + freeText });
+      if (freeText) parts.push({ text: 'TEKS_BEBAS_DARI_USER: ' + annotateSlangNominalForAi(freeText) });
       for (const f of txaiQuickFiles) { parts.push(await fileToGenerativePart(f)); }
       if (txaiQuickAudioPart) { parts.push({ text: 'CATATAN: lampiran audio berikut adalah rekaman suara user tentang transaksi. Dengarkan & transkripsikan.' }); parts.push(txaiQuickAudioPart); }
 
@@ -27129,10 +27197,13 @@ PERTANYAAN_USER:
         items: {
           type: 'OBJECT',
           properties: {
+            order: { type: 'INTEGER' },
+            date: { type: 'STRING' },
             type: { type: 'STRING', enum: ['income', 'expense'] },
             amount: { type: 'NUMBER' },
             note: { type: 'STRING' },
-            category: { type: 'STRING' }
+            category: { type: 'STRING' },
+            wallet: { type: 'STRING' }
           },
           required: ['type', 'amount', 'note', 'category']
         }
@@ -27180,9 +27251,9 @@ PERTANYAAN_USER:
       document.getElementById('txaiQuickStepInput').style.display = 'none';
       document.getElementById('txaiQuickStepLoading').style.display = 'block';
       try {
-        const items = await txaiQuickParseWithGemini();
+        const rawItems = await txaiQuickParseWithGemini();
+        const items = sanitizeAndMergeTxaiItems(rawItems, txaiQuickFiles.length > 0);
         const wallets = getWallets();
-        const wallet = wallets.find(w => w.isPrimary) || wallets[0];
         const savedTxs = [];
         const draftTxs = [];
         lastProcessedTxaiQuickTxs = [];
@@ -27194,14 +27265,18 @@ PERTANYAAN_USER:
           const categoryId = matchCategoryByName(it && it.category, type);
           const categoryObj = categoryId ? categoryById(categoryId) : null;
           const isDraft = amount <= 0;
+          const isFromMedia = txaiQuickFiles.length > 0;
+          const targetWalletId = resolveWalletId(it && it.wallet, wallets, isFromMedia, { note, category: categoryObj ? categoryObj.name : (it && it.category) });
+          const chosenWallet = wallets.find(w => w.id === targetWalletId) || (wallets.find(w => w.isPrimary) || wallets[0]);
+          const txDate = (it && it.date && /^\d{4}-\d{2}-\d{2}$/.test(it.date)) ? it.date : todayStr();
           const tx = {
-            date: todayStr(),
+            date: txDate,
             type,
             amount,
             note,
             categoryId,
             category: categoryObj ? categoryObj.name : (it && it.category) || 'Lainnya',
-            walletId: wallet ? wallet.id : null,
+            walletId: chosenWallet ? chosenWallet.id : null,
             source: 'app',
             isDraft
           };
@@ -27209,7 +27284,7 @@ PERTANYAAN_USER:
           lastProcessedTxaiQuickTxs.push(saved.id);
           if (isDraft) draftTxs.push(saved); else savedTxs.push(saved);
           // Kirim notifikasi PWA per transaksi (bukan digabung), sesuai PRD.
-          sendTxaiQuickNotification(saved, isDraft ? 'tx_incomplete' : 'tx_saved', wallet);
+          sendTxaiQuickNotification(saved, isDraft ? 'tx_incomplete' : 'tx_saved', chosenWallet);
         }
         renderTxaiQuickResult(savedTxs, draftTxs);
       } catch (err) {

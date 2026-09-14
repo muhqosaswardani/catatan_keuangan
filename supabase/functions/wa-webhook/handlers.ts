@@ -760,6 +760,27 @@ async function processParsedItems(
     }
   }
 
+  // Safeguard E-commerce / Food Delivery line-item fees (ongkir, biaya layanan, resto, dll)
+  const feeRegex = /^(biaya\s*(pengiriman|layanan|tambahan\s*resto|tambahan|resto|admin|platform|penanganan|aplikasi|asuransi|proteksi|kemasan|bungkus|kantong|antar|pemesanan|pesanan)|ongkir|ongkos\s*(kirim|antar)|ppn|pajak|tax|service\s*charge|delivery\s*fee|service\s*fee|platform\s*fee|resto\s*fee|restaurant\s*fee|handling\s*fee|driver\s*tip|tip\s*driver)\b/i;
+  const isFee = (n?: string) => {
+    if (!n) return false;
+    const str = n.trim().toLowerCase();
+    return feeRegex.test(str) || /biaya\s*(pengiriman|layanan|tambahan\s*resto|resto|admin|platform|penanganan|aplikasi|kemasan)/i.test(str) || /(ongkos\s*kirim|ongkir|delivery\s*fee|service\s*fee)/i.test(str);
+  };
+  const feeList = effectiveItems.filter(it => isFee(it.note));
+  const nonFeeList = effectiveItems.filter(it => !isFee(it.note));
+  if (feeList.length > 0 && nonFeeList.length > 0) {
+    const totalFee = feeList.reduce((s, f) => s + Math.max(0, Math.round(Number(f.amount) || 0)), 0);
+    let target = nonFeeList[0];
+    for (let i = 1; i < nonFeeList.length; i++) {
+      if ((Number(nonFeeList[i].amount) || 0) > (Number(target.amount) || 0)) {
+        target = nonFeeList[i];
+      }
+    }
+    target.amount = (Number(target.amount) || 0) + totalFee;
+    effectiveItems = nonFeeList;
+  }
+
   // 1. Match categories and type for all items first so we can group/merge them properly
   const matchedItems = effectiveItems.map(it => {
     const type: "expense" | "income" = it.type === "income" ? "income" : "expense";
