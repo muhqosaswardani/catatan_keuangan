@@ -12218,7 +12218,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.86)';
+      const version = ' (v3.6.87)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -27534,7 +27534,7 @@ PERTANYAAN_USER:
           '<div class="txai-tx-row"><span class="l">Kategori</span><span class="v">' + escAttr((cat && cat.name) || '-') + '</span></div>' +
           (t.isDraft
             ? '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v" style="color:var(--warn,#B7791F);">Belum jelas — perlu dilengkapi</span></div>'
-            : '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v">' + (t.type === 'income' ? '+ ' : '- ') + formatRupiah(t.amount) + '</span></div>') +
+            : '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v" style="color:var(' + (t.type === 'income' ? '--income,#1E8F5A' : '--expense,#C4453B') + ');">' + (t.type === 'income' ? '+ ' : '- ') + formatRupiah(t.amount) + '</span></div>') +
           '<div class="txai-tx-actions">' +
           '<button onclick="editTxaiQuickTx(\'' + t.id + '\')">' + (t.isDraft ? 'Lengkapi' : 'Edit') + '</button>' +
           (t.isDraft ? '' : '<button class="danger" onclick="deleteTxaiQuickTx(\'' + t.id + '\')">Hapus</button>') +

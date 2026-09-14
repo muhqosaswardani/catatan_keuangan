@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Suara & Nada Dering Notifikasi KaslyAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        body {
+            background: #F0FDF4;
+            color: #0F172A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .card {
+            background: #FFFFFF;
+            max-width: 540px;
+            width: 100%;
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 20px 40px -15px rgba(15, 118, 110, 0.15);
+            border: 1px solid #CCFBF1;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            font-size: 20px;
+            color: #0F766E;
+            font-weight: 800;
+        }
+        .header p {
+            font-size: 13px;
+            color: #64748B;
+            margin-top: 4px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #0F766E;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 20px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sound-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sound-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            transition: all 0.2s ease;
+        }
+        .sound-item:hover {
+            border-color: #0D9488;
+            background: #F0FDFA;
+            transform: translateY(-2px);
+        }
+        .sound-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .sound-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1E293B;
+        }
+        .sound-desc {
+            font-size: 12px;
+            color: #64748B;
+        }
+        .play-btn {
+            background: #0F766E;
+            color: white;
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+            font-size: 15px;
+        }
+        .play-btn:hover {
+            background: #115E59;
+            transform: scale(1.1);
+        }
+        .play-btn:active {
+            transform: scale(0.95);
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            background: #CCFBF1;
+            color: #0F766E;
+            width: fit-content;
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <h1>🎙️ Pilihan Suara Kustom Kasly</h1>
+            <p>Klik tombol putar untuk mendengarkan setiap suara</p>
+        </div>
+
+        <!-- Bagian 1: Suara Kata "Kasly" -->
+        <div class="section-title">✨ Suara Vokal Kata "Kasly"</div>
+        <div class="sound-list">
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="badge">Vokal Imut</span>
+                    <span class="sound-name">1. "Kasly!" (Gadis Ceria)</span>
+                    <span class="sound-desc">Suara asisten gadis ceria & ramah</span>
+                </div>
+                <button class="play-btn" onclick="playSound('suara_1_kasly_ceria.mp3')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="badge">Konfirmasi</span>
+                    <span class="sound-name">2. "Kasly Beres!"</span>
+                    <span class="sound-desc">Mengucapkan 'Kasly beres!' dengan nada riang</span>
+                </div>
+                <button class="play-btn" onclick="playSound('suara_2_kasly_beres.mp3')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="badge">Kawaii / Maskot</span>
+                    <span class="sound-name">3. "Kasly~!" (Maskot Imut)</span>
+                    <span class="sound-desc">Suara anime maskot nada tinggi yang menggemaskan</span>
+                </div>
+                <button class="play-btn" onclick="playSound('suara_3_kasly_kawaii.mp3')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="badge">Cepat & Sigap</span>
+                    <span class="sound-name">4. "Kasly Catat!"</span>
+                    <span class="sound-desc">Suara sigap mengonfirmasi pencatatan</span>
+                </div>
+                <button class="play-btn" onclick="playSound('suara_4_kasly_catat.mp3')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="badge">Lengkap</span>
+                    <span class="sound-name">5. "Transaksi Beres Bersama Kasly!"</span>
+                    <span class="sound-desc">Kalimat konfirmasi lengkap yang jelas & ramah</span>
+                </div>
+                <button class="play-btn" onclick="playSound('suara_5_transaksi_kasly_beres.mp3')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="badge">Energetik</span>
+                    <span class="sound-name">6. "Kasly!" (Playful & Fast)</span>
+                    <span class="sound-desc">Seruan 'Kasly!' cepat & penuh energi</span>
+                </div>
+                <button class="play-btn" onclick="playSound('suara_5_kasly_playful.mp3')">▶</button>
+            </div>
+        </div>
+
+        <!-- Bagian 2: Jingle Nada Dering Musik -->
+        <div class="section-title">🎵 Pilihan Nada Dering Jingle Musik</div>
+        <div class="sound-list">
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="sound-name">7. Koin Imut (Cute Coin)</span>
+                    <span class="sound-desc">Tingting gemerlap khas koin game lucu</span>
+                </div>
+                <button class="play-btn" onclick="playSound('opsi_1_koin_imut.wav')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="sound-name">8. Marimba Pop (Plink Ceria)</span>
+                    <span class="sound-desc">Suara kayu marimba lembut & hangat</span>
+                </div>
+                <button class="play-btn" onclick="playSound('opsi_2_marimba_pop.wav')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="sound-name">9. Ka-Ching Melodik (Duit Masuk)</span>
+                    <span class="sound-desc">Kling kasir halus & ceria</span>
+                </div>
+                <button class="play-btn" onclick="playSound('opsi_3_kaching_melodik.wav')">▶</button>
+            </div>
+            <div class="sound-item">
+                <div class="sound-info">
+                    <span class="sound-name">10. Kasly Joy (Melodi 3 Nada)</span>
+                    <span class="sound-desc">Tada! 3 nada naik yang imut & memuaskan</span>
+                </div>
+                <button class="play-btn" onclick="playSound('opsi_5_kasly_joy.wav')">▶</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAudio = null;
+        function playSound(file) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            currentAudio = new Audio(file);
+            currentAudio.play();
+        }
+    </script>
+</body>
+</html>
