@@ -9642,8 +9642,9 @@
                 inputmode="decimal" oninput="formatThousandInput(this)" autocomplete="off" autocorrect="off"
                 spellcheck="false"></div>
           </div>
-          <div class="modal-actions">
+          <div class="modal-actions" style="display:flex;flex-direction:column;gap:8px;">
             <button class="btn btn-primary btn-block" onclick="saveBudgetLimit()">Simpan Limit</button>
+            <button class="btn btn-danger btn-block" id="budgetLimitDeleteBtn" style="display:none;" onclick="deleteBudgetLimit()">Hapus Limit</button>
           </div>
         </div>
       </div>
@@ -20221,6 +20222,9 @@
       const month = budgetMonth || currentMonthStr();
       const b = getEffectiveBudget(catId, month);
       document.getElementById('budgetLimitAmount').value = b ? b.limit.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+      // Tampilkan tombol hapus hanya jika limit sudah ada
+      const deleteBtn = document.getElementById('budgetLimitDeleteBtn');
+      if (deleteBtn) deleteBtn.style.display = b ? 'block' : 'none';
       openModal('modalBudgetLimit');
     }
 
@@ -20236,6 +20240,18 @@
       setBudgets(budgets);
       closeModal('modalBudgetLimit');
       showToast('Limit budget disimpan — berlaku mulai bulan ini');
+      renderBudget();
+      renderHome();
+      if (document.getElementById('modalBudgetManage').classList.contains('open')) renderBudgetManageList();
+    }
+
+    function deleteBudgetLimit() {
+      const catId = document.getElementById('budgetLimitCatId').value;
+      const month = budgetMonth || currentMonthStr();
+      const budgets = getBudgets().filter(b => !(b.categoryId === catId && b.month === month));
+      setBudgets(budgets);
+      closeModal('modalBudgetLimit');
+      showToast('Limit anggaran dihapus');
       renderBudget();
       renderHome();
       if (document.getElementById('modalBudgetManage').classList.contains('open')) renderBudgetManageList();
