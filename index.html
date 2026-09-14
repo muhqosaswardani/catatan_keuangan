@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.92)';
+      const version = ' (v3.6.93)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -13235,7 +13235,7 @@
             name: item.name,
             balance: Number(item.balance) || 0,
             isPrimary: !!item.isPrimary,
-            order: Number(item.order) || 0,
+            order: (item.order !== undefined && item.order !== null) ? Number(item.order) : 9999,
             createdAt: item.createdAt || Date.now(),
             updatedAt: item.updatedAt || 0
           });
@@ -13244,13 +13244,17 @@
       (remoteList || []).forEach(remote => {
         if (remote && remote.id) {
           const rTime = (remote.updatedAt != null) ? remote.updatedAt : (remote.updated_at ? new Date(remote.updated_at).getTime() : 0);
+          const isPrimary = (remote.is_primary !== undefined) ? !!remote.is_primary : !!remote.isPrimary;
+          const order = (remote.sort_order !== undefined && remote.sort_order !== null)
+            ? Number(remote.sort_order)
+            : ((remote.order !== undefined && remote.order !== null) ? Number(remote.order) : 9999);
           all.push({
             id: remote.id,
             name: remote.name,
             balance: Number(remote.balance) || 0,
-            isPrimary: !!remote.isPrimary,
-            order: Number(remote.order) || 0,
-            createdAt: remote.createdAt || Date.now(),
+            isPrimary,
+            order,
+            createdAt: remote.created_at ? parseSafeDate(remote.created_at) : (remote.createdAt || Date.now()),
             updatedAt: rTime
           });
         }
@@ -13269,7 +13273,8 @@
         }
       });
 
-      return Array.from(grouped.values());
+      const merged = Array.from(grouped.values());
+      return sortWalletsCanonical(merged);
     }
 
     function getContentHash() {
@@ -13516,7 +13521,7 @@
             name: r.name,
             balance: Number(r.balance) || 0,
             isPrimary: !!r.is_primary,
-            order: Number(r.sort_order) || 0,
+            order: (r.sort_order !== undefined && r.sort_order !== null) ? Number(r.sort_order) : 9999,
             createdAt: r.created_at ? parseSafeDate(r.created_at) : Date.now(),
             updatedAt: parseSafeDate(r.updated_at)
           }));
@@ -13588,6 +13593,16 @@
               } else {
                 merged.categoryOrder = remoteCfg.categoryOrder;
                 merged.categoryOrderUpdatedAt = remoteCatOrderTs;
+              }
+
+              const localWalletOrderTs = Number(localCfg.walletOrderUpdatedAt) || 0;
+              const remoteWalletOrderTs = Number(remoteCfg.walletOrderUpdatedAt) || 0;
+              if (localWalletOrderTs >= remoteWalletOrderTs) {
+                merged.walletOrder = localCfg.walletOrder;
+                merged.walletOrderUpdatedAt = localWalletOrderTs;
+              } else {
+                merged.walletOrder = remoteCfg.walletOrder;
+                merged.walletOrderUpdatedAt = remoteWalletOrderTs;
               }
 
               const localChat = Array.isArray(localCfg.chatHistory) ? localCfg.chatHistory : [];
@@ -13823,17 +13838,71 @@
       }
     }
 
+    // Canonical Wallet Sorting & Locking
+    function sortWalletsCanonical(wallets) {
+      if (!Array.isArray(wallets)) return [];
+      let cfg = {};
+      try {
+        cfg = JSON.parse(localStorage.getItem(LS_KEYS.navConfig) || '{}');
+      } catch (e) { }
+      const orderList = Array.isArray(cfg.walletOrder) ? cfg.walletOrder : null;
+      const orderMap = new Map();
+      if (orderList && orderList.length > 0) {
+        orderList.forEach((id, idx) => orderMap.set(String(id), idx));
+      }
+
+      return [...wallets].sort((a, b) => {
+        // 1. Dompet Utama (isPrimary) selalu paling atas (index 0)
+        if (!!a.isPrimary !== !!b.isPrimary) return a.isPrimary ? -1 : 1;
+
+        // 2. Jika ada urutan terkunci dari menu Pengaturan Kelola Dompet (walletOrder)
+        if (orderMap.size > 0) {
+          const aIdx = orderMap.has(String(a.id)) ? orderMap.get(String(a.id)) : 9999;
+          const bIdx = orderMap.has(String(b.id)) ? orderMap.get(String(b.id)) : 9999;
+          if (aIdx !== bIdx) return aIdx - bIdx;
+        }
+
+        // 3. Berdasarkan field order / sort_order numerik
+        const ordA = (a.order !== undefined && a.order !== null) ? Number(a.order) : 9999;
+        const ordB = (b.order !== undefined && b.order !== null) ? Number(b.order) : 9999;
+        if (ordA !== ordB) return ordA - ordB;
+
+        // 4. Fallback timestamp dibuat
+        return (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
+      });
+    }
+
     // Local Getters & Setters
     function getWallets() {
-      return JSON.parse(localStorage.getItem(LS_KEYS.wallets) || '[]');
+      const raw = JSON.parse(localStorage.getItem(LS_KEYS.wallets) || '[]');
+      return sortWalletsCanonical(raw);
     }
     function setWalletsLocalOnly(w) {
-      localStorage.setItem(LS_KEYS.wallets, JSON.stringify(w));
+      const sorted = sortWalletsCanonical(w);
+      sorted.forEach((item, idx) => {
+        item.order = idx;
+      });
+      localStorage.setItem(LS_KEYS.wallets, JSON.stringify(sorted));
       notifyNativeWidgets();
     }
     function setWallets(w) {
-      w = (w || []).map(item => ({ updatedAt: Date.now(), ...item }));
-      setWalletsLocalOnly(w);
+      const now = Date.now();
+      w = (w || []).map(item => ({ updatedAt: now, ...item }));
+      const sorted = sortWalletsCanonical(w);
+      sorted.forEach((item, idx) => {
+        item.order = idx;
+      });
+      setWalletsLocalOnly(sorted);
+
+      try {
+        const cfg = getNavConfig();
+        cfg.walletOrder = sorted.map(item => item.id);
+        cfg.walletOrderUpdatedAt = now;
+        setNavConfigLocalOnly(cfg);
+      } catch (e) {
+        console.warn('setWallets navConfig error:', e);
+      }
+
       scheduleSync();
       notifyNativeWidgets();
     }
@@ -14026,6 +14095,9 @@
       const categoryOrder = (raw && Array.isArray(raw.categoryOrder)) ? raw.categoryOrder : [];
       const categoryOrderUpdatedAt = (raw && Number(raw.categoryOrderUpdatedAt)) || 0;
 
+      const walletOrder = (raw && Array.isArray(raw.walletOrder)) ? raw.walletOrder : [];
+      const walletOrderUpdatedAt = (raw && Number(raw.walletOrderUpdatedAt)) || 0;
+
       return {
         core,
         heroWallets,
@@ -14039,7 +14111,9 @@
         chatSession,
         chatUpdatedAt,
         categoryOrder,
-        categoryOrderUpdatedAt
+        categoryOrderUpdatedAt,
+        walletOrder,
+        walletOrderUpdatedAt
       };
     }
     function getHeroWallets() {
@@ -21842,10 +21916,11 @@
       const wallets = getWallets();
       const w = wallets.find(x => x.id === id);
       if (!w) return;
+      const now = Date.now();
 
       wallets.forEach(x => {
         x.isPrimary = (x.id === id);
-        x.updatedAt = Date.now();
+        x.updatedAt = now;
       });
 
       const nonPrimary = wallets.filter(x => x.id !== id).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -21853,6 +21928,12 @@
       nonPrimary.forEach((x, idx) => {
         x.order = idx + 1;
       });
+
+      const orderedIds = [w.id, ...nonPrimary.map(x => x.id)];
+      const cfg = getNavConfig();
+      cfg.walletOrder = orderedIds;
+      cfg.walletOrderUpdatedAt = now;
+      setNavConfigLocalOnly(cfg);
 
       setWallets(wallets);
       refreshAllViews();
@@ -21884,6 +21965,14 @@
         updatedAt: Date.now()
       };
       wallets.push(newWallet);
+
+      const cfg = getNavConfig();
+      const currentOrder = Array.isArray(cfg.walletOrder) ? cfg.walletOrder.slice() : wallets.map(x => x.id);
+      if (!currentOrder.includes(newWallet.id)) currentOrder.push(newWallet.id);
+      cfg.walletOrder = currentOrder;
+      cfg.walletOrderUpdatedAt = Date.now();
+      setNavConfigLocalOnly(cfg);
+
       setWallets(wallets);
       if (nameInput) nameInput.value = '';
 
@@ -21951,6 +22040,12 @@
 
       recordDeletion(walletId);
       const nextWallets = wallets.filter(x => x.id !== walletId);
+      const cfg = getNavConfig();
+      if (Array.isArray(cfg.walletOrder)) {
+        cfg.walletOrder = cfg.walletOrder.filter(id => id !== walletId);
+        cfg.walletOrderUpdatedAt = Date.now();
+        setNavConfigLocalOnly(cfg);
+      }
       setWallets(nextWallets);
 
       const heroW = getHeroWallets().filter(id => id !== walletId);
@@ -22036,14 +22131,22 @@
 
     function saveWalletDragNewOrder(orderedIds) {
       const wallets = getWallets();
+      const now = Date.now();
+
+      const orderMap = new Map();
+      orderedIds.forEach((id, idx) => orderMap.set(id, idx));
 
       wallets.forEach(w => {
-        const idx = orderedIds.indexOf(w.id);
-        if (idx !== -1) {
-          w.order = idx;
+        if (orderMap.has(w.id)) {
+          w.order = orderMap.get(w.id);
         }
-        w.updatedAt = Date.now();
+        w.updatedAt = now;
       });
+
+      const cfg = getNavConfig();
+      cfg.walletOrder = orderedIds;
+      cfg.walletOrderUpdatedAt = now;
+      setNavConfigLocalOnly(cfg);
 
       setWallets(wallets);
       refreshAllViews();
