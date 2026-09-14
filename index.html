@@ -2472,6 +2472,23 @@
       font-weight: 700;
     }
 
+    .budget-item-edit-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+      color: var(--ink-soft);
+      font-size: 16px;
+      line-height: 1;
+      border-radius: 6px;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .budget-item-edit-btn:hover {
+      background: var(--surface-2);
+      color: var(--accent);
+    }
+
     .progress-track-wrap {
       position: relative;
       padding-bottom: 16px;
@@ -16196,6 +16213,17 @@
       switchTab('transaksi', { push: true });
     }
 
+    /* Klik kartu kategori di tab Limit/Anggaran → lompat ke Transaksi terfilter
+       kategori + bulan budget yang sedang dipilih. */
+    function viewBudgetCategory(catName, month) {
+      txPeriodMode = 'month';
+      syncTxPeriodUI('month');
+      filterMonthValue = month || budgetMonth || currentMonthStr();
+      filterCategoryValue = catName;
+      filterWalletValue = 'all';
+      switchTab('transaksi', { push: true });
+    }
+
     /* =========================================================
        RENDER: LAPORAN (breakdown bulanan detail)
        ========================================================= */
@@ -20171,15 +20199,18 @@
               allowanceHtml = `<div class="daily-allowance ${status.remaining < 0 ? 'over' : ''}"><span class="da-remaining">Tersisa ${formatRupiah(Math.max(0, status.remaining))}</span></div>`;
             }
           }
-          return `<div class="budget-item" onclick="openBudgetLimitModal('${c.id}','${c.name}')">
+          return `<div class="budget-item" onclick="viewBudgetCategory('${c.name}','${month}')" style="position:relative;">
       <div class="row1">
         <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
           ${categoryIconBoxHtml(c, { size: 34, iconSize: 18, radius: 9 })}
           <div class="cat-name">${c.name}</div>
         </div>
-        <div class="amt-col">
-          <div class="amt-limit">${formatRupiah(status.limit)}</div>
-          ${spentHtml}
+        <div class="amt-col" style="display:flex;align-items:center;gap:6px;">
+          <div style="text-align:right;">
+            <div class="amt-limit">${formatRupiah(status.limit)}</div>
+            ${spentHtml}
+          </div>
+          <button class="budget-item-edit-btn" onclick="event.stopPropagation();openBudgetLimitModal('${c.id}','${c.name}')" title="Set Limit">✏️</button>
         </div>
       </div>
       <div class="progress-track-wrap">
