@@ -17777,6 +17777,14 @@
         '   - "minjemin duit ke Budi 200rb" → expense, note "Pinjamkan uang ke Budi", amount 200000, category "Lainnya".\n' +
         '   - "jadi tadi pagi aku ke pasar beli sayur 25rb terus mampir warkop ngopi 8rb abis itu ke bengkel benerin ban bocor 15rb" (contoh gaya transkrip VN panjang tanpa koma/pemisah jelas) → HARUS dipecah jadi 3 transaksi terpisah berdasarkan pergantian konteks aktivitas: (1) expense "Beli sayur di pasar" 25000, (2) expense "Ngopi di warkop" 8000, (3) expense "Tambal ban bocor" 15000 — JANGAN digabung jadi satu transaksi besar atau dianggap gagal parse hanya karena tidak ada tanda baca pemisah.\n' +
         '6. ATURAN PENULISAN KETERANGAN (NOTE): Wajib tulis keterangan ("note") secara rapi, ringkas, bersih, dan menggunakan huruf kapital di awal setiap kata (Title Case / Capital Case). WAJIB perbaiki kesalahan ketik (typo), singkatan informal/slang, dan kata berulang (Contoh: "paket internet pket malem" menjadi "Paket Internet Malam", "mkn ns pdg" menjadi "Makan Nasi Padang", "isi bnsin mtor" menjadi "Isi Bensin Motor", "byr wifi" menjadi "Bayar Wifi", "blanja di indomaret" menjadi "Belanja Indomaret"). Jangan salin mentah-mentah typo atau kata berulang dari teks user!\n\n' +
+        '7. TRANSFER ANTAR DOMPET:\n' +
+        '   - Jika user meminta transfer uang antar dompet (misal: "transfer 200rb dari cash ke bank", "transfer dari bca ke gopay 100k", "pindahin 50rb dari cash ke bank", "dari cash ke bank transfer 200rb"):\n' +
+        '     * Set "type": "transfer"\n' +
+        '     * Set "sourceWallet": nama dompet asal persis sesuai daftar dompet (misal "Cash" atau "Bank/E-walet")\n' +
+        '     * Set "destWallet": nama dompet tujuan persis sesuai daftar dompet\n' +
+        '     * Set "amount": nominal yang ditransfer\n' +
+        '     * Set "category": "Transfer"\n' +
+        '     * Set "note": keterangan transfer (misal: "Transfer Dari Cash Ke Bank/E-walet")\n\n' +
         'Pola umumnya: SELAMA ada kata benda/kata kerja/nama tempat/aktivitas apapun yang berpotensi berkaitan aktivitas ekonomi (benerin/ganti/servis/parkir/potong/tambal/beli/bayar/jual/dapat/dsb, ATAU sekadar nama barang/jasa/tempat tanpa kata kerja sama sekali) — walau ditulis santai, typo, terlalu singkat, nominalnya pakai istilah gaul, ATAU tanpa nominal sama sekali — WAJIB tetap dibuatkan objek transaksinya. JANGAN biarkan ketidakpastian soal kategori, kejelasan nominal, ATAU singkatnya kalimat membuatmu menolak keseluruhan transaksinya; pilih tebakan terbaik dan tetap keluarkan objeknya. Array kosong [] HANYA untuk 3 kategori sempit di aturan 0.\n\n' +
         'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut (field standar: order, date, type, amount, note, category, isDuplicateRead — tambahkan "groupId" dan "groupTotal" HANYA untuk kasus alokasi di poin 5), tanpa penjelasan markdown, tanpa code fence.';
       const parts = [{ text: promptText }];
@@ -17798,11 +17806,13 @@
           properties: {
             order: { type: 'INTEGER' },
             date: { type: 'STRING' },
-            type: { type: 'STRING', enum: ['income', 'expense'] },
+            type: { type: 'STRING', enum: ['income', 'expense', 'transfer'] },
             amount: { type: 'NUMBER' },
             note: { type: 'STRING' },
             category: { type: 'STRING' },
             wallet: { type: 'STRING' },
+            sourceWallet: { type: 'STRING' },
+            destWallet: { type: 'STRING' },
             isDuplicateRead: { type: 'BOOLEAN' },
             groupId: { type: 'STRING' },
             groupTotal: { type: 'NUMBER' }
@@ -17837,7 +17847,7 @@
       // Terapkan safeguard penggabungan: bukti transfer + caption, e-commerce fee line items, dan per-kategori
       items = sanitizeAndMergeTxaiItems(items, (aiCaptureFiles && aiCaptureFiles.length > 0));
       const rows = items.map((it, idx) => {
-        const type = it && it.type === 'income' ? 'income' : 'expense';
+        const type = (it && it.type === 'transfer') ? 'transfer' : (it && it.type === 'income' ? 'income' : 'expense');
         const groupId = (it && it.groupId) ? String(it.groupId) : null;
         const groupTotal = (it && Number.isFinite(Number(it.groupTotal)) && Number(it.groupTotal) > 0) ? Math.round(Number(it.groupTotal)) : null;
         return {
@@ -17849,6 +17859,8 @@
           type,
           categoryId: matchCategoryByName(it && it.category, type),
           wallet: (it && it.wallet) ? String(it.wallet) : null,
+          sourceWallet: (it && it.sourceWallet) ? String(it.sourceWallet) : null,
+          destWallet: (it && it.destWallet) ? String(it.destWallet) : null,
           aiFlaggedDup: !!(it && it.isDuplicateRead),
           _groupId: groupId,
           _groupTotal: groupTotal
@@ -18918,6 +18930,45 @@
         const amount = parseRupiahInput(amtEl.value);
         const note = noteEl.value.trim();
         const categoryId = catEl.value;
+
+        if (row.type === 'transfer') {
+          const wallets = getWallets();
+          let srcId = row.walletId || aiWalletValue;
+          let dstId = row.toWalletId;
+          if (row.sourceWallet) {
+            const m = wallets.find(w => w.name && w.name.toLowerCase() === String(row.sourceWallet).toLowerCase());
+            if (m) srcId = m.id;
+          }
+          if (row.destWallet) {
+            const m = wallets.find(w => w.name && w.name.toLowerCase() === String(row.destWallet).toLowerCase());
+            if (m) dstId = m.id;
+          }
+          if (!srcId && row.wallet) {
+            const m = wallets.find(w => w.name && w.name.toLowerCase() === String(row.wallet).toLowerCase());
+            if (m) srcId = m.id;
+          }
+          if (!dstId) {
+            const other = wallets.find(w => w.id !== srcId);
+            dstId = other ? other.id : null;
+          }
+          if (srcId && dstId && srcId !== dstId && amount > 0) {
+            addTransfer({
+              walletId: srcId,
+              toWalletId: dstId,
+              amount,
+              date,
+              note: note || 'Transfer Antar Dompet'
+            });
+            saved++;
+          } else {
+            row.date = date;
+            row.note = note;
+            row.amount = amount;
+            remaining.push(row);
+          }
+          return;
+        }
+
         if (amount > 0 && categoryId) {
           const cat = categoryById(categoryId);
           const savedTx = addTransaction({ walletId: aiWalletValue, categoryId, category: cat ? cat.name : '', type: row.type, amount, date, note, toWalletId: null });
@@ -26258,6 +26309,14 @@ Keluarkan JSON dengan schema:
         '   - "type": "income" kalau jelas pemasukan, selain itu "expense".\n' +
         '   - "amount": kalau nominal TIDAK disebutkan sama sekali di teks → set "amount" ke 0.\n' +
         '   - "date": WAJIB deteksi dulu apakah ada referensi waktu di teks, baru default ke hari ini (' + todayStrVal + ') kalau BENAR-BENAR tidak ada kata/frasa waktu apapun disebutkan. Aturan konversi relatif ke hari ini (' + todayStrVal + '): "kemarin"/"kemaren" = -1 hari; "kemarin lusa" = -2 hari; "N hari (yang) lalu" = -N hari; "seminggu lalu"/"minggu lalu" = -7 hari; "besok" = +1 hari (untuk pencatatan rencana/utang); "tadi pagi/siang/sore/malam", "barusan", "hari ini" = tetap hari ini (0). Nama hari (mis. "senin kemarin", "hari senin") = tanggal hari itu yang paling baru SEBELUM atau SAMA DENGAN hari ini. Tanggal eksplisit (mis. "tanggal 20", "20 agustus") = tanggal tsb, asumsikan bulan/tahun berjalan kalau tidak lengkap, mundurkan ke bulan sebelumnya kalau hasilnya di masa depan. Field "date" WAJIB tetap terisi (YYYY-MM-DD).\n\n' +
+        '5. TRANSFER ANTAR DOMPET:\n' +
+        '   - Jika user meminta transfer uang antar dompet (misal: "transfer 200rb dari cash ke bank", "transfer dari bca ke gopay 100k", "pindahin 50rb dari cash ke bank", "dari cash ke bank transfer 200rb"):\n' +
+        '     * Set "type": "transfer"\n' +
+        '     * Set "sourceWallet": nama dompet asal persis sesuai daftar dompet (misal: "Cash" atau "Bank/E-walet")\n' +
+        '     * Set "destWallet": nama dompet tujuan persis sesuai daftar dompet\n' +
+        '     * Set "amount": nominal yang ditransfer\n' +
+        '     * Set "category": "Transfer"\n' +
+        '     * Set "note": keterangan transfer (misal: "Transfer Dari Cash Ke Bank/E-walet")\n\n' +
         'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut.';
     }
 
@@ -28569,11 +28628,13 @@ PERTANYAAN_USER:
           properties: {
             order: { type: 'INTEGER' },
             date: { type: 'STRING' },
-            type: { type: 'STRING', enum: ['income', 'expense'] },
+            type: { type: 'STRING', enum: ['income', 'expense', 'transfer'] },
             amount: { type: 'NUMBER' },
             note: { type: 'STRING' },
             category: { type: 'STRING' },
-            wallet: { type: 'STRING' }
+            wallet: { type: 'STRING' },
+            sourceWallet: { type: 'STRING' },
+            destWallet: { type: 'STRING' }
           },
           required: ['type', 'amount', 'note', 'category']
         }
@@ -28629,6 +28690,59 @@ PERTANYAAN_USER:
         lastProcessedTxaiQuickTxs = [];
 
         for (const it of items) {
+          if (it && it.type === 'transfer') {
+            let amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
+            let note = formatCleanTxNote(it && it.note || 'Transfer Antar Dompet');
+            const txDate = (it && it.date && /^\d{4}-\d{2}-\d{2}$/.test(it.date)) ? it.date : todayStr();
+
+            let srcId = null;
+            let dstId = null;
+            if (it.sourceWallet) {
+              const m = wallets.find(w => w.name && w.name.toLowerCase() === String(it.sourceWallet).toLowerCase());
+              if (m) srcId = m.id;
+            }
+            if (it.destWallet) {
+              const m = wallets.find(w => w.name && w.name.toLowerCase() === String(it.destWallet).toLowerCase());
+              if (m) dstId = m.id;
+            }
+            if (!srcId && it.wallet) {
+              const m = wallets.find(w => w.name && w.name.toLowerCase() === String(it.wallet).toLowerCase());
+              if (m) srcId = m.id;
+            }
+            if (!srcId) {
+              const primary = wallets.find(w => w.isPrimary) || wallets[0];
+              srcId = primary ? primary.id : null;
+            }
+            if (!dstId) {
+              const other = wallets.find(w => w.id !== srcId);
+              dstId = other ? other.id : null;
+            }
+
+            if (srcId && dstId && srcId !== dstId && amount > 0) {
+              addTransfer({
+                walletId: srcId,
+                toWalletId: dstId,
+                amount: amount,
+                date: txDate,
+                note: note
+              });
+              const txObj = {
+                id: uid(),
+                date: txDate,
+                type: 'transfer',
+                amount: amount,
+                note: note,
+                category: 'Transfer',
+                walletId: srcId,
+                toWalletId: dstId,
+                source: 'app'
+              };
+              savedTxs.push(txObj);
+              lastProcessedTxaiQuickTxs.push(txObj.id);
+            }
+            continue;
+          }
+
           const type = it && it.type === 'income' ? 'income' : 'expense';
           let amount = Math.max(0, Math.round(Number(it && it.amount) || 0));
           let note = formatCleanTxNote(it && it.note);
@@ -29298,6 +29412,46 @@ PERTANYAAN_USER:
           window._recentAiTxSignatures = window._recentAiTxSignatures.filter(s => now - s.time < 20000);
 
           for (const row of rows) {
+            if (row.type === 'transfer' && row.amount > 0) {
+              let srcId = null;
+              let dstId = null;
+              if (row.sourceWallet) {
+                const m = wallets.find(w => w.name && w.name.toLowerCase() === String(row.sourceWallet).toLowerCase());
+                if (m) srcId = m.id;
+              }
+              if (row.destWallet) {
+                const m = wallets.find(w => w.name && w.name.toLowerCase() === String(row.destWallet).toLowerCase());
+                if (m) dstId = m.id;
+              }
+              if (!srcId && row.wallet) {
+                const m = wallets.find(w => w.name && w.name.toLowerCase() === String(row.wallet).toLowerCase());
+                if (m) srcId = m.id;
+              }
+              if (!srcId) srcId = defaultWalletId;
+              if (!dstId) {
+                const other = wallets.find(w => w.id !== srcId);
+                dstId = other ? other.id : null;
+              }
+              if (srcId && dstId && srcId !== dstId) {
+                addTransfer({
+                  walletId: srcId,
+                  toWalletId: dstId,
+                  amount: row.amount,
+                  date: row.date || todayStr(),
+                  note: row.note || 'Transfer Antar Dompet'
+                });
+                savedCount++;
+                savedRows.push({
+                  id: row.id,
+                  amount: row.amount,
+                  note: row.note || 'Transfer Antar Dompet',
+                  category: 'Transfer',
+                  type: 'transfer'
+                });
+              }
+              continue;
+            }
+
             if (row.amount > 0 && row.categoryId) {
               const sig = row.note + '_' + row.amount + '_' + row.type + '_' + row.categoryId;
               if (window._recentAiTxSignatures.some(s => s.sig === sig)) {
