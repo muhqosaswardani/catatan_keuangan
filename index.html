@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.93)';
+      const version = ' (v3.6.94)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -28830,12 +28830,28 @@ PERTANYAAN_USER:
       all.forEach(t => {
         const cats = getCategories();
         const cat = cats.find(c => c.id === t.categoryId);
+        const wallets = typeof getWallets === 'function' ? getWallets() : [];
+        const w = (typeof walletById === 'function' && t.walletId) ? walletById(t.walletId) : wallets.find(x => x.id === t.walletId);
+        const toW = (t.toWalletId && typeof walletById === 'function') ? walletById(t.toWalletId) : wallets.find(x => x.id === t.toWalletId);
+        let walletDisplay = (w && w.name) || t.walletName || 'Dompet Utama';
+        if (t.type === 'transfer' && toW) {
+          walletDisplay = walletDisplay + ' → ' + toW.name;
+        }
+        let dateDisplay = '-';
+        if (t.date) {
+          dateDisplay = (typeof dateOnlyLabel === 'function') ? dateOnlyLabel(t.date) : t.date;
+        } else if (typeof todayStr === 'function' && typeof dateOnlyLabel === 'function') {
+          dateDisplay = dateOnlyLabel(todayStr());
+        }
+
         html += '<div class="txai-tx-card" data-tx-id="' + t.id + '">' +
           '<div class="txai-tx-row"><span class="l">Keterangan</span><span class="v">' + escAttr(t.note) + '</span></div>' +
-          '<div class="txai-tx-row"><span class="l">Kategori</span><span class="v">' + escAttr((cat && cat.name) || '-') + '</span></div>' +
+          '<div class="txai-tx-row"><span class="l">Kategori</span><span class="v">' + escAttr((cat && cat.name) || t.category || (t.type === 'transfer' ? 'Transfer' : '-')) + '</span></div>' +
+          '<div class="txai-tx-row"><span class="l">Bank / Dompet</span><span class="v">' + escAttr(walletDisplay) + '</span></div>' +
+          '<div class="txai-tx-row"><span class="l">Tanggal</span><span class="v">' + escAttr(dateDisplay) + '</span></div>' +
           (t.isDraft
             ? '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v" style="color:var(--warn,#B7791F);">Belum jelas — perlu dilengkapi</span></div>'
-            : '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v" style="color:var(' + (t.type === 'income' ? '--income,#1E8F5A' : '--expense,#C4453B') + ');">' + (t.type === 'income' ? '+ ' : '- ') + formatRupiah(t.amount) + '</span></div>') +
+            : '<div class="txai-tx-row"><span class="l">Nominal</span><span class="v" style="color:var(' + (t.type === 'income' ? '--income,#1E8F5A' : (t.type === 'transfer' ? '--accent,#0F766E' : '--expense,#C4453B')) + ');">' + (t.type === 'income' ? '+ ' : (t.type === 'transfer' ? '⇄ ' : '- ')) + formatRupiah(t.amount) + '</span></div>') +
           '<div class="txai-tx-actions">' +
           '<button onclick="editTxaiQuickTx(\'' + t.id + '\')">' + (t.isDraft ? 'Lengkapi' : 'Edit') + '</button>' +
           (t.isDraft ? '' : '<button class="danger" onclick="deleteTxaiQuickTx(\'' + t.id + '\')">Hapus</button>') +
