@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.95)';
+      const version = ' (v3.6.96)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15465,6 +15465,11 @@
       const el = document.getElementById(id);
       if (!el) return;
       const alreadyOpen = el.classList.contains('open');
+      /* Pengaman: modal baru selalu di atas modal lain yang sudah terbuka, walau ada yang di-set z-index manual */
+      document.querySelectorAll('.modal-overlay.open').forEach(o => {
+        const z = parseInt(o.style.zIndex, 10);
+        if (o !== el && z > modalZCounter) modalZCounter = z;
+      });
       modalZCounter++;
       el.style.zIndex = modalZCounter; /* modal yang dibuka belakangan selalu tampil di atas modal yang sudah terbuka */
       el.classList.add('open');
@@ -29143,9 +29148,10 @@ PERTANYAAN_USER:
             } else if (shortcut === 'transaksi-ai') {
               const modal = document.getElementById('modalTxaiQuick');
               if (modal) {
-                modal.classList.add('open');
-                modal.style.zIndex = '500';
-                document.body.classList.add('modal-lock');
+                /* FIX v3.6.96: sebelumnya modal dibuka manual dengan z-index tetap 500, sehingga picker
+                   Kategori/Dompet (z-index counter ~401) terbuka TERTUTUP di belakang layar ini dan
+                   dropdown terasa tidak aktif. Pakai openModalUI supaya z-index & counter konsisten. */
+                openModalUI('modalTxaiQuick');
               }
             }
           }
