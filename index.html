@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.94)';
+      const version = ' (v3.6.95)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -25656,6 +25656,11 @@ Keluarkan JSON dengan schema:
         recItem.lastConfirmedDate = todayStr();
         recItem.history = recItem.history || [];
         recItem.history.push({ date: todayStr(), amount: target.amount, txId: newTx.id });
+        // FIX v3.6.95: naikkan hitungan cicilan terbayar (sebelumnya terlewat di jalur chat)
+        if (recItem.kind === 'installment') {
+          recItem.paidOccurrences = (recItem.paidOccurrences || 0) + 1;
+          checkInstallmentAutoComplete(recItem);
+        }
         setRecurring(recurring);
       }
 
@@ -26254,6 +26259,12 @@ Keluarkan JSON dengan schema:
           amount: Math.round(Number(amount) || recItem.amount || 0),
           txId: txId || ('tx_' + uid())
         });
+        // FIX v3.6.95: pembayaran cicilan lewat Chat/Tambah via AI/foto sebelumnya TIDAK menaikkan
+        // paidOccurrences, jadi progres "sisa Nx lagi" macet di 1x. Naikkan hanya sekali per transaksi baru.
+        if (recItem.kind === 'installment') {
+          recItem.paidOccurrences = (recItem.paidOccurrences || 0) + 1;
+          if (typeof checkInstallmentAutoComplete === 'function') checkInstallmentAutoComplete(recItem);
+        }
       }
       if (typeof setRecurring === 'function') setRecurring(recurring);
       if (typeof refreshAllViews === 'function') refreshAllViews();
