@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.96)';
+      const version = ' (v3.6.97)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -25974,6 +25974,13 @@ Keluarkan JSON dengan schema:
     const CASH_KEYWORDS_REGEX =
       /\b(cash|tunai|kontan|kas|cod|bayar\s*di\s*tempat)\b/i;
 
+    const ADMIN_FEE_REGEX = /\b(admin|adm|administrasi)\b/i;
+
+    function isAdminFeeContext(txContext) {
+      if (!txContext) return false;
+      return ADMIN_FEE_REGEX.test(String(txContext.note || '')) || ADMIN_FEE_REGEX.test(String(txContext.category || ''));
+    }
+
     function getBankOrEwallet(wallets) {
       return (wallets || []).find(w => {
         const n = (w.name || '').toLowerCase();
@@ -26028,6 +26035,13 @@ Keluarkan JSON dengan schema:
       if (txContext && txContext.note && CASH_KEYWORDS_REGEX.test(txContext.note)) {
         const cw = getCashWallet(wallets);
         if (cw) return cw.id;
+      }
+
+      // Biaya admin (admin bank/transfer/top-up, dsb.) selalu non-tunai: default ke Bank/E-walet
+      // walau dompet utama adalah Cash, kecuali user eksplisit menyebut dompet lain (sudah ditangani di atas).
+      if (isAdminFeeContext(txContext)) {
+        const bw = getBankOrEwallet(wallets);
+        if (bw) return bw.id;
       }
 
       if (isFromMedia) {
@@ -26333,6 +26347,8 @@ Keluarkan JSON dengan schema:
         '     * Set "amount": nominal yang ditransfer\n' +
         '     * Set "category": "Transfer"\n' +
         '     * Set "note": keterangan transfer (misal: "Transfer Dari Cash Ke Bank/E-walet")\n\n' +
+        '6. BIAYA ADMIN:\n' +
+        '   - Transaksi biaya admin (mis. \"biaya admin\", \"admin bank\", \"admin transfer\", \"admin top up\") adalah biaya non-tunai. Jika user TIDAK menyebut nama dompet/bank secara eksplisit, WAJIB isi field \"wallet\" dengan dompet bank/e-wallet dari daftar dompet (misal \"Bank/E-walet\"), BUKAN \"Cash\" dan BUKAN dompet utama jika dompet utama itu Cash. Kalau user menyebut dompet tertentu, ikuti yang disebut user.\n\n' +
         'Keluaran (Output) yang harus kamu berikan HANYA berupa array JSON berisi objek-objek transaksi tersebut.';
     }
 
