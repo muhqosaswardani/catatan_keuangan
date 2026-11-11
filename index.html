@@ -13131,7 +13131,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.97)';
+      const version = ' (v3.6.98)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16266,9 +16266,21 @@
        ke tab asal (Beranda/Laporan) dengan tampilan yang sama seperti sebelum di-tap,
        bukan langsung loncat ke Beranda. */
     function viewCategoryBreakdown(catName, monthOverride) {
-      txPeriodMode = 'month';
-      syncTxPeriodUI('month');
-      filterMonthValue = monthOverride || getPeriodRanges(homePeriod).start.slice(0, 7);
+      /* Ikuti mode periode yang sedang aktif di Laporan (harian/mingguan/bulanan/tahunan),
+         bukan selalu dipaksa ke bulanan. */
+      const mode = laporanPeriodMode || 'month';
+      txPeriodMode = mode;
+      txViewFuture = false;
+      syncTxPeriodUI(mode);
+      if (mode === 'day') {
+        filterDayValue = laporanDay || todayStr();
+      } else if (mode === 'week') {
+        txWeekStart = laporanWeekStart || toDateStr(mondayOf(new Date()));
+      } else if (mode === 'year') {
+        filterYearValue = laporanYear || String(new Date().getFullYear());
+      } else {
+        filterMonthValue = monthOverride || laporanMonth || getPeriodRanges(homePeriod).start.slice(0, 7);
+      }
       filterCategoryValue = catName;
       const selectedWalletIds = getLaporanWallets();
       if (selectedWalletIds.length === 1) {
@@ -16663,8 +16675,8 @@
       const byCatInc = {};
       weekTx.filter(t => t.type === 'income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category] || 0) + t.amount; });
 
-      renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieExpenseCenter', catType: 'expense' });
-      renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
+      renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, { drilldown: true, legendStyle: 'card', centerLabelId: 'lapPieExpenseCenter', catType: 'expense' });
+      renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: true, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
     }
 
     function renderLaporanDay() {
@@ -16708,8 +16720,8 @@
       const byCatInc = {};
       dayTx.filter(t => t.type === 'income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category] || 0) + t.amount; });
 
-      renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieExpenseCenter', catType: 'expense' });
-      renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
+      renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, { drilldown: true, legendStyle: 'card', centerLabelId: 'lapPieExpenseCenter', catType: 'expense' });
+      renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: true, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
     }
 
     function renderLaporanYear() {
@@ -16753,8 +16765,8 @@
       const byCatInc = {};
       yearTx.filter(t => t.type === 'income' && !t.excludeFromReport).forEach(t => { byCatInc[t.category] = (byCatInc[t.category] || 0) + t.amount; });
 
-      renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieExpenseCenter', catType: 'expense' });
-      renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: false, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
+      renderDonut('lapPieChart', 'lapPieEmpty', 'lapPieExpenseLegend', byCatExp, expense, { drilldown: true, legendStyle: 'card', centerLabelId: 'lapPieExpenseCenter', catType: 'expense' });
+      renderDonut('lapPieChartIncome', 'lapPieIncomeEmpty', 'lapPieIncomeLegend', byCatInc, income, { drilldown: true, legendStyle: 'card', centerLabelId: 'lapPieIncomeCenter', catType: 'income' });
     }
 
     function renderCharts(range, opts) {
