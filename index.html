@@ -2233,6 +2233,15 @@
       cursor: pointer;
     }
 
+    .tx-recap-date {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      margin: 6px 0 4px 2px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
     .tx-recap-detail {
       margin: 0 0 8px 14px;
       padding-left: 8px;
@@ -13155,7 +13164,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.101)';
+      const version = ' (v3.6.102)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -17363,7 +17372,11 @@
             sign = g.type === 'income' ? '+' : '-';
           }
           const id = 'txr' + si + '_' + ri;
-          const detail = g.items.map(x => txItemHtml(x)).join('');
+          const byDate = {};
+          g.items.forEach(x => { (byDate[x.date] = byDate[x.date] || []).push(x); });
+          const detail = Object.keys(byDate).sort().reverse().map(d =>
+            `<div class="tx-recap-date">${dateOnlyLabel(d)}</div>${byDate[d].map(x => txItemHtml(x)).join('')}`
+          ).join('');
           return `<div class="tx-recap-row" onclick="toggleTxRecap('${id}')">
     ${iconHtml}
     <div class="tx-body"><div class="tx-cat">${name}</div><div class="tx-meta">${g.items.length} transaksi · ketuk untuk rincian</div></div>
