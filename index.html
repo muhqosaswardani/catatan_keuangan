@@ -2215,6 +2215,30 @@
       letter-spacing: .04em;
     }
 
+    .tx-recap-sum {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin: -4px 0 8px 2px;
+    }
+
+    .tx-recap-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border-radius: var(--radius-m);
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+
+    .tx-recap-detail {
+      margin: 0 0 8px 14px;
+      padding-left: 8px;
+      border-left: 2px solid var(--ink-soft);
+    }
+
     .tx-item {
       display: flex;
       align-items: center;
@@ -13131,7 +13155,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.98)';
+      const version = ' (v3.6.99)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -17249,6 +17273,42 @@
         wrap.innerHTML = banner + `<div class="empty-note">${msg}</div>`;
         return;
       }
+      const searching = txSearchOpen && txSearchQuery.trim();
+      if (!txViewFuture && !searching && txPeriodMode === 'year') {
+        wrap.innerHTML = banner + txRecapSectionsHtml(txs, t => t.date.slice(0, 7), k => monthLabel(k), true);
+        return;
+      }
+      if (!txViewFuture && !searching && txPeriodMode === 'month') {
+        const monthStart = filterMonthValue + '-01';
+        const monthEnd = filterMonthValue + '-' + pad(daysInMonth(+filterMonthValue.slice(0, 4), +filterMonthValue.slice(5, 7)));
+        wrap.innerHTML = banner + txRecapSectionsHtml(txs,
+          t => toDateStr(mondayOf(new Date(t.date + 'T00:00:00'))),
+          mon => {
+            const sun = new Date(mon + 'T00:00:00'); sun.setDate(sun.getDate() + 6);
+            const a = mon < monthStart ? monthStart : mon;
+            const b = toDateStr(sun) > monthEnd ? monthEnd : toDateStr(sun);
+            return txShortRangeLabel(a, b);
+          }, true);
+        return;
+      }
+      if (!txViewFuture && !searching && txPeriodMode === 'day') {
+        // Transaksi cuma nyimpen tanggal (tanpa jam). Waktu diambil dari updatedAt HANYA kalau
+        // tanggalnya sama dengan tanggal transaksi; selain itu masuk "Waktu tidak tercatat".
+        const slotOf = t => {
+          if (!t.updatedAt) return '9';
+          const d = new Date(t.updatedAt);
+          if (toDateStr(d) !== t.date) return '9';
+          const h = d.getHours();
+          return h < 11 ? '1' : h < 15 ? '2' : h < 18 ? '3' : '4';
+        };
+        const slotNames = { '1': 'Pagi (00.00–10.59)', '2': 'Siang (11.00–14.59)', '3': 'Sore (15.00–17.59)', '4': 'Malam (18.00–23.59)', '9': 'Waktu tidak tercatat' };
+        const slotGroups = {};
+        txs.forEach(t => { (slotGroups[slotOf(t)] = slotGroups[slotOf(t)] || []).push(t); });
+        wrap.innerHTML = banner + Object.keys(slotGroups).sort().map(k =>
+          `<div class="tx-day-group"><div class="tx-day-label">${slotNames[k]}</div>${slotGroups[k].map(t => txItemHtml(t)).join('')}</div>`
+        ).join('');
+        return;
+      }
       const groups = {};
       txs.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
       const dates = txViewFuture ? Object.keys(groups).sort() : Object.keys(groups).sort().reverse();
@@ -17256,6 +17316,54 @@
         const items = groups[date].map(t => txItemHtml(t)).join('');
         return `<div class="tx-day-group"><div class="tx-day-label">${dateOnlyLabel(date)}</div>${items}</div>`;
       }).join('');
+    }
+
+    function txShortRangeLabel(a, b) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      const da = new Date(a + 'T00:00:00'), db = new Date(b + 'T00:00:00');
+      if (a === b) return da.getDate() + ' ' + months[da.getMonth()] + ' ' + da.getFullYear();
+      return da.getDate() + ' - ' + db.getDate() + ' ' + months[db.getMonth()] + ' ' + db.getFullYear();
+    }
+    // Rekap per periode (bulan/minggu) -> per kategori (jumlah). Klik baris kategori = buka/tutup rincian transaksi.
+    function txRecapSectionsHtml(txs, keyFn, labelFn, desc) {
+      const buckets = {};
+      txs.forEach(t => { (buckets[keyFn(t)] = buckets[keyFn(t)] || []).push(t); });
+      const keys = Object.keys(buckets).sort();
+      if (desc) keys.reverse();
+      return keys.map((k, si) => {
+        const list = buckets[k];
+        let inc = 0, exp = 0;
+        const cats = {};
+        list.forEach(t => {
+          if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount;
+          const ck = t.type + '|' + (t.type === 'transfer' ? 'Transfer' : t.category);
+          (cats[ck] = cats[ck] || { type: t.type, first: t, total: 0, items: [] });
+          cats[ck].total += t.amount; cats[ck].items.push(t);
+        });
+        const rows = Object.keys(cats).map(ck => cats[ck]).sort((a, b) => b.total - a.total).map((g, ri) => {
+          const t = g.first;
+          let iconHtml, sign = '', amtClass = g.type, name = t.category;
+          if (g.type === 'transfer') { iconHtml = `<div class="tx-icon transfer">${transferSvg()}</div>`; name = 'Transfer'; }
+          else {
+            const cat = (t.categoryId ? categoryById(t.categoryId) : null) || categoryByNameAndType(t.category, g.type);
+            iconHtml = cat ? categoryIconBoxHtml(cat, { size: 38 }) : `<div class="tx-icon ${g.type}">${g.type === 'income' ? incomeSvg() : expenseSvg()}</div>`;
+            sign = g.type === 'income' ? '+' : '-';
+          }
+          const id = 'txr' + si + '_' + ri;
+          const detail = g.items.map(x => txItemHtml(x)).join('');
+          return `<div class="tx-recap-row" onclick="toggleTxRecap('${id}')">
+    ${iconHtml}
+    <div class="tx-body"><div class="tx-cat">${name}</div><div class="tx-meta">${g.items.length} transaksi · ketuk untuk rincian</div></div>
+    <div class="tx-amt ${amtClass}">${sign}${formatRupiah(g.total)}</div>
+  </div><div class="tx-recap-detail" id="${id}" style="display:none">${detail}</div>`;
+        }).join('');
+        const sum = [exp ? `Keluar ${formatRupiah(exp)}` : '', inc ? `Masuk ${formatRupiah(inc)}` : ''].filter(Boolean).join(' · ');
+        return `<div class="tx-day-group"><div class="tx-day-label">${labelFn(k)}</div>${sum ? `<div class="tx-recap-sum">${sum}</div>` : ''}${rows}</div>`;
+      }).join('');
+    }
+    function toggleTxRecap(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
     }
 
     function txItemHtml(t) {
