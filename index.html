@@ -8163,7 +8163,7 @@
             </button>
             <div class="lap-period-dropdown" id="txPeriodDropdown">
               <button type="button" class="lap-period-btn" onclick="toggleTxPeriodDropdown(event)">
-                <span id="txPeriodBtnLabel">Bulanan</span>
+                <span id="txPeriodBtnLabel">Mingguan</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
@@ -8172,9 +8172,9 @@
               <div class="lap-period-menu" id="txPeriodMenu">
                 <button type="button" class="lap-period-menu-item" id="txPeriodItemDay"
                   onclick="setTxPeriodMode('day')">Harian</button>
-                <button type="button" class="lap-period-menu-item" id="txPeriodItemWeek"
+                <button type="button" class="lap-period-menu-item active" id="txPeriodItemWeek"
                   onclick="setTxPeriodMode('week')">Mingguan</button>
-                <button type="button" class="lap-period-menu-item active" id="txPeriodItemMonth"
+                <button type="button" class="lap-period-menu-item" id="txPeriodItemMonth"
                   onclick="setTxPeriodMode('month')">Bulanan</button>
                 <button type="button" class="lap-period-menu-item" id="txPeriodItemYear"
                   onclick="setTxPeriodMode('year')">Tahunan</button>
@@ -13155,7 +13155,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.99)';
+      const version = ' (v3.6.100)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16936,7 +16936,7 @@
        RENDER: TRANSAKSI
        ========================================================= */
     let filterMonthValue = null, filterWalletValue = 'all', filterCategoryValue = 'all';
-    let txPeriodMode = 'month'; // 'day' | 'week' | 'month' | 'year' — pola sama dengan laporanPeriodMode di tab Laporan
+    let txPeriodMode = 'week'; // default Mingguan. 'day' | 'week' | 'month' | 'year' — pola sama dengan laporanPeriodMode di tab Laporan
     let txWeekStart = null; // 'YYYY-MM-DD' (Senin), dipakai saat txPeriodMode === 'week'
     let filterDayValue = null; // 'YYYY-MM-DD', dipakai saat txPeriodMode === 'day'
     let filterYearValue = null; // 'YYYY', dipakai saat txPeriodMode === 'year'
