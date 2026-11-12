@@ -13155,7 +13155,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.100)';
+      const version = ' (v3.6.101)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -16312,6 +16312,19 @@
       } else {
         filterWalletValue = 'all';
       }
+      /* Bawa kata kunci pencarian Laporan ke pencarian Transaksi, biar rincian cuma menampilkan
+         transaksi yang cocok dengan pencarian (bukan semua transaksi di kategori itu). */
+      const lapQ = (lapSearchOpen && lapSearchQuery.trim()) ? lapSearchQuery : '';
+      txSearchOpen = !!lapQ;
+      txSearchQuery = lapQ;
+      const txBtn = document.getElementById('txSearchToggleBtn');
+      const txWrap = document.getElementById('txSearchBarWrap');
+      const txInp = document.getElementById('txSearchInput');
+      const txClr = document.getElementById('txSearchClearBtn');
+      if (txBtn) txBtn.classList.toggle('active', txSearchOpen);
+      if (txWrap) txWrap.classList.toggle('open', txSearchOpen);
+      if (txInp) txInp.value = lapQ;
+      if (txClr) txClr.style.display = lapQ ? 'flex' : 'none';
       switchTab('transaksi', { push: true });
     }
 
