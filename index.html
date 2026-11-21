@@ -13164,7 +13164,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.102)';
+      const version = ' (v3.6.103)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15873,6 +15873,63 @@
         }
       }
     };
+    /* Format ringkas nilai titik grafik tren 3B: >=1jt -> "8.6jt", >=1rb -> "500rb", di bawah itu angka biasa. */
+    function formatTrendValueShort(v) {
+      const a = Math.abs(v);
+      const trim = n => { const r = Math.round(n * 10) / 10; return (r % 1 === 0) ? r.toFixed(0) : r.toFixed(1); };
+      if (a >= 999950) return trim(v / 1000000) + 'jt';
+      if (a >= 1000) return trim(v / 1000) + 'rb';
+      return String(Math.round(v));
+    }
+
+    /* Plugin custom: tampilkan nilai tiap titik langsung di grafik (khusus tren 3B).
+       Pada tiap bulan, label titik yang lebih tinggi ditaruh di atas titiknya dan yang lebih rendah di bawahnya,
+       jadi Pemasukan & Pengeluaran tidak saling menumpuk. Kalau ruang bawah habis (nilai mendekati 0),
+       label dipindah ke atas titiknya lalu digeser supaya tetap tidak bertabrakan. */
+    const trendValueLabelsPlugin = {
+      id: 'trendValueLabels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx, area = chart.chartArea;
+        const H = 12, GAP = 5;
+        const metas = [];
+        chart.data.datasets.forEach((ds, di) => { if (chart.isDatasetVisible(di)) metas.push({ ds, meta: chart.getDatasetMeta(di) }); });
+        if (!metas.length) return;
+        const count = chart.data.labels.length;
+        ctx.save();
+        ctx.font = '700 10px Inter, sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < count; i++) {
+          const items = [];
+          metas.forEach(m => {
+            const pt = m.meta.data[i];
+            const val = m.ds.data[i];
+            if (!pt || val === null || val === undefined) return;
+            items.push({ x: pt.x, y: pt.y, text: formatTrendValueShort(val), color: m.ds.borderColor, w: ctx.measureText(formatTrendValueShort(val)).width, top: 0 });
+          });
+          if (!items.length) continue;
+          items.sort((a, b) => a.y - b.y); // paling atas (nilai terbesar) dulu
+          items.forEach((it, idx) => {
+            const isUpper = idx < items.length - 1 || items.length === 1;
+            it.top = isUpper ? it.y - GAP - H : it.y + GAP;
+            if (!isUpper && it.top + H > area.bottom) it.top = it.y - GAP - H; // tidak muat di bawah -> naik ke atas titik
+          });
+          // Hindari tabrakan: geser label yang lebih atas ke atas bila menimpa label di bawahnya
+          for (let k = items.length - 2; k >= 0; k--) {
+            const upper = items[k], lower = items[k + 1];
+            if (upper.top + H + 1 > lower.top) upper.top = lower.top - H - 1;
+          }
+          items.forEach(it => {
+            const half = it.w / 2;
+            const cx = Math.max(area.left + half, Math.min(chart.width - half - 2, it.x));
+            const ty = Math.max(0, it.top);
+            ctx.fillStyle = it.color;
+            ctx.fillText(it.text, cx, ty);
+          });
+        }
+        ctx.restore();
+      }
+    };
     let chartRegistry = {};
     let homePeriod = 'month'; // 'day' | 'week' | 'month'
     const CHART_PALETTE = ['#0F766E', '#C4453B', '#B7791F', '#8A6D3B', '#1E8F5A', '#5B6A68', '#0B5951', '#D97757', '#3D5A80', '#9B5DE5'];
@@ -16935,20 +16992,23 @@
       const incomeSeries = months.map(m => allTx.filter(t => t.type === 'income' && t.date.slice(0, 7) === m && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0));
       const expenseSeries = months.map(m => allTx.filter(t => t.type === 'expense' && t.date.slice(0, 7) === m && !t.excludeFromReport).reduce((s, t) => s + t.amount, 0));
       const monthLabels = months.map(m => monthLabel(m).slice(0, 3) + ' ' + m.slice(2, 4));
+      const showValueLabels = trendMonths === 3; // label nilai langsung di grafik hanya untuk rentang 3B
       lineChartInst = new Chart(lineCanvas, {
         type: 'line',
         data: {
           labels: monthLabels,
           datasets: [
-            { label: 'Pemasukan', data: incomeSeries, borderColor: '#1E8F5A', backgroundColor: 'rgba(30,143,90,.08)', borderWidth: 3, tension: .35, fill: true, pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 20 },
-            { label: 'Pengeluaran', data: expenseSeries, borderColor: '#C4453B', backgroundColor: 'rgba(196,69,59,.08)', borderWidth: 3, tension: .35, fill: true, pointRadius: 0, pointHoverRadius: 4, pointHitRadius: 20 }
+            { label: 'Pemasukan', data: incomeSeries, borderColor: '#1E8F5A', backgroundColor: 'rgba(30,143,90,.08)', borderWidth: 3, tension: 0, fill: true, pointRadius: showValueLabels ? 3 : 0, pointHoverRadius: showValueLabels ? 3 : 4, pointHitRadius: showValueLabels ? 0 : 20, pointBackgroundColor: '#1E8F5A' },
+            { label: 'Pengeluaran', data: expenseSeries, borderColor: '#C4453B', backgroundColor: 'rgba(196,69,59,.08)', borderWidth: 3, tension: 0, fill: true, pointRadius: showValueLabels ? 3 : 0, pointHoverRadius: showValueLabels ? 3 : 4, pointHitRadius: showValueLabels ? 0 : 20, pointBackgroundColor: '#C4453B' }
           ]
         },
-        plugins: [trendCrosshairPlugin],
+        plugins: showValueLabels ? [trendValueLabelsPlugin] : [trendCrosshairPlugin],
         options: {
           animation: noAnimation ? false : { duration: 500, easing: 'easeOutQuart' },
+          // 3B: nilai sudah tampil langsung -> tanpa tooltip/klik-tahan & tanpa garis bidik. Event 'click' dipertahankan hanya supaya legenda tetap bisa di-toggle.
+          ...(showValueLabels ? { events: ['click'], layout: { padding: { top: 14, right: 18 } } } : {}),
           interaction: { mode: 'index', intersect: false },
-          plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, font: { size: 11, family: 'Inter' } } }, tooltip: { boxPadding: 6 } },
+          plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, font: { size: 11, family: 'Inter' } } }, tooltip: showValueLabels ? { enabled: false } : { boxPadding: 6 } },
           scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font: { size: 10 }, maxTicksLimit: 6 } }, x: { ticks: { font: { size: 10, autoSkip: true, maxRotation: 0 }, maxTicksLimit: trendMonths > 6 ? 6 : trendMonths } } }
         }
       });
