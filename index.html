@@ -13164,7 +13164,7 @@
     function updateSyncStatusUI(status, isManual) {
       const label = document.getElementById('lastSyncLabel');
       if (!label) return;
-      const version = ' (v3.6.104)';
+      const version = ' (v3.6.105)';
       if (status === 'syncing' && isManual) {
         label.innerHTML = ICON_SYNC + ' Sinkronisasi...' + version;
       } else if (status === 'online') {
@@ -15890,16 +15890,16 @@
       id: 'trendValueLabels',
       afterDatasetsDraw(chart) {
         const ctx = chart.ctx, area = chart.chartArea;
-        const H = 16, GAP = 8;
+        const H = 14, GAP = 6;
         const metas = [];
         chart.data.datasets.forEach((ds, di) => { if (chart.isDatasetVisible(di)) metas.push({ ds, meta: chart.getDatasetMeta(di) }); });
         if (!metas.length) return;
         const count = chart.data.labels.length;
         ctx.save();
-        ctx.font = '700 13px Inter, sans-serif';
+        ctx.font = '700 12px Inter, sans-serif';
         const halo = (getComputedStyle(document.documentElement).getPropertyValue('--surface') || '#fff').trim() || '#fff';
         ctx.lineJoin = 'round';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.strokeStyle = halo;
         ctx.textBaseline = 'top';
         ctx.textAlign = 'center';
@@ -17003,15 +17003,15 @@
         data: {
           labels: monthLabels,
           datasets: [
-            { label: 'Pemasukan', data: incomeSeries, borderColor: '#1E8F5A', backgroundColor: 'rgba(30,143,90,.08)', borderWidth: 3, tension: 0, fill: true, pointRadius: showValueLabels ? 4.5 : 0, pointHoverRadius: showValueLabels ? 4.5 : 4, pointHitRadius: showValueLabels ? 0 : 20, pointBackgroundColor: '#1E8F5A' },
-            { label: 'Pengeluaran', data: expenseSeries, borderColor: '#C4453B', backgroundColor: 'rgba(196,69,59,.08)', borderWidth: 3, tension: 0, fill: true, pointRadius: showValueLabels ? 4.5 : 0, pointHoverRadius: showValueLabels ? 4.5 : 4, pointHitRadius: showValueLabels ? 0 : 20, pointBackgroundColor: '#C4453B' }
+            { label: 'Pemasukan', data: incomeSeries, borderColor: '#1E8F5A', backgroundColor: 'rgba(30,143,90,.08)', borderWidth: 3, tension: 0, fill: true, pointRadius: showValueLabels ? 3.5 : 0, pointHoverRadius: showValueLabels ? 3.5 : 4, pointHitRadius: showValueLabels ? 0 : 20, pointBackgroundColor: '#1E8F5A' },
+            { label: 'Pengeluaran', data: expenseSeries, borderColor: '#C4453B', backgroundColor: 'rgba(196,69,59,.08)', borderWidth: 3, tension: 0, fill: true, pointRadius: showValueLabels ? 3.5 : 0, pointHoverRadius: showValueLabels ? 3.5 : 4, pointHitRadius: showValueLabels ? 0 : 20, pointBackgroundColor: '#C4453B' }
           ]
         },
         plugins: showValueLabels ? [trendValueLabelsPlugin] : [trendCrosshairPlugin],
         options: {
           animation: noAnimation ? false : { duration: 500, easing: 'easeOutQuart' },
           // 3B: nilai sudah tampil langsung -> tanpa tooltip/klik-tahan & tanpa garis bidik. Event 'click' dipertahankan hanya supaya legenda tetap bisa di-toggle.
-          ...(showValueLabels ? { events: ['click'], aspectRatio: 1.05, layout: { padding: { top: 18, right: 26, left: 4 } } } : {}),
+          ...(showValueLabels ? { events: ['click'], layout: { padding: { top: 14, right: 20 } } } : {}),
           interaction: { mode: 'index', intersect: false },
           plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 18, font: { size: 11, family: 'Inter' } } }, tooltip: showValueLabels ? { enabled: false } : { boxPadding: 6 } },
           scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: (v, i, ticks) => formatTrendAxisJt(v, i, ticks), font: { size: 10 }, maxTicksLimit: 6 } }, x: { ticks: { font: { size: 10, autoSkip: true, maxRotation: 0 }, maxTicksLimit: trendMonths > 6 ? 6 : trendMonths } } }
